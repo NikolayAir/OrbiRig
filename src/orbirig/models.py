@@ -1,6 +1,7 @@
 """Value models for command-to-telemetry consistency verification."""
 
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from enum import StrEnum
 
 
@@ -17,6 +18,19 @@ class CommandType(StrEnum):
     SET_OPERATING_MODE = "SET_OPERATING_MODE"
 
 
+class ScenarioId(StrEnum):
+    """Stable identifiers for supported verification scenarios."""
+
+    NOMINAL_TO_SAFE_MODE = "nominal_to_safe_mode"
+
+
+class ExecutionOutcome(StrEnum):
+    """Derived outcome of a verified command execution."""
+
+    PASS = "PASS"
+    FAIL = "FAIL"
+
+
 @dataclass(frozen=True, slots=True)
 class SetOperatingModeCommand:
     """Command requesting a transition to the target operating mode."""
@@ -26,6 +40,12 @@ class SetOperatingModeCommand:
         default=CommandType.SET_OPERATING_MODE,
         init=False,
     )
+
+
+SUPPORTED_SCENARIO_ID = ScenarioId.NOMINAL_TO_SAFE_MODE
+SUPPORTED_SCENARIO_COMMAND = SetOperatingModeCommand(
+    target_mode=OperatingMode.SAFE,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,3 +102,56 @@ class InvariantResult:
     passed: bool
     expected: InvariantValue
     actual: InvariantValue
+
+
+@dataclass(frozen=True, slots=True)
+class VerifiedExecutionRecord:
+    """Immutable observations and results from one verified execution."""
+
+    execution_id: str
+    executed_at: datetime
+    observation: CommandExecutionObservation
+    invariant_results: tuple[InvariantResult, ...]
+    scenario_id: ScenarioId = field(init=False)
+    outcome: ExecutionOutcome = field(init=False)
+
+    def __post_init__(self) -> None:
+        """Validate inputs and derive scenario metadata and outcome."""
+
+        if not self.execution_id.strip():
+            raise ValueError(
+                "execution_id must not be empty or whitespace-only",
+            )
+
+        if (
+            self.executed_at.tzinfo is None
+            or self.executed_at.utcoffset() != timedelta(0)
+        ):
+            raise ValueError("executed_at must be timezone-aware UTC")
+
+        if self.observation.command != SUPPORTED_SCENARIO_COMMAND:
+            raise ValueError(
+                "observation command does not match the supported "
+                "reference scenario",
+            )
+
+        if not self.invariant_results:
+            raise ValueError("invariant_results must not be empty")
+
+        object.__setattr__(
+            self,
+            "scenario_id",
+            SUPPORTED_SCENARIO_ID,
+        )
+        object.__setattr__(
+            self,
+            "outcome",
+            (
+                ExecutionOutcome.PASS
+                if all(
+                    result.passed
+                    for result in self.invariant_results
+                )
+                else ExecutionOutcome.FAIL
+            ),
+        )
