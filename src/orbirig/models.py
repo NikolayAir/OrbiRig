@@ -49,6 +49,17 @@ class TelemetrySnapshot:
     operating_mode: OperatingMode
 
 
+@dataclass(frozen=True, slots=True)
+class CommandExecutionObservation:
+    """Observed values collected around one command execution."""
+
+    command: SetOperatingModeCommand
+    pre_state: SpacecraftState
+    acknowledgement: Acknowledgement
+    post_state: SpacecraftState
+    telemetry: TelemetrySnapshot
+
+
 class InvariantId(StrEnum):
     """Stable identifiers for command-to-telemetry consistency checks."""
 
