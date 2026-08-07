@@ -6,7 +6,7 @@ from orbirig.models import (
     SetOperatingModeCommand,
 )
 from orbirig.reference_sut import ReferenceSpacecraft
-from orbirig.verification import evaluate_invariants
+from orbirig.verification import evaluate_nominal_to_safe_invariants
 from orbirig.workflow import execute_reference_workflow
 
 
@@ -32,8 +32,7 @@ def test_reference_workflow_collects_execution_observations():
 def test_reference_workflow_observations_pass_independent_verification():
     observation = _execute_safe_mode_workflow()
 
-    results = evaluate_invariants(
-        command=observation.command,
+    results = evaluate_nominal_to_safe_invariants(
         pre_state=observation.pre_state,
         acknowledgement=observation.acknowledgement,
         post_state=observation.post_state,

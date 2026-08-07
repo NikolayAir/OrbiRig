@@ -20,6 +20,7 @@ from orbirig.models import (
     SetOperatingModeCommand,
     SpacecraftState,
     TelemetrySnapshot,
+    VerifiedExecutionRecord,
 )
 from orbirig.reference_sut import ReferenceSpacecraft
 
@@ -64,18 +65,28 @@ def _observation(
 
 def _build_record(
     observation: CommandExecutionObservation,
+    *,
+    scenario_id: ScenarioId = ScenarioId.NOMINAL_TO_SAFE_MODE,
 ):
     return build_verified_execution_record(
         execution_id=EXECUTION_ID,
         executed_at=EXECUTED_AT,
+        scenario_id=scenario_id,
         observation=observation,
     )
 
 
-def _parsed_document(observation: CommandExecutionObservation):
+def _parsed_document(
+    observation: CommandExecutionObservation,
+    *,
+    scenario_id: ScenarioId = ScenarioId.NOMINAL_TO_SAFE_MODE,
+):
     return json.loads(
         serialize_verified_execution_evidence(
-            _build_record(observation),
+            _build_record(
+                observation,
+                scenario_id=scenario_id,
+            ),
         ),
     )
 
@@ -117,6 +128,7 @@ def test_public_builder_does_not_accept_arbitrary_invariant_results():
         build_verified_execution_record(
             execution_id=EXECUTION_ID,
             executed_at=EXECUTED_AT,
+            scenario_id=ScenarioId.NOMINAL_TO_SAFE_MODE,
             observation=_observation(
                 accepted=False,
             ),
@@ -294,9 +306,10 @@ def test_pass_and_fail_documents_have_equal_top_level_shape():
     assert tuple(failing_document) == expected_keys
 
 
-def test_scenario_identifier_is_derived_from_command():
+def test_selected_scenario_identifier_is_preserved():
     accepted_record = _build_record(
         _observation(),
+        scenario_id=ScenarioId.NOMINAL_TO_SAFE_MODE,
     )
     rejected_record = _build_record(
         _observation(
@@ -305,6 +318,7 @@ def test_scenario_identifier_is_derived_from_command():
             telemetry_mode=OperatingMode.NOMINAL,
             target_mode=OperatingMode.NOMINAL,
         ),
+        scenario_id=ScenarioId.NOMINAL_TO_NOMINAL_REJECTION,
     )
 
     assert (
@@ -342,6 +356,7 @@ def test_verified_record_rejects_non_utc_execution_time(
         build_verified_execution_record(
             execution_id=EXECUTION_ID,
             executed_at=executed_at,
+            scenario_id=ScenarioId.NOMINAL_TO_SAFE_MODE,
             observation=_observation(),
         )
 
@@ -361,6 +376,7 @@ def test_verified_record_rejects_empty_execution_id(
         build_verified_execution_record(
             execution_id=execution_id,
             executed_at=EXECUTED_AT,
+            scenario_id=ScenarioId.NOMINAL_TO_SAFE_MODE,
             observation=_observation(),
         )
 
@@ -370,9 +386,7 @@ def test_rejected_reference_workflow_builds_passing_record():
         spacecraft=ReferenceSpacecraft(),
         execution_id=EXECUTION_ID,
         executed_at=EXECUTED_AT,
-        command=SetOperatingModeCommand(
-            target_mode=OperatingMode.NOMINAL,
-        ),
+        scenario_id=ScenarioId.NOMINAL_TO_NOMINAL_REJECTION,
     )
 
     assert (
@@ -403,6 +417,7 @@ def test_rejected_observation_with_state_mutation_fails_verification():
             telemetry_mode=OperatingMode.SAFE,
             target_mode=OperatingMode.NOMINAL,
         ),
+        scenario_id=ScenarioId.NOMINAL_TO_NOMINAL_REJECTION,
     )
 
     assert record.outcome is ExecutionOutcome.FAIL
@@ -416,21 +431,17 @@ def test_rejected_observation_with_state_mutation_fails_verification():
 
 
 def test_rejected_reference_evidence_is_deterministic():
-    command = SetOperatingModeCommand(
-        target_mode=OperatingMode.NOMINAL,
-    )
-
     first_record = execute_verified_reference_workflow(
         spacecraft=ReferenceSpacecraft(),
         execution_id=EXECUTION_ID,
         executed_at=EXECUTED_AT,
-        command=command,
+        scenario_id=ScenarioId.NOMINAL_TO_NOMINAL_REJECTION,
     )
     second_record = execute_verified_reference_workflow(
         spacecraft=ReferenceSpacecraft(),
         execution_id=EXECUTION_ID,
         executed_at=EXECUTED_AT,
-        command=command,
+        scenario_id=ScenarioId.NOMINAL_TO_NOMINAL_REJECTION,
     )
 
     first_json = serialize_verified_execution_evidence(
@@ -463,3 +474,139 @@ def test_rejected_reference_evidence_is_deterministic():
         "operating_mode": "NOMINAL",
     }
     assert document["outcome"] == "PASS"
+
+
+def test_safe_to_nominal_sequence_builds_passing_record():
+    spacecraft = ReferenceSpacecraft()
+
+    nominal_to_safe = execute_verified_reference_workflow(
+        spacecraft=spacecraft,
+        execution_id="execution-prepare-safe",
+        executed_at=EXECUTED_AT,
+        scenario_id=ScenarioId.NOMINAL_TO_SAFE_MODE,
+    )
+    safe_to_nominal = execute_verified_reference_workflow(
+        spacecraft=spacecraft,
+        execution_id=EXECUTION_ID,
+        executed_at=EXECUTED_AT,
+        scenario_id=ScenarioId.SAFE_TO_NOMINAL_MODE,
+    )
+
+    assert nominal_to_safe.outcome is ExecutionOutcome.PASS
+    assert (
+        safe_to_nominal.scenario_id
+        is ScenarioId.SAFE_TO_NOMINAL_MODE
+    )
+    assert safe_to_nominal.observation.pre_state.operating_mode is OperatingMode.SAFE
+    assert safe_to_nominal.observation.acknowledgement.accepted is True
+    assert safe_to_nominal.observation.post_state.operating_mode is OperatingMode.NOMINAL
+    assert safe_to_nominal.observation.telemetry.operating_mode is OperatingMode.NOMINAL
+    assert safe_to_nominal.outcome is ExecutionOutcome.PASS
+
+
+def test_safe_to_nominal_expectation_is_not_reclassified_from_observation():
+    record = _build_record(
+        _observation(
+            pre_mode=OperatingMode.NOMINAL,
+            accepted=False,
+            post_mode=OperatingMode.NOMINAL,
+            telemetry_mode=OperatingMode.NOMINAL,
+            target_mode=OperatingMode.NOMINAL,
+        ),
+        scenario_id=ScenarioId.SAFE_TO_NOMINAL_MODE,
+    )
+
+    assert record.scenario_id is ScenarioId.SAFE_TO_NOMINAL_MODE
+    assert record.outcome is ExecutionOutcome.FAIL
+    assert tuple(
+        result.invariant_id
+        for result in record.invariant_results
+        if not result.passed
+    ) == (
+        InvariantId.PRE_STATE_MATCHES_EXPECTED,
+        InvariantId.ACKNOWLEDGEMENT_IS_ACCEPTED,
+    )
+
+
+def test_builder_rejects_command_incompatible_with_selected_scenario():
+    with pytest.raises(
+        ValueError,
+        match="command does not match the selected scenario",
+    ):
+        _build_record(
+            _observation(
+                target_mode=OperatingMode.SAFE,
+            ),
+            scenario_id=ScenarioId.SAFE_TO_NOMINAL_MODE,
+        )
+
+
+def test_safe_to_nominal_verified_evidence_is_deterministic():
+    observation = _observation(
+        pre_mode=OperatingMode.SAFE,
+        accepted=True,
+        post_mode=OperatingMode.NOMINAL,
+        telemetry_mode=OperatingMode.NOMINAL,
+        target_mode=OperatingMode.NOMINAL,
+    )
+
+    first_record = _build_record(
+        observation,
+        scenario_id=ScenarioId.SAFE_TO_NOMINAL_MODE,
+    )
+    second_record = _build_record(
+        observation,
+        scenario_id=ScenarioId.SAFE_TO_NOMINAL_MODE,
+    )
+
+    first_json = serialize_verified_execution_evidence(
+        first_record,
+    )
+    second_json = serialize_verified_execution_evidence(
+        second_record,
+    )
+
+    assert first_record == second_record
+    assert first_json == second_json
+
+    document = json.loads(first_json)
+
+    assert document["schema_version"] == 1
+    assert (
+        document["execution"]["scenario_id"]
+        == "safe_to_nominal_mode"
+    )
+    assert document["observation"]["pre_state"] == {
+        "operating_mode": "SAFE",
+    }
+    assert document["observation"]["acknowledgement"] == {
+        "accepted": True,
+    }
+    assert document["observation"]["post_state"] == {
+        "operating_mode": "NOMINAL",
+    }
+    assert document["observation"]["telemetry"] == {
+        "operating_mode": "NOMINAL",
+    }
+    assert document["outcome"] == "PASS"
+
+
+def test_verified_record_rejects_command_incompatible_with_selected_scenario():
+    valid_record = _build_record(
+        _observation(),
+        scenario_id=ScenarioId.NOMINAL_TO_SAFE_MODE,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="command does not match the selected scenario",
+    ):
+        VerifiedExecutionRecord(
+            execution_id=EXECUTION_ID,
+            executed_at=EXECUTED_AT,
+            scenario_id=ScenarioId.SAFE_TO_NOMINAL_MODE,
+            observation=_observation(
+                target_mode=OperatingMode.SAFE,
+            ),
+            invariant_results=valid_record.invariant_results,
+        )

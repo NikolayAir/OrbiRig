@@ -25,10 +25,11 @@ Tests can therefore pass deliberately inconsistent observations to the verifier 
 
 ## Current reference scenarios
 
-The current implementation covers two deterministic scenarios from `NOMINAL`:
+The current implementation covers three deterministic operating-mode scenarios:
 
 * accepted transition: `NOMINAL` → `SET_OPERATING_MODE(SAFE)` → `SAFE`;
-* expected rejection: `NOMINAL` → `SET_OPERATING_MODE(NOMINAL)` → `NOMINAL`.
+* expected rejection: `NOMINAL` → `SET_OPERATING_MODE(NOMINAL)` → `NOMINAL`;
+* accepted transition: `SAFE` → `SET_OPERATING_MODE(NOMINAL)` → `NOMINAL`.
 
 For each execution, OrbiRig records:
 
@@ -38,9 +39,9 @@ For each execution, OrbiRig records:
 * the operating mode after the command;
 * an operating-mode telemetry snapshot reported after execution.
 
-For the accepted transition, the independent verifier evaluates four ordered invariants:
+For accepted transitions, the independent verifier evaluates four ordered invariants:
 
-1. the pre-command state is `NOMINAL`;
+1. the pre-command state matches the expected starting mode;
 2. the acknowledgement reports that the command was accepted;
 3. the post-command state matches the requested operating mode;
 4. the telemetry value matches the observed post-command state.
@@ -62,7 +63,7 @@ It contains:
 
 * an explicit execution ID;
 * an explicit UTC execution time;
-* a scenario identifier derived from the supported command;
+* an explicitly selected supported scenario identifier;
 * the collected execution observation;
 * ordered invariant results with expected and actual values;
 * a derived `PASS` or `FAIL` outcome.
