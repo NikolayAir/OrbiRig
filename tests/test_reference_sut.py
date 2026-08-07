@@ -41,3 +41,23 @@ def test_state_snapshot_does_not_change_after_command():
 
     assert pre_state.operating_mode is OperatingMode.NOMINAL
     assert post_state.operating_mode is OperatingMode.SAFE
+
+
+def test_reference_spacecraft_rejects_nominal_to_nominal_command():
+    spacecraft = ReferenceSpacecraft()
+
+    pre_state = spacecraft.read_state()
+    pre_telemetry = spacecraft.read_telemetry()
+
+    acknowledgement = spacecraft.handle_command(
+        SetOperatingModeCommand(
+            target_mode=OperatingMode.NOMINAL,
+        ),
+    )
+
+    post_state = spacecraft.read_state()
+    post_telemetry = spacecraft.read_telemetry()
+
+    assert acknowledgement.accepted is False
+    assert post_state == pre_state
+    assert post_telemetry == pre_telemetry

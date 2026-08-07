@@ -49,3 +49,21 @@ def test_reference_workflow_observations_are_repeatable_for_fresh_spacecraft():
     second_observation = _execute_safe_mode_workflow()
 
     assert first_observation == second_observation
+
+
+def test_reference_workflow_collects_nominal_rejection():
+    observation = execute_reference_workflow(
+        spacecraft=ReferenceSpacecraft(),
+        command=SetOperatingModeCommand(
+            target_mode=OperatingMode.NOMINAL,
+        ),
+    )
+
+    assert observation.command.target_mode is OperatingMode.NOMINAL
+    assert observation.pre_state.operating_mode is OperatingMode.NOMINAL
+    assert observation.acknowledgement.accepted is False
+    assert observation.post_state == observation.pre_state
+    assert (
+        observation.telemetry.operating_mode
+        is observation.post_state.operating_mode
+    )

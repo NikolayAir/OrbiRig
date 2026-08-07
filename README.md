@@ -2,7 +2,7 @@
 
 OrbiRig is a Python-first, non-operational verification harness for a simplified spacecraft command workflow. It runs a command against a deterministic spacecraft-behaviour test double, records what happened before and after the command, checks those observations independently, and produces project-versioned JSON evidence with a derived `PASS` or `FAIL` outcome.
 
-The verification harness is the product. Its initial `ReferenceSpacecraft` implements the supported scenario and serves as the reference system under test (SUT). The scope is deliberately narrow so that command handling, observed state, telemetry, verification results, and evidence remain deterministic and directly testable.
+The verification harness is the product. Its `ReferenceSpacecraft` implements the supported reference scenarios and serves as the reference system under test (SUT). The scope is deliberately narrow so that command handling, observed state, telemetry, verification results, and evidence remain deterministic and directly testable.
 
 ## How it works
 
@@ -23,26 +23,36 @@ The reference workflow collects observations from `ReferenceSpacecraft`; it does
 
 Tests can therefore pass deliberately inconsistent observations to the verifier instead of relying only on behaviour produced by the reference SUT.
 
-## Current reference workflow
+## Current reference scenarios
 
-The current implementation covers one deterministic scenario:
+The current implementation covers two deterministic scenarios from `NOMINAL`:
 
-`NOMINAL` → `SET_OPERATING_MODE(SAFE)` → `SAFE`
+* accepted transition: `NOMINAL` → `SET_OPERATING_MODE(SAFE)` → `SAFE`;
+* expected rejection: `NOMINAL` → `SET_OPERATING_MODE(NOMINAL)` → `NOMINAL`.
 
-For each execution of the supported scenario, OrbiRig records:
+For each execution, OrbiRig records:
 
 * the command;
 * the operating mode before the command;
-* whether the command was acknowledged as accepted;
+* whether the command was acknowledged as accepted or rejected;
 * the operating mode after the command;
 * an operating-mode telemetry snapshot reported after execution.
 
-The independent verifier then evaluates four ordered invariants—explicit consistency checks on those observations:
+For the accepted transition, the independent verifier evaluates four ordered invariants:
 
 1. the pre-command state is `NOMINAL`;
 2. the acknowledgement reports that the command was accepted;
 3. the post-command state matches the requested operating mode;
 4. the telemetry value matches the observed post-command state.
+
+For the expected rejection, it instead verifies that:
+
+1. the pre-command state is `NOMINAL`;
+2. the acknowledgement reports that the command was rejected;
+3. the post-command state matches the pre-command state;
+4. the telemetry value matches the observed post-command state.
+
+A rejected command can therefore produce a verified `PASS` when the rejection and preserved state match the scenario expectations. Command rejection alone does not determine the verification outcome.
 
 ## Verified execution evidence
 
@@ -52,7 +62,7 @@ It contains:
 
 * an explicit execution ID;
 * an explicit UTC execution time;
-* a scenario identifier derived from the supported command scenario;
+* a scenario identifier derived from the supported command;
 * the collected execution observation;
 * ordered invariant results with expected and actual values;
 * a derived `PASS` or `FAIL` outcome.
@@ -81,7 +91,7 @@ record = execute_verified_reference_workflow(
 print(serialize_verified_execution_evidence(record))
 ```
 
-This executes the supported reference scenario, verifies the resulting observation, derives the execution outcome, and serialises the resulting record as versioned JSON evidence.
+This executes the default `NOMINAL`-to-`SAFE` reference scenario, verifies the resulting observation, derives the execution outcome, and serialises the resulting record as versioned JSON evidence.
 
 ## Development
 
@@ -116,7 +126,7 @@ It does not provide:
 * operational Ground Segment or mission-control functionality;
 * a spacecraft simulator or emulator;
 * ECSS, CCSDS, or other standards compliance;
-* rejected-command behaviour in the reference SUT;
+* rejected-command behaviour beyond the explicit `NOMINAL`-to-`NOMINAL` reference scenario;
 * evidence loading or replay;
 * transport adapters or integration with external systems;
 * a command-line or web interface;
