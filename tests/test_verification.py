@@ -4,13 +4,13 @@ from orbirig.models import (
     Acknowledgement,
     InvariantId,
     OperatingMode,
-    SetOperatingModeCommand,
     SpacecraftState,
     TelemetrySnapshot,
 )
 from orbirig.verification import (
-    evaluate_invariants,
     evaluate_nominal_to_nominal_rejection_invariants,
+    evaluate_nominal_to_safe_invariants,
+    evaluate_safe_to_nominal_invariants,
 )
 
 
@@ -21,10 +21,7 @@ def _evaluate(
     post_mode: OperatingMode = OperatingMode.SAFE,
     telemetry_mode: OperatingMode = OperatingMode.SAFE,
 ):
-    return evaluate_invariants(
-        command=SetOperatingModeCommand(
-            target_mode=OperatingMode.SAFE,
-        ),
+    return evaluate_nominal_to_safe_invariants(
         pre_state=SpacecraftState(operating_mode=pre_mode),
         acknowledgement=Acknowledgement(accepted=accepted),
         post_state=SpacecraftState(operating_mode=post_mode),
@@ -224,3 +221,55 @@ def test_nominal_rejection_verifier_detects_telemetry_mismatch():
     )
     assert failure.expected is OperatingMode.NOMINAL
     assert failure.actual is OperatingMode.SAFE
+
+
+def _evaluate_safe_to_nominal(
+    *,
+    pre_mode: OperatingMode = OperatingMode.SAFE,
+    accepted: bool = True,
+    post_mode: OperatingMode = OperatingMode.NOMINAL,
+    telemetry_mode: OperatingMode = OperatingMode.NOMINAL,
+):
+    return evaluate_safe_to_nominal_invariants(
+        pre_state=SpacecraftState(
+            operating_mode=pre_mode,
+        ),
+        acknowledgement=Acknowledgement(
+            accepted=accepted,
+        ),
+        post_state=SpacecraftState(
+            operating_mode=post_mode,
+        ),
+        telemetry=TelemetrySnapshot(
+            operating_mode=telemetry_mode,
+        ),
+    )
+
+
+def test_safe_to_nominal_observations_pass_in_stable_order():
+    results = _evaluate_safe_to_nominal()
+
+    assert tuple(result.invariant_id for result in results) == (
+        InvariantId.PRE_STATE_MATCHES_EXPECTED,
+        InvariantId.ACKNOWLEDGEMENT_IS_ACCEPTED,
+        InvariantId.POST_STATE_MATCHES_REQUESTED_MODE,
+        InvariantId.TELEMETRY_MATCHES_POST_STATE,
+    )
+    assert all(result.passed for result in results)
+
+
+def test_safe_to_nominal_verifier_detects_unexpected_pre_state():
+    results = _evaluate_safe_to_nominal(
+        pre_mode=OperatingMode.NOMINAL,
+    )
+
+    assert _failed_ids(results) == (
+        InvariantId.PRE_STATE_MATCHES_EXPECTED,
+    )
+
+    failure = _result_by_id(
+        results,
+        InvariantId.PRE_STATE_MATCHES_EXPECTED,
+    )
+    assert failure.expected is OperatingMode.SAFE
+    assert failure.actual is OperatingMode.NOMINAL

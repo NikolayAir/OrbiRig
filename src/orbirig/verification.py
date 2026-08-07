@@ -5,27 +5,27 @@ from orbirig.models import (
     InvariantId,
     InvariantResult,
     OperatingMode,
-    SetOperatingModeCommand,
     SpacecraftState,
     TelemetrySnapshot,
 )
 
 
-def evaluate_invariants(
+def _evaluate_accepted_transition_invariants(
     *,
-    command: SetOperatingModeCommand,
+    expected_pre_mode: OperatingMode,
+    expected_target_mode: OperatingMode,
     pre_state: SpacecraftState,
     acknowledgement: Acknowledgement,
     post_state: SpacecraftState,
     telemetry: TelemetrySnapshot,
 ) -> tuple[InvariantResult, ...]:
-    """Evaluate NOMINAL-to-SAFE acceptance invariants in a stable order."""
+    """Evaluate shared accepted-transition invariants in a stable order."""
 
     return (
         InvariantResult(
             invariant_id=InvariantId.PRE_STATE_MATCHES_EXPECTED,
-            passed=pre_state.operating_mode is OperatingMode.NOMINAL,
-            expected=OperatingMode.NOMINAL,
+            passed=pre_state.operating_mode is expected_pre_mode,
+            expected=expected_pre_mode,
             actual=pre_state.operating_mode,
         ),
         InvariantResult(
@@ -36,8 +36,8 @@ def evaluate_invariants(
         ),
         InvariantResult(
             invariant_id=InvariantId.POST_STATE_MATCHES_REQUESTED_MODE,
-            passed=post_state.operating_mode is command.target_mode,
-            expected=command.target_mode,
+            passed=post_state.operating_mode is expected_target_mode,
+            expected=expected_target_mode,
             actual=post_state.operating_mode,
         ),
         InvariantResult(
@@ -46,6 +46,44 @@ def evaluate_invariants(
             expected=post_state.operating_mode,
             actual=telemetry.operating_mode,
         ),
+    )
+
+
+def evaluate_nominal_to_safe_invariants(
+    *,
+    pre_state: SpacecraftState,
+    acknowledgement: Acknowledgement,
+    post_state: SpacecraftState,
+    telemetry: TelemetrySnapshot,
+) -> tuple[InvariantResult, ...]:
+    """Evaluate NOMINAL-to-SAFE acceptance invariants in a stable order."""
+
+    return _evaluate_accepted_transition_invariants(
+        expected_pre_mode=OperatingMode.NOMINAL,
+        expected_target_mode=OperatingMode.SAFE,
+        pre_state=pre_state,
+        acknowledgement=acknowledgement,
+        post_state=post_state,
+        telemetry=telemetry,
+    )
+
+
+def evaluate_safe_to_nominal_invariants(
+    *,
+    pre_state: SpacecraftState,
+    acknowledgement: Acknowledgement,
+    post_state: SpacecraftState,
+    telemetry: TelemetrySnapshot,
+) -> tuple[InvariantResult, ...]:
+    """Evaluate SAFE-to-NOMINAL acceptance invariants in a stable order."""
+
+    return _evaluate_accepted_transition_invariants(
+        expected_pre_mode=OperatingMode.SAFE,
+        expected_target_mode=OperatingMode.NOMINAL,
+        pre_state=pre_state,
+        acknowledgement=acknowledgement,
+        post_state=post_state,
+        telemetry=telemetry,
     )
 
 

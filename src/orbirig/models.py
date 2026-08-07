@@ -23,6 +23,7 @@ class ScenarioId(StrEnum):
 
     NOMINAL_TO_SAFE_MODE = "nominal_to_safe_mode"
     NOMINAL_TO_NOMINAL_REJECTION = "nominal_to_nominal_rejection"
+    SAFE_TO_NOMINAL_MODE = "safe_to_nominal_mode"
 
 
 class ExecutionOutcome(StrEnum):
@@ -43,28 +44,29 @@ class SetOperatingModeCommand:
     )
 
 
-NOMINAL_TO_SAFE_COMMAND = SetOperatingModeCommand(
+SET_SAFE_MODE_COMMAND = SetOperatingModeCommand(
     target_mode=OperatingMode.SAFE,
 )
-NOMINAL_TO_NOMINAL_COMMAND = SetOperatingModeCommand(
+SET_NOMINAL_MODE_COMMAND = SetOperatingModeCommand(
     target_mode=OperatingMode.NOMINAL,
 )
 
 
-def derive_scenario_id(
-    command: SetOperatingModeCommand,
-) -> ScenarioId:
-    """Return the supported scenario identifier for a command."""
+def command_for_scenario(
+    scenario_id: ScenarioId,
+) -> SetOperatingModeCommand:
+    """Return the command required by a supported verification scenario."""
 
-    if command == NOMINAL_TO_SAFE_COMMAND:
-        return ScenarioId.NOMINAL_TO_SAFE_MODE
+    if scenario_id is ScenarioId.NOMINAL_TO_SAFE_MODE:
+        return SET_SAFE_MODE_COMMAND
 
-    if command == NOMINAL_TO_NOMINAL_COMMAND:
-        return ScenarioId.NOMINAL_TO_NOMINAL_REJECTION
+    if scenario_id in (
+        ScenarioId.NOMINAL_TO_NOMINAL_REJECTION,
+        ScenarioId.SAFE_TO_NOMINAL_MODE,
+    ):
+        return SET_NOMINAL_MODE_COMMAND
 
-    raise ValueError(
-        "observation command does not match a supported reference scenario",
-    )
+    raise ValueError("unsupported verification scenario")
 
 
 @dataclass(frozen=True, slots=True)
@@ -131,9 +133,9 @@ class VerifiedExecutionRecord:
 
     execution_id: str
     executed_at: datetime
+    scenario_id: ScenarioId
     observation: CommandExecutionObservation
     invariant_results: tuple[InvariantResult, ...]
-    scenario_id: ScenarioId = field(init=False)
     outcome: ExecutionOutcome = field(init=False)
 
     def __post_init__(self) -> None:
@@ -150,18 +152,17 @@ class VerifiedExecutionRecord:
         ):
             raise ValueError("executed_at must be timezone-aware UTC")
 
-        scenario_id = derive_scenario_id(
-            self.observation.command,
-        )
+        if (
+            self.observation.command
+            != command_for_scenario(self.scenario_id)
+        ):
+            raise ValueError(
+                "observation command does not match the selected scenario",
+            )
 
         if not self.invariant_results:
             raise ValueError("invariant_results must not be empty")
 
-        object.__setattr__(
-            self,
-            "scenario_id",
-            scenario_id,
-        )
         object.__setattr__(
             self,
             "outcome",

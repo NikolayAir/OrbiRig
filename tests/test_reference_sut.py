@@ -61,3 +61,28 @@ def test_reference_spacecraft_rejects_nominal_to_nominal_command():
     assert acknowledgement.accepted is False
     assert post_state == pre_state
     assert post_telemetry == pre_telemetry
+
+
+def test_reference_spacecraft_applies_nominal_command_from_safe_mode():
+    spacecraft = ReferenceSpacecraft()
+
+    spacecraft.handle_command(
+        SetOperatingModeCommand(
+            target_mode=OperatingMode.SAFE,
+        ),
+    )
+
+    assert spacecraft.read_state().operating_mode is OperatingMode.SAFE
+
+    acknowledgement = spacecraft.handle_command(
+        SetOperatingModeCommand(
+            target_mode=OperatingMode.NOMINAL,
+        ),
+    )
+
+    assert acknowledgement.accepted is True
+    assert spacecraft.read_state().operating_mode is OperatingMode.NOMINAL
+    assert (
+        spacecraft.read_telemetry().operating_mode
+        is OperatingMode.NOMINAL
+    )
