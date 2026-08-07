@@ -10,7 +10,7 @@ from orbirig.models import (
 
 
 class ReferenceSpacecraft:
-    """Deterministic test double for the initial command scenario."""
+    """Deterministic test double for the supported command scenarios."""
 
     def __init__(self) -> None:
         self._operating_mode = OperatingMode.NOMINAL
@@ -24,11 +24,17 @@ class ReferenceSpacecraft:
         self,
         command: SetOperatingModeCommand,
     ) -> Acknowledgement:
-        """Accept and apply an operating-mode command."""
+        """Handle an operating-mode command deterministically."""
 
-        acknowledgement = Acknowledgement(accepted=True)
+        # Keep rejection limited to the explicit NOMINAL-to-NOMINAL scenario.
+        if (
+            self._operating_mode is OperatingMode.NOMINAL
+            and command.target_mode is OperatingMode.NOMINAL
+        ):
+            return Acknowledgement(accepted=False)
+
         self._operating_mode = command.target_mode
-        return acknowledgement
+        return Acknowledgement(accepted=True)
 
     def read_telemetry(self) -> TelemetrySnapshot:
         """Return telemetry derived from the current state."""

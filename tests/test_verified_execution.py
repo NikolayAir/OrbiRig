@@ -294,22 +294,27 @@ def test_pass_and_fail_documents_have_equal_top_level_shape():
     assert tuple(failing_document) == expected_keys
 
 
-def test_scenario_identifier_is_derived_from_supported_scenario():
-    record = _build_record(_observation())
-
-    assert record.scenario_id is ScenarioId.NOMINAL_TO_SAFE_MODE
-
-    unsupported_observation = _observation(
-        target_mode=OperatingMode.NOMINAL,
-        post_mode=OperatingMode.NOMINAL,
-        telemetry_mode=OperatingMode.NOMINAL,
+def test_scenario_identifier_is_derived_from_command():
+    accepted_record = _build_record(
+        _observation(),
+    )
+    rejected_record = _build_record(
+        _observation(
+            accepted=False,
+            post_mode=OperatingMode.NOMINAL,
+            telemetry_mode=OperatingMode.NOMINAL,
+            target_mode=OperatingMode.NOMINAL,
+        ),
     )
 
-    with pytest.raises(
-        ValueError,
-        match="supported reference scenario",
-    ):
-        _build_record(unsupported_observation)
+    assert (
+        accepted_record.scenario_id
+        is ScenarioId.NOMINAL_TO_SAFE_MODE
+    )
+    assert (
+        rejected_record.scenario_id
+        is ScenarioId.NOMINAL_TO_NOMINAL_REJECTION
+    )
 
 
 @pytest.mark.parametrize(
@@ -358,3 +363,103 @@ def test_verified_record_rejects_empty_execution_id(
             executed_at=EXECUTED_AT,
             observation=_observation(),
         )
+
+
+def test_rejected_reference_workflow_builds_passing_record():
+    record = execute_verified_reference_workflow(
+        spacecraft=ReferenceSpacecraft(),
+        execution_id=EXECUTION_ID,
+        executed_at=EXECUTED_AT,
+        command=SetOperatingModeCommand(
+            target_mode=OperatingMode.NOMINAL,
+        ),
+    )
+
+    assert (
+        record.scenario_id
+        is ScenarioId.NOMINAL_TO_NOMINAL_REJECTION
+    )
+    assert record.outcome is ExecutionOutcome.PASS
+    assert tuple(
+        result.invariant_id
+        for result in record.invariant_results
+    ) == (
+        InvariantId.PRE_STATE_MATCHES_EXPECTED,
+        InvariantId.ACKNOWLEDGEMENT_IS_REJECTED,
+        InvariantId.POST_STATE_MATCHES_PRE_STATE,
+        InvariantId.TELEMETRY_MATCHES_POST_STATE,
+    )
+    assert all(
+        result.passed
+        for result in record.invariant_results
+    )
+
+
+def test_rejected_observation_with_state_mutation_fails_verification():
+    record = _build_record(
+        _observation(
+            accepted=False,
+            post_mode=OperatingMode.SAFE,
+            telemetry_mode=OperatingMode.SAFE,
+            target_mode=OperatingMode.NOMINAL,
+        ),
+    )
+
+    assert record.outcome is ExecutionOutcome.FAIL
+    assert tuple(
+        result.invariant_id
+        for result in record.invariant_results
+        if not result.passed
+    ) == (
+        InvariantId.POST_STATE_MATCHES_PRE_STATE,
+    )
+
+
+def test_rejected_reference_evidence_is_deterministic():
+    command = SetOperatingModeCommand(
+        target_mode=OperatingMode.NOMINAL,
+    )
+
+    first_record = execute_verified_reference_workflow(
+        spacecraft=ReferenceSpacecraft(),
+        execution_id=EXECUTION_ID,
+        executed_at=EXECUTED_AT,
+        command=command,
+    )
+    second_record = execute_verified_reference_workflow(
+        spacecraft=ReferenceSpacecraft(),
+        execution_id=EXECUTION_ID,
+        executed_at=EXECUTED_AT,
+        command=command,
+    )
+
+    first_json = serialize_verified_execution_evidence(
+        first_record,
+    )
+    second_json = serialize_verified_execution_evidence(
+        second_record,
+    )
+
+    assert first_record == second_record
+    assert first_json == second_json
+
+    document = json.loads(first_json)
+
+    assert document["schema_version"] == 1
+    assert (
+        document["execution"]["scenario_id"]
+        == "nominal_to_nominal_rejection"
+    )
+    assert document["observation"]["acknowledgement"] == {
+        "accepted": False,
+    }
+    assert document["observation"]["pre_state"] == {
+        "operating_mode": "NOMINAL",
+    }
+    assert document["observation"]["post_state"] == {
+        "operating_mode": "NOMINAL",
+    }
+    assert document["observation"]["telemetry"] == {
+        "operating_mode": "NOMINAL",
+    }
+    assert document["outcome"] == "PASS"

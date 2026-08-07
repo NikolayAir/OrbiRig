@@ -22,6 +22,7 @@ class ScenarioId(StrEnum):
     """Stable identifiers for supported verification scenarios."""
 
     NOMINAL_TO_SAFE_MODE = "nominal_to_safe_mode"
+    NOMINAL_TO_NOMINAL_REJECTION = "nominal_to_nominal_rejection"
 
 
 class ExecutionOutcome(StrEnum):
@@ -42,10 +43,28 @@ class SetOperatingModeCommand:
     )
 
 
-SUPPORTED_SCENARIO_ID = ScenarioId.NOMINAL_TO_SAFE_MODE
-SUPPORTED_SCENARIO_COMMAND = SetOperatingModeCommand(
+NOMINAL_TO_SAFE_COMMAND = SetOperatingModeCommand(
     target_mode=OperatingMode.SAFE,
 )
+NOMINAL_TO_NOMINAL_COMMAND = SetOperatingModeCommand(
+    target_mode=OperatingMode.NOMINAL,
+)
+
+
+def derive_scenario_id(
+    command: SetOperatingModeCommand,
+) -> ScenarioId:
+    """Return the supported scenario identifier for a command."""
+
+    if command == NOMINAL_TO_SAFE_COMMAND:
+        return ScenarioId.NOMINAL_TO_SAFE_MODE
+
+    if command == NOMINAL_TO_NOMINAL_COMMAND:
+        return ScenarioId.NOMINAL_TO_NOMINAL_REJECTION
+
+    raise ValueError(
+        "observation command does not match a supported reference scenario",
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,9 +104,11 @@ class InvariantId(StrEnum):
 
     PRE_STATE_MATCHES_EXPECTED = "pre_state_matches_expected"
     ACKNOWLEDGEMENT_IS_ACCEPTED = "acknowledgement_is_accepted"
+    ACKNOWLEDGEMENT_IS_REJECTED = "acknowledgement_is_rejected"
     POST_STATE_MATCHES_REQUESTED_MODE = (
         "post_state_matches_requested_mode"
     )
+    POST_STATE_MATCHES_PRE_STATE = "post_state_matches_pre_state"
     TELEMETRY_MATCHES_POST_STATE = "telemetry_matches_post_state"
 
 
@@ -129,11 +150,9 @@ class VerifiedExecutionRecord:
         ):
             raise ValueError("executed_at must be timezone-aware UTC")
 
-        if self.observation.command != SUPPORTED_SCENARIO_COMMAND:
-            raise ValueError(
-                "observation command does not match the supported "
-                "reference scenario",
-            )
+        scenario_id = derive_scenario_id(
+            self.observation.command,
+        )
 
         if not self.invariant_results:
             raise ValueError("invariant_results must not be empty")
@@ -141,7 +160,7 @@ class VerifiedExecutionRecord:
         object.__setattr__(
             self,
             "scenario_id",
-            SUPPORTED_SCENARIO_ID,
+            scenario_id,
         )
         object.__setattr__(
             self,
