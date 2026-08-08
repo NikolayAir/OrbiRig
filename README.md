@@ -106,10 +106,16 @@ Create and activate a Python 3.12 virtual environment, then install the project 
 python -m pip install -e ".[test,dev]"
 ```
 
-Run the automated tests:
+Run the pytest suite:
 
 ```bash
 python -m pytest -q
+```
+
+Run the Behave scenarios:
+
+```bash
+behave
 ```
 
 Run the configured Ruff lint checks:
@@ -118,7 +124,7 @@ Run the configured Ruff lint checks:
 python -m ruff check .
 ```
 
-GitHub Actions runs package-import checks, Ruff linting, and the pytest suite on Python 3.12 for pull requests and pushes to `main`.
+GitHub Actions runs package-import checks, Ruff linting, the pytest suite, and the Behave scenarios on Python 3.12 for pull requests and pushes to `main`.
 
 ## Current limitations
 
