@@ -55,6 +55,8 @@ For the expected rejection, it instead verifies that:
 
 A rejected command can therefore produce a verified `PASS` when the rejection and preserved state match the scenario expectations. Command rejection alone does not determine the verification outcome.
 
+The three supported operating-mode workflows are also represented as Behave scenarios and run in the existing Python 3.12 GitHub Actions CI job. pytest remains the detailed verification suite for invariant failures, intentionally inconsistent observations, determinism, and evidence behaviour.
+
 ## Verified execution evidence
 
 The primary evidence artefact is an immutable `VerifiedExecutionRecord`.
@@ -131,7 +133,7 @@ It does not provide:
 * evidence loading or replay;
 * transport adapters or integration with external systems;
 * a command-line or web interface;
-* BDD/Gherkin workflows, test reporting, or requirements traceability;
+* BDD/Gherkin coverage beyond the three supported operating-mode scenarios, test reporting, or requirements traceability;
 * fault injection;
 * flight-dynamics or orbital-mechanics modelling.
 

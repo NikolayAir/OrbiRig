@@ -46,3 +46,6 @@ jobs:
 
       - name: Run tests
         run: python -m pytest -q
+
+      - name: Run Behave scenarios
+        run: behave
