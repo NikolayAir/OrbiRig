@@ -1,10 +1,12 @@
 # OrbiRig
 
-OrbiRig is a non-operational Python verification harness for simplified spacecraft operating-mode command workflows. It collects command execution observations, evaluates them against explicit scenario expectations, and produces deterministic versioned JSON evidence, including verified execution records with derived `PASS` or `FAIL` outcomes.
+OrbiRig is a non-operational Python verification harness for simplified spacecraft operating-mode command workflows. It collects command-execution observations, evaluates them against explicit scenario expectations, and produces deterministic versioned JSON evidence, including verified execution records with derived `PASS` or `FAIL` outcomes.
 
-The verification harness is the product. `ReferenceSpacecraft` is a deterministic simplified spacecraft-behaviour test double that serves as the reference system under test (SUT); it supplies repeatable behaviour for the supported scenarios but does not define the expected verification result.
+The harness is the product. `ReferenceSpacecraft` is a deterministic, simplified spacecraft-behaviour test double and reference system under test (SUT): it supplies repeatable behaviour for the supported scenarios, but it is not the verification oracle.
 
-**Stack:** Python · pytest · Behave · Ruff · GitHub Actions
+**Core:** Python
+
+**Verification:** pytest · Behave · Ruff · GitHub Actions
 
 ## Key capabilities
 
@@ -13,9 +15,9 @@ The verification harness is the product. `ReferenceSpacecraft` is a deterministi
 * distinguish expected command rejection from failed verification;
 * verify operating-mode continuity across explicitly ordered verified execution records;
 * serialise observations and verified execution records to deterministic versioned JSON;
-* strictly deserialise observation evidence format version `1` while keeping structural and value validation separate from semantic verification.
+* strictly deserialise observation evidence format version `1`, keeping structural and value validity separate from semantic verification.
 
-## How it works
+## Verification flow
 
 ```mermaid
 flowchart LR
@@ -29,83 +31,55 @@ flowchart LR
 
     scenario --> verifier["Independent verification"]
     observation --> verifier
-    verifier --> record["VerifiedExecutionRecord<br/>ordered invariants + derived outcome"]
-    metadata["Execution ID + UTC time"] --> record
+    metadata["Execution ID + UTC time"] --> record["VerifiedExecutionRecord<br/>ordered invariants + derived outcome"]
+    verifier --> record
     record --> evidence["Verified execution JSON"]
+
+    records["Explicitly ordered<br/>VerifiedExecutionRecord instances"] --> continuity["Ordered continuity verification"]
+    continuity --> sequence["VerifiedExecutionSequence<br/>boundary results + derived outcome"]
 ```
 
-Fresh observations are collected by the reference workflow around one command execution. Persisted version `1` observation JSON reaches the same `CommandExecutionObservation` model through a separate strict deserialisation boundary.
-
-In both paths, semantic verification uses an explicitly supplied scenario expectation rather than an expectation inferred from the observation.
+Fresh observations are collected around one command execution. Persisted version `1` observation JSON reaches the same `CommandExecutionObservation` model through a separate strict deserialisation boundary. In either path, the caller supplies the scenario expectation; it is never inferred from the observation.
 
 ## Verification boundaries
 
-* `ReferenceSpacecraft` provides deterministic reference behaviour; it is not the verification oracle.
-* `ScenarioId` remains external to execution observations. Observation evidence does not store, infer, derive, or select its own expected scenario.
-* Successful observation-evidence deserialisation establishes supported structural and value validity only; it does not establish verification success.
-* Expected command rejection can produce `PASS` when the rejection and preserved state match the selected scenario expectations. Structurally valid or accepted observations can still produce `FAIL`.
-* Tests deliberately pass inconsistent observations to the verifier so verification behaviour is not validated only against observations produced by the reference SUT.
+`ReferenceSpacecraft` provides deterministic reference behaviour, while the verifier evaluates observations independently. Successful observation-evidence deserialisation establishes only supported structural and value validity; it does not establish verification success.
+
+Observation evidence does not store, infer, derive, or select a `ScenarioId`. A structurally valid observation, including one with an accepted acknowledgement, can still fail verification. Conversely, an expected command rejection passes when its rejection and preserved state satisfy the selected scenario expectations. Tests also submit inconsistent observations directly to the verifier, so verification is not validated only against output from the reference SUT.
 
 ## Supported reference scenarios
 
-The current implementation supports three deterministic operating-mode scenarios:
+| Scenario | Pre-state | Command | Expected acknowledgement | Expected post-state |
+| --- | --- | --- | --- | --- |
+| `NOMINAL_TO_SAFE_MODE` | `NOMINAL` | `SET_OPERATING_MODE(SAFE)` | accepted | `SAFE` |
+| `NOMINAL_TO_NOMINAL_REJECTION` | `NOMINAL` | `SET_OPERATING_MODE(NOMINAL)` | rejected | `NOMINAL` |
+| `SAFE_TO_NOMINAL_MODE` | `SAFE` | `SET_OPERATING_MODE(NOMINAL)` | accepted | `NOMINAL` |
 
-| Scenario                       | Pre-state | Command                       | Expected acknowledgement | Expected post-state |
-| ------------------------------ | --------- | ----------------------------- | ------------------------ | ------------------- |
-| `NOMINAL_TO_SAFE_MODE`         | `NOMINAL` | `SET_OPERATING_MODE(SAFE)`    | accepted                 | `SAFE`              |
-| `NOMINAL_TO_NOMINAL_REJECTION` | `NOMINAL` | `SET_OPERATING_MODE(NOMINAL)` | rejected                 | `NOMINAL`           |
-| `SAFE_TO_NOMINAL_MODE`         | `SAFE`    | `SET_OPERATING_MODE(NOMINAL)` | accepted                 | `NOMINAL`           |
-
-For accepted transitions, the verifier checks the expected pre-state, accepted acknowledgement, requested post-state, and telemetry consistency with the observed post-state.
-
-For the expected rejection, it checks the expected `NOMINAL` pre-state, rejected acknowledgement, preservation of the pre-command state, and telemetry consistency with the observed post-state.
-
-The same three supported workflows are represented as Behave scenarios. Detailed invariant failures, negative cases, determinism, evidence behaviour, and deserialisation boundaries remain covered in pytest.
+For accepted transitions, verification checks the expected pre-state, accepted acknowledgement, requested post-state, and telemetry consistency with the observed post-state. For the expected rejection, it checks the expected `NOMINAL` pre-state, rejected acknowledgement, state preservation, and telemetry consistency with the observed post-state. The same three workflows are represented as Behave scenarios; detailed negative cases, determinism, evidence behaviour, and deserialisation boundaries are covered in pytest.
 
 ## Ordered execution continuity
 
-`verify_execution_sequence(...)` evaluates an explicitly ordered collection of at least two existing `VerifiedExecutionRecord` instances. For each adjacent pair, it compares the previous post-state operating mode with the next pre-state operating mode and retains both execution IDs and the expected and observed modes.
+`verify_execution_sequence(...)` evaluates an explicitly ordered collection of at least two existing `VerifiedExecutionRecord` instances. For every adjacent pair, it compares the previous post-state operating mode with the next pre-state operating mode and retains both execution IDs, the expected and observed modes, and the boundary result.
 
-The supplied order is authoritative: the verifier does not sort or infer order from timestamps, execution IDs, or scenarios. A sequence produces `PASS` only when every member record already has a `PASS` outcome and every continuity boundary passes. Member scenario invariants are not re-evaluated.
-
-Sequence verification is pure and does not execute commands or mutate a SUT. Sequence results are not serialised or persisted, and the capability does not provide replay or transport integration.
+Supplied order is authoritative: the verifier does not sort or infer order from timestamps, execution IDs, or scenarios. A sequence passes only when every member record already passes and every continuity boundary passes; member scenario invariants are not re-evaluated. The verifier is pure: it neither executes commands nor mutates a SUT.
 
 ## Execution evidence
 
-OrbiRig currently uses two related evidence representations.
+OrbiRig has two serialised evidence representations.
 
 ### Observation evidence
 
-Observation evidence records only what was observed around one command execution:
+Observation evidence records the command, pre-command state, acknowledgement, post-command state, and telemetry from one execution. `serialize_execution_evidence(...)` writes deterministic JSON using observation evidence format version `1`; `deserialize_execution_evidence(...)` strictly reconstructs a `CommandExecutionObservation` and rejects malformed JSON, unsupported versions, invalid shapes, missing or unexpected fields, incorrect primitive types, unknown modes, and unsupported command types.
 
-* command type and requested operating mode;
-* pre-command state;
-* acknowledgement;
-* post-command state;
-* telemetry.
-
-`serialize_execution_evidence(...)` writes this data as deterministic JSON using observation evidence format version `1`.
-
-`deserialize_execution_evidence(...)` strictly reconstructs a `CommandExecutionObservation` from version `1` JSON. It rejects malformed JSON, unsupported versions, incorrect root or nested shapes, missing or unexpected fields, incorrect primitive types, unknown operating modes, and unsupported command types.
-
-Observation evidence does not contain a `ScenarioId`, invariant results, or a verification outcome.
+Observation evidence contains neither `ScenarioId`, invariant results, nor a verification outcome. Its successful deserialisation therefore does not attest semantic verification.
 
 ### Verified execution records
 
-`VerifiedExecutionRecord` combines:
+`VerifiedExecutionRecord` combines an explicit execution ID, UTC execution time, selected `ScenarioId`, observation, ordered invariant results with expected and actual values, and a derived outcome. It passes only when every invariant passes.
 
-* an explicit execution ID;
-* an explicit UTC execution time;
-* the explicitly selected `ScenarioId`;
-* the execution observation;
-* ordered invariant results with expected and actual values;
-* a derived `PASS` or `FAIL` outcome.
+`serialize_verified_execution_evidence(...)` writes deterministic JSON using verified-execution schema version `1`. Deserialisation of verified execution records is not implemented. Package versions and evidence/schema versions are independent version domains; one does not imply a change to the other.
 
-The outcome is `PASS` only when every invariant result passes.
-
-`serialize_verified_execution_evidence(...)` writes the record as deterministic JSON using verified-execution schema version `1`. Deserialisation of `VerifiedExecutionRecord` is not currently implemented.
-
-The package release version and evidence-format versions are separate version domains. Package version `0.3.0` continues to use observation evidence format version `1` and verified-execution schema version `1`; these versions do not advance automatically with the package version.
+Ordered sequence results are not serialised or persisted.
 
 ## Usage
 
@@ -129,8 +103,6 @@ record = execute_verified_reference_workflow(
 print(serialize_verified_execution_evidence(record))
 ```
 
-This executes the explicitly selected `NOMINAL_TO_SAFE_MODE` reference scenario, verifies the collected observation, derives the outcome, and serialises the resulting verified execution record.
-
 ### Verify loaded observation evidence
 
 ```python
@@ -153,19 +125,17 @@ record = build_verified_execution_record(
 )
 ```
 
-Deserialisation validates the persisted observation representation. The explicit `ScenarioId` supplied to `build_verified_execution_record(...)` determines which expectations are subsequently evaluated; it is not recovered or inferred from the loaded evidence.
+The explicit `ScenarioId` supplied to `build_verified_execution_record(...)` selects the expectations for the loaded observation; it is not recovered or inferred from the loaded evidence.
 
-## Run locally
+## Local setup
 
-OrbiRig currently targets Python 3.12.
-
-Create and activate a Python 3.12 virtual environment, then install the project with its test and development dependencies:
+OrbiRig targets Python 3.12. Create and activate a Python 3.12 virtual environment, then install the project with its test and development dependencies:
 
 ```bash
 python -m pip install -e ".[test,dev]"
 ```
 
-## Checks
+## Verification
 
 Run the pytest suite:
 
@@ -185,28 +155,27 @@ Run the configured Ruff checks:
 python -m ruff check .
 ```
 
-GitHub Actions runs package-import checks, Ruff, pytest, and the Behave scenarios on Python 3.12 for pull requests and pushes to `main`.
+GitHub Actions runs package-import checks, Ruff, pytest, and Behave on Python 3.12 for pull requests and pushes to `main`.
+
+## Releases
+
+Versioned release notes are available in [GitHub Releases](https://github.com/NikolayAir/OrbiRig/releases).
 
 ## Current limitations
 
-The current implementation intentionally covers a narrow verification scope.
-
-It does not provide:
+OrbiRig intentionally does not provide:
 
 * operational Ground Segment or mission-control functionality;
 * spacecraft simulator or emulator functionality;
 * ECSS, CCSDS, or other standards compliance;
-* verification scenarios beyond the three supported operating-mode cases;
-* deserialisation of `VerifiedExecutionRecord` or trust in persisted invariant results or outcomes;
-* storage abstractions;
-* execution replay;
-* transport adapters or integration with external systems;
-* reporting integrations or requirements traceability;
+* scenarios beyond the three supported operating-mode cases;
+* deserialisation of verified execution records, trust in persisted invariant results or outcomes, or sequence serialisation;
+* storage, persistence, replay, transport adapters, or external-system integration;
+* reporting or requirements-traceability integrations;
 * a command-line or web interface;
-* fault injection;
-* flight-dynamics or orbital-mechanics modelling.
+* fault injection, flight-dynamics, or orbital-mechanics modelling.
 
-These capabilities should not be inferred from the implemented operating-mode verification and evidence workflows.
+These capabilities must not be inferred from the implemented verification and evidence workflows.
 
 ## Security
 
