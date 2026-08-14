@@ -176,6 +176,35 @@ def test_missing_root_field_is_rejected():
         )
 
 
+def test_duplicate_root_field_is_rejected():
+    serialized = _serialized(_document()).replace(
+        '"evidence_format_version": 1',
+        '"evidence_format_version": 1, '
+        '"evidence_format_version": 1',
+        1,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="duplicate JSON object member name",
+    ):
+        deserialize_execution_evidence(serialized)
+
+
+def test_duplicate_nested_field_is_rejected():
+    serialized = _serialized(_document()).replace(
+        '"accepted": true',
+        '"accepted": true, "accepted": false',
+        1,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="duplicate JSON object member name",
+    ):
+        deserialize_execution_evidence(serialized)
+
+
 def test_scenario_id_is_rejected_at_root_boundary():
     document = _document()
     document["scenario_id"] = "nominal_to_safe_mode"
