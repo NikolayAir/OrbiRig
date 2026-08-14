@@ -1,12 +1,17 @@
 """Independent command-to-telemetry consistency verification."""
 
+from collections.abc import Sequence
+
 from orbirig.models import (
     Acknowledgement,
+    ContinuityBoundaryResult,
     InvariantId,
     InvariantResult,
     OperatingMode,
     SpacecraftState,
     TelemetrySnapshot,
+    VerifiedExecutionRecord,
+    VerifiedExecutionSequence,
 )
 
 
@@ -127,4 +132,39 @@ def evaluate_nominal_to_nominal_rejection_invariants(
             expected=post_state.operating_mode,
             actual=telemetry.operating_mode,
         ),
+    )
+
+
+def verify_execution_sequence(
+    records: Sequence[VerifiedExecutionRecord],
+) -> VerifiedExecutionSequence:
+    """Verify operating-mode continuity in authoritative input order."""
+
+    ordered_records = tuple(records)
+
+    if len(ordered_records) < 2:
+        raise ValueError(
+            "verified execution sequence requires at least two records",
+        )
+
+    continuity_results = tuple(
+        ContinuityBoundaryResult(
+            previous_execution_id=previous.execution_id,
+            next_execution_id=next_record.execution_id,
+            expected_operating_mode=(
+                previous.observation.post_state.operating_mode
+            ),
+            observed_operating_mode=(
+                next_record.observation.pre_state.operating_mode
+            ),
+        )
+        for previous, next_record in zip(
+            ordered_records,
+            ordered_records[1:],
+        )
+    )
+
+    return VerifiedExecutionSequence(
+        records=ordered_records,
+        continuity_results=continuity_results,
     )

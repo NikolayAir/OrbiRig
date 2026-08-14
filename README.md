@@ -11,6 +11,7 @@ The verification harness is the product. `ReferenceSpacecraft` is a deterministi
 * execute three deterministic reference operating-mode scenarios and collect the command, pre-state, acknowledgement, post-state, and telemetry;
 * verify observations independently against an explicitly selected `ScenarioId` using ordered invariants;
 * distinguish expected command rejection from failed verification;
+* verify operating-mode continuity across explicitly ordered verified execution records;
 * serialise observations and verified execution records to deterministic versioned JSON;
 * strictly deserialise observation evidence format version `1` while keeping structural and value validation separate from semantic verification.
 
@@ -60,6 +61,14 @@ For accepted transitions, the verifier checks the expected pre-state, accepted a
 For the expected rejection, it checks the expected `NOMINAL` pre-state, rejected acknowledgement, preservation of the pre-command state, and telemetry consistency with the observed post-state.
 
 The same three supported workflows are represented as Behave scenarios. Detailed invariant failures, negative cases, determinism, evidence behaviour, and deserialisation boundaries remain covered in pytest.
+
+## Ordered execution continuity
+
+`verify_execution_sequence(...)` evaluates an explicitly ordered collection of at least two existing `VerifiedExecutionRecord` instances. For each adjacent pair, it compares the previous post-state operating mode with the next pre-state operating mode and retains both execution IDs and the expected and observed modes.
+
+The supplied order is authoritative: the verifier does not sort or infer order from timestamps, execution IDs, or scenarios. A sequence produces `PASS` only when every member record already has a `PASS` outcome and every continuity boundary passes. Member scenario invariants are not re-evaluated.
+
+Sequence verification is pure and does not execute commands or mutate a SUT. Sequence results are not serialised or persisted, and the capability does not provide replay or transport integration.
 
 ## Execution evidence
 
