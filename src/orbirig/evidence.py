@@ -19,6 +19,22 @@ EXECUTION_EVIDENCE_FORMAT_VERSION = 1
 VERIFIED_EXECUTION_SCHEMA_VERSION = 1
 
 
+def _reject_duplicate_object_members(
+    pairs: list[tuple[str, object]],
+) -> dict[str, object]:
+    """Construct one JSON object while rejecting duplicate member names."""
+
+    document = {}
+
+    for name, value in pairs:
+        if name in document:
+            raise ValueError("duplicate JSON object member name")
+
+        document[name] = value
+
+    return document
+
+
 def _require_object(
     value: object,
     *,
@@ -107,7 +123,10 @@ def deserialize_execution_evidence(
     """Reconstruct an observation from strict versioned JSON evidence."""
 
     try:
-        document = json.loads(serialized)
+        document = json.loads(
+            serialized,
+            object_pairs_hook=_reject_duplicate_object_members,
+        )
     except json.JSONDecodeError as exc:
         raise ValueError("invalid observation evidence JSON") from exc
 
