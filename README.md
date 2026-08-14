@@ -161,21 +161,11 @@ GitHub Actions runs package-import checks, Ruff, pytest, and Behave on Python 3.
 
 Versioned release notes are available in [GitHub Releases](https://github.com/NikolayAir/OrbiRig/releases).
 
-## Current limitations
+## Current scope
 
-OrbiRig intentionally does not provide:
+OrbiRig intentionally focuses on deterministic verification of simplified operating-mode workflows and independently inspectable execution evidence. It does not currently provide broader operational integration, persistence or replay, or user-facing reporting, and it does not claim standards compliance.
 
-* operational Ground Segment or mission-control functionality;
-* spacecraft simulator or emulator functionality;
-* ECSS, CCSDS, or other standards compliance;
-* scenarios beyond the three supported operating-mode cases;
-* deserialisation of verified execution records, trust in persisted invariant results or outcomes, or sequence serialisation;
-* storage, persistence, replay, transport adapters, or external-system integration;
-* reporting or requirements-traceability integrations;
-* a command-line or web interface;
-* fault injection, flight-dynamics, or orbital-mechanics modelling.
-
-These capabilities must not be inferred from the implemented verification and evidence workflows.
+Verified-execution deserialisation and sequence serialisation are not currently implemented.
 
 ## Security
 
