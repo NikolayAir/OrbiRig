@@ -175,3 +175,72 @@ class VerifiedExecutionRecord:
                 else ExecutionOutcome.FAIL
             ),
         )
+
+
+@dataclass(frozen=True, slots=True)
+class ContinuityBoundaryResult:
+    """Operating-mode continuity result for two adjacent executions."""
+
+    previous_execution_id: str
+    next_execution_id: str
+    expected_operating_mode: OperatingMode
+    observed_operating_mode: OperatingMode
+    passed: bool = field(init=False)
+
+    def __post_init__(self) -> None:
+        """Derive the result from expected and observed modes."""
+
+        object.__setattr__(
+            self,
+            "passed",
+            self.observed_operating_mode is self.expected_operating_mode,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class VerifiedExecutionSequence:
+    """Ordered verified executions and their continuity results."""
+
+    records: tuple[VerifiedExecutionRecord, ...]
+    continuity_results: tuple[ContinuityBoundaryResult, ...]
+    outcome: ExecutionOutcome = field(init=False)
+
+    def __post_init__(self) -> None:
+        """Validate sequence structure and derive its outcome."""
+
+        records = tuple(self.records)
+        continuity_results = tuple(self.continuity_results)
+
+        if len(records) < 2:
+            raise ValueError(
+                "verified execution sequence requires at least two records",
+            )
+
+        if len(continuity_results) != len(records) - 1:
+            raise ValueError(
+                "verified execution sequence requires one continuity "
+                "result per adjacent record pair",
+            )
+
+        object.__setattr__(self, "records", records)
+        object.__setattr__(
+            self,
+            "continuity_results",
+            continuity_results,
+        )
+        object.__setattr__(
+            self,
+            "outcome",
+            (
+                ExecutionOutcome.PASS
+                if all(
+                    record.outcome is ExecutionOutcome.PASS
+                    for record in records
+                )
+                and all(
+                    result.passed
+                    for result in continuity_results
+                )
+                else ExecutionOutcome.FAIL
+            ),
+        )
