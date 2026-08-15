@@ -14,9 +14,10 @@ The harness is the product. `ReferenceSpacecraft` is a deterministic, simplified
 * verify observations independently against an explicitly selected `ScenarioId` using ordered invariants;
 * distinguish expected command rejection from failed verification;
 * verify operating-mode continuity across explicitly ordered verified execution records;
-* serialise observations and verified execution records to deterministic versioned JSON;
+* serialise observations, verified execution records, and verified execution sequences to deterministic versioned JSON;
 * strictly deserialise observation evidence format version `1` with structural and value validation;
-* strictly deserialise verified-execution schema version `1`, accepting records only when persisted invariant results and outcome are consistent with OrbiRig's canonical verification semantics.
+* strictly deserialise verified-execution schema version `1`, accepting records only when persisted invariant results and outcome are consistent with OrbiRig's canonical verification semantics;
+* strictly deserialise verified-execution-sequence schema version `1`, accepting boundaries and outcomes only when they match canonical sequence verification.
 
 ## Verification flow
 
@@ -40,6 +41,9 @@ flowchart LR
 
     records["Explicitly ordered<br/>VerifiedExecutionRecord instances"] --> continuity["Ordered continuity verification"]
     continuity --> sequence["VerifiedExecutionSequence<br/>boundary results + derived outcome"]
+    sequence --> sequence_evidence["Verified sequence JSON"]
+    sequence_persisted["Persisted verified-sequence JSON<br/>schema v1"] --> sequence_loader["Strict deserialisation<br/>member + sequence consistency"]
+    sequence_loader --> sequence
 ```
 
 Fresh observations are collected around one command execution. Persisted version `1` observation JSON reaches the same `CommandExecutionObservation` model through a separate strict deserialisation boundary. In either path, the caller supplies the scenario expectation; it is never inferred from the observation.
@@ -68,7 +72,7 @@ Supplied order is authoritative: the verifier does not sort or infer order from 
 
 ## Execution evidence
 
-OrbiRig has two serialised evidence representations.
+OrbiRig has three serialised evidence representations.
 
 ### Observation evidence
 
@@ -82,6 +86,11 @@ Observation evidence contains neither `ScenarioId`, invariant results, nor a ver
 
 `serialize_verified_execution_evidence(...)` writes deterministic JSON using verified-execution schema version `1`. `deserialize_verified_execution_evidence(...)` strictly reconstructs a record only when its persisted invariant results and outcome are consistent with OrbiRig's canonical verification semantics for its explicit `ScenarioId`. Package versions and evidence/schema versions are independent version domains; one does not imply a change to the other.
 
+### Verified execution sequences
+
+`serialize_verified_execution_sequence_evidence(...)` writes an ordered `VerifiedExecutionSequence` using verified-execution-sequence schema version `1`. Each member is stored as complete nested verified-execution data, followed by every ordered continuity result and the aggregate outcome.
+
+`deserialize_verified_execution_sequence_evidence(...)` strictly reconstructs each member through the verified-execution evidence semantics, then recomputes continuity in persisted order. Persisted boundaries and the aggregate outcome must exactly match the canonical sequence result. Duplicate execution IDs and equal or non-monotonic timestamps remain valid; neither determines sequence order.
 
 ## Usage
 
@@ -166,8 +175,6 @@ Versioned release notes are available in [GitHub Releases](https://github.com/Ni
 ## Current scope
 
 OrbiRig intentionally focuses on deterministic verification of simplified operating-mode workflows and independently inspectable execution evidence. It does not currently provide broader operational integration, persistence or replay, or user-facing reporting, and it does not claim standards compliance.
-
-Ordered verified-execution sequences can be verified in memory, but are not currently serialised or persisted.
 
 ## Security
 
