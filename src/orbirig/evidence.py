@@ -1,4 +1,4 @@
-"""Versioned JSON evidence for command execution observations and records."""
+"""Versioned JSON evidence for observations, records, and sequences."""
 
 import json
 from datetime import datetime, timedelta
@@ -7,6 +7,7 @@ from orbirig.models import (
     Acknowledgement,
     CommandExecutionObservation,
     CommandType,
+    ContinuityBoundaryResult,
     ExecutionOutcome,
     InvariantId,
     InvariantResult,
@@ -17,12 +18,17 @@ from orbirig.models import (
     SpacecraftState,
     TelemetrySnapshot,
     VerifiedExecutionRecord,
+    VerifiedExecutionSequence,
 )
-from orbirig.verification import build_verified_execution_record
+from orbirig.verification import (
+    build_verified_execution_record,
+    verify_execution_sequence,
+)
 
 
 EXECUTION_EVIDENCE_FORMAT_VERSION = 1
 VERIFIED_EXECUTION_SCHEMA_VERSION = 1
+VERIFIED_EXECUTION_SEQUENCE_SCHEMA_VERSION = 1
 
 _OBSERVATION_FIELDS = (
     "command",
@@ -440,6 +446,93 @@ def _parse_invariant_results(
     return tuple(results)
 
 
+def _parse_verified_execution_document(
+    document: object,
+    *,
+    path: str,
+) -> VerifiedExecutionRecord:
+    """Reconstruct one canonically consistent verified record object."""
+
+    root = _require_object(
+        document,
+        path=path or "verified execution evidence",
+        expected_fields=(
+            "schema_version",
+            "execution",
+            "observation",
+            "invariant_results",
+            "outcome",
+        ),
+    )
+    schema_version = root["schema_version"]
+    schema_version_path = _nested_path(path, "schema_version")
+
+    if type(schema_version) is not int:
+        raise ValueError(f"{schema_version_path} must be an integer")
+
+    if schema_version != VERIFIED_EXECUTION_SCHEMA_VERSION:
+        raise ValueError(
+            f"unsupported {schema_version_path}: {schema_version!r}",
+        )
+
+    execution_path = _nested_path(path, "execution")
+    execution_document = _require_object(
+        root["execution"],
+        path=execution_path,
+        expected_fields=(
+            "execution_id",
+            "scenario_id",
+            "executed_at",
+        ),
+    )
+    execution_id = _require_string(
+        execution_document["execution_id"],
+        path=_nested_path(execution_path, "execution_id"),
+    )
+    scenario_id = _parse_scenario_id(
+        execution_document["scenario_id"],
+        path=_nested_path(execution_path, "scenario_id"),
+    )
+    executed_at = _parse_utc_datetime(
+        execution_document["executed_at"],
+        path=_nested_path(execution_path, "executed_at"),
+    )
+    observation = _parse_observation_document(
+        root["observation"],
+        path=_nested_path(path, "observation"),
+    )
+    invariant_results_path = _nested_path(path, "invariant_results")
+    persisted_results = _parse_invariant_results(
+        root["invariant_results"],
+        path=invariant_results_path,
+    )
+    outcome_path = _nested_path(path, "outcome")
+    persisted_outcome = _parse_execution_outcome(
+        root["outcome"],
+        path=outcome_path,
+    )
+
+    canonical_record = build_verified_execution_record(
+        execution_id=execution_id,
+        executed_at=executed_at,
+        scenario_id=scenario_id,
+        observation=observation,
+    )
+
+    if persisted_results != canonical_record.invariant_results:
+        raise ValueError(
+            f"{invariant_results_path} do not match canonical "
+            "verification results",
+        )
+
+    if persisted_outcome is not canonical_record.outcome:
+        raise ValueError(
+            f"{outcome_path} does not match canonical verification result",
+        )
+
+    return canonical_record
+
+
 def deserialize_verified_execution_evidence(
     serialized: str,
 ) -> VerifiedExecutionRecord:
@@ -453,79 +546,7 @@ def deserialize_verified_execution_evidence(
     except json.JSONDecodeError as exc:
         raise ValueError("invalid verified execution evidence JSON") from exc
 
-    root = _require_object(
-        document,
-        path="verified execution evidence",
-        expected_fields=(
-            "schema_version",
-            "execution",
-            "observation",
-            "invariant_results",
-            "outcome",
-        ),
-    )
-    schema_version = root["schema_version"]
-
-    if type(schema_version) is not int:
-        raise ValueError("schema_version must be an integer")
-
-    if schema_version != VERIFIED_EXECUTION_SCHEMA_VERSION:
-        raise ValueError(
-            f"unsupported schema_version: {schema_version!r}",
-        )
-
-    execution_document = _require_object(
-        root["execution"],
-        path="execution",
-        expected_fields=(
-            "execution_id",
-            "scenario_id",
-            "executed_at",
-        ),
-    )
-    execution_id = _require_string(
-        execution_document["execution_id"],
-        path="execution.execution_id",
-    )
-    scenario_id = _parse_scenario_id(
-        execution_document["scenario_id"],
-        path="execution.scenario_id",
-    )
-    executed_at = _parse_utc_datetime(
-        execution_document["executed_at"],
-        path="execution.executed_at",
-    )
-    observation = _parse_observation_document(
-        root["observation"],
-        path="observation",
-    )
-    persisted_results = _parse_invariant_results(
-        root["invariant_results"],
-        path="invariant_results",
-    )
-    persisted_outcome = _parse_execution_outcome(
-        root["outcome"],
-        path="outcome",
-    )
-
-    canonical_record = build_verified_execution_record(
-        execution_id=execution_id,
-        executed_at=executed_at,
-        scenario_id=scenario_id,
-        observation=observation,
-    )
-
-    if persisted_results != canonical_record.invariant_results:
-        raise ValueError(
-            "invariant_results do not match canonical verification results",
-        )
-
-    if persisted_outcome is not canonical_record.outcome:
-        raise ValueError(
-            "outcome does not match canonical verification result",
-        )
-
-    return canonical_record
+    return _parse_verified_execution_document(document, path="")
 
 
 def _observation_document(
@@ -577,12 +598,12 @@ def _serialize_invariant_value(
     return value
 
 
-def serialize_verified_execution_evidence(
+def _verified_execution_document(
     record: VerifiedExecutionRecord,
-) -> str:
-    """Return deterministic versioned JSON for a verified execution."""
+) -> dict[str, object]:
+    """Return the JSON-native verified-execution evidence object."""
 
-    document = {
+    return {
         "schema_version": VERIFIED_EXECUTION_SCHEMA_VERSION,
         "execution": {
             "execution_id": record.execution_id,
@@ -607,6 +628,171 @@ def serialize_verified_execution_evidence(
             for result in record.invariant_results
         ],
         "outcome": record.outcome.value,
+    }
+
+
+def serialize_verified_execution_evidence(
+    record: VerifiedExecutionRecord,
+) -> str:
+    """Return deterministic versioned JSON for a verified execution."""
+
+    return json.dumps(
+        _verified_execution_document(record),
+        indent=2,
+    ) + "\n"
+
+
+def _parse_continuity_results(
+    value: object,
+    *,
+    path: str,
+) -> tuple[ContinuityBoundaryResult, ...]:
+    """Parse ordered continuity evidence without trusting derived results."""
+
+    serialized_results = _require_array(value, path=path)
+    results = []
+
+    for index, serialized_result in enumerate(serialized_results):
+        result_path = f"{path}[{index}]"
+        result_document = _require_object(
+            serialized_result,
+            path=result_path,
+            expected_fields=(
+                "previous_execution_id",
+                "next_execution_id",
+                "expected_operating_mode",
+                "observed_operating_mode",
+                "passed",
+            ),
+        )
+        result = ContinuityBoundaryResult(
+            previous_execution_id=_require_string(
+                result_document["previous_execution_id"],
+                path=f"{result_path}.previous_execution_id",
+            ),
+            next_execution_id=_require_string(
+                result_document["next_execution_id"],
+                path=f"{result_path}.next_execution_id",
+            ),
+            expected_operating_mode=_parse_operating_mode(
+                result_document["expected_operating_mode"],
+                path=f"{result_path}.expected_operating_mode",
+            ),
+            observed_operating_mode=_parse_operating_mode(
+                result_document["observed_operating_mode"],
+                path=f"{result_path}.observed_operating_mode",
+            ),
+        )
+        persisted_passed = _require_boolean(
+            result_document["passed"],
+            path=f"{result_path}.passed",
+        )
+
+        if persisted_passed is not result.passed:
+            raise ValueError(
+                f"{result_path} does not match its derived continuity result",
+            )
+
+        results.append(result)
+
+    return tuple(results)
+
+
+def deserialize_verified_execution_sequence_evidence(
+    serialized: str,
+) -> VerifiedExecutionSequence:
+    """Reconstruct canonically consistent verified-sequence evidence."""
+
+    try:
+        document = json.loads(
+            serialized,
+            object_pairs_hook=_reject_duplicate_object_members,
+        )
+    except json.JSONDecodeError as exc:
+        raise ValueError(
+            "invalid verified execution sequence evidence JSON",
+        ) from exc
+
+    root = _require_object(
+        document,
+        path="verified execution sequence evidence",
+        expected_fields=(
+            "schema_version",
+            "records",
+            "continuity_results",
+            "outcome",
+        ),
+    )
+    schema_version = root["schema_version"]
+
+    if type(schema_version) is not int:
+        raise ValueError("schema_version must be an integer")
+
+    if schema_version != VERIFIED_EXECUTION_SEQUENCE_SCHEMA_VERSION:
+        raise ValueError(
+            f"unsupported sequence schema_version: {schema_version!r}",
+        )
+
+    serialized_records = _require_array(
+        root["records"],
+        path="records",
+    )
+    records = tuple(
+        _parse_verified_execution_document(
+            serialized_record,
+            path=f"records[{index}]",
+        )
+        for index, serialized_record in enumerate(serialized_records)
+    )
+    persisted_results = _parse_continuity_results(
+        root["continuity_results"],
+        path="continuity_results",
+    )
+    persisted_outcome = _parse_execution_outcome(
+        root["outcome"],
+        path="outcome",
+    )
+    canonical_sequence = verify_execution_sequence(records)
+
+    if persisted_results != canonical_sequence.continuity_results:
+        raise ValueError(
+            "continuity_results do not match canonical sequence results",
+        )
+
+    if persisted_outcome is not canonical_sequence.outcome:
+        raise ValueError(
+            "outcome does not match canonical sequence result",
+        )
+
+    return canonical_sequence
+
+
+def serialize_verified_execution_sequence_evidence(
+    sequence: VerifiedExecutionSequence,
+) -> str:
+    """Return deterministic versioned JSON for a verified sequence."""
+
+    document = {
+        "schema_version": VERIFIED_EXECUTION_SEQUENCE_SCHEMA_VERSION,
+        "records": [
+            _verified_execution_document(record)
+            for record in sequence.records
+        ],
+        "continuity_results": [
+            {
+                "previous_execution_id": result.previous_execution_id,
+                "next_execution_id": result.next_execution_id,
+                "expected_operating_mode": (
+                    result.expected_operating_mode.value
+                ),
+                "observed_operating_mode": (
+                    result.observed_operating_mode.value
+                ),
+                "passed": result.passed,
+            }
+            for result in sequence.continuity_results
+        ],
+        "outcome": sequence.outcome.value,
     }
 
     return json.dumps(document, indent=2) + "\n"
