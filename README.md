@@ -15,7 +15,8 @@ The harness is the product. `ReferenceSpacecraft` is a deterministic, simplified
 * distinguish expected command rejection from failed verification;
 * verify operating-mode continuity across explicitly ordered verified execution records;
 * serialise observations and verified execution records to deterministic versioned JSON;
-* strictly deserialise observation evidence format version `1`, keeping structural and value validity separate from semantic verification.
+* strictly deserialise observation evidence format version `1` with structural and value validation;
+* strictly deserialise verified-execution schema version `1`, accepting records only when persisted invariant results and outcome are consistent with OrbiRig's canonical verification semantics.
 
 ## Verification flow
 
@@ -34,6 +35,8 @@ flowchart LR
     metadata["Execution ID + UTC time"] --> record["VerifiedExecutionRecord<br/>ordered invariants + derived outcome"]
     verifier --> record
     record --> evidence["Verified execution JSON"]
+    verified_persisted["Persisted verified-execution JSON<br/>schema v1"] --> verified_loader["Strict deserialisation<br/>structure + semantic consistency"]
+    verified_loader --> record
 
     records["Explicitly ordered<br/>VerifiedExecutionRecord instances"] --> continuity["Ordered continuity verification"]
     continuity --> sequence["VerifiedExecutionSequence<br/>boundary results + derived outcome"]
@@ -77,9 +80,8 @@ Observation evidence contains neither `ScenarioId`, invariant results, nor a ver
 
 `VerifiedExecutionRecord` combines an explicit execution ID, UTC execution time, selected `ScenarioId`, observation, ordered invariant results with expected and actual values, and a derived outcome. It passes only when every invariant passes.
 
-`serialize_verified_execution_evidence(...)` writes deterministic JSON using verified-execution schema version `1`. Deserialisation of verified execution records is not implemented. Package versions and evidence/schema versions are independent version domains; one does not imply a change to the other.
+`serialize_verified_execution_evidence(...)` writes deterministic JSON using verified-execution schema version `1`. `deserialize_verified_execution_evidence(...)` strictly reconstructs a record only when its persisted invariant results and outcome are consistent with OrbiRig's canonical verification semantics for its explicit `ScenarioId`. Package versions and evidence/schema versions are independent version domains; one does not imply a change to the other.
 
-Ordered sequence results are not serialised or persisted.
 
 ## Usage
 
@@ -165,7 +167,7 @@ Versioned release notes are available in [GitHub Releases](https://github.com/Ni
 
 OrbiRig intentionally focuses on deterministic verification of simplified operating-mode workflows and independently inspectable execution evidence. It does not currently provide broader operational integration, persistence or replay, or user-facing reporting, and it does not claim standards compliance.
 
-Verified-execution deserialisation and sequence serialisation are not currently implemented.
+Ordered verified-execution sequences can be verified in memory, but are not currently serialised or persisted.
 
 ## Security
 
