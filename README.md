@@ -1,14 +1,16 @@
 # OrbiRig
 
-OrbiRig is a non-operational Python verification harness for simplified spacecraft operating-mode command workflows. It collects command-execution observations, verifies them independently against explicit scenario expectations, checks continuity across ordered verified executions, and represents observations, verified executions, and verified execution sequences as deterministic versioned JSON evidence.
+OrbiRig is a non-operational verification harness for simplified spacecraft operating-mode workflows. It collects command-execution observations and verifies them against explicit scenario expectations. The harness also checks continuity across ordered verified executions and represents observations, verified executions, and verified execution sequences as deterministic versioned JSON evidence.
 
-OrbiRig is designed to keep verification decisions reproducible and independently inspectable, including when evidence is reconstructed from persisted JSON.
+Verification results remain reproducible and independently inspectable, including when persisted JSON evidence is reconstructed.
 
-The harness is the product. `ReferenceSpacecraft` is a deterministic, simplified spacecraft-behaviour test double and reference system under test (SUT): it supplies repeatable behaviour for the supported scenarios, but it is not the verification oracle.
+`ReferenceSpacecraft` is a deterministic, simplified spacecraft-behaviour test double used as the reference system under test (SUT). It provides repeatable behaviour for the supported scenarios but does not act as the verification oracle.
 
 **Core:** Python
 
-**Tooling:** pytest · Behave · Ruff · GitHub Actions
+**Web interface:** FastAPI · React · TypeScript · Vite
+
+**Testing and CI:** pytest · Behave · Vitest · React Testing Library · Ruff · GitHub Actions
 
 ## Key capabilities
 
@@ -18,7 +20,8 @@ The harness is the product. `ReferenceSpacecraft` is a deterministic, simplified
 * verify operating-mode continuity across explicitly ordered verified execution records;
 * serialise observations, verified execution records, and verified execution sequences to deterministic versioned JSON;
 * strictly reconstruct persisted observation evidence with structural and value validation, keeping evidence validity separate from verification success;
-* strictly reconstruct persisted verified-execution and verified-sequence evidence only when stored derived results agree with independently recomputed canonical verification results.
+* strictly reconstruct persisted verified-execution and verified-sequence evidence only when stored derived results agree with independently recomputed canonical verification results;
+* inspect pasted observation evidence through a read-only web interface while keeping evidence deserialisation and validation in the OrbiRig core.
 
 ## Verification flow
 
@@ -143,6 +146,41 @@ record = build_verified_execution_record(
 
 The explicit `ScenarioId` supplied to `build_verified_execution_record(...)` selects the expectations for the loaded observation; it is not recovered or inferred from the loaded evidence.
 
+### Inspect observation evidence in the web interface
+
+Install the Python web dependencies and the frontend dependencies:
+
+```bash
+python -m pip install -e ".[web]"
+cd frontend
+npm ci
+cd ..
+```
+
+For local development, start FastAPI and Vite in separate terminals:
+
+```bash
+uvicorn orbirig.web:app --reload
+```
+
+```bash
+cd frontend
+npm run dev
+```
+
+During local development, Vite proxies inspection requests to FastAPI. The frontend sends the textarea value directly as a `text/plain; charset=utf-8` request body. FastAPI reads the raw request body, decodes it as UTF-8, and passes the resulting text directly to `deserialize_execution_evidence(...)`. The browser does not parse or validate the submitted evidence and does not perform verification.
+
+To serve the built interface through FastAPI, build the frontend before starting the application:
+
+```bash
+cd frontend
+npm run build
+cd ..
+uvicorn orbirig.web:app
+```
+
+The interface renders only reconstructed observation fields. It does not infer a `ScenarioId` or assign a `PASS` or `FAIL` outcome.
+
 ### Reconstruct persisted verified evidence
 
 ```python
@@ -162,14 +200,14 @@ sequence = deserialize_verified_execution_sequence_evidence(
 )
 ```
 
-Both readers return the corresponding reconstructed model after the persisted evidence passes its strict consistency checks.
+Both readers return the corresponding reconstructed model only after the persisted derived values agree with OrbiRig's independently recomputed canonical verification semantics.
 
 ## Local setup
 
-OrbiRig targets Python 3.12. Create and activate a Python 3.12 virtual environment, then install the project with its test and development dependencies:
+OrbiRig currently targets Python 3.12. Create and activate a Python 3.12 virtual environment, then install the project with its test, development, and web dependencies:
 
 ```bash
-python -m pip install -e ".[test,dev]"
+python -m pip install -e ".[test,dev,web]"
 ```
 
 ## Verification
@@ -194,7 +232,7 @@ python -m ruff check .
 
 Behave covers the three supported reference workflows; detailed negative cases, determinism, evidence behaviour, and deserialisation boundaries are covered in pytest.
 
-GitHub Actions runs package-import checks, Ruff, pytest, and Behave on Python 3.12 for pull requests and pushes to `main`.
+GitHub Actions runs package-import checks, Ruff, pytest, and Behave, plus frontend type checking, tests, a production build, and a built-interface serving smoke check for pull requests and pushes to `main`.
 
 ## Releases
 
@@ -202,7 +240,7 @@ Versioned release notes are available in [GitHub Releases](https://github.com/Ni
 
 ## Current scope
 
-OrbiRig intentionally focuses on deterministic verification of simplified operating-mode workflows and independently inspectable execution evidence. It does not currently provide external execution integration, storage or replay APIs, or a user-facing inspection or reporting interface, and it does not claim standards compliance.
+OrbiRig intentionally focuses on deterministic verification of simplified operating-mode workflows and independently inspectable execution evidence. Its read-only interface currently supports observation evidence only; verified-execution and verified-sequence evidence inspection, external execution integration, storage or replay APIs, and a reporting interface remain unsupported, and OrbiRig does not claim standards compliance.
 
 ## Security
 

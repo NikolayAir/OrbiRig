@@ -8,6 +8,11 @@ __pycache__/
 .eggs/
 build/
 dist/
+src/orbirig/static/
+
+# Frontend dependencies and test output
+frontend/node_modules/
+frontend/coverage/
 
 # Virtual environments
 .venv/

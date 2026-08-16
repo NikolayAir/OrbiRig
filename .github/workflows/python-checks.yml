@@ -1,4 +1,4 @@
-name: Python checks
+name: Checks
 
 on:
   pull_request:
@@ -26,7 +26,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install project and development dependencies
-        run: python -m pip install ".[test,dev]"
+        run: python -m pip install ".[test,dev,web]"
 
       - name: Check package imports
         run: |
@@ -36,6 +36,7 @@ jobs:
           import orbirig.models
           import orbirig.reference_sut
           import orbirig.verification
+          import orbirig.web
           import orbirig.workflow
 
           print("OrbiRig imports passed")
@@ -49,3 +50,41 @@ jobs:
 
       - name: Run Behave scenarios
         run: behave
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Type-check frontend
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Test frontend
+        working-directory: frontend
+        run: npm test
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Check built frontend serving
+        run: |
+          python - <<'PYTHON'
+          from fastapi.testclient import TestClient
+
+          from orbirig.web import app
+
+          response = TestClient(app).get("/")
+
+          assert response.status_code == 200
+          assert '<div id="root"></div>' in response.text
+
+          print("Built frontend serving passed")
+          PYTHON
