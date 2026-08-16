@@ -75,6 +75,8 @@ jobs:
         run: npm run build
 
       - name: Check built frontend serving
+        env:
+          PYTHONPATH: src
         run: |
           python - <<'PYTHON'
           from fastapi.testclient import TestClient
