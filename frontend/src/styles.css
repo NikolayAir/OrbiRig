@@ -1,0 +1,77 @@
+:root {
+  color: #182331;
+  background: #f5f7fa;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+}
+
+main {
+  box-sizing: border-box;
+  margin: 0 auto;
+  max-width: 48rem;
+  padding: 3rem 1.5rem;
+}
+
+header {
+  margin-bottom: 2rem;
+}
+
+h1,
+h2 {
+  color: #0a3a5a;
+}
+
+.eyebrow {
+  color: #526575;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+label,
+button {
+  display: block;
+  font-weight: 700;
+}
+
+textarea {
+  box-sizing: border-box;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  margin: 0.5rem 0 1rem;
+  padding: 0.75rem;
+  resize: vertical;
+  width: 100%;
+}
+
+button {
+  background: #0a5b85;
+  border: 0;
+  color: #fff;
+  cursor: pointer;
+  padding: 0.7rem 1rem;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+section {
+  background: #fff;
+  margin-top: 2rem;
+  padding: 1.5rem;
+}
+
+dt {
+  color: #526575;
+  font-weight: 700;
+  margin-top: 1rem;
+}
+
+dd {
+  margin-left: 0;
+}
