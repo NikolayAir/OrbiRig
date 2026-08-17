@@ -135,13 +135,7 @@ function submitEvidence(
     selectVerifiedExecutionSequence();
   }
   fireEvent.change(
-    screen.getByLabelText(
-      evidenceType === "observation"
-        ? "Observation evidence"
-        : evidenceType === "verified-execution"
-          ? "Verified-execution evidence"
-          : "Verified-execution-sequence evidence",
-    ),
+    screen.getByLabelText("Evidence JSON"),
     { target: { value: evidence } },
   );
   fireEvent.click(screen.getByRole("button", { name: "Inspect evidence" }));
@@ -169,7 +163,7 @@ describe("App", () => {
     expect(observationOption).not.toBeChecked();
     expect(verifiedExecutionOption).toBeChecked();
     expect(
-      screen.getByLabelText("Verified-execution evidence"),
+      screen.getByLabelText("Evidence JSON"),
     ).toBeInTheDocument();
 
     fireEvent.click(sequenceOption);
@@ -177,7 +171,7 @@ describe("App", () => {
     expect(verifiedExecutionOption).not.toBeChecked();
     expect(sequenceOption).toBeChecked();
     expect(
-      screen.getByLabelText("Verified-execution-sequence evidence"),
+      screen.getByLabelText("Evidence JSON"),
     ).toBeInTheDocument();
   });
 
@@ -252,6 +246,7 @@ describe("App", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("exec-web-001")).toBeInTheDocument();
     expect(screen.getByText("2026-08-17T10:15:30Z")).toBeInTheDocument();
+    expect(screen.getByText("Scenario ID")).toBeInTheDocument();
     expect(screen.getByText("nominal_to_safe_mode")).toBeInTheDocument();
     expect(screen.getByText("SET_OPERATING_MODE")).toBeInTheDocument();
 
@@ -259,15 +254,21 @@ describe("App", () => {
     expect(invariantItems).toHaveLength(2);
     expect(
       within(invariantItems[0]).getByRole("heading", {
-        name: "pre_state_matches_expected",
+        name: "Pre-state matches expected",
       }),
+    ).toBeInTheDocument();
+    expect(
+      within(invariantItems[0]).getByText("pre_state_matches_expected"),
     ).toBeInTheDocument();
     expect(within(invariantItems[0]).getAllByText("NOMINAL")).toHaveLength(2);
     expect(within(invariantItems[0]).getByText("PASS")).toBeInTheDocument();
     expect(
       within(invariantItems[1]).getByRole("heading", {
-        name: "acknowledgement_is_accepted",
+        name: "Acknowledgement is accepted",
       }),
+    ).toBeInTheDocument();
+    expect(
+      within(invariantItems[1]).getByText("acknowledgement_is_accepted"),
     ).toBeInTheDocument();
     expect(within(invariantItems[1]).getAllByText("true")).toHaveLength(2);
     expect(within(invariantItems[1]).getByText("PASS")).toBeInTheDocument();
@@ -353,6 +354,11 @@ describe("App", () => {
       within(members[0]).getByText("pre_state_matches_expected"),
     ).toBeInTheDocument();
     expect(
+      within(members[0]).getByRole("heading", {
+        name: "Pre-state matches expected",
+      }),
+    ).toBeInTheDocument();
+    expect(
       within(members[0]).getByText("Outcome").nextElementSibling,
     ).toHaveTextContent("PASS");
 
@@ -433,7 +439,7 @@ describe("App", () => {
     ).toBeInTheDocument();
 
     fireEvent.change(
-      screen.getByLabelText("Verified-execution-sequence evidence"),
+      screen.getByLabelText("Evidence JSON"),
       { target: { value: "changed sequence" } },
     );
 
@@ -511,7 +517,7 @@ describe("App", () => {
       await screen.findByRole("heading", { name: "Verified execution" }),
     ).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText("Verified-execution evidence"), {
+    fireEvent.change(screen.getByLabelText("Evidence JSON"), {
       target: { value: "changed evidence" },
     });
 
@@ -551,7 +557,7 @@ describe("App", () => {
     expect(
       screen.getByRole("button", { name: "Inspect evidence" }),
     ).toBeDisabled();
-    expect(screen.getByLabelText("Verified-execution evidence")).toBeDisabled();
+    expect(screen.getByLabelText("Evidence JSON")).toBeDisabled();
     expect(
       screen.getByRole("radio", { name: "Observation" }),
     ).toBeDisabled();
