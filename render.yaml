@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: orbirig-evidence-inspector
+    runtime: python
+    plan: free
+    region: frankfurt
+    branch: main
+    buildCommand: python -m pip install -e ".[web]" && cd frontend && npm ci && npm run build
+    startCommand: python -m uvicorn orbirig.web:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /
+    autoDeployTrigger: checksPass
