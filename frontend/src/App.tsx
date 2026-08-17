@@ -1,6 +1,9 @@
 import { FormEvent, useState } from "react";
 
-type EvidenceType = "observation" | "verified-execution";
+type EvidenceType =
+  | "observation"
+  | "verified-execution"
+  | "verified-execution-sequence";
 
 type ObservationPresentation = {
   command: {
@@ -37,6 +40,18 @@ type VerifiedExecutionPresentation = {
   outcome: string;
 };
 
+type VerifiedExecutionSequencePresentation = {
+  records: VerifiedExecutionPresentation[];
+  continuity_results: Array<{
+    previous_execution_id: string;
+    next_execution_id: string;
+    expected_operating_mode: string;
+    observed_operating_mode: string;
+    passed: boolean;
+  }>;
+  outcome: string;
+};
+
 type InspectionState =
   | { kind: "idle" }
   | { kind: "loading" }
@@ -45,12 +60,18 @@ type InspectionState =
       kind: "valid-verified-execution";
       record: VerifiedExecutionPresentation;
     }
+  | {
+      kind: "valid-verified-execution-sequence";
+      sequence: VerifiedExecutionSequencePresentation;
+    }
   | { kind: "invalid"; evidenceType: EvidenceType }
   | { kind: "transport-failure" };
 
 const INSPECTION_ENDPOINTS: Record<EvidenceType, string> = {
   observation: "/api/inspect/observation",
   "verified-execution": "/api/inspect/verified-execution",
+  "verified-execution-sequence":
+    "/api/inspect/verified-execution-sequence",
 };
 
 export function App() {
@@ -60,6 +81,11 @@ export function App() {
   const [inspection, setInspection] = useState<InspectionState>({
     kind: "idle",
   });
+
+  function selectEvidenceType(selectedType: EvidenceType) {
+    setEvidenceType(selectedType);
+    setInspection({ kind: "idle" });
+  }
 
   async function inspectEvidence(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -89,21 +115,26 @@ export function App() {
           kind: "valid-observation",
           observation: (await response.json()) as ObservationPresentation,
         });
-      } else {
+        return;
+      }
+
+      if (evidenceType === "verified-execution") {
         setInspection({
           kind: "valid-verified-execution",
           record: (await response.json()) as VerifiedExecutionPresentation,
         });
+        return;
       }
+
+      setInspection({
+        kind: "valid-verified-execution-sequence",
+        sequence:
+          (await response.json()) as VerifiedExecutionSequencePresentation,
+      });
     } catch {
       setInspection({ kind: "transport-failure" });
     }
   }
-
-  const evidenceLabel =
-    evidenceType === "observation"
-      ? "Observation evidence"
-      : "Verified-execution evidence";
 
   return (
     <main>
@@ -125,10 +156,7 @@ export function App() {
               name="evidence-type"
               value="observation"
               checked={evidenceType === "observation"}
-              onChange={() => {
-                setEvidenceType("observation");
-                setInspection({ kind: "idle" });
-              }}
+              onChange={() => selectEvidenceType("observation")}
             />
             Observation
           </label>
@@ -138,16 +166,25 @@ export function App() {
               name="evidence-type"
               value="verified-execution"
               checked={evidenceType === "verified-execution"}
-              onChange={() => {
-                setEvidenceType("verified-execution");
-                setInspection({ kind: "idle" });
-              }}
+              onChange={() => selectEvidenceType("verified-execution")}
             />
             Verified execution
           </label>
+          <label>
+            <input
+              type="radio"
+              name="evidence-type"
+              value="verified-execution-sequence"
+              checked={evidenceType === "verified-execution-sequence"}
+              onChange={() =>
+                selectEvidenceType("verified-execution-sequence")
+              }
+            />
+            Verified execution sequence
+          </label>
         </fieldset>
 
-        <label htmlFor="evidence">{evidenceLabel}</label>
+        <label htmlFor="evidence">{evidenceLabel(evidenceType)}</label>
         <textarea
           id="evidence"
           name="evidence"
@@ -170,11 +207,7 @@ export function App() {
       )}
 
       {inspection.kind === "invalid" && (
-        <p role="alert">
-          {inspection.evidenceType === "observation"
-            ? "The observation evidence is invalid."
-            : "The verified-execution evidence is invalid."}
-        </p>
+        <p role="alert">{invalidEvidenceMessage(inspection.evidenceType)}</p>
       )}
 
       {inspection.kind === "transport-failure" && (
@@ -190,8 +223,26 @@ export function App() {
       {inspection.kind === "valid-verified-execution" && (
         <VerifiedExecutionDetails record={inspection.record} />
       )}
+
+      {inspection.kind === "valid-verified-execution-sequence" && (
+        <VerifiedExecutionSequenceDetails sequence={inspection.sequence} />
+      )}
     </main>
   );
+}
+
+function evidenceLabel(evidenceType: EvidenceType): string {
+  if (evidenceType === "observation") {
+    return "Observation evidence";
+  }
+  if (evidenceType === "verified-execution") {
+    return "Verified-execution evidence";
+  }
+  return "Verified-execution-sequence evidence";
+}
+
+function invalidEvidenceMessage(evidenceType: EvidenceType): string {
+  return `The ${evidenceLabel(evidenceType).toLowerCase()} is invalid.`;
 }
 
 function ObservationFields({
@@ -230,14 +281,18 @@ function ObservationDetails({
   );
 }
 
-function VerifiedExecutionDetails({
+function VerifiedExecutionFields({
   record,
+  nested = false,
 }: {
   record: VerifiedExecutionPresentation;
+  nested?: boolean;
 }) {
+  const Subheading = nested ? "h5" : "h3";
+  const InvariantHeading = nested ? "h6" : "h4";
+
   return (
-    <section aria-labelledby="verified-execution">
-      <h2 id="verified-execution">Verified execution</h2>
+    <>
       <dl>
         <dt>Execution ID</dt>
         <dd>{record.execution.execution_id}</dd>
@@ -249,14 +304,14 @@ function VerifiedExecutionDetails({
         <dd>{record.outcome}</dd>
       </dl>
 
-      <h3>Reconstructed observation</h3>
+      <Subheading>Reconstructed observation</Subheading>
       <ObservationFields observation={record.observation} />
 
-      <h3>Invariant results</h3>
+      <Subheading>Invariant results</Subheading>
       <ol>
         {record.invariant_results.map((result, index) => (
           <li key={`${result.invariant_id}-${index}`}>
-            <h4>{result.invariant_id}</h4>
+            <InvariantHeading>{result.invariant_id}</InvariantHeading>
             <dl>
               <dt>Expected</dt>
               <dd>{formatInvariantValue(result.expected)}</dd>
@@ -267,6 +322,78 @@ function VerifiedExecutionDetails({
             </dl>
           </li>
         ))}
+      </ol>
+    </>
+  );
+}
+
+function VerifiedExecutionDetails({
+  record,
+}: {
+  record: VerifiedExecutionPresentation;
+}) {
+  return (
+    <section aria-labelledby="verified-execution">
+      <h2 id="verified-execution">Verified execution</h2>
+      <VerifiedExecutionFields record={record} />
+    </section>
+  );
+}
+
+function VerifiedExecutionSequenceDetails({
+  sequence,
+}: {
+  sequence: VerifiedExecutionSequencePresentation;
+}) {
+  return (
+    <section aria-labelledby="verified-execution-sequence">
+      <h2 id="verified-execution-sequence">Verified execution sequence</h2>
+      <dl>
+        <dt>Sequence outcome</dt>
+        <dd>{sequence.outcome}</dd>
+      </dl>
+
+      <h3>Member records</h3>
+      <ol aria-label="Sequence member records">
+        {sequence.records.map((record, index) => {
+          const headingId = `sequence-member-${index}`;
+          return (
+            <li key={`${record.execution.execution_id}-${index}`}>
+              <article aria-labelledby={headingId}>
+                <h4 id={headingId}>Member {index + 1}</h4>
+                <VerifiedExecutionFields record={record} nested />
+              </article>
+            </li>
+          );
+        })}
+      </ol>
+
+      <h3>Continuity boundaries</h3>
+      <ol aria-label="Continuity boundaries">
+        {sequence.continuity_results.map((result, index) => {
+          const headingId = `continuity-boundary-${index}`;
+          return (
+            <li
+              key={`${result.previous_execution_id}-${result.next_execution_id}-${index}`}
+            >
+              <article aria-labelledby={headingId}>
+                <h4 id={headingId}>Boundary {index + 1}</h4>
+                <dl>
+                  <dt>Previous execution ID</dt>
+                  <dd>{result.previous_execution_id}</dd>
+                  <dt>Next execution ID</dt>
+                  <dd>{result.next_execution_id}</dd>
+                  <dt>Expected operating mode</dt>
+                  <dd>{result.expected_operating_mode}</dd>
+                  <dt>Observed operating mode</dt>
+                  <dd>{result.observed_operating_mode}</dd>
+                  <dt>Result</dt>
+                  <dd>{result.passed ? "PASS" : "FAIL"}</dd>
+                </dl>
+              </article>
+            </li>
+          );
+        })}
       </ol>
     </section>
   );
