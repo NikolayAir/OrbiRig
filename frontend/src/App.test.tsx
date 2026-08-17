@@ -53,6 +53,52 @@ const verifiedExecution = {
   outcome: "PASS",
 };
 
+const verifiedExecutionSequence = {
+  records: [
+    {
+      ...verifiedExecution,
+      execution: {
+        execution_id: "exec-b",
+        executed_at: "2026-08-17T14:00:00Z",
+        scenario_id: "nominal_to_safe_mode",
+      },
+    },
+    {
+      ...verifiedExecution,
+      execution: {
+        execution_id: "exec-a",
+        executed_at: "2026-08-17T10:00:00Z",
+        scenario_id: "safe_to_nominal_mode",
+      },
+    },
+    {
+      ...verifiedExecution,
+      execution: {
+        execution_id: "exec-c",
+        executed_at: "2026-08-17T12:00:00Z",
+        scenario_id: "nominal_to_nominal_rejection",
+      },
+    },
+  ],
+  continuity_results: [
+    {
+      previous_execution_id: "exec-b",
+      next_execution_id: "exec-a",
+      expected_operating_mode: "SAFE",
+      observed_operating_mode: "SAFE",
+      passed: true,
+    },
+    {
+      previous_execution_id: "exec-a",
+      next_execution_id: "exec-c",
+      expected_operating_mode: "NOMINAL",
+      observed_operating_mode: "NOMINAL",
+      passed: true,
+    },
+  ],
+  outcome: "PASS",
+};
+
 const fetchMock = vi.fn();
 
 beforeEach(() => {
@@ -69,19 +115,32 @@ function selectVerifiedExecution() {
   fireEvent.click(screen.getByRole("radio", { name: "Verified execution" }));
 }
 
+function selectVerifiedExecutionSequence() {
+  fireEvent.click(
+    screen.getByRole("radio", { name: "Verified execution sequence" }),
+  );
+}
+
 function submitEvidence(
   evidence: string,
-  evidenceType: "observation" | "verified-execution" = "observation",
+  evidenceType:
+    | "observation"
+    | "verified-execution"
+    | "verified-execution-sequence" = "observation",
 ) {
   render(<App />);
   if (evidenceType === "verified-execution") {
     selectVerifiedExecution();
+  } else if (evidenceType === "verified-execution-sequence") {
+    selectVerifiedExecutionSequence();
   }
   fireEvent.change(
     screen.getByLabelText(
       evidenceType === "observation"
         ? "Observation evidence"
-        : "Verified-execution evidence",
+        : evidenceType === "verified-execution"
+          ? "Verified-execution evidence"
+          : "Verified-execution-sequence evidence",
     ),
     { target: { value: evidence } },
   );
@@ -98,8 +157,12 @@ describe("App", () => {
     const verifiedExecutionOption = screen.getByRole("radio", {
       name: "Verified execution",
     });
+    const sequenceOption = screen.getByRole("radio", {
+      name: "Verified execution sequence",
+    });
     expect(observationOption).toBeChecked();
     expect(verifiedExecutionOption).not.toBeChecked();
+    expect(sequenceOption).not.toBeChecked();
 
     fireEvent.click(verifiedExecutionOption);
 
@@ -107,6 +170,14 @@ describe("App", () => {
     expect(verifiedExecutionOption).toBeChecked();
     expect(
       screen.getByLabelText("Verified-execution evidence"),
+    ).toBeInTheDocument();
+
+    fireEvent.click(sequenceOption);
+
+    expect(verifiedExecutionOption).not.toBeChecked();
+    expect(sequenceOption).toBeChecked();
+    expect(
+      screen.getByLabelText("Verified-execution-sequence evidence"),
     ).toBeInTheDocument();
   });
 
@@ -228,6 +299,173 @@ describe("App", () => {
     ).toBeInTheDocument();
     expect(screen.getAllByText("FAIL")).toHaveLength(2);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("sends sequence text unchanged to the dedicated endpoint", async () => {
+    const evidence = '{\n  "records": [],\n  "records": []\n}';
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => verifiedExecutionSequence,
+    });
+
+    submitEvidence(evidence, "verified-execution-sequence");
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/inspect/verified-execution-sequence",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "text/plain; charset=utf-8",
+          },
+          body: evidence,
+        },
+      );
+    });
+  });
+
+  it("renders ordered sequence members and continuity boundaries", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => verifiedExecutionSequence,
+    });
+
+    submitEvidence("valid sequence", "verified-execution-sequence");
+
+    const sequence = await screen.findByRole("region", {
+      name: "Verified execution sequence",
+    });
+    expect(
+      within(sequence).getByText("Sequence outcome").nextElementSibling,
+    ).toHaveTextContent("PASS");
+
+    const members = within(sequence).getAllByRole("article", {
+      name: /Member/,
+    });
+    expect(members).toHaveLength(3);
+    expect(within(members[0]).getByText("exec-b")).toBeInTheDocument();
+    expect(within(members[1]).getByText("exec-a")).toBeInTheDocument();
+    expect(within(members[2]).getByText("exec-c")).toBeInTheDocument();
+    expect(within(members[0]).getByText("SET_OPERATING_MODE")).toBeInTheDocument();
+    expect(
+      within(members[0]).getByText("pre_state_matches_expected"),
+    ).toBeInTheDocument();
+    expect(
+      within(members[0]).getByText("Outcome").nextElementSibling,
+    ).toHaveTextContent("PASS");
+
+    const boundaries = within(sequence).getAllByRole("article", {
+      name: /Boundary/,
+    });
+    expect(boundaries).toHaveLength(2);
+    expect(within(boundaries[0]).getByText("exec-b")).toBeInTheDocument();
+    expect(within(boundaries[0]).getByText("exec-a")).toBeInTheDocument();
+    expect(within(boundaries[0]).getAllByText("SAFE")).toHaveLength(2);
+    expect(within(boundaries[0]).getByText("PASS")).toBeInTheDocument();
+    expect(within(boundaries[1]).getByText("exec-a")).toBeInTheDocument();
+    expect(within(boundaries[1]).getByText("exec-c")).toBeInTheDocument();
+    expect(within(boundaries[1]).getAllByText("NOMINAL")).toHaveLength(2);
+    expect(within(boundaries[1]).getByText("PASS")).toBeInTheDocument();
+  });
+
+  it("renders a continuity FAIL sequence as valid evidence", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        records: verifiedExecutionSequence.records.slice(0, 2),
+        continuity_results: [
+          {
+            previous_execution_id: "exec-b",
+            next_execution_id: "exec-a",
+            expected_operating_mode: "SAFE",
+            observed_operating_mode: "NOMINAL",
+            passed: false,
+          },
+        ],
+        outcome: "FAIL",
+      }),
+    });
+
+    submitEvidence("canonical fail sequence", "verified-execution-sequence");
+
+    const sequence = await screen.findByRole("region", {
+      name: "Verified execution sequence",
+    });
+    expect(
+      within(sequence).getByText("Sequence outcome").nextElementSibling,
+    ).toHaveTextContent("FAIL");
+
+    const boundary = within(sequence).getByRole("article", {
+      name: "Boundary 1",
+    });
+    expect(
+      within(boundary).getByText("Result").nextElementSibling,
+    ).toHaveTextContent("FAIL");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("shows invalid sequence evidence distinctly", async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 422 });
+
+    submitEvidence("invalid evidence", "verified-execution-sequence");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The verified-execution-sequence evidence is invalid.",
+    );
+  });
+
+  it("clears a sequence when the evidence changes", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => verifiedExecutionSequence,
+    });
+
+    submitEvidence("first sequence", "verified-execution-sequence");
+
+    expect(
+      await screen.findByRole("heading", {
+        name: "Verified execution sequence",
+      }),
+    ).toBeInTheDocument();
+
+    fireEvent.change(
+      screen.getByLabelText("Verified-execution-sequence evidence"),
+      { target: { value: "changed sequence" } },
+    );
+
+    expect(
+      screen.queryByRole("heading", {
+        name: "Verified execution sequence",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("clears a sequence when the evidence type changes", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => verifiedExecutionSequence,
+    });
+
+    submitEvidence("sequence evidence", "verified-execution-sequence");
+
+    expect(
+      await screen.findByRole("heading", {
+        name: "Verified execution sequence",
+      }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("radio", { name: "Observation" }));
+
+    expect(
+      screen.queryByRole("heading", {
+        name: "Verified execution sequence",
+      }),
+    ).not.toBeInTheDocument();
   });
 
   it("shows invalid verified-execution evidence distinctly", async () => {

@@ -9,12 +9,14 @@ from fastapi.staticfiles import StaticFiles
 from orbirig.evidence import (
     deserialize_execution_evidence,
     deserialize_verified_execution_evidence,
+    deserialize_verified_execution_sequence_evidence,
 )
 from orbirig.models import (
     CommandExecutionObservation,
     InvariantValue,
     OperatingMode,
     VerifiedExecutionRecord,
+    VerifiedExecutionSequence,
 )
 
 
@@ -76,6 +78,28 @@ def _verified_execution_presentation(
     }
 
 
+def _verified_execution_sequence_presentation(
+    sequence: VerifiedExecutionSequence,
+) -> dict[str, object]:
+    return {
+        "records": [
+            _verified_execution_presentation(record)
+            for record in sequence.records
+        ],
+        "continuity_results": [
+            {
+                "previous_execution_id": result.previous_execution_id,
+                "next_execution_id": result.next_execution_id,
+                "expected_operating_mode": result.expected_operating_mode.value,
+                "observed_operating_mode": result.observed_operating_mode.value,
+                "passed": result.passed,
+            }
+            for result in sequence.continuity_results
+        ],
+        "outcome": sequence.outcome.value,
+    }
+
+
 async def _decode_text_plain_evidence(request: Request) -> str:
     """Decode evidence without parsing or normalising the submitted document."""
 
@@ -132,6 +156,25 @@ async def inspect_verified_execution_evidence(
         ) from None
 
     return _verified_execution_presentation(record)
+
+
+@app.post("/api/inspect/verified-execution-sequence")
+async def inspect_verified_execution_sequence_evidence(
+    request: Request,
+) -> dict[str, object]:
+    """Present a sequence reconstructed by the strict evidence boundary."""
+
+    serialized = await _decode_text_plain_evidence(request)
+
+    try:
+        sequence = deserialize_verified_execution_sequence_evidence(serialized)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="verified execution sequence evidence is invalid",
+        ) from None
+
+    return _verified_execution_sequence_presentation(sequence)
 
 
 if _STATIC_DIRECTORY.is_dir():
