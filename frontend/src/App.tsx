@@ -74,6 +74,15 @@ const INSPECTION_ENDPOINTS: Record<EvidenceType, string> = {
     "/api/inspect/verified-execution-sequence",
 };
 
+const INVARIANT_TITLES: Record<string, string> = {
+  pre_state_matches_expected: "Pre-state matches expected",
+  acknowledgement_is_accepted: "Acknowledgement is accepted",
+  acknowledgement_is_rejected: "Acknowledgement is rejected",
+  post_state_matches_requested_mode: "Post-state matches requested mode",
+  post_state_matches_pre_state: "Post-state matches pre-state",
+  telemetry_matches_post_state: "Telemetry matches post-state",
+};
+
 export function App() {
   const [evidenceType, setEvidenceType] =
     useState<EvidenceType>("observation");
@@ -184,7 +193,7 @@ export function App() {
           </label>
         </fieldset>
 
-        <label htmlFor="evidence">{evidenceLabel(evidenceType)}</label>
+        <label htmlFor="evidence">Evidence JSON</label>
         <textarea
           id="evidence"
           name="evidence"
@@ -195,7 +204,7 @@ export function App() {
           }}
           disabled={inspection.kind === "loading"}
           spellCheck={false}
-          rows={18}
+          rows={12}
         />
         <button type="submit" disabled={inspection.kind === "loading"}>
           Inspect evidence
@@ -231,18 +240,18 @@ export function App() {
   );
 }
 
-function evidenceLabel(evidenceType: EvidenceType): string {
+function evidenceTypeName(evidenceType: EvidenceType): string {
   if (evidenceType === "observation") {
-    return "Observation evidence";
+    return "observation evidence";
   }
   if (evidenceType === "verified-execution") {
-    return "Verified-execution evidence";
+    return "verified-execution evidence";
   }
-  return "Verified-execution-sequence evidence";
+  return "verified-execution-sequence evidence";
 }
 
 function invalidEvidenceMessage(evidenceType: EvidenceType): string {
-  return `The ${evidenceLabel(evidenceType).toLowerCase()} is invalid.`;
+  return `The ${evidenceTypeName(evidenceType)} is invalid.`;
 }
 
 function ObservationFields({
@@ -298,7 +307,7 @@ function VerifiedExecutionFields({
         <dd>{record.execution.execution_id}</dd>
         <dt>UTC execution timestamp</dt>
         <dd>{record.execution.executed_at}</dd>
-        <dt>ScenarioId</dt>
+        <dt>Scenario ID</dt>
         <dd>{record.execution.scenario_id}</dd>
         <dt>Outcome</dt>
         <dd>{record.outcome}</dd>
@@ -308,10 +317,15 @@ function VerifiedExecutionFields({
       <ObservationFields observation={record.observation} />
 
       <Subheading>Invariant results</Subheading>
-      <ol>
+      <ol className="invariant-results">
         {record.invariant_results.map((result, index) => (
           <li key={`${result.invariant_id}-${index}`}>
-            <InvariantHeading>{result.invariant_id}</InvariantHeading>
+            <InvariantHeading className="invariant-title">
+              {INVARIANT_TITLES[result.invariant_id] ?? "Invariant result"}
+            </InvariantHeading>
+            <p className="invariant-id">
+              <code>{result.invariant_id}</code>
+            </p>
             <dl>
               <dt>Expected</dt>
               <dd>{formatInvariantValue(result.expected)}</dd>
@@ -354,12 +368,16 @@ function VerifiedExecutionSequenceDetails({
       </dl>
 
       <h3>Member records</h3>
-      <ol aria-label="Sequence member records">
+      <ol
+        className="sequence-members"
+        aria-label="Sequence member records"
+        role="list"
+      >
         {sequence.records.map((record, index) => {
           const headingId = `sequence-member-${index}`;
           return (
             <li key={`${record.execution.execution_id}-${index}`}>
-              <article aria-labelledby={headingId}>
+              <article className="sequence-member" aria-labelledby={headingId}>
                 <h4 id={headingId}>Member {index + 1}</h4>
                 <VerifiedExecutionFields record={record} nested />
               </article>
@@ -369,14 +387,21 @@ function VerifiedExecutionSequenceDetails({
       </ol>
 
       <h3>Continuity boundaries</h3>
-      <ol aria-label="Continuity boundaries">
+      <ol
+        className="continuity-boundaries"
+        aria-label="Continuity boundaries"
+        role="list"
+      >
         {sequence.continuity_results.map((result, index) => {
           const headingId = `continuity-boundary-${index}`;
           return (
             <li
               key={`${result.previous_execution_id}-${result.next_execution_id}-${index}`}
             >
-              <article aria-labelledby={headingId}>
+              <article
+                className="continuity-boundary"
+                aria-labelledby={headingId}
+              >
                 <h4 id={headingId}>Boundary {index + 1}</h4>
                 <dl>
                   <dt>Previous execution ID</dt>

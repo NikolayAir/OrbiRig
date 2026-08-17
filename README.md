@@ -181,6 +181,8 @@ uvicorn orbirig.web:app
 
 For observation evidence, the interface renders only reconstructed observation fields and does not infer a `ScenarioId` or assign a `PASS` or `FAIL` outcome. For verified-execution evidence, it renders the execution metadata, explicit `ScenarioId`, reconstructed observation, ordered canonical invariant results, and derived outcome returned by the OrbiRig core. For verified-execution-sequence evidence, it renders the aggregate outcome, every member record, and every continuity boundary in reconstructed sequence order. Canonically consistent `FAIL` records and sequences are valid evidence and are presented as such.
 
+![OrbiRig evidence inspector with verified-execution-sequence evidence selected](docs/images/evidence-inspector-sequence.png)
+
 ### Reconstruct persisted verified evidence
 
 ```python

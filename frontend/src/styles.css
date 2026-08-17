@@ -38,10 +38,23 @@ button {
   font-weight: 700;
 }
 
+fieldset {
+  margin: 0 0 1.5rem;
+  padding: 1rem;
+}
+
+fieldset label + label {
+  margin-top: 0.5rem;
+}
+
+form > label {
+  margin-bottom: 0.5rem;
+}
+
 textarea {
   box-sizing: border-box;
   font-family: ui-monospace, SFMono-Regular, monospace;
-  margin: 0.5rem 0 1rem;
+  margin: 0 0 1.25rem;
   padding: 0.75rem;
   resize: vertical;
   width: 100%;
@@ -74,4 +87,45 @@ dt {
 
 dd {
   margin-left: 0;
+}
+
+.invariant-results {
+  display: grid;
+  gap: 1rem;
+  padding-left: 1.5rem;
+}
+
+.invariant-results > li {
+  border-left: 0.2rem solid #d8e2e8;
+  padding: 0.25rem 0 0.75rem 1rem;
+}
+
+.invariant-title {
+  margin: 0;
+}
+
+.invariant-id {
+  color: #526575;
+  margin: 0.25rem 0 0;
+}
+
+.sequence-members,
+.continuity-boundaries {
+  display: grid;
+  gap: 1.5rem;
+  list-style: none;
+  padding-left: 0;
+}
+
+.sequence-member,
+.continuity-boundary {
+  background: #f8fafb;
+  border: 1px solid #d8e2e8;
+  border-radius: 0.25rem;
+  padding: 1.25rem;
+}
+
+.sequence-member > h4,
+.continuity-boundary > h4 {
+  margin-top: 0;
 }
