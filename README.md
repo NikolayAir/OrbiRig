@@ -21,7 +21,7 @@ Verification results remain reproducible and independently inspectable, includin
 * serialise observations, verified execution records, and verified execution sequences to deterministic versioned JSON;
 * strictly reconstruct persisted observation evidence with structural and value validation, keeping evidence validity separate from verification success;
 * strictly reconstruct persisted verified-execution and verified-sequence evidence only when stored derived results agree with independently recomputed canonical verification results;
-* inspect pasted observation evidence through a read-only web interface while keeping evidence deserialisation and validation in the OrbiRig core.
+* inspect pasted observation and verified-execution evidence through a read-only web interface while keeping evidence deserialisation and verification semantics in the OrbiRig core.
 
 ## Verification flow
 
@@ -146,7 +146,7 @@ record = build_verified_execution_record(
 
 The explicit `ScenarioId` supplied to `build_verified_execution_record(...)` selects the expectations for the loaded observation; it is not recovered or inferred from the loaded evidence.
 
-### Inspect observation evidence in the web interface
+### Inspect evidence in the web interface
 
 Install the Python web dependencies and the frontend dependencies:
 
@@ -168,7 +168,7 @@ cd frontend
 npm run dev
 ```
 
-During local development, Vite proxies inspection requests to FastAPI. The frontend sends the textarea value directly as a `text/plain; charset=utf-8` request body. FastAPI reads the raw request body, decodes it as UTF-8, and passes the resulting text directly to `deserialize_execution_evidence(...)`. The browser does not parse or validate the submitted evidence and does not perform verification.
+During local development, Vite proxies inspection requests to FastAPI. Select observation or verified-execution evidence, then paste the JSON document. The frontend sends the textarea value directly as a `text/plain; charset=utf-8` request body. FastAPI reads the raw request body, decodes it as UTF-8, and passes the resulting text directly to the corresponding strict evidence deserialiser. The browser does not parse or validate the submitted evidence and does not perform verification.
 
 To serve the built interface through FastAPI, build the frontend before starting the application:
 
@@ -179,7 +179,7 @@ cd ..
 uvicorn orbirig.web:app
 ```
 
-The interface renders only reconstructed observation fields. It does not infer a `ScenarioId` or assign a `PASS` or `FAIL` outcome.
+For observation evidence, the interface renders only reconstructed observation fields and does not infer a `ScenarioId` or assign a `PASS` or `FAIL` outcome. For verified-execution evidence, it renders the execution metadata, explicit `ScenarioId`, reconstructed observation, ordered canonical invariant results, and derived outcome returned by the OrbiRig core. A canonically consistent `FAIL` record is valid evidence and is presented as such.
 
 ### Reconstruct persisted verified evidence
 
@@ -240,7 +240,7 @@ Versioned release notes are available in [GitHub Releases](https://github.com/Ni
 
 ## Current scope
 
-OrbiRig intentionally focuses on deterministic verification of simplified operating-mode workflows and independently inspectable execution evidence. Its read-only interface currently supports observation evidence only; verified-execution and verified-sequence evidence inspection, external execution integration, storage or replay APIs, and a reporting interface remain unsupported, and OrbiRig does not claim standards compliance.
+OrbiRig intentionally focuses on deterministic verification of simplified operating-mode workflows and independently inspectable execution evidence. Its read-only interface currently supports observation and verified-execution evidence. Verified-execution-sequence evidence inspection, external execution integration, storage, replay, and report generation remain unsupported. OrbiRig does not claim compliance with any specific space-industry standard.
 
 ## Security
 
