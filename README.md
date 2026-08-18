@@ -43,7 +43,7 @@ flowchart LR
     verifier --> record
     record["VerifiedExecutionRecord<br/>ordered invariants + derived outcome"] --> evidence["Verified execution JSON"]
 
-    records["Explicitly ordered<br/>VerifiedExecutionRecord instances"] --> continuity("Ordered continuity verification")
+    records["2+ explicitly ordered<br/>VerifiedExecutionRecord instances"] --> continuity("Ordered continuity verification")
     continuity --> sequence["VerifiedExecutionSequence<br/>boundary results + derived outcome"]
     sequence --> sequence_evidence["Verified sequence JSON"]
 
@@ -83,13 +83,13 @@ OrbiRig has three serialised evidence representations.
 
 ### Observation evidence
 
-Observation evidence records the command, pre-command state, acknowledgement, post-command state, and telemetry from one execution. `serialize_execution_evidence(...)` writes deterministic JSON using observation evidence format version `1`; `deserialize_execution_evidence(...)` strictly reconstructs a `CommandExecutionObservation` and rejects malformed JSON, duplicate object member names at any nesting level, unsupported versions, invalid shapes, missing or unexpected fields, incorrect primitive types, unknown modes, and unsupported command types.
+Observation evidence records the command, pre-state, acknowledgement, post-state, and telemetry from one execution. `serialize_execution_evidence(...)` writes deterministic JSON using format version `1`; `deserialize_execution_evidence(...)` strictly reconstructs a `CommandExecutionObservation` and rejects malformed JSON, duplicate object member names at any nesting level, unsupported versions, invalid shapes, missing or unexpected fields, incorrect primitive types, unknown modes, and unsupported command types.
 
 Observation evidence contains neither `ScenarioId`, invariant results, nor a verification outcome. Its successful deserialisation therefore does not attest semantic verification.
 
 ### Verified execution records
 
-`VerifiedExecutionRecord` combines an explicit execution ID, UTC execution time, selected `ScenarioId`, observation, ordered invariant results with expected and actual values, and a derived outcome. It passes only when every invariant passes.
+`VerifiedExecutionRecord` combines an explicit execution ID, UTC execution time, selected `ScenarioId`, observation, ordered invariant results with expected and actual values, and a derived outcome. It passes only when all invariants pass.
 
 `serialize_verified_execution_evidence(...)` writes deterministic JSON using verified-execution schema version `1`. `deserialize_verified_execution_evidence(...)` strictly reconstructs a record by independently deriving its canonical invariant results and outcome from the persisted scenario and observation, then requiring the stored derived values to match exactly. A canonically consistent `FAIL` record remains valid evidence. Package and evidence/schema versions are independent; changing one does not imply changing the other.
 
@@ -147,7 +147,7 @@ The explicit `ScenarioId` supplied to `build_verified_execution_record(...)` sel
 
 ### Inspect evidence in the web interface
 
-Install the Python web dependencies and the frontend dependencies:
+Install the web and frontend dependencies:
 
 ```bash
 python -m pip install -e ".[web]"
@@ -167,7 +167,7 @@ cd frontend
 npm run dev
 ```
 
-During local development, Vite proxies inspection requests to FastAPI. The frontend submits the textarea value unchanged as a `text/plain; charset=utf-8` request body; FastAPI decodes it and delegates directly to the corresponding strict evidence deserialiser. The browser neither parses nor validates submitted evidence and does not perform verification.
+During local development, Vite proxies inspection requests to FastAPI. The frontend submits the textarea value unchanged as a `text/plain; charset=utf-8` request body; FastAPI decodes it and delegates directly to the corresponding strict evidence deserialiser. The browser does not parse, validate, or verify submitted evidence.
 
 To serve the built interface through FastAPI, build the frontend before starting the application:
 
@@ -178,7 +178,7 @@ cd ..
 uvicorn orbirig.web:app
 ```
 
-Observation inspection renders reconstructed fields only. Verified-execution inspection adds execution metadata, explicit `ScenarioId`, canonical invariant results, and derived outcome; sequence inspection adds the aggregate outcome, ordered member records, and continuity boundaries. Canonically consistent `FAIL` records and sequences remain valid evidence.
+Observation inspection renders reconstructed fields only. Verified-execution inspection adds execution metadata, explicit `ScenarioId`, canonical invariant results, and the derived outcome; sequence inspection adds the aggregate outcome, ordered member records, and continuity boundaries. Canonically consistent `FAIL` records and sequences remain valid evidence.
 
 ### Reconstruct persisted verified evidence
 
@@ -199,7 +199,7 @@ sequence = deserialize_verified_execution_sequence_evidence(
 )
 ```
 
-Both readers return the corresponding reconstructed model only after the persisted derived values agree with OrbiRig's independently recomputed canonical verification semantics.
+Both readers return reconstructed models only when persisted derived values match OrbiRig's independently recomputed canonical verification semantics.
 
 ## Local setup
 
@@ -211,21 +211,17 @@ python -m pip install -e ".[test,dev,web]"
 
 ## Verification
 
-Run the backend checks:
+Run the Python checks:
 
 ```bash
 python -m pytest -q
-```
-```bash
 behave
-```
-```bash
 python -m ruff check .
 ```
 
 Behave covers the three supported reference workflows; detailed negative cases, determinism, evidence behaviour, and deserialisation boundaries are covered in pytest.
 
-GitHub Actions runs package-import checks, Ruff, pytest, and Behave for the Python package, plus frontend type checking, tests, a production build, and a smoke check that the built frontend is served through FastAPI on pull requests and pushes to `main`.
+GitHub Actions runs package-import checks, Ruff, pytest, and Behave for the Python package, plus frontend type checking, tests, a production build, and a FastAPI serving smoke check on pull requests and pushes to `main`.
 
 ## Releases
 
