@@ -2,26 +2,26 @@
 
 OrbiRig is a non-operational verification harness for simplified spacecraft operating-mode workflows. It collects command-execution observations and verifies them against explicit scenario expectations. The harness also checks continuity across ordered verified executions and represents observations, verified executions, and verified execution sequences as deterministic versioned JSON evidence.
 
-Verification results remain reproducible and independently inspectable, including when persisted JSON evidence is reconstructed.
-
 `ReferenceSpacecraft` is a deterministic, simplified spacecraft-behaviour test double used as the reference system under test (SUT). It provides repeatable behaviour for the supported scenarios but does not act as the verification oracle.
 
 **Core:** Python
 
 **Web interface:** FastAPI · React · TypeScript · Vite
 
+**Live evidence inspector:** [orbirig-evidence-inspector.onrender.com](https://orbirig-evidence-inspector.onrender.com)
+
 **Testing and CI:** pytest · Behave · Vitest · React Testing Library · Ruff · GitHub Actions
 
 ## Key capabilities
 
 * execute three deterministic reference operating-mode scenarios and collect the command, pre-state, acknowledgement, post-state, and telemetry;
-* verify observations independently against an explicitly selected `ScenarioId` using ordered invariants;
-* distinguish expected command rejection from failed verification;
+* verify observations independently against an explicitly selected `ScenarioId`, distinguishing expected command rejection from failed verification;
 * verify operating-mode continuity across explicitly ordered verified execution records;
 * serialise observations, verified execution records, and verified execution sequences to deterministic versioned JSON;
-* strictly reconstruct persisted observation evidence with structural and value validation, keeping evidence validity separate from verification success;
-* strictly reconstruct persisted verified-execution and verified-execution-sequence evidence only when stored derived results agree with independently recomputed canonical verification results;
-* inspect pasted observation, verified-execution, and verified-execution-sequence evidence through a read-only web interface while keeping evidence deserialisation and verification semantics in the OrbiRig core.
+* strictly reconstruct persisted evidence, keeping observation validity separate from verification success and requiring stored derived results in verified records and sequences to match independently recomputed canonical results;
+* inspect all three evidence forms through a read-only web interface while evidence deserialisation and verification semantics remain in the OrbiRig core.
+
+![OrbiRig evidence inspector with verified-execution-sequence evidence selected](docs/images/evidence-inspector-sequence.png)
 
 ## Verification flow
 
@@ -54,11 +54,9 @@ Fresh observations are collected around one command execution. Persisted version
 
 ## Verification boundaries
 
-`ReferenceSpacecraft` provides deterministic reference behaviour, while the verifier evaluates observations independently. Successful observation-evidence deserialisation establishes only supported structural and value validity; it does not establish verification success.
+`ReferenceSpacecraft` provides deterministic reference behaviour, while verification remains independent of the reference SUT. Observation-evidence deserialisation establishes supported structural and value validity only; it neither selects a `ScenarioId` nor establishes verification success. The caller supplies the scenario expectation, and tests also submit intentionally inconsistent observations directly to the verifier.
 
-Observation evidence does not store, infer, derive, or select a `ScenarioId`. A structurally valid observation, including one with an accepted acknowledgement, can still fail verification. Conversely, an expected command rejection passes when its rejection and preserved state satisfy the selected scenario expectations. Tests also submit inconsistent observations directly to the verifier, so verification is not validated only against output from the reference SUT.
-
-Persisted derived verification results are treated as claims rather than trusted as verification truth. When verified-execution evidence is deserialised, OrbiRig independently recomputes its canonical invariant results and outcome. For verified sequences, it also reconstructs each member canonically and recomputes continuity and the aggregate outcome in persisted order. Stored derived values must match these canonical results exactly. A canonically consistent `FAIL` record or sequence is therefore valid evidence; validity does not require a `PASS` outcome.
+Persisted derived results are treated as claims. Verified-execution deserialisation recomputes canonical invariant results and outcome; sequence deserialisation also reconstructs members canonically and recomputes continuity and the aggregate outcome in persisted order. Stored derived values must match exactly, so a canonically consistent `FAIL` record or sequence remains valid evidence.
 
 ## Supported reference scenarios
 
@@ -168,7 +166,7 @@ cd frontend
 npm run dev
 ```
 
-During local development, Vite proxies inspection requests to FastAPI. Select observation, verified-execution, or verified-execution-sequence evidence, then paste the JSON document. The frontend sends the textarea value directly as a `text/plain; charset=utf-8` request body. FastAPI reads the raw request body, decodes it as UTF-8, and passes the resulting text directly to the corresponding strict evidence deserialiser. The browser does not parse or validate the submitted evidence and does not perform verification.
+During local development, Vite proxies inspection requests to FastAPI. The frontend submits the textarea value unchanged as a `text/plain; charset=utf-8` request body; FastAPI decodes it and delegates directly to the corresponding strict evidence deserialiser. The browser neither parses nor validates submitted evidence and does not perform verification.
 
 To serve the built interface through FastAPI, build the frontend before starting the application:
 
@@ -179,9 +177,7 @@ cd ..
 uvicorn orbirig.web:app
 ```
 
-For observation evidence, the interface renders only reconstructed observation fields and does not infer a `ScenarioId` or assign a `PASS` or `FAIL` outcome. For verified-execution evidence, it renders the execution metadata, explicit `ScenarioId`, reconstructed observation, ordered canonical invariant results, and derived outcome returned by the OrbiRig core. For verified-execution-sequence evidence, it renders the aggregate outcome, every member record, and every continuity boundary in reconstructed sequence order. Canonically consistent `FAIL` records and sequences are valid evidence and are presented as such.
-
-![OrbiRig evidence inspector with verified-execution-sequence evidence selected](docs/images/evidence-inspector-sequence.png)
+Observation inspection renders reconstructed fields only. Verified-execution inspection adds execution metadata, explicit `ScenarioId`, canonical invariant results, and derived outcome; sequence inspection adds the aggregate outcome, ordered member records, and continuity boundaries. Canonically consistent `FAIL` records and sequences remain valid evidence.
 
 ### Reconstruct persisted verified evidence
 
