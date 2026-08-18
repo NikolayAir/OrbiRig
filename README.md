@@ -2,7 +2,7 @@
 
 OrbiRig is a non-operational verification harness for simplified spacecraft operating-mode workflows. It collects command-execution observations and verifies them against explicit scenario expectations. The harness also checks continuity across ordered verified executions and represents observations, verified executions, and verified execution sequences as deterministic versioned JSON evidence.
 
-`ReferenceSpacecraft` is a deterministic, simplified spacecraft-behaviour test double used as the reference system under test (SUT). It provides repeatable behaviour for the supported scenarios but does not act as the verification oracle.
+`ReferenceSpacecraft` is a deterministic, simplified spacecraft-behaviour test double used as the reference system under test (SUT). It provides repeatable behaviour for the supported scenarios but is not the verification oracle.
 
 **Core:** Python
 
@@ -15,8 +15,8 @@ OrbiRig is a non-operational verification harness for simplified spacecraft oper
 * execute three deterministic reference operating-mode scenarios and collect the command, pre-state, acknowledgement, post-state, and telemetry;
 * verify observations independently against an explicitly selected `ScenarioId`, distinguishing expected command rejection from failed verification;
 * verify operating-mode continuity across explicitly ordered verified execution records;
-* serialise observations, verified execution records, and verified execution sequences to deterministic versioned JSON;
-* strictly reconstruct persisted evidence, keeping observation validity separate from verification success and requiring stored derived results in verified records and sequences to match independently recomputed canonical results;
+* serialise observations, verified execution records, and verified sequences to deterministic versioned JSON;
+* strictly reconstruct persisted evidence, separating observation validity from verification success and requiring stored derived results to match independently recomputed canonical results;
 * inspect all three evidence forms through a read-only web interface while evidence deserialisation and verification semantics remain in the OrbiRig core.
 
 ![OrbiRig evidence inspector with verified-execution-sequence evidence selected](docs/images/evidence-inspector-sequence.png)
@@ -51,7 +51,7 @@ flowchart LR
     sequence_loader --> sequence
 ```
 
-Fresh observations are collected around one command execution. Persisted version `1` observation JSON reaches the same `CommandExecutionObservation` model through a separate strict deserialisation boundary. In either path, the caller supplies the scenario expectation; it is never inferred from the observation.
+Fresh observations capture one command execution. Persisted version `1` observation JSON reaches the same `CommandExecutionObservation` model through a separate strict deserialisation boundary. In either path, the caller supplies the scenario expectation; it is never inferred from the observation.
 
 ## Verification boundaries
 
@@ -67,15 +67,15 @@ Persisted derived results are treated as claims. Verified-execution deserialisat
 | `NOMINAL_TO_NOMINAL_REJECTION` | `NOMINAL` | `SET_OPERATING_MODE(NOMINAL)` | rejected | `NOMINAL` |
 | `SAFE_TO_NOMINAL_MODE` | `SAFE` | `SET_OPERATING_MODE(NOMINAL)` | accepted | `NOMINAL` |
 
-For accepted transitions, verification checks the expected pre-state, accepted acknowledgement, requested post-state, and telemetry consistency with the observed post-state. For the expected rejection, it checks the expected `NOMINAL` pre-state, rejected acknowledgement, state preservation, and telemetry consistency with the observed post-state.
+For accepted transitions, verification checks the expected pre-state, accepted acknowledgement, requested post-state, and telemetry consistency with the observed post-state. For the expected rejection, it checks the expected `NOMINAL` pre-state, rejected acknowledgement, state preservation, and telemetry consistency.
 
 ## Ordered execution continuity
 
-Ordered continuity verification exposes cross-execution state discontinuities that individual verified execution records cannot detect.
+Ordered continuity verification detects cross-execution state discontinuities that individual verified records cannot.
 
-`verify_execution_sequence(...)` evaluates an explicitly ordered collection of at least two existing `VerifiedExecutionRecord` instances. For every adjacent pair, it compares the previous post-state operating mode with the next pre-state operating mode and retains both execution IDs, the expected and observed modes, and the boundary result.
+`verify_execution_sequence(...)` evaluates at least two explicitly ordered `VerifiedExecutionRecord` instances. For each adjacent pair, it compares the previous post-state and next pre-state operating modes and retains both execution IDs, the expected and observed modes, and the boundary result.
 
-Supplied order is authoritative: the verifier does not sort or infer order from timestamps, execution IDs, or scenarios. A sequence passes only when every member record already passes and every continuity boundary passes; member scenario invariants are not re-evaluated. The verifier is pure: it neither executes commands nor mutates a SUT.
+Supplied order is authoritative: the verifier does not sort or infer order from timestamps, execution IDs, or scenarios. A sequence passes only if all member records and continuity boundaries pass; member scenario invariants are not re-evaluated. The verifier is pure: it neither executes commands nor mutates a SUT.
 
 ## Execution evidence
 
@@ -91,7 +91,7 @@ Observation evidence contains neither `ScenarioId`, invariant results, nor a ver
 
 `VerifiedExecutionRecord` combines an explicit execution ID, UTC execution time, selected `ScenarioId`, observation, ordered invariant results with expected and actual values, and a derived outcome. It passes only when every invariant passes.
 
-`serialize_verified_execution_evidence(...)` writes deterministic JSON using verified-execution schema version `1`. `deserialize_verified_execution_evidence(...)` strictly reconstructs a record by independently deriving its canonical invariant results and outcome from the persisted scenario and observation, then requiring the stored derived values to match exactly. A canonically consistent `FAIL` record remains valid evidence. Package versions and evidence/schema versions are independent version domains; one does not imply a change to the other.
+`serialize_verified_execution_evidence(...)` writes deterministic JSON using verified-execution schema version `1`. `deserialize_verified_execution_evidence(...)` strictly reconstructs a record by independently deriving its canonical invariant results and outcome from the persisted scenario and observation, then requiring the stored derived values to match exactly. A canonically consistent `FAIL` record remains valid evidence. Package and evidence/schema versions are independent; changing one does not imply changing the other.
 
 ### Verified execution sequences
 
@@ -203,7 +203,7 @@ Both readers return the corresponding reconstructed model only after the persist
 
 ## Local setup
 
-OrbiRig currently targets Python 3.12. Create and activate a Python 3.12 virtual environment, then install the project with its test, development, and web dependencies:
+OrbiRig currently requires Python 3.12. Create and activate a Python 3.12 virtual environment, then install the project with its test, development, and web dependencies:
 
 ```bash
 python -m pip install -e ".[test,dev,web]"
@@ -211,27 +211,21 @@ python -m pip install -e ".[test,dev,web]"
 
 ## Verification
 
-Run the pytest suite:
+Run the backend checks:
 
 ```bash
 python -m pytest -q
 ```
-
-Run the Behave scenarios:
-
 ```bash
 behave
 ```
-
-Run the configured Ruff checks:
-
 ```bash
 python -m ruff check .
 ```
 
 Behave covers the three supported reference workflows; detailed negative cases, determinism, evidence behaviour, and deserialisation boundaries are covered in pytest.
 
-GitHub Actions runs package-import checks, Ruff, pytest, and Behave, plus frontend type checking, tests, a production build, and a built-interface serving smoke check for pull requests and pushes to `main`.
+GitHub Actions runs package-import checks, Ruff, pytest, and Behave for the Python package, plus frontend type checking, tests, a production build, and a smoke check that the built frontend is served through FastAPI on pull requests and pushes to `main`.
 
 ## Releases
 
@@ -243,7 +237,7 @@ OrbiRig intentionally focuses on deterministic verification of simplified operat
 
 ## Security
 
-Report suspected vulnerabilities through GitHub Private Vulnerability Reporting rather than a public issue. See [SECURITY.md](SECURITY.md) for details.
+Report suspected vulnerabilities privately through GitHub Private Vulnerability Reporting; see [SECURITY.md](SECURITY.md).
 
 ## License
 
