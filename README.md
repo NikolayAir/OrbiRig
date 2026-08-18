@@ -6,9 +6,7 @@ OrbiRig is a non-operational verification harness for simplified spacecraft oper
 
 **Core:** Python
 
-**Web interface:** FastAPI · React · TypeScript · Vite
-
-**Live evidence inspector:** [orbirig-evidence-inspector.onrender.com](https://orbirig-evidence-inspector.onrender.com)
+**Web inspector:** FastAPI · React · TypeScript · Vite · [Live](https://orbirig-evidence-inspector.onrender.com/)
 
 **Testing and CI:** pytest · Behave · Vitest · React Testing Library · Ruff · GitHub Actions
 
@@ -28,25 +26,28 @@ OrbiRig is a non-operational verification harness for simplified spacecraft oper
 ```mermaid
 flowchart LR
     scenario["Explicit ScenarioId"] --> command["Scenario command"]
-    command --> workflow["Reference workflow"]
+    command --> workflow("Reference workflow")
     sut["ReferenceSpacecraft<br/>reference SUT"] --> workflow
     workflow --> observation["CommandExecutionObservation"]
 
-    persisted["Persisted observation JSON<br/>format v1"] --> loader["Strict deserialisation<br/>structure + values"]
+    persisted["Persisted observation JSON<br/>format v1"] --> loader("Strict deserialisation<br/>structure + values")
     loader --> observation
 
-    scenario --> verifier["Independent verification"]
+    scenario --> verifier("Independent verification")
     observation --> verifier
-    metadata["Execution ID + UTC time"] --> record["VerifiedExecutionRecord<br/>ordered invariants + derived outcome"]
-    verifier --> record
-    record --> evidence["Verified execution JSON"]
-    verified_persisted["Persisted verified-execution JSON<br/>schema v1"] --> verified_loader["Strict deserialisation<br/>structure + semantic consistency"]
+
+    verified_persisted["Persisted verified-execution JSON<br/>schema v1"] --> verified_loader("Strict deserialisation<br/>structure + semantic consistency")
     verified_loader --> record
 
-    records["Explicitly ordered<br/>VerifiedExecutionRecord instances"] --> continuity["Ordered continuity verification"]
+    metadata["Execution ID + UTC time"] --> record
+    verifier --> record
+    record["VerifiedExecutionRecord<br/>ordered invariants + derived outcome"] --> evidence["Verified execution JSON"]
+
+    records["Explicitly ordered<br/>VerifiedExecutionRecord instances"] --> continuity("Ordered continuity verification")
     continuity --> sequence["VerifiedExecutionSequence<br/>boundary results + derived outcome"]
     sequence --> sequence_evidence["Verified sequence JSON"]
-    sequence_persisted["Persisted verified-sequence JSON<br/>schema v1"] --> sequence_loader["Strict deserialisation<br/>member + sequence consistency"]
+
+    sequence_persisted["Persisted verified-sequence JSON<br/>schema v1"] --> sequence_loader("Strict deserialisation<br/>member + sequence consistency")
     sequence_loader --> sequence
 ```
 
