@@ -13,7 +13,7 @@ OrbiRig is a non-operational verification harness for simplified spacecraft oper
 ## Key capabilities
 
 * execute three deterministic reference operating-mode scenarios and collect the command, pre-state, acknowledgement, post-state, and telemetry;
-* collect observation evidence from a separately executing target through one stdin/stdout subprocess boundary;
+* collect observation evidence from a separate target program through a one-shot subprocess boundary;
 * verify observations independently against an explicitly selected `ScenarioId`, distinguishing expected command rejection from failed verification;
 * verify operating-mode continuity across explicitly ordered verified execution records;
 * serialise observations, verified execution records, and verified sequences to deterministic versioned JSON;
@@ -30,6 +30,10 @@ flowchart LR
     command --> workflow("Reference workflow")
     sut["ReferenceSpacecraft<br/>reference SUT"] --> workflow
     workflow --> observation["CommandExecutionObservation"]
+
+    command --> subprocess_workflow("Subprocess workflow")
+    target["Separate target program"] -->|"observation evidence"| subprocess_workflow
+    subprocess_workflow --> observation
 
     persisted["Persisted observation JSON<br/>format v1"] --> loader("Strict deserialisation<br/>structure + values")
     loader --> observation
@@ -52,7 +56,7 @@ flowchart LR
     sequence_loader --> sequence
 ```
 
-Fresh observations capture one command execution. Persisted version `1` observation JSON reaches the same `CommandExecutionObservation` model through a separate strict deserialisation boundary. In either path, the caller supplies the scenario expectation; it is never inferred from the observation.
+Fresh observations can come from the reference workflow or subprocess collection and capture one command execution. Persisted version `1` observation JSON reaches the same `CommandExecutionObservation` model through a separate strict deserialisation boundary. In all cases, the caller supplies the scenario expectation; it is never inferred from the observation.
 
 ## Verification boundaries
 
@@ -60,7 +64,7 @@ Fresh observations capture one command execution. Persisted version `1` observat
 
 Persisted derived results are treated as claims. Verified-execution deserialisation recomputes canonical invariant results and outcome; sequence deserialisation also reconstructs members canonically and recomputes continuity and the aggregate outcome in persisted order. Stored derived values must match exactly, so a canonically consistent `FAIL` record or sequence remains valid evidence.
 
-Subprocess collection sends only one compact command JSON document on stdin and requires one existing version `1` observation-evidence document on stdout. The collector rejects launch failures, timeouts, non-zero exits, invalid UTF-8, invalid evidence, and returned-command mismatches with `ObservationCollectionError`. These failures occur before a valid observation exists and therefore produce neither invariant results nor a `VerifiedExecutionRecord`; `ExecutionOutcome.FAIL` remains reserved for valid observations that violate verification expectations.
+Subprocess collection sends one compact command JSON document on stdin and requires stdout to contain exactly one valid observation-evidence document using the existing version `1` format. The collector treats launch failures, timeouts, non-zero exits, invalid UTF-8, invalid evidence, and returned-command mismatches as `ObservationCollectionError`. These failures prevent collection from producing a verified execution, so no invariant results or `VerifiedExecutionRecord` are constructed. `ExecutionOutcome.FAIL` remains reserved for successfully collected observations that violate verification expectations.
 
 ## Supported reference scenarios
 
@@ -163,7 +167,7 @@ record = execute_verified_subprocess_workflow(
 )
 ```
 
-The target receives `{"command_type":"SET_OPERATING_MODE","target_mode":"SAFE"}` followed by one newline for the default scenario. It must exit successfully and return exactly one valid observation-evidence format version `1` document. Successfully collected evidence then follows the same canonical verification path as directly loaded or reference-workflow observations, so its result may be either `PASS` or `FAIL`.
+The target receives `{"command_type":"SET_OPERATING_MODE","target_mode":"SAFE"}` followed by one newline for the default scenario. It must exit successfully and write exactly one valid observation-evidence version `1` document to stdout. A successfully collected observation then follows the same canonical verification path as directly loaded or reference-workflow observations, so its result may be either `PASS` or `FAIL`.
 
 ### Inspect evidence in the web interface
 
@@ -249,7 +253,7 @@ Versioned release notes are available in [GitHub Releases](https://github.com/Ni
 
 ## Current scope
 
-OrbiRig intentionally focuses on deterministic verification of simplified operating-mode workflows and independently inspectable execution evidence. Its read-only interface currently supports observation, verified-execution, and verified-execution-sequence evidence. External execution is limited to one command and observation through a subprocess boundary; HTTP execution, storage, replay, and report generation remain unsupported. OrbiRig does not claim compliance with any specific space-industry standard.
+OrbiRig intentionally focuses on deterministic verification of simplified operating-mode workflows and independently inspectable execution evidence. Its read-only interface currently supports observation, verified-execution, and verified-execution-sequence evidence. External execution is limited to one command and one observation per subprocess invocation; HTTP execution, storage, replay, and report generation remain unsupported. OrbiRig does not claim compliance with any specific space-industry standard.
 
 ## Security
 
