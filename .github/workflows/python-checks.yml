@@ -35,6 +35,7 @@ jobs:
           import orbirig.execution
           import orbirig.models
           import orbirig.reference_sut
+          import orbirig.subprocess_collection
           import orbirig.verification
           import orbirig.web
           import orbirig.workflow

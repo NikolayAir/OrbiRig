@@ -13,6 +13,7 @@ OrbiRig is a non-operational verification harness for simplified spacecraft oper
 ## Key capabilities
 
 * execute three deterministic reference operating-mode scenarios and collect the command, pre-state, acknowledgement, post-state, and telemetry;
+* collect observation evidence from a separately executing target through one stdin/stdout subprocess boundary;
 * verify observations independently against an explicitly selected `ScenarioId`, distinguishing expected command rejection from failed verification;
 * verify operating-mode continuity across explicitly ordered verified execution records;
 * serialise observations, verified execution records, and verified sequences to deterministic versioned JSON;
@@ -58,6 +59,8 @@ Fresh observations capture one command execution. Persisted version `1` observat
 `ReferenceSpacecraft` provides deterministic reference behaviour, while verification remains independent of the reference SUT. Observation-evidence deserialisation establishes supported structural and value validity only; it neither selects a `ScenarioId` nor establishes verification success. The caller supplies the scenario expectation, and tests also submit intentionally inconsistent observations directly to the verifier.
 
 Persisted derived results are treated as claims. Verified-execution deserialisation recomputes canonical invariant results and outcome; sequence deserialisation also reconstructs members canonically and recomputes continuity and the aggregate outcome in persisted order. Stored derived values must match exactly, so a canonically consistent `FAIL` record or sequence remains valid evidence.
+
+Subprocess collection sends only one compact command JSON document on stdin and requires one existing version `1` observation-evidence document on stdout. The collector rejects launch failures, timeouts, non-zero exits, invalid UTF-8, invalid evidence, and returned-command mismatches with `ObservationCollectionError`. These failures occur before a valid observation exists and therefore produce neither invariant results nor a `VerifiedExecutionRecord`; `ExecutionOutcome.FAIL` remains reserved for valid observations that violate verification expectations.
 
 ## Supported reference scenarios
 
@@ -145,6 +148,23 @@ record = build_verified_execution_record(
 
 The explicit `ScenarioId` supplied to `build_verified_execution_record(...)` selects the expectations for the loaded observation; it is not recovered or inferred from the loaded evidence.
 
+### Execute and verify a subprocess workflow
+
+```python
+from datetime import datetime, timezone
+
+from orbirig.execution import execute_verified_subprocess_workflow
+
+record = execute_verified_subprocess_workflow(
+    argv=["/path/to/observation-peer"],
+    timeout=5.0,
+    execution_id="external-001",
+    executed_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+)
+```
+
+The target receives `{"command_type":"SET_OPERATING_MODE","target_mode":"SAFE"}` followed by one newline for the default scenario. It must exit successfully and return exactly one valid observation-evidence format version `1` document. Successfully collected evidence then follows the same canonical verification path as directly loaded or reference-workflow observations, so its result may be either `PASS` or `FAIL`.
+
 ### Inspect evidence in the web interface
 
 Install the web and frontend dependencies:
@@ -229,7 +249,7 @@ Versioned release notes are available in [GitHub Releases](https://github.com/Ni
 
 ## Current scope
 
-OrbiRig intentionally focuses on deterministic verification of simplified operating-mode workflows and independently inspectable execution evidence. Its read-only interface currently supports observation, verified-execution, and verified-execution-sequence evidence. External execution integration, storage, replay, and report generation remain unsupported. OrbiRig does not claim compliance with any specific space-industry standard.
+OrbiRig intentionally focuses on deterministic verification of simplified operating-mode workflows and independently inspectable execution evidence. Its read-only interface currently supports observation, verified-execution, and verified-execution-sequence evidence. External execution is limited to one command and observation through a subprocess boundary; HTTP execution, storage, replay, and report generation remain unsupported. OrbiRig does not claim compliance with any specific space-industry standard.
 
 ## Security
 
