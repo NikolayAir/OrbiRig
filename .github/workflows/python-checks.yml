@@ -46,7 +46,7 @@ jobs:
       - name: Run Ruff checks
         run: python -m ruff check .
 
-      - name: Run tests
+      - name: Run tests with branch coverage
         run: python -m pytest -q
 
       - name: Run Behave scenarios

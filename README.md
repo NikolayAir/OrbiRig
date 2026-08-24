@@ -8,7 +8,7 @@ OrbiRig is a non-operational verification harness for simplified spacecraft oper
 
 **Web inspector:** FastAPI · React · TypeScript · Vite · [Live](https://orbirig-evidence-inspector.onrender.com/)
 
-**Testing and CI:** pytest · Behave · Vitest · React Testing Library · Ruff · GitHub Actions
+**Testing and CI:** pytest · pytest-cov · Behave · Vitest · React Testing Library · Ruff · GitHub Actions
 
 ## Key capabilities
 
@@ -242,6 +242,8 @@ python -m pytest -q
 behave
 python -m ruff check .
 ```
+
+The pytest configuration measures branch coverage across the complete `orbirig` package and reports missing lines and branches in the terminal. Coverage reporting is non-gating.
 
 Behave covers the three supported reference workflows; detailed negative cases, determinism, evidence behaviour, and deserialisation boundaries are covered in pytest.
 
