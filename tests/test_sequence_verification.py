@@ -15,6 +15,7 @@ from orbirig.models import (
     SetOperatingModeCommand,
     SpacecraftState,
     TelemetrySnapshot,
+    VerifiedExecutionSequence,
 )
 from orbirig.verification import verify_execution_sequence
 
@@ -217,6 +218,31 @@ def test_fewer_than_two_records_are_rejected(records):
         match="requires at least two records",
     ):
         verify_execution_sequence(records)
+
+
+def test_sequence_model_rejects_fewer_than_two_records():
+    with pytest.raises(
+        ValueError,
+        match="requires at least two records",
+    ):
+        VerifiedExecutionSequence(
+            records=(_nominal_to_safe("only"),),
+            continuity_results=(),
+        )
+
+
+def test_sequence_model_rejects_incorrect_continuity_result_count():
+    with pytest.raises(
+        ValueError,
+        match="one continuity result per adjacent record pair",
+    ):
+        VerifiedExecutionSequence(
+            records=(
+                _nominal_to_safe("first"),
+                _safe_to_nominal("second"),
+            ),
+            continuity_results=(),
+        )
 
 
 def test_equal_ordered_inputs_produce_equal_results():

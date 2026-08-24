@@ -381,6 +381,20 @@ def test_verified_record_rejects_empty_execution_id(
         )
 
 
+def test_verified_record_rejects_empty_invariant_results():
+    with pytest.raises(
+        ValueError,
+        match="invariant_results must not be empty",
+    ):
+        VerifiedExecutionRecord(
+            execution_id=EXECUTION_ID,
+            executed_at=EXECUTED_AT,
+            scenario_id=ScenarioId.NOMINAL_TO_SAFE_MODE,
+            observation=_observation(),
+            invariant_results=(),
+        )
+
+
 def test_rejected_reference_workflow_builds_passing_record():
     record = execute_verified_reference_workflow(
         spacecraft=ReferenceSpacecraft(),
