@@ -10,6 +10,7 @@ from orbirig.models import (
     InvariantId,
     InvariantResult,
     OperatingMode,
+    ScenarioCommandMismatchError,
     ScenarioId,
     SpacecraftState,
     TelemetrySnapshot,
@@ -183,7 +184,7 @@ def build_verified_execution_record(
     """Verify an observation against one explicitly selected scenario."""
 
     if observation.command != command_for_scenario(scenario_id):
-        raise ValueError(
+        raise ScenarioCommandMismatchError(
             "observation command does not match the selected scenario",
         )
 
