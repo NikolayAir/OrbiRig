@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 
 type EvidenceType =
   | "observation"
@@ -18,6 +18,16 @@ type VerificationErrorCode =
   | "invalid_observation_evidence"
   | "invalid_execution_metadata"
   | "scenario_command_mismatch";
+
+type VerificationRequiredField =
+  | "executionId"
+  | "executedAt"
+  | "scenarioId"
+  | "observationEvidence";
+
+type VerificationRequiredErrors = Partial<
+  Record<VerificationRequiredField, string>
+>;
 
 type ObservationPresentation = {
   command: {
@@ -129,6 +139,188 @@ const VERIFICATION_ERROR_MESSAGES: Record<VerificationErrorCode, string> = {
     "The observation command does not match the selected scenario.",
 };
 
+const REQUIRED_VERIFICATION_MESSAGES: Record<
+  VerificationRequiredField,
+  string
+> = {
+  executionId: "Execution ID is required.",
+  executedAt: "UTC execution timestamp is required.",
+  scenarioId: "Select a supported scenario.",
+  observationEvidence: "Observation evidence is required.",
+};
+
+const EXAMPLE_OBSERVATION_DOCUMENT = {
+  evidence_format_version: 1,
+  command: {
+    command_type: "SET_OPERATING_MODE",
+    target_mode: "SAFE",
+  },
+  pre_state: {
+    operating_mode: "NOMINAL",
+  },
+  acknowledgement: {
+    accepted: true,
+  },
+  post_state: {
+    operating_mode: "SAFE",
+  },
+  telemetry: {
+    operating_mode: "SAFE",
+  },
+};
+
+const EXAMPLE_VERIFIED_EXECUTION_DOCUMENT = {
+  schema_version: 1,
+  execution: {
+    execution_id: "example-execution-001",
+    scenario_id: "nominal_to_safe_mode",
+    executed_at: "2026-08-26T08:30:00Z",
+  },
+  observation: {
+    command: {
+      command_type: "SET_OPERATING_MODE",
+      target_mode: "SAFE",
+    },
+    pre_state: {
+      operating_mode: "NOMINAL",
+    },
+    acknowledgement: {
+      accepted: true,
+    },
+    post_state: {
+      operating_mode: "SAFE",
+    },
+    telemetry: {
+      operating_mode: "SAFE",
+    },
+  },
+  invariant_results: [
+    {
+      invariant_id: "pre_state_matches_expected",
+      passed: true,
+      expected: "NOMINAL",
+      actual: "NOMINAL",
+    },
+    {
+      invariant_id: "acknowledgement_is_accepted",
+      passed: true,
+      expected: true,
+      actual: true,
+    },
+    {
+      invariant_id: "post_state_matches_requested_mode",
+      passed: true,
+      expected: "SAFE",
+      actual: "SAFE",
+    },
+    {
+      invariant_id: "telemetry_matches_post_state",
+      passed: true,
+      expected: "SAFE",
+      actual: "SAFE",
+    },
+  ],
+  outcome: "PASS",
+};
+
+const EXAMPLE_VERIFIED_EXECUTION_SEQUENCE_DOCUMENT = {
+  schema_version: 1,
+  records: [
+    {
+      ...EXAMPLE_VERIFIED_EXECUTION_DOCUMENT,
+      execution: {
+        execution_id: "example-sequence-001",
+        scenario_id: "nominal_to_safe_mode",
+        executed_at: "2026-08-26T08:30:00Z",
+      },
+    },
+    {
+      schema_version: 1,
+      execution: {
+        execution_id: "example-sequence-002",
+        scenario_id: "safe_to_nominal_mode",
+        executed_at: "2026-08-26T08:35:00Z",
+      },
+      observation: {
+        command: {
+          command_type: "SET_OPERATING_MODE",
+          target_mode: "NOMINAL",
+        },
+        pre_state: {
+          operating_mode: "SAFE",
+        },
+        acknowledgement: {
+          accepted: true,
+        },
+        post_state: {
+          operating_mode: "NOMINAL",
+        },
+        telemetry: {
+          operating_mode: "NOMINAL",
+        },
+      },
+      invariant_results: [
+        {
+          invariant_id: "pre_state_matches_expected",
+          passed: true,
+          expected: "SAFE",
+          actual: "SAFE",
+        },
+        {
+          invariant_id: "acknowledgement_is_accepted",
+          passed: true,
+          expected: true,
+          actual: true,
+        },
+        {
+          invariant_id: "post_state_matches_requested_mode",
+          passed: true,
+          expected: "NOMINAL",
+          actual: "NOMINAL",
+        },
+        {
+          invariant_id: "telemetry_matches_post_state",
+          passed: true,
+          expected: "NOMINAL",
+          actual: "NOMINAL",
+        },
+      ],
+      outcome: "PASS",
+    },
+  ],
+  continuity_results: [
+    {
+      previous_execution_id: "example-sequence-001",
+      next_execution_id: "example-sequence-002",
+      expected_operating_mode: "SAFE",
+      observed_operating_mode: "SAFE",
+      passed: true,
+    },
+  ],
+  outcome: "PASS",
+};
+
+const VERIFICATION_EXAMPLE = {
+  executionId: "example-execution-001",
+  executedAt: "2026-08-26T08:30:00Z",
+  scenarioId: "nominal_to_safe_mode" as const,
+  observationEvidence: JSON.stringify(EXAMPLE_OBSERVATION_DOCUMENT, null, 2),
+};
+
+const INSPECTION_EXAMPLES: Record<EvidenceType, string> = {
+  observation: JSON.stringify(EXAMPLE_OBSERVATION_DOCUMENT, null, 2),
+  "verified-execution": JSON.stringify(
+    EXAMPLE_VERIFIED_EXECUTION_DOCUMENT,
+    null,
+    2,
+  ),
+  "verified-execution-sequence": JSON.stringify(
+    EXAMPLE_VERIFIED_EXECUTION_SEQUENCE_DOCUMENT,
+    null,
+    2,
+  ),
+};
+
 export function App() {
   const [activeWorkflow, setActiveWorkflow] =
     useState<Workflow>("verification");
@@ -138,6 +330,8 @@ export function App() {
   const [executedAt, setExecutedAt] = useState("");
   const [scenarioId, setScenarioId] = useState<ScenarioId | "">("");
   const [observationEvidence, setObservationEvidence] = useState("");
+  const [verificationRequiredErrors, setVerificationRequiredErrors] =
+    useState<VerificationRequiredErrors>({});
   const [verification, setVerification] = useState<VerificationState>({
     kind: "idle",
   });
@@ -147,15 +341,83 @@ export function App() {
   const [inspection, setInspection] = useState<InspectionState>({
     kind: "idle",
   });
+  const executionIdInputRef = useRef<HTMLInputElement>(null);
+  const executedAtInputRef = useRef<HTMLInputElement>(null);
+  const scenarioInputRef = useRef<HTMLSelectElement>(null);
+  const observationEvidenceInputRef = useRef<HTMLTextAreaElement>(null);
 
   function selectEvidenceType(selectedType: EvidenceType) {
     setEvidenceType(selectedType);
     setInspection({ kind: "idle" });
   }
 
+  function clearVerificationRequiredError(field: VerificationRequiredField) {
+    setVerificationRequiredErrors((errors) => {
+      if (errors[field] === undefined) {
+        return errors;
+      }
+
+      const remainingErrors = { ...errors };
+      delete remainingErrors[field];
+      return remainingErrors;
+    });
+  }
+
+  function loadVerificationExample() {
+    setExecutionId(VERIFICATION_EXAMPLE.executionId);
+    setExecutedAt(VERIFICATION_EXAMPLE.executedAt);
+    setScenarioId(VERIFICATION_EXAMPLE.scenarioId);
+    setObservationEvidence(VERIFICATION_EXAMPLE.observationEvidence);
+    setVerificationRequiredErrors({});
+    setVerification({ kind: "idle" });
+  }
+
+  function loadInspectionExample() {
+    setEvidence(INSPECTION_EXAMPLES[evidenceType]);
+    setInspection({ kind: "idle" });
+  }
+
   async function verifyObservation(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    const requiredErrors: VerificationRequiredErrors = {};
+
+    if (!executionId.trim()) {
+      requiredErrors.executionId = REQUIRED_VERIFICATION_MESSAGES.executionId;
+    }
+    if (!executedAt.trim()) {
+      requiredErrors.executedAt = REQUIRED_VERIFICATION_MESSAGES.executedAt;
+    }
+    if (!scenarioId) {
+      requiredErrors.scenarioId = REQUIRED_VERIFICATION_MESSAGES.scenarioId;
+    }
+    if (!observationEvidence.trim()) {
+      requiredErrors.observationEvidence =
+        REQUIRED_VERIFICATION_MESSAGES.observationEvidence;
+    }
+
+    const firstMissingField = (
+      [
+        "executionId",
+        "executedAt",
+        "scenarioId",
+        "observationEvidence",
+      ] as const
+    ).find((field) => requiredErrors[field] !== undefined);
+
+    if (firstMissingField !== undefined) {
+      setVerificationRequiredErrors(requiredErrors);
+      const fields = {
+        executionId: executionIdInputRef.current,
+        executedAt: executedAtInputRef.current,
+        scenarioId: scenarioInputRef.current,
+        observationEvidence: observationEvidenceInputRef.current,
+      };
+      fields[firstMissingField]?.focus();
+      return;
+    }
+
+    setVerificationRequiredErrors({});
     setVerification({ kind: "loading" });
 
     let response: Response;
@@ -317,7 +579,11 @@ export function App() {
             </p>
           </div>
 
-          <form className="verification-form" onSubmit={verifyObservation}>
+          <form
+            className="verification-form"
+            noValidate
+            onSubmit={verifyObservation}
+          >
             <fieldset
               className="verification-inputs"
               disabled={verification.kind === "loading"}
@@ -344,6 +610,7 @@ export function App() {
                             return;
                           }
 
+                          setScenarioHelpOpen(false);
                           setExecutionIdHelpOpen(true);
                         }}
                         onKeyDown={(event) => {
@@ -356,21 +623,39 @@ export function App() {
                         ?
                       </button>
                       <span id="execution-id-help-description" role="tooltip">
-                        A non-empty identifier for this verification execution. It
-                        is recorded with the resulting evidence.
+                        A non-empty identifier recorded with the resulting evidence.
                       </span>
                     </span>
                   </div>
                   <input
                     id="verification-execution-id"
-                    aria-describedby="execution-id-help-description"
+                    ref={executionIdInputRef}
+                    aria-describedby={describedBy(
+                      "execution-id-help-description",
+                      verificationRequiredErrors.executionId
+                        ? "verification-execution-id-error"
+                        : undefined,
+                    )}
+                    aria-invalid={
+                      verificationRequiredErrors.executionId ? true : undefined
+                    }
                     value={executionId}
                     onChange={(event) => {
                       setExecutionId(event.target.value);
+                      clearVerificationRequiredError("executionId");
                       setVerification({ kind: "idle" });
                     }}
                     required
                   />
+                  {verificationRequiredErrors.executionId && (
+                    <p
+                      className="field-error"
+                      id="verification-execution-id-error"
+                      role="alert"
+                    >
+                      {verificationRequiredErrors.executionId}
+                    </p>
+                  )}
                 </div>
 
                 <div className="form-field">
@@ -379,14 +664,33 @@ export function App() {
                   </label>
                   <input
                     id="verification-executed-at"
+                    ref={executedAtInputRef}
+                    aria-describedby={describedBy(
+                      verificationRequiredErrors.executedAt
+                        ? "verification-executed-at-error"
+                        : undefined,
+                    )}
+                    aria-invalid={
+                      verificationRequiredErrors.executedAt ? true : undefined
+                    }
                     value={executedAt}
                     onChange={(event) => {
                       setExecutedAt(event.target.value);
+                      clearVerificationRequiredError("executedAt");
                       setVerification({ kind: "idle" });
                     }}
                     placeholder="2026-08-25T18:30:00Z"
                     required
                   />
+                  {verificationRequiredErrors.executedAt && (
+                    <p
+                      className="field-error"
+                      id="verification-executed-at-error"
+                      role="alert"
+                    >
+                      {verificationRequiredErrors.executedAt}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -407,6 +711,7 @@ export function App() {
                           return;
                         }
 
+                        setExecutionIdHelpOpen(false);
                         setScenarioHelpOpen(true);
                       }}
                       onKeyDown={(event) => {
@@ -419,17 +724,27 @@ export function App() {
                       ?
                     </button>
                     <span id="scenario-help-description" role="tooltip">
-                      Select the scenario OrbiRig should verify against. The
-                      scenario is not inferred from the submitted evidence.
+                      Select the scenario to verify against. It is not inferred from
+                      the evidence.
                     </span>
                   </span>
                 </div>
                 <select
                   id="verification-scenario"
-                  aria-describedby="scenario-help-description"
+                  ref={scenarioInputRef}
+                  aria-describedby={describedBy(
+                    "scenario-help-description",
+                    verificationRequiredErrors.scenarioId
+                      ? "verification-scenario-error"
+                      : undefined,
+                  )}
+                  aria-invalid={
+                    verificationRequiredErrors.scenarioId ? true : undefined
+                  }
                   value={scenarioId}
                   onChange={(event) => {
                     setScenarioId(event.target.value as ScenarioId | "");
+                    clearVerificationRequiredError("scenarioId");
                     setVerification({ kind: "idle" });
                   }}
                   required
@@ -441,6 +756,15 @@ export function App() {
                     </option>
                   ))}
                 </select>
+                {verificationRequiredErrors.scenarioId && (
+                  <p
+                    className="field-error"
+                    id="verification-scenario-error"
+                    role="alert"
+                  >
+                    {verificationRequiredErrors.scenarioId}
+                  </p>
+                )}
               </div>
 
               <div className="form-field">
@@ -449,19 +773,48 @@ export function App() {
                 </label>
                 <textarea
                   id="verification-observation-evidence"
+                  ref={observationEvidenceInputRef}
+                  aria-describedby={describedBy(
+                    verificationRequiredErrors.observationEvidence
+                      ? "verification-observation-evidence-error"
+                      : undefined,
+                  )}
+                  aria-invalid={
+                    verificationRequiredErrors.observationEvidence
+                      ? true
+                      : undefined
+                  }
                   value={observationEvidence}
                   onChange={(event) => {
                     setObservationEvidence(event.target.value);
+                    clearVerificationRequiredError("observationEvidence");
                     setVerification({ kind: "idle" });
                   }}
                   spellCheck={false}
                   rows={6}
                   required
                 />
+                {verificationRequiredErrors.observationEvidence && (
+                  <p
+                    className="field-error"
+                    id="verification-observation-evidence-error"
+                    role="alert"
+                  >
+                    {verificationRequiredErrors.observationEvidence}
+                  </p>
+                )}
               </div>
             </fieldset>
 
             <div className="form-actions">
+              <button
+                type="button"
+                className="secondary-action"
+                disabled={verification.kind === "loading"}
+                onClick={loadVerificationExample}
+              >
+                Load example
+              </button>
               <button
                 type="submit"
                 className="primary-action"
@@ -576,6 +929,14 @@ export function App() {
             </div>
             <div className="form-actions">
               <button
+                type="button"
+                className="secondary-action"
+                disabled={inspection.kind === "loading"}
+                onClick={loadInspectionExample}
+              >
+                Load example
+              </button>
+              <button
                 type="submit"
                 className="primary-action"
                 disabled={inspection.kind === "loading"}
@@ -618,6 +979,13 @@ export function App() {
       )}
     </main>
   );
+}
+
+function describedBy(...ids: Array<string | undefined>): string | undefined {
+  const descriptionIds = ids.filter(
+    (id): id is string => id !== undefined,
+  );
+  return descriptionIds.length > 0 ? descriptionIds.join(" ") : undefined;
 }
 
 function evidenceTypeName(evidenceType: EvidenceType): string {

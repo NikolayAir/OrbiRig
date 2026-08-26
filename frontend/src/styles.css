@@ -212,12 +212,12 @@ label {
   left: 0;
   line-height: 1.4;
   opacity: 0;
-  padding: 0.65rem 0.75rem;
+  padding: 0.55rem 0.65rem;
   pointer-events: none;
   position: absolute;
   top: calc(100% + 0.4rem);
   visibility: hidden;
-  width: min(20rem, calc(100vw - 3rem));
+  width: min(18rem, calc(100vw - 3rem));
   z-index: 1;
 }
 
@@ -263,8 +263,24 @@ textarea:disabled {
   color: #637480;
 }
 
+input[aria-invalid="true"],
+select[aria-invalid="true"],
+textarea[aria-invalid="true"] {
+  border-color: #a74833;
+}
+
+.field-error {
+  color: #934737;
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin: 0.4rem 0 0;
+}
+
 .form-actions {
   border-top: 1px solid #e1e8ec;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
   margin-top: 1.25rem;
   padding-top: 1rem;
 }
@@ -277,6 +293,18 @@ textarea:disabled {
 
 .form-actions .primary-action:hover:not(:disabled) {
   background: #084d70;
+}
+
+.secondary-action {
+  background: #fff;
+  border-color: #9fb7c5;
+  color: #0a5b85;
+  padding: 0.7rem 1rem;
+}
+
+.secondary-action:hover:not(:disabled) {
+  background: #edf5f8;
+  border-color: #5c8da7;
 }
 
 button:disabled {
@@ -383,7 +411,7 @@ button:disabled {
 .verified-execution-summary {
   display: grid;
   gap: 1.5rem;
-  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  grid-template-columns: minmax(19rem, 1fr) minmax(0, 1.2fr);
 }
 
 .execution-summary,
@@ -435,6 +463,10 @@ dd {
 .execution-summary-fields dd,
 .observation-fields dd {
   margin-left: 0;
+}
+
+.observation-details .observation-fields {
+  max-width: 36rem;
 }
 
 .invariant-results-heading {
