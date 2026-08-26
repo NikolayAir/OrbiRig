@@ -318,6 +318,82 @@ describe("App", () => {
     expect(nominalScenario.selected).toBe(false);
   });
 
+  it("provides accessible, dismissible Scenario ID help", () => {
+    render(<App />);
+
+    const help = screen.getByRole("button", { name: "About Scenario ID" });
+    const description = screen.getByText(
+      "Select the scenario OrbiRig should verify against. The scenario is not inferred from the submitted evidence.",
+    );
+    const scenario = screen.getByLabelText("Scenario ID");
+    const helpContainer = help.parentElement;
+
+    expect(help).toHaveAttribute(
+      "aria-describedby",
+      "scenario-help-description",
+    );
+    expect(scenario).toHaveAttribute(
+      "aria-describedby",
+      "scenario-help-description",
+    );
+    expect(description).toHaveTextContent(
+      "The scenario is not inferred from the submitted evidence.",
+    );
+
+    help.focus();
+    expect(document.activeElement).toBe(help);
+
+    fireEvent.click(help);
+    expect(helpContainer).toHaveAttribute("data-open", "true");
+
+    fireEvent.click(help);
+    expect(helpContainer).toHaveAttribute("data-open", "false");
+    expect(document.activeElement).not.toBe(help);
+
+    help.focus();
+    fireEvent.click(help);
+    expect(helpContainer).toHaveAttribute("data-open", "true");
+
+    fireEvent.keyDown(help, { key: "Escape" });
+    expect(helpContainer).toHaveAttribute("data-open", "false");
+    expect(document.activeElement).not.toBe(help);
+  });
+
+  it("provides accessible, dismissible Execution ID help", () => {
+    render(<App />);
+
+    const help = screen.getByRole("button", { name: "About Execution ID" });
+    const description = screen.getByText(
+      "A non-empty identifier for this verification execution. It is recorded with the resulting evidence.",
+    );
+    const executionId = screen.getByLabelText("Execution ID");
+    const helpContainer = help.parentElement;
+
+    expect(help).toHaveAttribute(
+      "aria-describedby",
+      "execution-id-help-description",
+    );
+    expect(executionId).toHaveAttribute(
+      "aria-describedby",
+      "execution-id-help-description",
+    );
+    expect(description).toHaveAttribute("role", "tooltip");
+
+    help.focus();
+    fireEvent.click(help);
+    expect(helpContainer).toHaveAttribute("data-open", "true");
+
+    fireEvent.click(help);
+    expect(helpContainer).toHaveAttribute("data-open", "false");
+    expect(document.activeElement).not.toBe(help);
+
+    help.focus();
+    fireEvent.click(help);
+    fireEvent.keyDown(help, { key: "Escape" });
+    expect(helpContainer).toHaveAttribute("data-open", "false");
+    expect(document.activeElement).not.toBe(help);
+  });
+
   it("submits raw observation evidence with explicit verification input", async () => {
     const evidence = '{\n  "accepted": true,\n  "accepted": true\n}';
     fetchMock.mockResolvedValue({
@@ -381,8 +457,17 @@ describe("App", () => {
     });
     expect(within(record).getByText("exec-web-001")).toBeInTheDocument();
     expect(
-      within(record).getByText("Outcome").nextElementSibling,
-    ).toHaveTextContent("PASS");
+      within(record).getByLabelText("Verification outcome: PASS"),
+    ).toBeInTheDocument();
+    expect(
+      within(record).getByText("2026-08-17T10:15:30Z"),
+    ).toBeInTheDocument();
+    expect(
+      within(record).getByText("nominal_to_safe_mode"),
+    ).toBeInTheDocument();
+    expect(
+      within(record).getByText("SET_OPERATING_MODE"),
+    ).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
@@ -410,8 +495,8 @@ describe("App", () => {
       name: "Verified execution",
     });
     expect(
-      within(record).getByText("Outcome").nextElementSibling,
-    ).toHaveTextContent("FAIL");
+      within(record).getByLabelText("Verification outcome: FAIL"),
+    ).toBeInTheDocument();
     expect(within(record).getAllByText("FAIL")).toHaveLength(2);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
@@ -643,8 +728,14 @@ describe("App", () => {
     expect(
       within(invariantItems[0]).getByText("pre_state_matches_expected"),
     ).toBeInTheDocument();
+    expect(within(invariantItems[0]).getByText("Expected")).toBeInTheDocument();
+    expect(within(invariantItems[0]).getByText("Actual")).toBeInTheDocument();
+    expect(within(invariantItems[0]).getByText("Result")).toBeInTheDocument();
     expect(within(invariantItems[0]).getAllByText("NOMINAL")).toHaveLength(2);
     expect(within(invariantItems[0]).getByText("PASS")).toBeInTheDocument();
+    expect(
+      within(invariantItems[0]).getByLabelText("Invariant result: PASS"),
+    ).toBeInTheDocument();
     expect(
       within(invariantItems[1]).getByRole("heading", {
         name: "Acknowledgement is accepted",
@@ -655,6 +746,9 @@ describe("App", () => {
     ).toBeInTheDocument();
     expect(within(invariantItems[1]).getAllByText("true")).toHaveLength(2);
     expect(within(invariantItems[1]).getByText("PASS")).toBeInTheDocument();
+    expect(
+      within(invariantItems[1]).getByLabelText("Invariant result: PASS"),
+    ).toBeInTheDocument();
     expect(screen.getAllByText("PASS")).toHaveLength(3);
   });
 
@@ -742,8 +836,8 @@ describe("App", () => {
       }),
     ).toBeInTheDocument();
     expect(
-      within(members[0]).getByText("Outcome").nextElementSibling,
-    ).toHaveTextContent("PASS");
+      within(members[0]).getByLabelText("Verification outcome: PASS"),
+    ).toBeInTheDocument();
 
     const boundaries = within(sequence).getAllByRole("article", {
       name: /Boundary/,

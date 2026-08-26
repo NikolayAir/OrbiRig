@@ -132,6 +132,8 @@ const VERIFICATION_ERROR_MESSAGES: Record<VerificationErrorCode, string> = {
 export function App() {
   const [activeWorkflow, setActiveWorkflow] =
     useState<Workflow>("verification");
+  const [executionIdHelpOpen, setExecutionIdHelpOpen] = useState(false);
+  const [scenarioHelpOpen, setScenarioHelpOpen] = useState(false);
   const [executionId, setExecutionId] = useState("");
   const [executedAt, setExecutedAt] = useState("");
   const [scenarioId, setScenarioId] = useState<ScenarioId | "">("");
@@ -153,6 +155,7 @@ export function App() {
 
   async function verifyObservation(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
     setVerification({ kind: "loading" });
 
     let response: Response;
@@ -323,9 +326,44 @@ export function App() {
 
               <div className="metadata-fields">
                 <div className="form-field">
-                  <label htmlFor="verification-execution-id">Execution ID</label>
+                  <div className="field-label">
+                    <label htmlFor="verification-execution-id">
+                      Execution ID
+                    </label>
+                    <span className="field-help" data-open={executionIdHelpOpen}>
+                      <button
+                        type="button"
+                        className="field-help-button"
+                        aria-label="About Execution ID"
+                        aria-controls="execution-id-help-description"
+                        aria-describedby="execution-id-help-description"
+                        onClick={(event) => {
+                          if (executionIdHelpOpen) {
+                            setExecutionIdHelpOpen(false);
+                            event.currentTarget.blur();
+                            return;
+                          }
+
+                          setExecutionIdHelpOpen(true);
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Escape") {
+                            setExecutionIdHelpOpen(false);
+                            event.currentTarget.blur();
+                          }
+                        }}
+                      >
+                        ?
+                      </button>
+                      <span id="execution-id-help-description" role="tooltip">
+                        A non-empty identifier for this verification execution. It
+                        is recorded with the resulting evidence.
+                      </span>
+                    </span>
+                  </div>
                   <input
                     id="verification-execution-id"
+                    aria-describedby="execution-id-help-description"
                     value={executionId}
                     onChange={(event) => {
                       setExecutionId(event.target.value);
@@ -353,9 +391,42 @@ export function App() {
               </div>
 
               <div className="form-field">
-                <label htmlFor="verification-scenario">Scenario ID</label>
+                <div className="field-label">
+                  <label htmlFor="verification-scenario">Scenario ID</label>
+                  <span className="field-help" data-open={scenarioHelpOpen}>
+                    <button
+                      type="button"
+                      className="field-help-button"
+                      aria-label="About Scenario ID"
+                      aria-controls="scenario-help-description"
+                      aria-describedby="scenario-help-description"
+                      onClick={(event) => {
+                        if (scenarioHelpOpen) {
+                          setScenarioHelpOpen(false);
+                          event.currentTarget.blur();
+                          return;
+                        }
+
+                        setScenarioHelpOpen(true);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Escape") {
+                          setScenarioHelpOpen(false);
+                          event.currentTarget.blur();
+                        }
+                      }}
+                    >
+                      ?
+                    </button>
+                    <span id="scenario-help-description" role="tooltip">
+                      Select the scenario OrbiRig should verify against. The
+                      scenario is not inferred from the submitted evidence.
+                    </span>
+                  </span>
+                </div>
                 <select
                   id="verification-scenario"
+                  aria-describedby="scenario-help-description"
                   value={scenarioId}
                   onChange={(event) => {
                     setScenarioId(event.target.value as ScenarioId | "");
@@ -384,14 +455,18 @@ export function App() {
                     setVerification({ kind: "idle" });
                   }}
                   spellCheck={false}
-                  rows={7}
+                  rows={6}
                   required
                 />
               </div>
             </fieldset>
 
             <div className="form-actions">
-              <button type="submit" disabled={verification.kind === "loading"}>
+              <button
+                type="submit"
+                className="primary-action"
+                disabled={verification.kind === "loading"}
+              >
                 Verify observation
               </button>
             </div>
@@ -496,11 +571,15 @@ export function App() {
                 }}
                 disabled={inspection.kind === "loading"}
                 spellCheck={false}
-                rows={7}
+                rows={6}
               />
             </div>
             <div className="form-actions">
-              <button type="submit" disabled={inspection.kind === "loading"}>
+              <button
+                type="submit"
+                className="primary-action"
+                disabled={inspection.kind === "loading"}
+              >
                 Inspect evidence
               </button>
             </div>
@@ -639,7 +718,7 @@ function ObservationFields({
   observation: ObservationPresentation;
 }) {
   return (
-    <dl>
+    <dl className="observation-fields">
       <dt>Command type</dt>
       <dd>{observation.command.command_type}</dd>
       <dt>Target mode</dt>
@@ -662,7 +741,7 @@ function ObservationDetails({
   observation: ObservationPresentation;
 }) {
   return (
-    <section aria-labelledby="reconstructed-observation">
+    <section className="observation-details" aria-labelledby="reconstructed-observation">
       <h2 id="reconstructed-observation">Reconstructed observation</h2>
       <ObservationFields observation={observation} />
     </section>
@@ -680,45 +759,91 @@ function VerifiedExecutionFields({
   const InvariantHeading = nested ? "h6" : "h4";
 
   return (
-    <>
-      <dl>
-        <dt>Execution ID</dt>
-        <dd>{record.execution.execution_id}</dd>
-        <dt>UTC execution timestamp</dt>
-        <dd>{record.execution.executed_at}</dd>
-        <dt>Scenario ID</dt>
-        <dd>{record.execution.scenario_id}</dd>
-        <dt>Outcome</dt>
-        <dd>{record.outcome}</dd>
-      </dl>
+    <div className={`verified-execution-fields${nested ? " is-nested" : ""}`}>
+      <div className="verified-execution-summary">
+        <section className="execution-summary">
+          <Subheading>Execution summary</Subheading>
+          <dl className="execution-summary-fields">
+            <dt>Execution ID</dt>
+            <dd>{record.execution.execution_id}</dd>
+            <dt>UTC execution timestamp</dt>
+            <dd>{record.execution.executed_at}</dd>
+            <dt>Scenario ID</dt>
+            <dd>{record.execution.scenario_id}</dd>
+          </dl>
+        </section>
 
-      <Subheading>Reconstructed observation</Subheading>
-      <ObservationFields observation={record.observation} />
+        <section className="result-observation">
+          <Subheading>Reconstructed observation</Subheading>
+          <ObservationFields observation={record.observation} />
+        </section>
+      </div>
 
-      <Subheading>Invariant results</Subheading>
-      <ol className="invariant-results">
-        {record.invariant_results.map((result, index) => (
-          <li key={`${result.invariant_id}-${index}`}>
-            <InvariantHeading className="invariant-title">
-              {Object.hasOwn(INVARIANT_TITLES, result.invariant_id)
-                ? INVARIANT_TITLES[result.invariant_id]
-                : "Invariant result"}
-            </InvariantHeading>
-            <p className="invariant-id">
-              <code>{result.invariant_id}</code>
-            </p>
-            <dl>
-              <dt>Expected</dt>
-              <dd>{formatInvariantValue(result.expected)}</dd>
-              <dt>Actual</dt>
-              <dd>{formatInvariantValue(result.actual)}</dd>
-              <dt>Result</dt>
-              <dd>{result.passed ? "PASS" : "FAIL"}</dd>
-            </dl>
-          </li>
-        ))}
-      </ol>
-    </>
+      <Subheading className="invariant-results-heading">
+        Invariant results
+      </Subheading>
+      <div className="invariant-results-wrapper">
+        <div className="invariant-column-headings" aria-hidden="true">
+          <span>Invariant</span>
+          <span>Expected</span>
+          <span>Actual</span>
+          <span>Result</span>
+        </div>
+        <ol className="invariant-results">
+          {record.invariant_results.map((result, index) => (
+            <li key={`${result.invariant_id}-${index}`}>
+              <div className="invariant-summary">
+                <InvariantHeading className="invariant-title">
+                  {Object.hasOwn(INVARIANT_TITLES, result.invariant_id)
+                    ? INVARIANT_TITLES[result.invariant_id]
+                    : "Invariant result"}
+                </InvariantHeading>
+                <p className="invariant-id">
+                  <code>{result.invariant_id}</code>
+                </p>
+              </div>
+              <dl className="invariant-values">
+                <div>
+                  <dt>Expected</dt>
+                  <dd>{formatInvariantValue(result.expected)}</dd>
+                </div>
+                <div>
+                  <dt>Actual</dt>
+                  <dd>{formatInvariantValue(result.actual)}</dd>
+                </div>
+                <div>
+                  <dt>Result</dt>
+                  <dd>
+                    <OutcomeBadge
+                      outcome={result.passed ? "PASS" : "FAIL"}
+                      label="Invariant result"
+                    />
+                  </dd>
+                </div>
+              </dl>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </div>
+  );
+}
+
+function OutcomeBadge({
+  outcome,
+  label = "Verification outcome",
+}: {
+  outcome: string;
+  label?: string;
+}) {
+  return (
+    <span
+      className="outcome-badge"
+      data-outcome={outcome}
+      aria-label={`${label}: ${outcome}`}
+    >
+      {outcome}
+    </span>
   );
 }
 
@@ -731,7 +856,10 @@ function VerifiedExecutionDetails({
 }) {
   return (
     <section aria-labelledby={headingId}>
-      <h2 id={headingId}>Verified execution</h2>
+      <div className="result-heading">
+        <h2 id={headingId}>Verified execution</h2>
+        <OutcomeBadge outcome={record.outcome} />
+      </div>
       <VerifiedExecutionFields record={record} />
     </section>
   );
@@ -761,7 +889,10 @@ function VerifiedExecutionSequenceDetails({
           return (
             <li key={`${record.execution.execution_id}-${index}`}>
               <article className="sequence-member" aria-labelledby={headingId}>
-                <h4 id={headingId}>Member {index + 1}</h4>
+                <div className="sequence-member-heading">
+                  <h4 id={headingId}>Member {index + 1}</h4>
+                  <OutcomeBadge outcome={record.outcome} />
+                </div>
                 <VerifiedExecutionFields record={record} nested />
               </article>
             </li>
