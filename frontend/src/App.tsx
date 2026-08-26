@@ -1,4 +1,4 @@
-import { FormEvent, useRef, useState } from "react";
+import { FormEvent, Fragment, useRef, useState } from "react";
 
 type EvidenceType =
   | "observation"
@@ -1240,69 +1240,90 @@ function VerifiedExecutionSequenceDetails({
 }) {
   return (
     <section aria-labelledby="verified-execution-sequence">
-      <h2 id="verified-execution-sequence">Verified execution sequence</h2>
-      <dl>
-        <dt>Sequence outcome</dt>
-        <dd>{sequence.outcome}</dd>
-      </dl>
+      <div className="result-heading">
+        <h2 id="verified-execution-sequence">Verified execution sequence</h2>
+        <OutcomeBadge outcome={sequence.outcome} label="Sequence outcome" />
+      </div>
 
-      <h3>Member records</h3>
+      <h3 className="sequence-flow-heading">Member records and continuity</h3>
       <ol
-        className="sequence-members"
-        aria-label="Sequence member records"
+        className="sequence-flow"
+        aria-label="Sequence member records and continuity boundaries"
         role="list"
       >
         {sequence.records.map((record, index) => {
           const headingId = `sequence-member-${index}`;
-          return (
-            <li key={`${record.execution.execution_id}-${index}`}>
-              <article className="sequence-member" aria-labelledby={headingId}>
-                <div className="sequence-member-heading">
-                  <h4 id={headingId}>Member {index + 1}</h4>
-                  <OutcomeBadge outcome={record.outcome} />
-                </div>
-                <VerifiedExecutionFields record={record} nested />
-              </article>
-            </li>
-          );
-        })}
-      </ol>
+          const continuityResult = sequence.continuity_results[index];
 
-      <h3>Continuity boundaries</h3>
-      <ol
-        className="continuity-boundaries"
-        aria-label="Continuity boundaries"
-        role="list"
-      >
-        {sequence.continuity_results.map((result, index) => {
-          const headingId = `continuity-boundary-${index}`;
           return (
-            <li
-              key={`${result.previous_execution_id}-${result.next_execution_id}-${index}`}
-            >
-              <article
-                className="continuity-boundary"
-                aria-labelledby={headingId}
-              >
-                <h4 id={headingId}>Boundary {index + 1}</h4>
-                <dl>
-                  <dt>Previous execution ID</dt>
-                  <dd>{result.previous_execution_id}</dd>
-                  <dt>Next execution ID</dt>
-                  <dd>{result.next_execution_id}</dd>
-                  <dt>Expected operating mode</dt>
-                  <dd>{result.expected_operating_mode}</dd>
-                  <dt>Observed operating mode</dt>
-                  <dd>{result.observed_operating_mode}</dd>
-                  <dt>Result</dt>
-                  <dd>{result.passed ? "PASS" : "FAIL"}</dd>
-                </dl>
-              </article>
-            </li>
+            <Fragment key={`${record.execution.execution_id}-${index}`}>
+              <li>
+                <article
+                  className="sequence-member"
+                  aria-labelledby={headingId}
+                >
+                  <div className="sequence-member-heading">
+                    <h4 id={headingId}>Member {index + 1}</h4>
+                    <OutcomeBadge outcome={record.outcome} />
+                  </div>
+                  <VerifiedExecutionFields record={record} nested />
+                </article>
+              </li>
+              {continuityResult !== undefined && (
+                <li>
+                  <ContinuityBoundaryDetails
+                    result={continuityResult}
+                    ordinal={index + 1}
+                  />
+                </li>
+              )}
+            </Fragment>
           );
         })}
       </ol>
     </section>
+  );
+}
+
+function ContinuityBoundaryDetails({
+  result,
+  ordinal,
+}: {
+  result: VerifiedExecutionSequencePresentation["continuity_results"][number];
+  ordinal: number;
+}) {
+  const headingId = `continuity-boundary-${ordinal - 1}`;
+
+  return (
+    <article className="continuity-boundary" aria-labelledby={headingId}>
+      <div className="continuity-boundary-heading">
+        <h4 id={headingId}>Continuity boundary {ordinal}</h4>
+        <OutcomeBadge
+          outcome={result.passed ? "PASS" : "FAIL"}
+          label="Continuity outcome"
+        />
+      </div>
+      <dl className="continuity-boundary-fields">
+        <div>
+          <dt>Connected executions</dt>
+          <dd>
+            <span className="visually-hidden">Previous execution ID: </span>
+            {result.previous_execution_id}
+            <span aria-hidden="true"> → </span>
+            <span className="visually-hidden">Next execution ID: </span>
+            {result.next_execution_id}
+          </dd>
+        </div>
+        <div>
+          <dt>Expected operating mode</dt>
+          <dd>{result.expected_operating_mode}</dd>
+        </div>
+        <div>
+          <dt>Observed operating mode</dt>
+          <dd>{result.observed_operating_mode}</dd>
+        </div>
+      </dl>
+    </article>
   );
 }
 

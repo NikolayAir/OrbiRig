@@ -365,7 +365,8 @@ button:disabled {
 }
 
 .result-heading,
-.sequence-member-heading {
+.sequence-member-heading,
+.continuity-boundary-heading {
   align-items: center;
   display: flex;
   gap: 0.75rem;
@@ -379,7 +380,8 @@ button:disabled {
 }
 
 .result-heading h2,
-.sequence-member-heading h4 {
+.sequence-member-heading h4,
+.continuity-boundary-heading h4 {
   margin: 0;
 }
 
@@ -533,11 +535,11 @@ dd {
   margin: 0;
 }
 
-.sequence-members,
-.continuity-boundaries {
+.sequence-flow {
   display: grid;
-  gap: 1.5rem;
+  gap: 0.75rem;
   list-style: none;
+  margin: 0;
   padding-left: 0;
 }
 
@@ -546,11 +548,52 @@ dd {
   background: #f8fafb;
   border: 1px solid #d8e2e8;
   border-radius: 0.3125rem;
+}
+
+.sequence-member {
   padding: 1.25rem;
 }
 
+.continuity-boundary {
+  padding: 0.85rem 1rem;
+}
+
+.sequence-flow-heading {
+  font-size: 1rem;
+  margin: 1.5rem 0 0.75rem;
+}
+
+.continuity-boundary-fields {
+  display: grid;
+  gap: 0.75rem 1rem;
+  grid-template-columns: minmax(12rem, 1.25fr) repeat(2, minmax(0, 1fr));
+  margin: 0.75rem 0 0;
+}
+
+.continuity-boundary-fields dt {
+  color: #526575;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin: 0 0 0.2rem;
+}
+
+.continuity-boundary-fields dd {
+  margin: 0;
+}
+
+.visually-hidden {
+  clip: rect(0, 0, 0, 0);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
 .sequence-member-heading,
-.continuity-boundary > h4 {
+.continuity-boundary-heading {
   margin-top: 0;
 }
 
@@ -615,6 +658,9 @@ dd {
     min-height: 0;
   }
 
+  .continuity-boundary-fields {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 34rem) {

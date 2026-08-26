@@ -1065,8 +1065,35 @@ describe("App", () => {
       name: "Verified execution sequence",
     });
     expect(
-      within(sequence).getByText("Sequence outcome").nextElementSibling,
-    ).toHaveTextContent("PASS");
+      within(sequence).getByLabelText("Sequence outcome: PASS"),
+    ).toBeInTheDocument();
+
+    const sequenceFlow = within(sequence).getByRole("list", {
+      name: "Sequence member records and continuity boundaries",
+    });
+    const sequenceItems = Array.from(
+      sequenceFlow.children,
+    ) as HTMLElement[];
+    expect(sequenceItems).toHaveLength(5);
+    expect(
+      within(sequenceItems[0]).getByRole("article", { name: "Member 1" }),
+    ).toBeInTheDocument();
+    expect(
+      within(sequenceItems[1]).getByRole("article", {
+        name: "Continuity boundary 1",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(sequenceItems[2]).getByRole("article", { name: "Member 2" }),
+    ).toBeInTheDocument();
+    expect(
+      within(sequenceItems[3]).getByRole("article", {
+        name: "Continuity boundary 2",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(sequenceItems[4]).getByRole("article", { name: "Member 3" }),
+    ).toBeInTheDocument();
 
     const members = within(sequence).getAllByRole("article", {
       name: /Member/,
@@ -1089,17 +1116,21 @@ describe("App", () => {
     ).toBeInTheDocument();
 
     const boundaries = within(sequence).getAllByRole("article", {
-      name: /Boundary/,
+      name: /Continuity boundary/,
     });
     expect(boundaries).toHaveLength(2);
-    expect(within(boundaries[0]).getByText("exec-b")).toBeInTheDocument();
-    expect(within(boundaries[0]).getByText("exec-a")).toBeInTheDocument();
+    expect(boundaries[0]).toHaveTextContent("Previous execution ID: exec-b");
+    expect(boundaries[0]).toHaveTextContent("Next execution ID: exec-a");
     expect(within(boundaries[0]).getAllByText("SAFE")).toHaveLength(2);
-    expect(within(boundaries[0]).getByText("PASS")).toBeInTheDocument();
-    expect(within(boundaries[1]).getByText("exec-a")).toBeInTheDocument();
-    expect(within(boundaries[1]).getByText("exec-c")).toBeInTheDocument();
+    expect(
+      within(boundaries[0]).getByLabelText("Continuity outcome: PASS"),
+    ).toBeInTheDocument();
+    expect(boundaries[1]).toHaveTextContent("Previous execution ID: exec-a");
+    expect(boundaries[1]).toHaveTextContent("Next execution ID: exec-c");
     expect(within(boundaries[1]).getAllByText("NOMINAL")).toHaveLength(2);
-    expect(within(boundaries[1]).getByText("PASS")).toBeInTheDocument();
+    expect(
+      within(boundaries[1]).getByLabelText("Continuity outcome: PASS"),
+    ).toBeInTheDocument();
   });
 
   it("renders a continuity FAIL sequence as valid evidence", async () => {
@@ -1127,15 +1158,15 @@ describe("App", () => {
       name: "Verified execution sequence",
     });
     expect(
-      within(sequence).getByText("Sequence outcome").nextElementSibling,
-    ).toHaveTextContent("FAIL");
+      within(sequence).getByLabelText("Sequence outcome: FAIL"),
+    ).toBeInTheDocument();
 
     const boundary = within(sequence).getByRole("article", {
-      name: "Boundary 1",
+      name: "Continuity boundary 1",
     });
     expect(
-      within(boundary).getByText("Result").nextElementSibling,
-    ).toHaveTextContent("FAIL");
+      within(boundary).getByLabelText("Continuity outcome: FAIL"),
+    ).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
