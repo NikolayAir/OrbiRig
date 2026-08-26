@@ -1,5 +1,7 @@
-"""HTTP boundary for read-only inspection of OrbiRig evidence."""
+"""HTTP boundary for OrbiRig evidence inspection and verification."""
 
+import json
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request, status
@@ -13,15 +15,27 @@ from orbirig.evidence import (
 )
 from orbirig.models import (
     CommandExecutionObservation,
+    InvalidExecutionMetadataError,
     InvariantValue,
     OperatingMode,
+    ScenarioCommandMismatchError,
+    ScenarioId,
     VerifiedExecutionRecord,
     VerifiedExecutionSequence,
 )
+from orbirig.verification import build_verified_execution_record
 
 
 app = FastAPI()
 _STATIC_DIRECTORY = Path(__file__).with_name("static")
+_VERIFICATION_REQUEST_FIELDS = frozenset(
+    (
+        "execution_id",
+        "executed_at",
+        "scenario_id",
+        "observation_evidence",
+    ),
+)
 
 
 def _observation_presentation(
@@ -120,6 +134,72 @@ async def _decode_text_plain_evidence(request: Request) -> str:
         ) from None
 
 
+def _verification_error(code: str, message: str) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        detail={"code": code, "message": message},
+    )
+
+
+async def _decode_verification_request(
+    request: Request,
+) -> tuple[str, str, str, str]:
+    """Decode the outer request while preserving embedded evidence text."""
+
+    media_type = request.headers.get("content-type", "").split(";", 1)[0]
+
+    if media_type.strip().lower() != "application/json":
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail={
+                "code": "invalid_request",
+                "message": "verification requests must use application/json",
+            },
+        )
+
+    try:
+        document = await request.json()
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        raise _verification_error(
+            "invalid_request",
+            "verification request JSON is invalid",
+        ) from None
+
+    if (
+        type(document) is not dict
+        or set(document) != _VERIFICATION_REQUEST_FIELDS
+    ):
+        raise _verification_error(
+            "invalid_request",
+            "verification request fields are invalid",
+        )
+
+    execution_id = document["execution_id"]
+    executed_at = document["executed_at"]
+    scenario_id = document["scenario_id"]
+    observation_evidence = document["observation_evidence"]
+
+    if type(execution_id) is not str or type(executed_at) is not str:
+        raise _verification_error(
+            "invalid_execution_metadata",
+            "execution ID and UTC execution timestamp must be strings",
+        )
+
+    if type(scenario_id) is not str:
+        raise _verification_error(
+            "invalid_scenario",
+            "scenario ID must be a supported string value",
+        )
+
+    if type(observation_evidence) is not str:
+        raise _verification_error(
+            "invalid_observation_evidence",
+            "observation evidence must be a string",
+        )
+
+    return execution_id, executed_at, scenario_id, observation_evidence
+
+
 @app.post("/api/inspect/observation")
 async def inspect_observation_evidence(
     request: Request,
@@ -137,6 +217,64 @@ async def inspect_observation_evidence(
         ) from None
 
     return _observation_presentation(observation)
+
+
+@app.post("/api/verify/observation")
+async def verify_observation_evidence(
+    request: Request,
+) -> dict[str, object]:
+    """Verify submitted observation evidence against an explicit scenario."""
+
+    (
+        execution_id,
+        serialized_executed_at,
+        serialized_scenario_id,
+        serialized_observation,
+    ) = await _decode_verification_request(request)
+
+    try:
+        scenario_id = ScenarioId(serialized_scenario_id)
+    except ValueError:
+        raise _verification_error(
+            "invalid_scenario",
+            "scenario ID is unsupported",
+        ) from None
+
+    try:
+        observation = deserialize_execution_evidence(serialized_observation)
+    except ValueError:
+        raise _verification_error(
+            "invalid_observation_evidence",
+            "observation evidence is invalid",
+        ) from None
+
+    try:
+        executed_at = datetime.fromisoformat(serialized_executed_at)
+    except ValueError:
+        raise _verification_error(
+            "invalid_execution_metadata",
+            "execution timestamp must be ISO 8601 UTC",
+        ) from None
+
+    try:
+        record = build_verified_execution_record(
+            execution_id=execution_id,
+            executed_at=executed_at,
+            scenario_id=scenario_id,
+            observation=observation,
+        )
+    except InvalidExecutionMetadataError:
+        raise _verification_error(
+            "invalid_execution_metadata",
+            "execution ID or UTC execution timestamp is invalid",
+        ) from None
+    except ScenarioCommandMismatchError:
+        raise _verification_error(
+            "scenario_command_mismatch",
+            "observation command does not match the selected scenario",
+        ) from None
+
+    return _verified_execution_presentation(record)
 
 
 @app.post("/api/inspect/verified-execution")
@@ -186,6 +324,6 @@ if _STATIC_DIRECTORY.is_dir():
 
     @app.get("/", include_in_schema=False)
     async def serve_frontend() -> FileResponse:
-        """Serve the built evidence-inspection interface."""
+        """Serve the built web interface."""
 
         return FileResponse(_STATIC_DIRECTORY / "index.html")

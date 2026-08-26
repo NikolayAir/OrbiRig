@@ -141,7 +141,252 @@ function submitEvidence(
   fireEvent.click(screen.getByRole("button", { name: "Inspect evidence" }));
 }
 
+function submitVerification({
+  evidence = "raw observation evidence",
+  scenario = "nominal_to_safe_mode",
+}: {
+  evidence?: string;
+  scenario?: string;
+} = {}) {
+  render(<App />);
+  fireEvent.change(screen.getByLabelText("Execution ID"), {
+    target: { value: "exec-web-verify-001" },
+  });
+  fireEvent.change(screen.getByLabelText("UTC execution timestamp"), {
+    target: { value: "2026-08-25T18:30:00Z" },
+  });
+  fireEvent.change(screen.getByLabelText("Scenario ID"), {
+    target: { value: scenario },
+  });
+  fireEvent.change(screen.getByLabelText("Observation evidence JSON"), {
+    target: { value: evidence },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Verify observation" }));
+}
+
 describe("App", () => {
+  it("starts with no verification scenario selected", () => {
+    render(<App />);
+
+    const scenario = screen.getByLabelText("Scenario ID");
+    const placeholder = screen.getByRole("option", {
+      name: "Select a supported scenario",
+    }) as HTMLOptionElement;
+    const nominalScenario = screen.getByRole("option", {
+      name: "NOMINAL to SAFE (nominal_to_safe_mode)",
+    }) as HTMLOptionElement;
+
+    expect(scenario).toHaveValue("");
+    expect(placeholder.selected).toBe(true);
+    expect(nominalScenario.selected).toBe(false);
+  });
+
+  it("submits raw observation evidence with explicit verification input", async () => {
+    const evidence = '{\n  "accepted": true,\n  "accepted": true\n}';
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => verifiedExecution,
+    });
+
+    submitVerification({ evidence });
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith("/api/verify/observation", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          execution_id: "exec-web-verify-001",
+          executed_at: "2026-08-25T18:30:00Z",
+          scenario_id: "nominal_to_safe_mode",
+          observation_evidence: evidence,
+        }),
+      });
+    });
+  });
+
+  it("submits an explicitly selected non-default scenario", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ...verifiedExecution,
+        execution: {
+          ...verifiedExecution.execution,
+          scenario_id: "safe_to_nominal_mode",
+        },
+      }),
+    });
+
+    submitVerification({ scenario: "safe_to_nominal_mode" });
+
+    await waitFor(() => {
+      const request = fetchMock.mock.calls[0][1];
+      expect(JSON.parse(request.body)).toMatchObject({
+        scenario_id: "safe_to_nominal_mode",
+      });
+    });
+  });
+
+  it("renders completed PASS verification", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => verifiedExecution,
+    });
+
+    submitVerification();
+
+    const record = await screen.findByRole("region", {
+      name: "Verified execution",
+    });
+    expect(within(record).getByText("exec-web-001")).toBeInTheDocument();
+    expect(
+      within(record).getByText("Outcome").nextElementSibling,
+    ).toHaveTextContent("PASS");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("renders completed FAIL verification without an error state", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ...verifiedExecution,
+        invariant_results: [
+          {
+            invariant_id: "telemetry_matches_post_state",
+            expected: "SAFE",
+            actual: "NOMINAL",
+            passed: false,
+          },
+        ],
+        outcome: "FAIL",
+      }),
+    });
+
+    submitVerification();
+
+    const record = await screen.findByRole("region", {
+      name: "Verified execution",
+    });
+    expect(
+      within(record).getByText("Outcome").nextElementSibling,
+    ).toHaveTextContent("FAIL");
+    expect(within(record).getAllByText("FAIL")).toHaveLength(2);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("clears a completed verification when an input changes", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => verifiedExecution,
+    });
+
+    submitVerification();
+
+    expect(
+      await screen.findByRole("region", { name: "Verified execution" }),
+    ).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Observation evidence JSON"), {
+      target: { value: "changed observation evidence" },
+    });
+
+    expect(
+      screen.queryByRole("region", { name: "Verified execution" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["invalid_scenario", "Select a supported scenario."],
+    ["invalid_observation_evidence", "The observation evidence is invalid."],
+    ["invalid_execution_metadata", "The execution metadata is invalid."],
+    [
+      "scenario_command_mismatch",
+      "The observation command does not match the selected scenario.",
+    ],
+  ])("renders %s as a validation failure", async (code, message) => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 422,
+      json: async () => ({ detail: { code, message: "server message" } }),
+    });
+
+    submitVerification();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(message);
+    expect(
+      screen.queryByRole("region", { name: "Verified execution" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps network failure separate from validation", async () => {
+    fetchMock.mockRejectedValue(new TypeError("network failure"));
+
+    submitVerification();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The verification request could not reach the server. Try again.",
+    );
+  });
+
+  it("keeps unexpected server failure separate from validation", async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 500 });
+
+    submitVerification();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The server could not complete verification. Try again.",
+    );
+  });
+
+  it("treats a malformed successful response as a server failure", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({}),
+    });
+
+    submitVerification();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The server could not complete verification. Try again.",
+    );
+    expect(
+      screen.queryByRole("region", { name: "Verified execution" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders an inherited-property invariant ID with the generic title", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ...verifiedExecution,
+        invariant_results: [
+          {
+            ...verifiedExecution.invariant_results[0],
+            invariant_id: "__proto__",
+          },
+        ],
+      }),
+    });
+
+    submitVerification();
+
+    const record = await screen.findByRole("region", {
+      name: "Verified execution",
+    });
+    expect(
+      within(record).getByRole("heading", { name: "Invariant result" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   it("provides explicit evidence-type selection", () => {
     render(<App />);
 
@@ -246,7 +491,7 @@ describe("App", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("exec-web-001")).toBeInTheDocument();
     expect(screen.getByText("2026-08-17T10:15:30Z")).toBeInTheDocument();
-    expect(screen.getByText("Scenario ID")).toBeInTheDocument();
+    expect(screen.getAllByText("Scenario ID")).toHaveLength(2);
     expect(screen.getByText("nominal_to_safe_mode")).toBeInTheDocument();
     expect(screen.getByText("SET_OPERATING_MODE")).toBeInTheDocument();
 

@@ -6,7 +6,7 @@ OrbiRig is a non-operational verification harness for simplified spacecraft oper
 
 **Core:** Python
 
-**Web inspector:** FastAPI · React · TypeScript · Vite · [Live](https://orbirig-evidence-inspector.onrender.com/)
+**Web interface:** FastAPI · React · TypeScript · Vite · [Live](https://orbirig-evidence-inspector.onrender.com/)
 
 **Testing and CI:** pytest · pytest-cov · Behave · Vitest · React Testing Library · Ruff · GitHub Actions
 
@@ -18,7 +18,7 @@ OrbiRig is a non-operational verification harness for simplified spacecraft oper
 * verify operating-mode continuity across explicitly ordered verified execution records;
 * serialise observations, verified execution records, and verified sequences to deterministic versioned JSON;
 * strictly reconstruct persisted evidence, separating observation validity from verification success and requiring stored derived results to match independently recomputed canonical results;
-* inspect all three evidence forms through a read-only web interface while evidence deserialisation and verification semantics remain in the OrbiRig core.
+* verify submitted observation evidence against an explicitly selected scenario and inspect all three supported evidence forms through the web interface while evidence deserialisation and verification semantics remain in the OrbiRig core.
 
 ![OrbiRig evidence inspector with verified-execution-sequence evidence selected](docs/images/evidence-inspector-sequence.png)
 
@@ -169,7 +169,7 @@ record = execute_verified_subprocess_workflow(
 
 The target receives `{"command_type":"SET_OPERATING_MODE","target_mode":"SAFE"}` followed by one newline for the default scenario. It must exit successfully and write exactly one valid observation-evidence version `1` document to stdout. A successfully collected observation then follows the same canonical verification path as directly loaded or reference-workflow observations, so its result may be either `PASS` or `FAIL`.
 
-### Inspect evidence in the web interface
+### Verify observations and inspect evidence in the web interface
 
 Install the web and frontend dependencies:
 
@@ -191,7 +191,9 @@ cd frontend
 npm run dev
 ```
 
-During local development, Vite proxies inspection requests to FastAPI. The frontend submits the textarea value unchanged as a `text/plain; charset=utf-8` request body; FastAPI decodes it and delegates directly to the corresponding strict evidence deserialiser. The browser does not parse, validate, or verify submitted evidence.
+During local development, Vite proxies API requests to FastAPI. For verification, the frontend sends execution metadata, the explicitly selected `ScenarioId`, and the raw observation-evidence textarea value in a JSON request. The FastAPI backend passes that string unchanged to `deserialize_execution_evidence(...)`, then delegates verification to `build_verified_execution_record(...)`. A completed verification may return either `PASS` or `FAIL`; invalid input remains a separate error response.
+
+The read-only inspector continues to submit its textarea value unchanged as a `text/plain; charset=utf-8` request body. The FastAPI backend decodes it and delegates directly to the corresponding strict evidence deserialiser. The browser does not parse or verify submitted evidence; strict evidence validation remains server-side in both workflows.
 
 To serve the built interface through FastAPI, build the frontend before starting the application:
 
@@ -202,7 +204,7 @@ cd ..
 uvicorn orbirig.web:app
 ```
 
-Observation inspection renders reconstructed fields only. Verified-execution inspection adds execution metadata, explicit `ScenarioId`, canonical invariant results, and the derived outcome; sequence inspection adds the aggregate outcome, ordered member records, and continuity boundaries. Canonically consistent `FAIL` records and sequences remain valid evidence.
+Interactive observation verification renders execution metadata, the reconstructed observation, canonical invariant results, and the derived outcome. Observation inspection renders reconstructed fields only. Verified-execution inspection adds execution metadata, explicit `ScenarioId`, canonical invariant results, and the derived outcome; sequence inspection adds the aggregate outcome, ordered member records, and continuity boundaries. Canonically consistent `FAIL` records and sequences remain valid evidence.
 
 ### Reconstruct persisted verified evidence
 
@@ -255,7 +257,7 @@ Versioned release notes are available in [GitHub Releases](https://github.com/Ni
 
 ## Current scope
 
-OrbiRig intentionally focuses on deterministic verification of simplified operating-mode workflows and independently inspectable execution evidence. Its read-only interface currently supports observation, verified-execution, and verified-execution-sequence evidence. External execution is limited to one command and one observation per subprocess invocation; HTTP execution, storage, replay, and report generation remain unsupported. OrbiRig does not claim compliance with any specific space-industry standard.
+OrbiRig intentionally focuses on deterministic verification of simplified operating-mode workflows and independently inspectable execution evidence. Its web interface verifies submitted observation evidence against an explicitly selected supported scenario and retains read-only inspection for observation, verified-execution, and verified-execution-sequence evidence. External execution is limited to one command and one observation per subprocess invocation; HTTP execution, storage, replay, and report generation remain unsupported. OrbiRig does not claim compliance with any specific space-industry standard.
 
 ## Security
 

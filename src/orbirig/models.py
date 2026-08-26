@@ -33,6 +33,14 @@ class ExecutionOutcome(StrEnum):
     FAIL = "FAIL"
 
 
+class InvalidExecutionMetadataError(ValueError):
+    """Raised when verified-execution metadata is invalid."""
+
+
+class ScenarioCommandMismatchError(ValueError):
+    """Raised when an observation command does not match its scenario."""
+
+
 @dataclass(frozen=True, slots=True)
 class SetOperatingModeCommand:
     """Command requesting a transition to the target operating mode."""
@@ -142,7 +150,7 @@ class VerifiedExecutionRecord:
         """Validate inputs and derive scenario metadata and outcome."""
 
         if not self.execution_id.strip():
-            raise ValueError(
+            raise InvalidExecutionMetadataError(
                 "execution_id must not be empty or whitespace-only",
             )
 
@@ -150,13 +158,15 @@ class VerifiedExecutionRecord:
             self.executed_at.tzinfo is None
             or self.executed_at.utcoffset() != timedelta(0)
         ):
-            raise ValueError("executed_at must be timezone-aware UTC")
+            raise InvalidExecutionMetadataError(
+                "executed_at must be timezone-aware UTC",
+            )
 
         if (
             self.observation.command
             != command_for_scenario(self.scenario_id)
         ):
-            raise ValueError(
+            raise ScenarioCommandMismatchError(
                 "observation command does not match the selected scenario",
             )
 
