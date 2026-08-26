@@ -422,6 +422,29 @@ describe("App", () => {
     expect(scenarioHelp.parentElement).toHaveAttribute("data-open", "true");
   });
 
+  it.each([
+    ["About Execution ID", "Execution ID"],
+    ["About Scenario ID", "Scenario ID"],
+  ])(
+    "dismisses pinned %s on outside pointer interaction",
+    (helpName, outsideLabel) => {
+      render(<App />);
+
+      const help = screen.getByRole("button", { name: helpName });
+      const outsideControl = screen.getByLabelText(outsideLabel);
+      help.focus();
+      fireEvent.click(help);
+
+      expect(help.parentElement).toHaveAttribute("data-open", "true");
+      expect(document.activeElement).toBe(help);
+
+      fireEvent.pointerDown(outsideControl);
+
+      expect(help.parentElement).toHaveAttribute("data-open", "false");
+      expect(document.activeElement).not.toBe(help);
+    },
+  );
+
   it("uses application-controlled English required-field validation", () => {
     render(<App />);
 

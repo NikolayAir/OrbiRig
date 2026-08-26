@@ -1,4 +1,4 @@
-import { FormEvent, Fragment, useRef, useState } from "react";
+import { FormEvent, Fragment, useEffect, useRef, useState } from "react";
 
 type EvidenceType =
   | "observation"
@@ -341,10 +341,52 @@ export function App() {
   const [inspection, setInspection] = useState<InspectionState>({
     kind: "idle",
   });
+  const executionIdHelpRef = useRef<HTMLSpanElement>(null);
+  const scenarioHelpRef = useRef<HTMLSpanElement>(null);
   const executionIdInputRef = useRef<HTMLInputElement>(null);
   const executedAtInputRef = useRef<HTMLInputElement>(null);
   const scenarioInputRef = useRef<HTMLSelectElement>(null);
   const observationEvidenceInputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    function dismissHelpOutside(event: PointerEvent) {
+      if (!(event.target instanceof Node)) {
+        return;
+      }
+
+      const executionHelpContainer = executionIdHelpRef.current;
+      if (
+        executionIdHelpOpen &&
+        !executionHelpContainer?.contains(event.target)
+      ) {
+        setExecutionIdHelpOpen(false);
+        if (
+          document.activeElement instanceof HTMLElement &&
+          executionHelpContainer?.contains(document.activeElement)
+        ) {
+          document.activeElement.blur();
+        }
+      }
+
+      const scenarioHelpContainer = scenarioHelpRef.current;
+      if (
+        scenarioHelpOpen &&
+        !scenarioHelpContainer?.contains(event.target)
+      ) {
+        setScenarioHelpOpen(false);
+        if (
+          document.activeElement instanceof HTMLElement &&
+          scenarioHelpContainer?.contains(document.activeElement)
+        ) {
+          document.activeElement.blur();
+        }
+      }
+    }
+
+    document.addEventListener("pointerdown", dismissHelpOutside);
+    return () =>
+      document.removeEventListener("pointerdown", dismissHelpOutside);
+  }, [executionIdHelpOpen, scenarioHelpOpen]);
 
   function selectEvidenceType(selectedType: EvidenceType) {
     setEvidenceType(selectedType);
@@ -596,7 +638,11 @@ export function App() {
                     <label htmlFor="verification-execution-id">
                       Execution ID
                     </label>
-                    <span className="field-help" data-open={executionIdHelpOpen}>
+                    <span
+                      ref={executionIdHelpRef}
+                      className="field-help"
+                      data-open={executionIdHelpOpen}
+                    >
                       <button
                         type="button"
                         className="field-help-button"
@@ -697,7 +743,11 @@ export function App() {
               <div className="form-field">
                 <div className="field-label">
                   <label htmlFor="verification-scenario">Scenario ID</label>
-                  <span className="field-help" data-open={scenarioHelpOpen}>
+                  <span
+                    ref={scenarioHelpRef}
+                    className="field-help"
+                    data-open={scenarioHelpOpen}
+                  >
                     <button
                       type="button"
                       className="field-help-button"
