@@ -1,4 +1,4 @@
-import { FormEvent, Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, type SubmitEvent, useEffect, useRef, useState } from "react";
 
 type EvidenceType =
   | "observation"
@@ -419,7 +419,7 @@ export function App() {
     setInspection({ kind: "idle" });
   }
 
-  async function verifyObservation(event: FormEvent<HTMLFormElement>) {
+  async function verifyObservation(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const requiredErrors: VerificationRequiredErrors = {};
@@ -520,7 +520,7 @@ export function App() {
     }
   }
 
-  async function inspectEvidence(event: FormEvent<HTMLFormElement>) {
+  async function inspectEvidence(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setInspection({ kind: "loading" });
 
