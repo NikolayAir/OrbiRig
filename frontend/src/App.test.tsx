@@ -115,6 +115,18 @@ function selectVerifiedExecution() {
   fireEvent.click(screen.getByRole("radio", { name: "Verified execution" }));
 }
 
+function selectInspectionWorkflow() {
+  fireEvent.click(
+    screen.getByRole("button", { name: "Show Inspect evidence workflow" }),
+  );
+}
+
+function selectVerificationWorkflow() {
+  fireEvent.click(
+    screen.getByRole("button", { name: "Show Verify observation workflow" }),
+  );
+}
+
 function selectVerifiedExecutionSequence() {
   fireEvent.click(
     screen.getByRole("radio", { name: "Verified execution sequence" }),
@@ -129,6 +141,7 @@ function submitEvidence(
     | "verified-execution-sequence" = "observation",
 ) {
   render(<App />);
+  selectInspectionWorkflow();
   if (evidenceType === "verified-execution") {
     selectVerifiedExecution();
   } else if (evidenceType === "verified-execution-sequence") {
@@ -165,6 +178,130 @@ function submitVerification({
 }
 
 describe("App", () => {
+  it("defaults to the verification workflow while making both tasks available", () => {
+    render(<App />);
+
+    expect(
+      screen.getByRole("group", { name: "Available workflows" }),
+    ).toBeInTheDocument();
+
+    const verificationChoice = screen.getByRole("button", {
+      name: "Show Verify observation workflow",
+    });
+    const inspectionChoice = screen.getByRole("button", {
+      name: "Show Inspect evidence workflow",
+    });
+
+    expect(verificationChoice).toHaveAttribute("aria-pressed", "true");
+    expect(inspectionChoice).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByLabelText("Execution ID")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Evidence JSON")).not.toBeInTheDocument();
+  });
+
+  it("switches to inspection and restores the verification workflow", () => {
+    render(<App />);
+
+    selectInspectionWorkflow();
+
+    expect(screen.getByLabelText("Evidence JSON")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Execution ID")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: "Show Inspect evidence workflow",
+      }),
+    ).toHaveAttribute("aria-pressed", "true");
+
+    selectVerificationWorkflow();
+
+    expect(screen.getByLabelText("Execution ID")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Evidence JSON")).not.toBeInTheDocument();
+  });
+
+  it("preserves verification form values while another workflow is active", () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText("Execution ID"), {
+      target: { value: "exec-preserved" },
+    });
+    fireEvent.change(screen.getByLabelText("UTC execution timestamp"), {
+      target: { value: "2026-08-25T18:30:00Z" },
+    });
+    fireEvent.change(screen.getByLabelText("Scenario ID"), {
+      target: { value: "safe_to_nominal_mode" },
+    });
+    fireEvent.change(screen.getByLabelText("Observation evidence JSON"), {
+      target: { value: "preserved observation" },
+    });
+
+    selectInspectionWorkflow();
+    selectVerificationWorkflow();
+
+    expect(screen.getByLabelText("Execution ID")).toHaveValue(
+      "exec-preserved",
+    );
+    expect(screen.getByLabelText("UTC execution timestamp")).toHaveValue(
+      "2026-08-25T18:30:00Z",
+    );
+    expect(screen.getByLabelText("Scenario ID")).toHaveValue(
+      "safe_to_nominal_mode",
+    );
+    expect(screen.getByLabelText("Observation evidence JSON")).toHaveValue(
+      "preserved observation",
+    );
+  });
+
+  it("preserves completed verification state while switched away", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => verifiedExecution,
+    });
+
+    submitVerification();
+
+    expect(
+      await screen.findByRole("region", { name: "Verified execution" }),
+    ).toBeInTheDocument();
+
+    selectInspectionWorkflow();
+    selectVerificationWorkflow();
+
+    expect(
+      screen.getByRole("region", { name: "Verified execution" }),
+    ).toBeInTheDocument();
+  });
+
+  it("preserves inspection input and reconstructed state while switched away", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => observation,
+    });
+
+    render(<App />);
+    selectInspectionWorkflow();
+    fireEvent.change(screen.getByLabelText("Evidence JSON"), {
+      target: { value: "preserved evidence" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Inspect evidence" }));
+
+    expect(
+      await screen.findByRole("heading", {
+        name: "Reconstructed observation",
+      }),
+    ).toBeInTheDocument();
+
+    selectVerificationWorkflow();
+    selectInspectionWorkflow();
+
+    expect(screen.getByLabelText("Evidence JSON")).toHaveValue(
+      "preserved evidence",
+    );
+    expect(
+      screen.getByRole("heading", { name: "Reconstructed observation" }),
+    ).toBeInTheDocument();
+  });
+
   it("starts with no verification scenario selected", () => {
     render(<App />);
 
@@ -389,6 +526,7 @@ describe("App", () => {
 
   it("provides explicit evidence-type selection", () => {
     render(<App />);
+    selectInspectionWorkflow();
 
     const observationOption = screen.getByRole("radio", {
       name: "Observation",
@@ -491,7 +629,7 @@ describe("App", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("exec-web-001")).toBeInTheDocument();
     expect(screen.getByText("2026-08-17T10:15:30Z")).toBeInTheDocument();
-    expect(screen.getAllByText("Scenario ID")).toHaveLength(2);
+    expect(screen.getAllByText("Scenario ID")).toHaveLength(1);
     expect(screen.getByText("nominal_to_safe_mode")).toBeInTheDocument();
     expect(screen.getByText("SET_OPERATING_MODE")).toBeInTheDocument();
 
