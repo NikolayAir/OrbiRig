@@ -1,9 +1,11 @@
-import { FormEvent, useState } from "react";
+import { Fragment, type SubmitEvent, useEffect, useRef, useState } from "react";
 
 type EvidenceType =
   | "observation"
   | "verified-execution"
   | "verified-execution-sequence";
+
+type Workflow = "verification" | "inspection";
 
 type ScenarioId =
   | "nominal_to_safe_mode"
@@ -16,6 +18,16 @@ type VerificationErrorCode =
   | "invalid_observation_evidence"
   | "invalid_execution_metadata"
   | "scenario_command_mismatch";
+
+type VerificationRequiredField =
+  | "executionId"
+  | "executedAt"
+  | "scenarioId"
+  | "observationEvidence";
+
+type VerificationRequiredErrors = Partial<
+  Record<VerificationRequiredField, string>
+>;
 
 type ObservationPresentation = {
   command: {
@@ -127,11 +139,199 @@ const VERIFICATION_ERROR_MESSAGES: Record<VerificationErrorCode, string> = {
     "The observation command does not match the selected scenario.",
 };
 
+const REQUIRED_VERIFICATION_MESSAGES: Record<
+  VerificationRequiredField,
+  string
+> = {
+  executionId: "Execution ID is required.",
+  executedAt: "UTC execution timestamp is required.",
+  scenarioId: "Select a supported scenario.",
+  observationEvidence: "Observation evidence is required.",
+};
+
+const EXAMPLE_OBSERVATION_DOCUMENT = {
+  evidence_format_version: 1,
+  command: {
+    command_type: "SET_OPERATING_MODE",
+    target_mode: "SAFE",
+  },
+  pre_state: {
+    operating_mode: "NOMINAL",
+  },
+  acknowledgement: {
+    accepted: true,
+  },
+  post_state: {
+    operating_mode: "SAFE",
+  },
+  telemetry: {
+    operating_mode: "SAFE",
+  },
+};
+
+const EXAMPLE_VERIFIED_EXECUTION_DOCUMENT = {
+  schema_version: 1,
+  execution: {
+    execution_id: "example-execution-001",
+    scenario_id: "nominal_to_safe_mode",
+    executed_at: "2026-08-26T08:30:00Z",
+  },
+  observation: {
+    command: {
+      command_type: "SET_OPERATING_MODE",
+      target_mode: "SAFE",
+    },
+    pre_state: {
+      operating_mode: "NOMINAL",
+    },
+    acknowledgement: {
+      accepted: true,
+    },
+    post_state: {
+      operating_mode: "SAFE",
+    },
+    telemetry: {
+      operating_mode: "SAFE",
+    },
+  },
+  invariant_results: [
+    {
+      invariant_id: "pre_state_matches_expected",
+      passed: true,
+      expected: "NOMINAL",
+      actual: "NOMINAL",
+    },
+    {
+      invariant_id: "acknowledgement_is_accepted",
+      passed: true,
+      expected: true,
+      actual: true,
+    },
+    {
+      invariant_id: "post_state_matches_requested_mode",
+      passed: true,
+      expected: "SAFE",
+      actual: "SAFE",
+    },
+    {
+      invariant_id: "telemetry_matches_post_state",
+      passed: true,
+      expected: "SAFE",
+      actual: "SAFE",
+    },
+  ],
+  outcome: "PASS",
+};
+
+const EXAMPLE_VERIFIED_EXECUTION_SEQUENCE_DOCUMENT = {
+  schema_version: 1,
+  records: [
+    {
+      ...EXAMPLE_VERIFIED_EXECUTION_DOCUMENT,
+      execution: {
+        execution_id: "example-sequence-001",
+        scenario_id: "nominal_to_safe_mode",
+        executed_at: "2026-08-26T08:30:00Z",
+      },
+    },
+    {
+      schema_version: 1,
+      execution: {
+        execution_id: "example-sequence-002",
+        scenario_id: "safe_to_nominal_mode",
+        executed_at: "2026-08-26T08:35:00Z",
+      },
+      observation: {
+        command: {
+          command_type: "SET_OPERATING_MODE",
+          target_mode: "NOMINAL",
+        },
+        pre_state: {
+          operating_mode: "SAFE",
+        },
+        acknowledgement: {
+          accepted: true,
+        },
+        post_state: {
+          operating_mode: "NOMINAL",
+        },
+        telemetry: {
+          operating_mode: "NOMINAL",
+        },
+      },
+      invariant_results: [
+        {
+          invariant_id: "pre_state_matches_expected",
+          passed: true,
+          expected: "SAFE",
+          actual: "SAFE",
+        },
+        {
+          invariant_id: "acknowledgement_is_accepted",
+          passed: true,
+          expected: true,
+          actual: true,
+        },
+        {
+          invariant_id: "post_state_matches_requested_mode",
+          passed: true,
+          expected: "NOMINAL",
+          actual: "NOMINAL",
+        },
+        {
+          invariant_id: "telemetry_matches_post_state",
+          passed: true,
+          expected: "NOMINAL",
+          actual: "NOMINAL",
+        },
+      ],
+      outcome: "PASS",
+    },
+  ],
+  continuity_results: [
+    {
+      previous_execution_id: "example-sequence-001",
+      next_execution_id: "example-sequence-002",
+      expected_operating_mode: "SAFE",
+      observed_operating_mode: "SAFE",
+      passed: true,
+    },
+  ],
+  outcome: "PASS",
+};
+
+const VERIFICATION_EXAMPLE = {
+  executionId: "example-execution-001",
+  executedAt: "2026-08-26T08:30:00Z",
+  scenarioId: "nominal_to_safe_mode" as const,
+  observationEvidence: JSON.stringify(EXAMPLE_OBSERVATION_DOCUMENT, null, 2),
+};
+
+const INSPECTION_EXAMPLES: Record<EvidenceType, string> = {
+  observation: JSON.stringify(EXAMPLE_OBSERVATION_DOCUMENT, null, 2),
+  "verified-execution": JSON.stringify(
+    EXAMPLE_VERIFIED_EXECUTION_DOCUMENT,
+    null,
+    2,
+  ),
+  "verified-execution-sequence": JSON.stringify(
+    EXAMPLE_VERIFIED_EXECUTION_SEQUENCE_DOCUMENT,
+    null,
+    2,
+  ),
+};
+
 export function App() {
+  const [activeWorkflow, setActiveWorkflow] =
+    useState<Workflow>("verification");
+  const [executionIdHelpOpen, setExecutionIdHelpOpen] = useState(false);
+  const [scenarioHelpOpen, setScenarioHelpOpen] = useState(false);
   const [executionId, setExecutionId] = useState("");
   const [executedAt, setExecutedAt] = useState("");
   const [scenarioId, setScenarioId] = useState<ScenarioId | "">("");
   const [observationEvidence, setObservationEvidence] = useState("");
+  const [verificationRequiredErrors, setVerificationRequiredErrors] =
+    useState<VerificationRequiredErrors>({});
   const [verification, setVerification] = useState<VerificationState>({
     kind: "idle",
   });
@@ -141,14 +341,125 @@ export function App() {
   const [inspection, setInspection] = useState<InspectionState>({
     kind: "idle",
   });
+  const executionIdHelpRef = useRef<HTMLSpanElement>(null);
+  const scenarioHelpRef = useRef<HTMLSpanElement>(null);
+  const executionIdInputRef = useRef<HTMLInputElement>(null);
+  const executedAtInputRef = useRef<HTMLInputElement>(null);
+  const scenarioInputRef = useRef<HTMLSelectElement>(null);
+  const observationEvidenceInputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    function dismissHelpOutside(event: PointerEvent) {
+      if (!(event.target instanceof Node)) {
+        return;
+      }
+
+      const executionHelpContainer = executionIdHelpRef.current;
+      if (
+        executionIdHelpOpen &&
+        !executionHelpContainer?.contains(event.target)
+      ) {
+        setExecutionIdHelpOpen(false);
+        if (
+          document.activeElement instanceof HTMLElement &&
+          executionHelpContainer?.contains(document.activeElement)
+        ) {
+          document.activeElement.blur();
+        }
+      }
+
+      const scenarioHelpContainer = scenarioHelpRef.current;
+      if (
+        scenarioHelpOpen &&
+        !scenarioHelpContainer?.contains(event.target)
+      ) {
+        setScenarioHelpOpen(false);
+        if (
+          document.activeElement instanceof HTMLElement &&
+          scenarioHelpContainer?.contains(document.activeElement)
+        ) {
+          document.activeElement.blur();
+        }
+      }
+    }
+
+    document.addEventListener("pointerdown", dismissHelpOutside);
+    return () =>
+      document.removeEventListener("pointerdown", dismissHelpOutside);
+  }, [executionIdHelpOpen, scenarioHelpOpen]);
 
   function selectEvidenceType(selectedType: EvidenceType) {
     setEvidenceType(selectedType);
     setInspection({ kind: "idle" });
   }
 
-  async function verifyObservation(event: FormEvent<HTMLFormElement>) {
+  function clearVerificationRequiredError(field: VerificationRequiredField) {
+    setVerificationRequiredErrors((errors) => {
+      if (errors[field] === undefined) {
+        return errors;
+      }
+
+      const remainingErrors = { ...errors };
+      delete remainingErrors[field];
+      return remainingErrors;
+    });
+  }
+
+  function loadVerificationExample() {
+    setExecutionId(VERIFICATION_EXAMPLE.executionId);
+    setExecutedAt(VERIFICATION_EXAMPLE.executedAt);
+    setScenarioId(VERIFICATION_EXAMPLE.scenarioId);
+    setObservationEvidence(VERIFICATION_EXAMPLE.observationEvidence);
+    setVerificationRequiredErrors({});
+    setVerification({ kind: "idle" });
+  }
+
+  function loadInspectionExample() {
+    setEvidence(INSPECTION_EXAMPLES[evidenceType]);
+    setInspection({ kind: "idle" });
+  }
+
+  async function verifyObservation(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    const requiredErrors: VerificationRequiredErrors = {};
+
+    if (!executionId.trim()) {
+      requiredErrors.executionId = REQUIRED_VERIFICATION_MESSAGES.executionId;
+    }
+    if (!executedAt.trim()) {
+      requiredErrors.executedAt = REQUIRED_VERIFICATION_MESSAGES.executedAt;
+    }
+    if (!scenarioId) {
+      requiredErrors.scenarioId = REQUIRED_VERIFICATION_MESSAGES.scenarioId;
+    }
+    if (!observationEvidence.trim()) {
+      requiredErrors.observationEvidence =
+        REQUIRED_VERIFICATION_MESSAGES.observationEvidence;
+    }
+
+    const firstMissingField = (
+      [
+        "executionId",
+        "executedAt",
+        "scenarioId",
+        "observationEvidence",
+      ] as const
+    ).find((field) => requiredErrors[field] !== undefined);
+
+    if (firstMissingField !== undefined) {
+      setVerificationRequiredErrors(requiredErrors);
+      const fields = {
+        executionId: executionIdInputRef.current,
+        executedAt: executedAtInputRef.current,
+        scenarioId: scenarioInputRef.current,
+        observationEvidence: observationEvidenceInputRef.current,
+      };
+      fields[firstMissingField]?.focus();
+      return;
+    }
+
+    setVerificationRequiredErrors({});
     setVerification({ kind: "loading" });
 
     let response: Response;
@@ -209,7 +520,7 @@ export function App() {
     }
   }
 
-  async function inspectEvidence(event: FormEvent<HTMLFormElement>) {
+  async function inspectEvidence(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setInspection({ kind: "loading" });
 
@@ -269,199 +580,462 @@ export function App() {
         </p>
       </header>
 
-      <section className="workflow" aria-labelledby="observation-verification">
-        <h2 id="observation-verification">Verify observation</h2>
-        <p>
-          Provide execution metadata, select a supported scenario, and submit
-          raw observation evidence for canonical verification.
-        </p>
+      <div
+        className="workflow-switcher"
+        role="group"
+        aria-label="Available workflows"
+      >
+        <button
+          type="button"
+          className="workflow-choice"
+          aria-label="Show Verify observation workflow"
+          aria-pressed={activeWorkflow === "verification"}
+          onClick={() => setActiveWorkflow("verification")}
+        >
+          <span>Verify observation</span>
+          <small>Check submitted observations against a scenario.</small>
+        </button>
+        <button
+          type="button"
+          className="workflow-choice"
+          aria-label="Show Inspect evidence workflow"
+          aria-pressed={activeWorkflow === "inspection"}
+          onClick={() => setActiveWorkflow("inspection")}
+        >
+          <span>Inspect evidence</span>
+          <small>Reconstruct an existing evidence document.</small>
+        </button>
+      </div>
 
-        <form onSubmit={verifyObservation}>
-          <fieldset disabled={verification.kind === "loading"}>
-            <legend>Verification input</legend>
+      {activeWorkflow === "verification" && (
+        <section
+          className="workflow-panel"
+          id="verification-workflow"
+          aria-labelledby="observation-verification"
+        >
+          <div className="workflow-heading">
+            <h2 id="observation-verification">Verify observation</h2>
+            <p>
+              Provide execution metadata, select a supported scenario, and
+              submit raw observation evidence for canonical verification.
+            </p>
+          </div>
 
-            <label htmlFor="verification-execution-id">Execution ID</label>
-            <input
-              id="verification-execution-id"
-              value={executionId}
-              onChange={(event) => {
-                setExecutionId(event.target.value);
-                setVerification({ kind: "idle" });
-              }}
-              required
-            />
-
-            <label htmlFor="verification-executed-at">
-              UTC execution timestamp
-            </label>
-            <input
-              id="verification-executed-at"
-              value={executedAt}
-              onChange={(event) => {
-                setExecutedAt(event.target.value);
-                setVerification({ kind: "idle" });
-              }}
-              placeholder="2026-08-25T18:30:00Z"
-              required
-            />
-
-            <label htmlFor="verification-scenario">Scenario ID</label>
-            <select
-              id="verification-scenario"
-              value={scenarioId}
-              onChange={(event) => {
-                setScenarioId(event.target.value as ScenarioId | "");
-                setVerification({ kind: "idle" });
-              }}
-              required
+          <form
+            className="verification-form"
+            noValidate
+            onSubmit={verifyObservation}
+          >
+            <fieldset
+              className="verification-inputs"
+              disabled={verification.kind === "loading"}
             >
-              <option value="">Select a supported scenario</option>
-              {SUPPORTED_SCENARIOS.map((scenario) => (
-                <option key={scenario.value} value={scenario.value}>
-                  {scenario.label} ({scenario.value})
-                </option>
-              ))}
-            </select>
+              <legend>Verification input</legend>
 
-            <label htmlFor="verification-observation-evidence">
-              Observation evidence JSON
-            </label>
-            <textarea
-              id="verification-observation-evidence"
-              value={observationEvidence}
-              onChange={(event) => {
-                setObservationEvidence(event.target.value);
-                setVerification({ kind: "idle" });
-              }}
-              spellCheck={false}
-              rows={12}
-              required
-            />
-          </fieldset>
+              <div className="metadata-fields">
+                <div className="form-field">
+                  <div className="field-label">
+                    <label htmlFor="verification-execution-id">
+                      Execution ID
+                    </label>
+                    <span
+                      ref={executionIdHelpRef}
+                      className="field-help"
+                      data-open={executionIdHelpOpen}
+                    >
+                      <button
+                        type="button"
+                        className="field-help-button"
+                        aria-label="About Execution ID"
+                        aria-controls="execution-id-help-description"
+                        aria-describedby="execution-id-help-description"
+                        onClick={(event) => {
+                          if (executionIdHelpOpen) {
+                            setExecutionIdHelpOpen(false);
+                            event.currentTarget.blur();
+                            return;
+                          }
 
-          <button type="submit" disabled={verification.kind === "loading"}>
-            Verify observation
-          </button>
-        </form>
+                          setScenarioHelpOpen(false);
+                          setExecutionIdHelpOpen(true);
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Escape") {
+                            setExecutionIdHelpOpen(false);
+                            event.currentTarget.blur();
+                          }
+                        }}
+                      >
+                        ?
+                      </button>
+                      <span id="execution-id-help-description" role="tooltip">
+                        A non-empty identifier recorded with the resulting evidence.
+                      </span>
+                    </span>
+                  </div>
+                  <input
+                    id="verification-execution-id"
+                    ref={executionIdInputRef}
+                    aria-describedby={describedBy(
+                      "execution-id-help-description",
+                      verificationRequiredErrors.executionId
+                        ? "verification-execution-id-error"
+                        : undefined,
+                    )}
+                    aria-invalid={
+                      verificationRequiredErrors.executionId ? true : undefined
+                    }
+                    value={executionId}
+                    onChange={(event) => {
+                      setExecutionId(event.target.value);
+                      clearVerificationRequiredError("executionId");
+                      setVerification({ kind: "idle" });
+                    }}
+                    required
+                  />
+                  {verificationRequiredErrors.executionId && (
+                    <p
+                      className="field-error"
+                      id="verification-execution-id-error"
+                      role="alert"
+                    >
+                      {verificationRequiredErrors.executionId}
+                    </p>
+                  )}
+                </div>
 
-        {verification.kind === "loading" && (
-          <p role="status">Verifying observation…</p>
-        )}
+                <div className="form-field">
+                  <label htmlFor="verification-executed-at">
+                    UTC execution timestamp
+                  </label>
+                  <input
+                    id="verification-executed-at"
+                    ref={executedAtInputRef}
+                    aria-describedby={describedBy(
+                      verificationRequiredErrors.executedAt
+                        ? "verification-executed-at-error"
+                        : undefined,
+                    )}
+                    aria-invalid={
+                      verificationRequiredErrors.executedAt ? true : undefined
+                    }
+                    value={executedAt}
+                    onChange={(event) => {
+                      setExecutedAt(event.target.value);
+                      clearVerificationRequiredError("executedAt");
+                      setVerification({ kind: "idle" });
+                    }}
+                    placeholder="2026-08-25T18:30:00Z"
+                    required
+                  />
+                  {verificationRequiredErrors.executedAt && (
+                    <p
+                      className="field-error"
+                      id="verification-executed-at-error"
+                      role="alert"
+                    >
+                      {verificationRequiredErrors.executedAt}
+                    </p>
+                  )}
+                </div>
+              </div>
 
-        {verification.kind === "validation-failure" && (
-          <p role="alert">{VERIFICATION_ERROR_MESSAGES[verification.code]}</p>
-        )}
+              <div className="form-field">
+                <div className="field-label">
+                  <label htmlFor="verification-scenario">Scenario ID</label>
+                  <span
+                    ref={scenarioHelpRef}
+                    className="field-help"
+                    data-open={scenarioHelpOpen}
+                  >
+                    <button
+                      type="button"
+                      className="field-help-button"
+                      aria-label="About Scenario ID"
+                      aria-controls="scenario-help-description"
+                      aria-describedby="scenario-help-description"
+                      onClick={(event) => {
+                        if (scenarioHelpOpen) {
+                          setScenarioHelpOpen(false);
+                          event.currentTarget.blur();
+                          return;
+                        }
 
-        {verification.kind === "network-failure" && (
-          <p role="alert">
-            The verification request could not reach the server. Try again.
-          </p>
-        )}
+                        setExecutionIdHelpOpen(false);
+                        setScenarioHelpOpen(true);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Escape") {
+                          setScenarioHelpOpen(false);
+                          event.currentTarget.blur();
+                        }
+                      }}
+                    >
+                      ?
+                    </button>
+                    <span id="scenario-help-description" role="tooltip">
+                      Select the scenario to verify against. It is not inferred from
+                      the evidence.
+                    </span>
+                  </span>
+                </div>
+                <select
+                  id="verification-scenario"
+                  ref={scenarioInputRef}
+                  aria-describedby={describedBy(
+                    "scenario-help-description",
+                    verificationRequiredErrors.scenarioId
+                      ? "verification-scenario-error"
+                      : undefined,
+                  )}
+                  aria-invalid={
+                    verificationRequiredErrors.scenarioId ? true : undefined
+                  }
+                  value={scenarioId}
+                  onChange={(event) => {
+                    setScenarioId(event.target.value as ScenarioId | "");
+                    clearVerificationRequiredError("scenarioId");
+                    setVerification({ kind: "idle" });
+                  }}
+                  required
+                >
+                  <option value="">Select a supported scenario</option>
+                  {SUPPORTED_SCENARIOS.map((scenario) => (
+                    <option key={scenario.value} value={scenario.value}>
+                      {scenario.label} ({scenario.value})
+                    </option>
+                  ))}
+                </select>
+                {verificationRequiredErrors.scenarioId && (
+                  <p
+                    className="field-error"
+                    id="verification-scenario-error"
+                    role="alert"
+                  >
+                    {verificationRequiredErrors.scenarioId}
+                  </p>
+                )}
+              </div>
 
-        {verification.kind === "server-failure" && (
-          <p role="alert">
-            The server could not complete verification. Try again.
-          </p>
-        )}
+              <div className="form-field">
+                <label htmlFor="verification-observation-evidence">
+                  Observation evidence JSON
+                </label>
+                <textarea
+                  id="verification-observation-evidence"
+                  ref={observationEvidenceInputRef}
+                  aria-describedby={describedBy(
+                    verificationRequiredErrors.observationEvidence
+                      ? "verification-observation-evidence-error"
+                      : undefined,
+                  )}
+                  aria-invalid={
+                    verificationRequiredErrors.observationEvidence
+                      ? true
+                      : undefined
+                  }
+                  value={observationEvidence}
+                  onChange={(event) => {
+                    setObservationEvidence(event.target.value);
+                    clearVerificationRequiredError("observationEvidence");
+                    setVerification({ kind: "idle" });
+                  }}
+                  spellCheck={false}
+                  rows={6}
+                  required
+                />
+                {verificationRequiredErrors.observationEvidence && (
+                  <p
+                    className="field-error"
+                    id="verification-observation-evidence-error"
+                    role="alert"
+                  >
+                    {verificationRequiredErrors.observationEvidence}
+                  </p>
+                )}
+              </div>
+            </fieldset>
 
-        {verification.kind === "completed" && (
-          <VerifiedExecutionDetails
-            record={verification.record}
-            headingId="verified-observation-result"
-          />
-        )}
-      </section>
+            <div className="form-actions">
+              <button
+                type="button"
+                className="secondary-action"
+                disabled={verification.kind === "loading"}
+                onClick={loadVerificationExample}
+              >
+                Load example
+              </button>
+              <button
+                type="submit"
+                className="primary-action"
+                disabled={verification.kind === "loading"}
+              >
+                Verify observation
+              </button>
+            </div>
+          </form>
 
-      <section className="workflow" aria-labelledby="evidence-inspection">
-        <h2 id="evidence-inspection">Inspect evidence</h2>
-        <p>
-          Select an evidence type and paste its JSON document to inspect the
-          reconstructed data.
-        </p>
+          <div className="workflow-feedback">
+            {verification.kind === "loading" && (
+              <p role="status">Verifying observation…</p>
+            )}
 
-        <form onSubmit={inspectEvidence}>
-          <fieldset disabled={inspection.kind === "loading"}>
-            <legend>Evidence type</legend>
-            <label>
-              <input
-                type="radio"
-                name="evidence-type"
-                value="observation"
-                checked={evidenceType === "observation"}
-                onChange={() => selectEvidenceType("observation")}
+            {verification.kind === "validation-failure" && (
+              <p role="alert">
+                {VERIFICATION_ERROR_MESSAGES[verification.code]}
+              </p>
+            )}
+
+            {verification.kind === "network-failure" && (
+              <p role="alert">
+                The verification request could not reach the server. Try again.
+              </p>
+            )}
+
+            {verification.kind === "server-failure" && (
+              <p role="alert">
+                The server could not complete verification. Try again.
+              </p>
+            )}
+
+            {verification.kind === "completed" && (
+              <VerifiedExecutionDetails
+                record={verification.record}
+                headingId="verified-observation-result"
               />
-              Observation
-            </label>
-            <label>
-              <input
-                type="radio"
-                name="evidence-type"
-                value="verified-execution"
-                checked={evidenceType === "verified-execution"}
-                onChange={() => selectEvidenceType("verified-execution")}
+            )}
+          </div>
+        </section>
+      )}
+
+      {activeWorkflow === "inspection" && (
+        <section
+          className="workflow-panel"
+          id="inspection-workflow"
+          aria-labelledby="evidence-inspection"
+        >
+          <div className="workflow-heading">
+            <h2 id="evidence-inspection">Inspect evidence</h2>
+            <p>
+              Select an evidence type and paste its JSON document to inspect
+              the reconstructed data.
+            </p>
+          </div>
+
+          <form onSubmit={inspectEvidence}>
+            <fieldset
+              className="evidence-types"
+              disabled={inspection.kind === "loading"}
+            >
+              <legend>Evidence type</legend>
+              <label>
+                <input
+                  type="radio"
+                  name="evidence-type"
+                  value="observation"
+                  checked={evidenceType === "observation"}
+                  onChange={() => selectEvidenceType("observation")}
+                />
+                Observation
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="evidence-type"
+                  value="verified-execution"
+                  checked={evidenceType === "verified-execution"}
+                  onChange={() => selectEvidenceType("verified-execution")}
+                />
+                Verified execution
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="evidence-type"
+                  value="verified-execution-sequence"
+                  checked={evidenceType === "verified-execution-sequence"}
+                  onChange={() =>
+                    selectEvidenceType("verified-execution-sequence")
+                  }
+                />
+                Verified execution sequence
+              </label>
+            </fieldset>
+
+            <div className="form-field">
+              <label htmlFor="evidence">Evidence JSON</label>
+              <textarea
+                id="evidence"
+                name="evidence"
+                value={evidence}
+                onChange={(event) => {
+                  setEvidence(event.target.value);
+                  setInspection({ kind: "idle" });
+                }}
+                disabled={inspection.kind === "loading"}
+                spellCheck={false}
+                rows={6}
               />
-              Verified execution
-            </label>
-            <label>
-              <input
-                type="radio"
-                name="evidence-type"
-                value="verified-execution-sequence"
-                checked={evidenceType === "verified-execution-sequence"}
-                onChange={() =>
-                  selectEvidenceType("verified-execution-sequence")
-                }
-              />
-              Verified execution sequence
-            </label>
-          </fieldset>
+            </div>
+            <div className="form-actions">
+              <button
+                type="button"
+                className="secondary-action"
+                disabled={inspection.kind === "loading"}
+                onClick={loadInspectionExample}
+              >
+                Load example
+              </button>
+              <button
+                type="submit"
+                className="primary-action"
+                disabled={inspection.kind === "loading"}
+              >
+                Inspect evidence
+              </button>
+            </div>
+          </form>
 
-          <label htmlFor="evidence">Evidence JSON</label>
-          <textarea
-            id="evidence"
-            name="evidence"
-            value={evidence}
-            onChange={(event) => {
-              setEvidence(event.target.value);
-              setInspection({ kind: "idle" });
-            }}
-            disabled={inspection.kind === "loading"}
-            spellCheck={false}
-            rows={12}
-          />
-          <button type="submit" disabled={inspection.kind === "loading"}>
-            Inspect evidence
-          </button>
-        </form>
-      </section>
+          <div className="workflow-feedback">
+            {inspection.kind === "loading" && (
+              <p role="status">Inspecting evidence…</p>
+            )}
 
-      {inspection.kind === "loading" && (
-        <p role="status">Inspecting evidence…</p>
-      )}
+            {inspection.kind === "invalid" && (
+              <p role="alert">
+                {invalidEvidenceMessage(inspection.evidenceType)}
+              </p>
+            )}
 
-      {inspection.kind === "invalid" && (
-        <p role="alert">{invalidEvidenceMessage(inspection.evidenceType)}</p>
-      )}
+            {inspection.kind === "transport-failure" && (
+              <p role="alert">
+                The inspection request could not be completed. Try again.
+              </p>
+            )}
 
-      {inspection.kind === "transport-failure" && (
-        <p role="alert">
-          The inspection request could not be completed. Try again.
-        </p>
-      )}
+            {inspection.kind === "valid-observation" && (
+              <ObservationDetails observation={inspection.observation} />
+            )}
 
-      {inspection.kind === "valid-observation" && (
-        <ObservationDetails observation={inspection.observation} />
-      )}
+            {inspection.kind === "valid-verified-execution" && (
+              <VerifiedExecutionDetails record={inspection.record} />
+            )}
 
-      {inspection.kind === "valid-verified-execution" && (
-        <VerifiedExecutionDetails record={inspection.record} />
-      )}
-
-      {inspection.kind === "valid-verified-execution-sequence" && (
-        <VerifiedExecutionSequenceDetails sequence={inspection.sequence} />
+            {inspection.kind === "valid-verified-execution-sequence" && (
+              <VerifiedExecutionSequenceDetails sequence={inspection.sequence} />
+            )}
+          </div>
+        </section>
       )}
     </main>
   );
+}
+
+function describedBy(...ids: Array<string | undefined>): string | undefined {
+  const descriptionIds = ids.filter(
+    (id): id is string => id !== undefined,
+  );
+  return descriptionIds.length > 0 ? descriptionIds.join(" ") : undefined;
 }
 
 function evidenceTypeName(evidenceType: EvidenceType): string {
@@ -562,7 +1136,7 @@ function ObservationFields({
   observation: ObservationPresentation;
 }) {
   return (
-    <dl>
+    <dl className="observation-fields">
       <dt>Command type</dt>
       <dd>{observation.command.command_type}</dd>
       <dt>Target mode</dt>
@@ -585,7 +1159,7 @@ function ObservationDetails({
   observation: ObservationPresentation;
 }) {
   return (
-    <section aria-labelledby="reconstructed-observation">
+    <section className="observation-details" aria-labelledby="reconstructed-observation">
       <h2 id="reconstructed-observation">Reconstructed observation</h2>
       <ObservationFields observation={observation} />
     </section>
@@ -603,45 +1177,91 @@ function VerifiedExecutionFields({
   const InvariantHeading = nested ? "h6" : "h4";
 
   return (
-    <>
-      <dl>
-        <dt>Execution ID</dt>
-        <dd>{record.execution.execution_id}</dd>
-        <dt>UTC execution timestamp</dt>
-        <dd>{record.execution.executed_at}</dd>
-        <dt>Scenario ID</dt>
-        <dd>{record.execution.scenario_id}</dd>
-        <dt>Outcome</dt>
-        <dd>{record.outcome}</dd>
-      </dl>
+    <div className={`verified-execution-fields${nested ? " is-nested" : ""}`}>
+      <div className="verified-execution-summary">
+        <section className="execution-summary">
+          <Subheading>Execution summary</Subheading>
+          <dl className="execution-summary-fields">
+            <dt>Execution ID</dt>
+            <dd>{record.execution.execution_id}</dd>
+            <dt>UTC execution timestamp</dt>
+            <dd>{record.execution.executed_at}</dd>
+            <dt>Scenario ID</dt>
+            <dd>{record.execution.scenario_id}</dd>
+          </dl>
+        </section>
 
-      <Subheading>Reconstructed observation</Subheading>
-      <ObservationFields observation={record.observation} />
+        <section className="result-observation">
+          <Subheading>Reconstructed observation</Subheading>
+          <ObservationFields observation={record.observation} />
+        </section>
+      </div>
 
-      <Subheading>Invariant results</Subheading>
-      <ol className="invariant-results">
-        {record.invariant_results.map((result, index) => (
-          <li key={`${result.invariant_id}-${index}`}>
-            <InvariantHeading className="invariant-title">
-              {Object.hasOwn(INVARIANT_TITLES, result.invariant_id)
-                ? INVARIANT_TITLES[result.invariant_id]
-                : "Invariant result"}
-            </InvariantHeading>
-            <p className="invariant-id">
-              <code>{result.invariant_id}</code>
-            </p>
-            <dl>
-              <dt>Expected</dt>
-              <dd>{formatInvariantValue(result.expected)}</dd>
-              <dt>Actual</dt>
-              <dd>{formatInvariantValue(result.actual)}</dd>
-              <dt>Result</dt>
-              <dd>{result.passed ? "PASS" : "FAIL"}</dd>
-            </dl>
-          </li>
-        ))}
-      </ol>
-    </>
+      <Subheading className="invariant-results-heading">
+        Invariant results
+      </Subheading>
+      <div className="invariant-results-wrapper">
+        <div className="invariant-column-headings" aria-hidden="true">
+          <span>Invariant</span>
+          <span>Expected</span>
+          <span>Actual</span>
+          <span>Result</span>
+        </div>
+        <ol className="invariant-results">
+          {record.invariant_results.map((result, index) => (
+            <li key={`${result.invariant_id}-${index}`}>
+              <div className="invariant-summary">
+                <InvariantHeading className="invariant-title">
+                  {Object.hasOwn(INVARIANT_TITLES, result.invariant_id)
+                    ? INVARIANT_TITLES[result.invariant_id]
+                    : "Invariant result"}
+                </InvariantHeading>
+                <p className="invariant-id">
+                  <code>{result.invariant_id}</code>
+                </p>
+              </div>
+              <dl className="invariant-values">
+                <div>
+                  <dt>Expected</dt>
+                  <dd>{formatInvariantValue(result.expected)}</dd>
+                </div>
+                <div>
+                  <dt>Actual</dt>
+                  <dd>{formatInvariantValue(result.actual)}</dd>
+                </div>
+                <div>
+                  <dt>Result</dt>
+                  <dd>
+                    <OutcomeBadge
+                      outcome={result.passed ? "PASS" : "FAIL"}
+                      label="Invariant result"
+                    />
+                  </dd>
+                </div>
+              </dl>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </div>
+  );
+}
+
+function OutcomeBadge({
+  outcome,
+  label = "Verification outcome",
+}: {
+  outcome: string;
+  label?: string;
+}) {
+  return (
+    <span
+      className="outcome-badge"
+      data-outcome={outcome}
+      aria-label={`${label}: ${outcome}`}
+    >
+      {outcome}
+    </span>
   );
 }
 
@@ -654,7 +1274,10 @@ function VerifiedExecutionDetails({
 }) {
   return (
     <section aria-labelledby={headingId}>
-      <h2 id={headingId}>Verified execution</h2>
+      <div className="result-heading">
+        <h2 id={headingId}>Verified execution</h2>
+        <OutcomeBadge outcome={record.outcome} />
+      </div>
       <VerifiedExecutionFields record={record} />
     </section>
   );
@@ -667,66 +1290,90 @@ function VerifiedExecutionSequenceDetails({
 }) {
   return (
     <section aria-labelledby="verified-execution-sequence">
-      <h2 id="verified-execution-sequence">Verified execution sequence</h2>
-      <dl>
-        <dt>Sequence outcome</dt>
-        <dd>{sequence.outcome}</dd>
-      </dl>
+      <div className="result-heading">
+        <h2 id="verified-execution-sequence">Verified execution sequence</h2>
+        <OutcomeBadge outcome={sequence.outcome} label="Sequence outcome" />
+      </div>
 
-      <h3>Member records</h3>
+      <h3 className="sequence-flow-heading">Member records and continuity</h3>
       <ol
-        className="sequence-members"
-        aria-label="Sequence member records"
+        className="sequence-flow"
+        aria-label="Sequence member records and continuity boundaries"
         role="list"
       >
         {sequence.records.map((record, index) => {
           const headingId = `sequence-member-${index}`;
-          return (
-            <li key={`${record.execution.execution_id}-${index}`}>
-              <article className="sequence-member" aria-labelledby={headingId}>
-                <h4 id={headingId}>Member {index + 1}</h4>
-                <VerifiedExecutionFields record={record} nested />
-              </article>
-            </li>
-          );
-        })}
-      </ol>
+          const continuityResult = sequence.continuity_results[index];
 
-      <h3>Continuity boundaries</h3>
-      <ol
-        className="continuity-boundaries"
-        aria-label="Continuity boundaries"
-        role="list"
-      >
-        {sequence.continuity_results.map((result, index) => {
-          const headingId = `continuity-boundary-${index}`;
           return (
-            <li
-              key={`${result.previous_execution_id}-${result.next_execution_id}-${index}`}
-            >
-              <article
-                className="continuity-boundary"
-                aria-labelledby={headingId}
-              >
-                <h4 id={headingId}>Boundary {index + 1}</h4>
-                <dl>
-                  <dt>Previous execution ID</dt>
-                  <dd>{result.previous_execution_id}</dd>
-                  <dt>Next execution ID</dt>
-                  <dd>{result.next_execution_id}</dd>
-                  <dt>Expected operating mode</dt>
-                  <dd>{result.expected_operating_mode}</dd>
-                  <dt>Observed operating mode</dt>
-                  <dd>{result.observed_operating_mode}</dd>
-                  <dt>Result</dt>
-                  <dd>{result.passed ? "PASS" : "FAIL"}</dd>
-                </dl>
-              </article>
-            </li>
+            <Fragment key={`${record.execution.execution_id}-${index}`}>
+              <li>
+                <article
+                  className="sequence-member"
+                  aria-labelledby={headingId}
+                >
+                  <div className="sequence-member-heading">
+                    <h4 id={headingId}>Member {index + 1}</h4>
+                    <OutcomeBadge outcome={record.outcome} />
+                  </div>
+                  <VerifiedExecutionFields record={record} nested />
+                </article>
+              </li>
+              {continuityResult !== undefined && (
+                <li>
+                  <ContinuityBoundaryDetails
+                    result={continuityResult}
+                    ordinal={index + 1}
+                  />
+                </li>
+              )}
+            </Fragment>
           );
         })}
       </ol>
     </section>
+  );
+}
+
+function ContinuityBoundaryDetails({
+  result,
+  ordinal,
+}: {
+  result: VerifiedExecutionSequencePresentation["continuity_results"][number];
+  ordinal: number;
+}) {
+  const headingId = `continuity-boundary-${ordinal - 1}`;
+
+  return (
+    <article className="continuity-boundary" aria-labelledby={headingId}>
+      <div className="continuity-boundary-heading">
+        <h4 id={headingId}>Continuity boundary {ordinal}</h4>
+        <OutcomeBadge
+          outcome={result.passed ? "PASS" : "FAIL"}
+          label="Continuity outcome"
+        />
+      </div>
+      <dl className="continuity-boundary-fields">
+        <div>
+          <dt>Connected executions</dt>
+          <dd>
+            <span className="visually-hidden">Previous execution ID: </span>
+            {result.previous_execution_id}
+            <span aria-hidden="true"> → </span>
+            <span className="visually-hidden">Next execution ID: </span>
+            {result.next_execution_id}
+          </dd>
+        </div>
+        <div>
+          <dt>Expected operating mode</dt>
+          <dd>{result.expected_operating_mode}</dd>
+        </div>
+        <div>
+          <dt>Observed operating mode</dt>
+          <dd>{result.observed_operating_mode}</dd>
+        </div>
+      </dl>
+    </article>
   );
 }
 
