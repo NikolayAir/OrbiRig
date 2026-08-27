@@ -144,7 +144,7 @@ const REQUIRED_VERIFICATION_MESSAGES: Record<
   string
 > = {
   executionId: "Execution ID is required.",
-  executedAt: "UTC execution timestamp is required.",
+  executedAt: "Execution time (UTC) is required.",
   scenarioId: "Select a supported scenario.",
   observationEvidence: "Observation evidence is required.",
 };
@@ -347,6 +347,10 @@ export function App() {
   const executedAtInputRef = useRef<HTMLInputElement>(null);
   const scenarioInputRef = useRef<HTMLSelectElement>(null);
   const observationEvidenceInputRef = useRef<HTMLTextAreaElement>(null);
+  const verificationFeedbackRef = useRef<HTMLDivElement>(null);
+  const inspectionFeedbackRef = useRef<HTMLDivElement>(null);
+  const verificationScrollPendingRef = useRef(false);
+  const inspectionScrollPendingRef = useRef(false);
 
   useEffect(() => {
     function dismissHelpOutside(event: PointerEvent) {
@@ -387,6 +391,40 @@ export function App() {
     return () =>
       document.removeEventListener("pointerdown", dismissHelpOutside);
   }, [executionIdHelpOpen, scenarioHelpOpen]);
+
+  useEffect(() => {
+    const isTerminal =
+      verification.kind !== "idle" && verification.kind !== "loading";
+
+    if (!verificationScrollPendingRef.current || !isTerminal) {
+      return;
+    }
+
+    verificationScrollPendingRef.current = false;
+    if (
+      activeWorkflow === "verification" &&
+      verificationFeedbackRef.current !== null
+    ) {
+      scrollFeedbackIntoView(verificationFeedbackRef.current);
+    }
+  }, [activeWorkflow, verification.kind]);
+
+  useEffect(() => {
+    const isTerminal =
+      inspection.kind !== "idle" && inspection.kind !== "loading";
+
+    if (!inspectionScrollPendingRef.current || !isTerminal) {
+      return;
+    }
+
+    inspectionScrollPendingRef.current = false;
+    if (
+      activeWorkflow === "inspection" &&
+      inspectionFeedbackRef.current !== null
+    ) {
+      scrollFeedbackIntoView(inspectionFeedbackRef.current);
+    }
+  }, [activeWorkflow, inspection.kind]);
 
   function selectEvidenceType(selectedType: EvidenceType) {
     setEvidenceType(selectedType);
@@ -460,6 +498,7 @@ export function App() {
     }
 
     setVerificationRequiredErrors({});
+    verificationScrollPendingRef.current = true;
     setVerification({ kind: "loading" });
 
     let response: Response;
@@ -522,6 +561,7 @@ export function App() {
 
   async function inspectEvidence(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
+    inspectionScrollPendingRef.current = true;
     setInspection({ kind: "loading" });
 
     try {
@@ -575,15 +615,20 @@ export function App() {
         <p className="eyebrow">OrbiRig</p>
         <h1>Observation verification and evidence inspection</h1>
         <p>
-          Verify submitted observations against explicit scenarios or inspect
-          existing evidence without changing it.
+          Check whether a command produced the expected result in a simplified
+          spacecraft test workflow, or inspect existing evidence without
+          changing it. Start with a built-in example, or edit one to explore
+          either workflow.
         </p>
       </header>
 
+      <p className="workflow-selector-label" id="workflow-selector-label">
+        Choose a workflow
+      </p>
       <div
         className="workflow-switcher"
         role="group"
-        aria-label="Available workflows"
+        aria-labelledby="workflow-selector-label"
       >
         <button
           type="button"
@@ -593,7 +638,7 @@ export function App() {
           onClick={() => setActiveWorkflow("verification")}
         >
           <span>Verify observation</span>
-          <small>Check submitted observations against a scenario.</small>
+          <small>Check a submitted observation against the selected scenario.</small>
         </button>
         <button
           type="button"
@@ -603,7 +648,7 @@ export function App() {
           onClick={() => setActiveWorkflow("inspection")}
         >
           <span>Inspect evidence</span>
-          <small>Reconstruct an existing evidence document.</small>
+          <small>Review an existing evidence document in a structured view.</small>
         </button>
       </div>
 
@@ -616,8 +661,8 @@ export function App() {
           <div className="workflow-heading">
             <h2 id="observation-verification">Verify observation</h2>
             <p>
-              Provide execution metadata, select a supported scenario, and
-              submit raw observation evidence for canonical verification.
+              Provide execution details, select a supported scenario, and
+              submit observation evidence for verification.
             </p>
           </div>
 
@@ -706,7 +751,7 @@ export function App() {
 
                 <div className="form-field">
                   <label htmlFor="verification-executed-at">
-                    UTC execution timestamp
+                    Execution time (UTC)
                   </label>
                   <input
                     id="verification-executed-at"
@@ -742,7 +787,7 @@ export function App() {
 
               <div className="form-field">
                 <div className="field-label">
-                  <label htmlFor="verification-scenario">Scenario ID</label>
+                  <label htmlFor="verification-scenario">Scenario</label>
                   <span
                     ref={scenarioHelpRef}
                     className="field-help"
@@ -751,7 +796,7 @@ export function App() {
                     <button
                       type="button"
                       className="field-help-button"
-                      aria-label="About Scenario ID"
+                      aria-label="About Scenario"
                       aria-controls="scenario-help-description"
                       aria-describedby="scenario-help-description"
                       onClick={(event) => {
@@ -875,7 +920,7 @@ export function App() {
             </div>
           </form>
 
-          <div className="workflow-feedback">
+          <div className="workflow-feedback" ref={verificationFeedbackRef}>
             {verification.kind === "loading" && (
               <p role="status">Verifying observation…</p>
             )}
@@ -917,8 +962,8 @@ export function App() {
           <div className="workflow-heading">
             <h2 id="evidence-inspection">Inspect evidence</h2>
             <p>
-              Select an evidence type and paste its JSON document to inspect
-              the reconstructed data.
+              Select an evidence type and paste its JSON document to review
+              it in a structured view.
             </p>
           </div>
 
@@ -996,7 +1041,7 @@ export function App() {
             </div>
           </form>
 
-          <div className="workflow-feedback">
+          <div className="workflow-feedback" ref={inspectionFeedbackRef}>
             {inspection.kind === "loading" && (
               <p role="status">Inspecting evidence…</p>
             )}
@@ -1160,7 +1205,7 @@ function ObservationDetails({
 }) {
   return (
     <section className="observation-details" aria-labelledby="reconstructed-observation">
-      <h2 id="reconstructed-observation">Reconstructed observation</h2>
+      <h2 id="reconstructed-observation">Observation details</h2>
       <ObservationFields observation={observation} />
     </section>
   );
@@ -1184,25 +1229,25 @@ function VerifiedExecutionFields({
           <dl className="execution-summary-fields">
             <dt>Execution ID</dt>
             <dd>{record.execution.execution_id}</dd>
-            <dt>UTC execution timestamp</dt>
+            <dt>Execution time (UTC)</dt>
             <dd>{record.execution.executed_at}</dd>
-            <dt>Scenario ID</dt>
+            <dt>Scenario</dt>
             <dd>{record.execution.scenario_id}</dd>
           </dl>
         </section>
 
         <section className="result-observation">
-          <Subheading>Reconstructed observation</Subheading>
+          <Subheading>Observation details</Subheading>
           <ObservationFields observation={record.observation} />
         </section>
       </div>
 
       <Subheading className="invariant-results-heading">
-        Invariant results
+        Verification checks
       </Subheading>
       <div className="invariant-results-wrapper">
         <div className="invariant-column-headings" aria-hidden="true">
-          <span>Invariant</span>
+          <span>Check</span>
           <span>Expected</span>
           <span>Actual</span>
           <span>Result</span>
@@ -1214,7 +1259,7 @@ function VerifiedExecutionFields({
                 <InvariantHeading className="invariant-title">
                   {Object.hasOwn(INVARIANT_TITLES, result.invariant_id)
                     ? INVARIANT_TITLES[result.invariant_id]
-                    : "Invariant result"}
+                    : "Verification check"}
                 </InvariantHeading>
                 <p className="invariant-id">
                   <code>{result.invariant_id}</code>
@@ -1234,7 +1279,7 @@ function VerifiedExecutionFields({
                   <dd>
                     <OutcomeBadge
                       outcome={result.passed ? "PASS" : "FAIL"}
-                      label="Invariant result"
+                      label="Verification check"
                     />
                   </dd>
                 </div>
@@ -1298,7 +1343,7 @@ function VerifiedExecutionSequenceDetails({
       <h3 className="sequence-flow-heading">Member records and continuity</h3>
       <ol
         className="sequence-flow"
-        aria-label="Sequence member records and continuity boundaries"
+        aria-label="Sequence member records and continuity checks"
         role="list"
       >
         {sequence.records.map((record, index) => {
@@ -1347,7 +1392,7 @@ function ContinuityBoundaryDetails({
   return (
     <article className="continuity-boundary" aria-labelledby={headingId}>
       <div className="continuity-boundary-heading">
-        <h4 id={headingId}>Continuity boundary {ordinal}</h4>
+        <h4 id={headingId}>Continuity check {ordinal}</h4>
         <OutcomeBadge
           outcome={result.passed ? "PASS" : "FAIL"}
           label="Continuity outcome"
@@ -1382,4 +1427,15 @@ function formatInvariantValue(value: boolean | string): string {
     return value ? "true" : "false";
   }
   return value;
+}
+
+function scrollFeedbackIntoView(feedback: HTMLDivElement) {
+  const prefersReducedMotion =
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  feedback.scrollIntoView({
+    behavior: prefersReducedMotion ? "auto" : "smooth",
+    block: "start",
+  });
 }
