@@ -1,4 +1,5 @@
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -109,9 +110,19 @@ const verifiedExecutionSequence = {
 };
 
 const fetchMock = vi.fn();
+const matchMediaMock = vi.fn();
+const scrollIntoViewMock = vi.fn();
 
 beforeEach(() => {
+  matchMediaMock.mockReset();
+  matchMediaMock.mockReturnValue({ matches: false });
+  scrollIntoViewMock.mockReset();
+  Object.defineProperty(Element.prototype, "scrollIntoView", {
+    configurable: true,
+    value: scrollIntoViewMock,
+  });
   vi.stubGlobal("fetch", fetchMock);
+  vi.stubGlobal("matchMedia", matchMediaMock);
 });
 
 afterEach(() => {
@@ -140,6 +151,16 @@ function selectVerifiedExecutionSequence() {
   fireEvent.click(
     screen.getByRole("radio", { name: "Verified execution sequence" }),
   );
+}
+
+async function expectFeedbackScroll(behavior: ScrollBehavior = "smooth") {
+  await waitFor(() => {
+    expect(scrollIntoViewMock).toHaveBeenCalledTimes(1);
+    expect(scrollIntoViewMock).toHaveBeenCalledWith({
+      behavior,
+      block: "start",
+    });
+  });
 }
 
 function submitEvidence(
@@ -174,10 +195,10 @@ function submitVerification({
   fireEvent.change(screen.getByLabelText("Execution ID"), {
     target: { value: "exec-web-verify-001" },
   });
-  fireEvent.change(screen.getByLabelText("UTC execution timestamp"), {
+  fireEvent.change(screen.getByLabelText("Execution time (UTC)"), {
     target: { value: "2026-08-25T18:30:00Z" },
   });
-  fireEvent.change(screen.getByLabelText("Scenario ID"), {
+  fireEvent.change(screen.getByLabelText("Scenario"), {
     target: { value: scenario },
   });
   fireEvent.change(screen.getByLabelText("Observation evidence JSON"), {
@@ -191,8 +212,15 @@ describe("App", () => {
     render(<App />);
 
     expect(
-      screen.getByRole("group", { name: "Available workflows" }),
+      screen.getByRole("group", { name: "Choose a workflow" }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Check whether a command produced the expected result/,
+      ),
+    ).toHaveTextContent(
+      "Start with a built-in example, or edit one to explore either workflow.",
+    );
 
     const verificationChoice = screen.getByRole("button", {
       name: "Show Verify observation workflow",
@@ -232,10 +260,10 @@ describe("App", () => {
     fireEvent.change(screen.getByLabelText("Execution ID"), {
       target: { value: "exec-preserved" },
     });
-    fireEvent.change(screen.getByLabelText("UTC execution timestamp"), {
+    fireEvent.change(screen.getByLabelText("Execution time (UTC)"), {
       target: { value: "2026-08-25T18:30:00Z" },
     });
-    fireEvent.change(screen.getByLabelText("Scenario ID"), {
+    fireEvent.change(screen.getByLabelText("Scenario"), {
       target: { value: "safe_to_nominal_mode" },
     });
     fireEvent.change(screen.getByLabelText("Observation evidence JSON"), {
@@ -248,10 +276,10 @@ describe("App", () => {
     expect(screen.getByLabelText("Execution ID")).toHaveValue(
       "exec-preserved",
     );
-    expect(screen.getByLabelText("UTC execution timestamp")).toHaveValue(
+    expect(screen.getByLabelText("Execution time (UTC)")).toHaveValue(
       "2026-08-25T18:30:00Z",
     );
-    expect(screen.getByLabelText("Scenario ID")).toHaveValue(
+    expect(screen.getByLabelText("Scenario")).toHaveValue(
       "safe_to_nominal_mode",
     );
     expect(screen.getByLabelText("Observation evidence JSON")).toHaveValue(
@@ -271,6 +299,7 @@ describe("App", () => {
     expect(
       await screen.findByRole("region", { name: "Verified execution" }),
     ).toBeInTheDocument();
+    await expectFeedbackScroll();
 
     selectInspectionWorkflow();
     selectVerificationWorkflow();
@@ -278,6 +307,75 @@ describe("App", () => {
     expect(
       screen.getByRole("region", { name: "Verified execution" }),
     ).toBeInTheDocument();
+    expect(scrollIntoViewMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not delay feedback scrolling when verification completes while hidden", async () => {
+    let resolveVerification!: (response: Response) => void;
+    const pendingResponse = new Promise<Response>((resolve) => {
+      resolveVerification = resolve;
+    });
+
+    fetchMock.mockReturnValue(pendingResponse);
+
+    submitVerification();
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Verifying observation…",
+    );
+
+    selectInspectionWorkflow();
+
+    await act(async () => {
+      resolveVerification({
+        ok: true,
+        status: 200,
+        json: async () => verifiedExecution,
+      } as Response);
+    });
+
+    expect(scrollIntoViewMock).not.toHaveBeenCalled();
+
+    selectVerificationWorkflow();
+
+    expect(
+      screen.getByRole("region", { name: "Verified execution" }),
+    ).toBeInTheDocument();
+    expect(scrollIntoViewMock).not.toHaveBeenCalled();
+  });
+
+  it("does not delay feedback scrolling when inspection completes while hidden", async () => {
+    let resolveInspection!: (response: Response) => void;
+    const pendingResponse = new Promise<Response>((resolve) => {
+      resolveInspection = resolve;
+    });
+
+    fetchMock.mockReturnValue(pendingResponse);
+
+    submitEvidence("valid evidence");
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Inspecting evidence…",
+    );
+
+    selectVerificationWorkflow();
+
+    await act(async () => {
+      resolveInspection({
+        ok: true,
+        status: 200,
+        json: async () => observation,
+      } as Response);
+    });
+
+    expect(scrollIntoViewMock).not.toHaveBeenCalled();
+
+    selectInspectionWorkflow();
+
+    expect(
+      screen.getByRole("heading", { name: "Observation details" }),
+    ).toBeInTheDocument();
+    expect(scrollIntoViewMock).not.toHaveBeenCalled();
   });
 
   it("preserves inspection input and reconstructed state while switched away", async () => {
@@ -296,9 +394,10 @@ describe("App", () => {
 
     expect(
       await screen.findByRole("heading", {
-        name: "Reconstructed observation",
+        name: "Observation details",
       }),
     ).toBeInTheDocument();
+    await expectFeedbackScroll();
 
     selectVerificationWorkflow();
     selectInspectionWorkflow();
@@ -307,14 +406,15 @@ describe("App", () => {
       "preserved evidence",
     );
     expect(
-      screen.getByRole("heading", { name: "Reconstructed observation" }),
+      screen.getByRole("heading", { name: "Observation details" }),
     ).toBeInTheDocument();
+    expect(scrollIntoViewMock).toHaveBeenCalledTimes(1);
   });
 
   it("starts with no verification scenario selected", () => {
     render(<App />);
 
-    const scenario = screen.getByLabelText("Scenario ID");
+    const scenario = screen.getByLabelText("Scenario");
     const placeholder = screen.getByRole("option", {
       name: "Select a supported scenario",
     }) as HTMLOptionElement;
@@ -327,14 +427,14 @@ describe("App", () => {
     expect(nominalScenario.selected).toBe(false);
   });
 
-  it("provides accessible, dismissible Scenario ID help", () => {
+  it("provides accessible, dismissible Scenario help", () => {
     render(<App />);
 
-    const help = screen.getByRole("button", { name: "About Scenario ID" });
+    const help = screen.getByRole("button", { name: "About Scenario" });
     const description = screen.getByText(
       "Select the scenario to verify against. It is not inferred from the evidence.",
     );
-    const scenario = screen.getByLabelText("Scenario ID");
+    const scenario = screen.getByLabelText("Scenario");
     const helpContainer = help.parentElement;
 
     expect(help).toHaveAttribute(
@@ -410,7 +510,7 @@ describe("App", () => {
       name: "About Execution ID",
     });
     const scenarioHelp = screen.getByRole("button", {
-      name: "About Scenario ID",
+      name: "About Scenario",
     });
 
     fireEvent.click(executionIdHelp);
@@ -424,7 +524,7 @@ describe("App", () => {
 
   it.each([
     ["About Execution ID", "Execution ID"],
-    ["About Scenario ID", "Scenario ID"],
+    ["About Scenario", "Scenario"],
   ])(
     "dismisses pinned %s on outside pointer interaction",
     (helpName, outsideLabel) => {
@@ -449,8 +549,8 @@ describe("App", () => {
     render(<App />);
 
     const executionId = screen.getByLabelText("Execution ID");
-    const executedAt = screen.getByLabelText("UTC execution timestamp");
-    const scenario = screen.getByLabelText("Scenario ID");
+    const executedAt = screen.getByLabelText("Execution time (UTC)");
+    const scenario = screen.getByLabelText("Scenario");
     const observationEvidence = screen.getByLabelText(
       "Observation evidence JSON",
     );
@@ -458,9 +558,10 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Verify observation" }));
 
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(scrollIntoViewMock).not.toHaveBeenCalled();
     expect(screen.getByText("Execution ID is required.")).toBeInTheDocument();
     expect(
-      screen.getByText("UTC execution timestamp is required."),
+      screen.getByText("Execution time (UTC) is required."),
     ).toBeInTheDocument();
     expect(screen.getByText("Select a supported scenario.")).toBeInTheDocument();
     expect(
@@ -494,7 +595,7 @@ describe("App", () => {
       screen.queryByText("Execution ID is required."),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByText("UTC execution timestamp is required."),
+      screen.getByText("Execution time (UTC) is required."),
     ).toBeInTheDocument();
     expect(screen.getByText("Select a supported scenario.")).toBeInTheDocument();
     expect(
@@ -510,10 +611,10 @@ describe("App", () => {
     expect(screen.getByLabelText("Execution ID")).toHaveValue(
       "example-execution-001",
     );
-    expect(screen.getByLabelText("UTC execution timestamp")).toHaveValue(
+    expect(screen.getByLabelText("Execution time (UTC)")).toHaveValue(
       "2026-08-26T08:30:00Z",
     );
-    expect(screen.getByLabelText("Scenario ID")).toHaveValue(
+    expect(screen.getByLabelText("Scenario")).toHaveValue(
       "nominal_to_safe_mode",
     );
     expect(
@@ -529,6 +630,7 @@ describe("App", () => {
       telemetry: { operating_mode: "SAFE" },
     });
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(scrollIntoViewMock).not.toHaveBeenCalled();
 
     fireEvent.change(screen.getByLabelText("Execution ID"), {
       target: { value: "edited-example-execution" },
@@ -549,6 +651,7 @@ describe("App", () => {
     expect(
       await screen.findByRole("region", { name: "Verified execution" }),
     ).toBeInTheDocument();
+    await expectFeedbackScroll();
 
     fireEvent.click(screen.getByRole("button", { name: "Load example" }));
 
@@ -556,6 +659,7 @@ describe("App", () => {
       screen.queryByRole("region", { name: "Verified execution" }),
     ).not.toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(scrollIntoViewMock).toHaveBeenCalledTimes(1);
   });
 
   it("submits raw observation evidence with explicit verification input", async () => {
@@ -633,6 +737,25 @@ describe("App", () => {
       within(record).getByText("SET_OPERATING_MODE"),
     ).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("uses non-smooth feedback scrolling when reduced motion is preferred", async () => {
+    matchMediaMock.mockReturnValue({ matches: true });
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => verifiedExecution,
+    });
+
+    submitVerification();
+
+    expect(
+      await screen.findByRole("region", { name: "Verified execution" }),
+    ).toBeInTheDocument();
+    await expectFeedbackScroll("auto");
+    expect(matchMediaMock).toHaveBeenCalledWith(
+      "(prefers-reduced-motion: reduce)",
+    );
   });
 
   it("renders completed FAIL verification without an error state", async () => {
@@ -718,6 +841,7 @@ describe("App", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "The verification request could not reach the server. Try again.",
     );
+    await expectFeedbackScroll();
   });
 
   it("keeps unexpected server failure separate from validation", async () => {
@@ -768,7 +892,7 @@ describe("App", () => {
       name: "Verified execution",
     });
     expect(
-      within(record).getByRole("heading", { name: "Invariant result" }),
+      within(record).getByRole("heading", { name: "Verification check" }),
     ).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
@@ -859,6 +983,7 @@ describe("App", () => {
       outcome: "PASS",
     });
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(scrollIntoViewMock).not.toHaveBeenCalled();
   });
 
   it("clears stale inspection feedback when loading an example", async () => {
@@ -874,6 +999,7 @@ describe("App", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "The observation evidence is invalid.",
     );
+    await expectFeedbackScroll();
 
     fireEvent.click(screen.getByRole("button", { name: "Load example" }));
 
@@ -881,6 +1007,7 @@ describe("App", () => {
     expect(screen.getByLabelText("Evidence JSON")).toHaveValue(
       observationEvidenceDocument,
     );
+    expect(scrollIntoViewMock).toHaveBeenCalledTimes(1);
   });
 
   it("keeps observation evidence invalid for explicitly selected verified types", async () => {
@@ -936,7 +1063,7 @@ describe("App", () => {
     });
     expect(
       await screen.findByRole("heading", {
-        name: "Reconstructed observation",
+        name: "Observation details",
       }),
     ).toBeInTheDocument();
     expect(screen.getByText("SET_OPERATING_MODE")).toBeInTheDocument();
@@ -986,7 +1113,7 @@ describe("App", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("exec-web-001")).toBeInTheDocument();
     expect(screen.getByText("2026-08-17T10:15:30Z")).toBeInTheDocument();
-    expect(screen.getAllByText("Scenario ID")).toHaveLength(1);
+    expect(screen.getAllByText("Scenario")).toHaveLength(1);
     expect(screen.getByText("nominal_to_safe_mode")).toBeInTheDocument();
     expect(screen.getByText("SET_OPERATING_MODE")).toBeInTheDocument();
 
@@ -1006,7 +1133,7 @@ describe("App", () => {
     expect(within(invariantItems[0]).getAllByText("NOMINAL")).toHaveLength(2);
     expect(within(invariantItems[0]).getByText("PASS")).toBeInTheDocument();
     expect(
-      within(invariantItems[0]).getByLabelText("Invariant result: PASS"),
+      within(invariantItems[0]).getByLabelText("Verification check: PASS"),
     ).toBeInTheDocument();
     expect(
       within(invariantItems[1]).getByRole("heading", {
@@ -1019,7 +1146,7 @@ describe("App", () => {
     expect(within(invariantItems[1]).getAllByText("true")).toHaveLength(2);
     expect(within(invariantItems[1]).getByText("PASS")).toBeInTheDocument();
     expect(
-      within(invariantItems[1]).getByLabelText("Invariant result: PASS"),
+      within(invariantItems[1]).getByLabelText("Verification check: PASS"),
     ).toBeInTheDocument();
     expect(screen.getAllByText("PASS")).toHaveLength(3);
   });
@@ -1075,7 +1202,7 @@ describe("App", () => {
     });
   });
 
-  it("renders ordered sequence members and continuity boundaries", async () => {
+  it("renders ordered sequence members and continuity checks", async () => {
     fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
@@ -1092,7 +1219,7 @@ describe("App", () => {
     ).toBeInTheDocument();
 
     const sequenceFlow = within(sequence).getByRole("list", {
-      name: "Sequence member records and continuity boundaries",
+      name: "Sequence member records and continuity checks",
     });
     const sequenceItems = Array.from(
       sequenceFlow.children,
@@ -1103,7 +1230,7 @@ describe("App", () => {
     ).toBeInTheDocument();
     expect(
       within(sequenceItems[1]).getByRole("article", {
-        name: "Continuity boundary 1",
+        name: "Continuity check 1",
       }),
     ).toBeInTheDocument();
     expect(
@@ -1111,7 +1238,7 @@ describe("App", () => {
     ).toBeInTheDocument();
     expect(
       within(sequenceItems[3]).getByRole("article", {
-        name: "Continuity boundary 2",
+        name: "Continuity check 2",
       }),
     ).toBeInTheDocument();
     expect(
@@ -1139,7 +1266,7 @@ describe("App", () => {
     ).toBeInTheDocument();
 
     const boundaries = within(sequence).getAllByRole("article", {
-      name: /Continuity boundary/,
+      name: /Continuity check/,
     });
     expect(boundaries).toHaveLength(2);
     expect(boundaries[0]).toHaveTextContent("Previous execution ID: exec-b");
@@ -1185,7 +1312,7 @@ describe("App", () => {
     ).toBeInTheDocument();
 
     const boundary = within(sequence).getByRole("article", {
-      name: "Continuity boundary 1",
+      name: "Continuity check 1",
     });
     expect(
       within(boundary).getByLabelText("Continuity outcome: FAIL"),
@@ -1282,6 +1409,7 @@ describe("App", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "The inspection request could not be completed. Try again.",
     );
+    await expectFeedbackScroll();
   });
 
   it("clears a verified execution when the evidence changes", async () => {
@@ -1341,5 +1469,6 @@ describe("App", () => {
     expect(
       screen.getByRole("radio", { name: "Observation" }),
     ).toBeDisabled();
+    expect(scrollIntoViewMock).not.toHaveBeenCalled();
   });
 });

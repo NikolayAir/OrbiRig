@@ -51,11 +51,20 @@ header > p:last-child,
 }
 
 .eyebrow {
-  color: #526575;
-  font-size: 0.75rem;
+  color: #315b73;
+  font-size: 0.9375rem;
   font-weight: 750;
   letter-spacing: 0.08em;
   margin: 0;
+  text-transform: uppercase;
+}
+
+.workflow-selector-label {
+  color: #486676;
+  font-size: 0.75rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  margin: 0 0 0.5rem;
   text-transform: uppercase;
 }
 
@@ -76,31 +85,29 @@ button {
 }
 
 .workflow-choice {
-  background: #edf3f6;
+  background: #f7fafb;
   border-color: #c7d6de;
-  box-shadow: 0 1px 1px rgb(23 43 58 / 6%);
   color: #254253;
-  min-height: 4.5rem;
-  padding: 0.75rem 1rem;
+  min-height: 4rem;
+  padding: 0.65rem 0.9rem;
   text-align: left;
 }
 
 .workflow-choice[aria-pressed="true"] {
-  background: #0a5b85;
-  border-color: #0a5b85;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 14%);
-  color: #fff;
+  background: #e5f0f4;
+  border-color: #5c8da7;
+  box-shadow: inset 0.25rem 0 0 #0a5b85;
+  color: #17384b;
 }
 
 .workflow-choice:hover:not(:disabled) {
-  background: #f7fafb;
+  background: #f0f6f8;
   border-color: #769cad;
-  box-shadow: 0 1px 2px rgb(23 43 58 / 10%);
 }
 
 .workflow-choice[aria-pressed="true"]:hover:not(:disabled) {
-  background: #084d70;
-  border-color: #084d70;
+  background: #dcebef;
+  border-color: #477f9b;
 }
 
 .workflow-choice > span,
