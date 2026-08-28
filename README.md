@@ -1,6 +1,6 @@
 # OrbiRig
 
-OrbiRig is a non-operational verification harness for simplified spacecraft operating-mode workflows. It checks whether observed command results match explicit expected behaviour, represents observations and verification results as deterministic versioned JSON evidence, and can also check continuity across an ordered sequence of executions.
+OrbiRig is a non-operational verification harness for simplified spacecraft operating-mode workflows. It verifies observed command results against explicit expected behaviour, represents observations and verification results as deterministic versioned JSON evidence, and evaluates continuity across an ordered sequence of executions.
 
 `ReferenceSpacecraft` is a deterministic, simplified spacecraft-behaviour test double used to exercise the harness as its reference system under test (SUT). It provides repeatable behaviour for the supported scenarios, while verification remains independent of that behaviour.
 
@@ -19,7 +19,7 @@ The web interface supports two tasks: verify an observation against a selected s
 * execute three deterministic reference operating-mode scenarios and collect the command, pre-state, acknowledgement, post-state, and telemetry;
 * collect observation evidence from a separate target program through a one-shot subprocess boundary;
 * verify observations independently against an explicitly selected `ScenarioId`, distinguishing expected command rejection from failed verification;
-* verify operating-mode continuity across explicitly ordered verified execution records;
+* verify operating-mode continuity across execution records supplied in explicit order;
 * serialise observations, verified execution records, and verified sequences to deterministic versioned JSON;
 * strictly reconstruct persisted evidence and independently recompute stored verification results rather than trusting them;
 * verify submitted observation evidence and inspect all three supported evidence forms through the web interface, while evidence deserialisation and verification remain in the OrbiRig core.
@@ -64,7 +64,7 @@ Fresh observations can come from the reference workflow or subprocess collection
 
 ## Verification boundaries
 
-`ReferenceSpacecraft` provides deterministic reference behaviour, while verification remains independent of the reference SUT. Deserialising observation evidence checks only that its structure and values are valid for the supported format; it neither selects a `ScenarioId` nor establishes verification success. The caller supplies the scenario expectation, and tests also submit intentionally inconsistent observations directly to the verifier.
+`ReferenceSpacecraft` provides deterministic reference behaviour without serving as the verification oracle. Deserialising observation evidence checks only that its structure and values are valid for the supported format; it neither selects a `ScenarioId` nor establishes verification success. The caller supplies the scenario expectation, and tests also submit intentionally inconsistent observations directly to the verifier.
 
 Persisted derived results are treated as claims. Verified-execution deserialisation recomputes canonical invariant results and outcome; sequence deserialisation also reconstructs members canonically and recomputes continuity and the aggregate outcome in persisted order. Stored derived values must match exactly, so a canonically consistent `FAIL` record or sequence remains valid evidence.
 
@@ -78,7 +78,7 @@ Subprocess collection sends one compact command JSON document on stdin and requi
 | `NOMINAL_TO_NOMINAL_REJECTION` | `NOMINAL` | `SET_OPERATING_MODE(NOMINAL)` | rejected | `NOMINAL` |
 | `SAFE_TO_NOMINAL_MODE` | `SAFE` | `SET_OPERATING_MODE(NOMINAL)` | accepted | `NOMINAL` |
 
-For accepted transitions, verification checks the expected pre-state, accepted acknowledgement, requested post-state, and telemetry consistency with the observed post-state. For the expected rejection, it checks the expected `NOMINAL` pre-state, rejected acknowledgement, state preservation, and telemetry consistency.
+For accepted transitions, verification checks the expected pre-state, accepted acknowledgement, requested post-state, and telemetry consistency with the observed post-state. For the expected rejection, a passing result requires the expected `NOMINAL` pre-state, rejected acknowledgement, state preservation, and telemetry consistency.
 
 ## Ordered execution continuity
 
@@ -100,7 +100,7 @@ Observation evidence contains neither `ScenarioId`, invariant results, nor a ver
 
 ### Verified execution records
 
-`VerifiedExecutionRecord` combines an explicit execution ID, UTC execution time, selected `ScenarioId`, observation, ordered invariant results with expected and actual values, and a derived outcome. Its derived outcome is `PASS` only when all invariants pass.
+`VerifiedExecutionRecord` combines an explicit execution ID, UTC execution time, selected `ScenarioId`, observation, ordered invariant results with expected and actual values, and an outcome derived from those results. The outcome is `PASS` only when all invariants pass.
 
 `serialize_verified_execution_evidence(...)` writes deterministic JSON using verified-execution schema version `1`. `deserialize_verified_execution_evidence(...)` strictly reconstructs a record by independently deriving its canonical invariant results and outcome from the persisted scenario and observation, then requiring the stored derived values to match exactly. A canonically consistent `FAIL` record remains valid evidence. Package and evidence/schema versions are independent; changing one does not imply changing the other.
 
