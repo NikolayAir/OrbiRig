@@ -1143,6 +1143,27 @@ describe("App", () => {
     expect(screen.queryByText(/ScenarioId/)).not.toBeInTheDocument();
   });
 
+  it("rejects a malformed successful observation inspection", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ...observation,
+        acknowledgement: { accepted: "true" },
+      }),
+    });
+
+    submitEvidence("malformed observation");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The inspection request could not be completed. Try again.",
+    );
+    expect(
+      screen.queryByRole("heading", { name: "Observation details" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("SET_OPERATING_MODE")).not.toBeInTheDocument();
+  });
+
   it("sends verified-execution text unchanged to the dedicated endpoint", async () => {
     const evidence = '{\n  "outcome": "PASS",\n  "outcome": "PASS"\n}';
     fetchMock.mockResolvedValue({
@@ -1244,6 +1265,53 @@ describe("App", () => {
     ).toBeInTheDocument();
     expect(screen.getAllByText("FAIL")).toHaveLength(2);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("rejects a malformed successful verified-execution inspection", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ...verifiedExecution,
+        invariant_results: [
+          {
+            ...verifiedExecution.invariant_results[0],
+            expected: 42,
+          },
+        ],
+      }),
+    });
+
+    submitEvidence("malformed verified execution", "verified-execution");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The inspection request could not be completed. Try again.",
+    );
+    expect(
+      screen.queryByRole("heading", { name: "Verified execution" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("exec-web-001")).not.toBeInTheDocument();
+  });
+
+  it("rejects a verified-execution inspection with an unsupported outcome", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ...verifiedExecution,
+        outcome: "UNKNOWN",
+      }),
+    });
+
+    submitEvidence("unsupported verified outcome", "verified-execution");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The inspection request could not be completed. Try again.",
+    );
+    expect(
+      screen.queryByRole("heading", { name: "Verified execution" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("UNKNOWN")).not.toBeInTheDocument();
   });
 
   it("sends sequence text unchanged to the dedicated endpoint", async () => {
@@ -1386,6 +1454,56 @@ describe("App", () => {
       within(boundary).getByLabelText("Continuity outcome: FAIL"),
     ).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("rejects a malformed successful sequence inspection", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ...verifiedExecutionSequence,
+        continuity_results: [
+          {
+            ...verifiedExecutionSequence.continuity_results[0],
+            passed: "true",
+          },
+        ],
+      }),
+    });
+
+    submitEvidence("malformed sequence", "verified-execution-sequence");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The inspection request could not be completed. Try again.",
+    );
+    expect(
+      screen.queryByRole("region", { name: "Verified execution sequence" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("exec-b")).not.toBeInTheDocument();
+  });
+
+  it("rejects a sequence inspection with an unsupported outcome", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ...verifiedExecutionSequence,
+        outcome: "BANANA",
+      }),
+    });
+
+    submitEvidence(
+      "unsupported sequence outcome",
+      "verified-execution-sequence",
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The inspection request could not be completed. Try again.",
+    );
+    expect(
+      screen.queryByRole("region", { name: "Verified execution sequence" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("BANANA")).not.toBeInTheDocument();
   });
 
   it("shows invalid sequence evidence distinctly", async () => {
