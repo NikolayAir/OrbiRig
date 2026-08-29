@@ -174,7 +174,7 @@ def test_public_builder_does_not_accept_arbitrary_invariant_results():
             observation=_observation(
                 accepted=False,
             ),
-            invariant_results=(),
+            invariant_results=(),  # pyright: ignore[reportCallIssue]
         )
 
 
