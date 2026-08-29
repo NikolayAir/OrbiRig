@@ -3,7 +3,12 @@
 from collections.abc import Sequence
 from datetime import datetime
 
-from orbirig.models import ScenarioId, VerifiedExecutionRecord, command_for_scenario
+from orbirig.models import (
+    ScenarioId,
+    VerifiedExecutionRecord,
+    command_for_scenario,
+    validate_execution_metadata,
+)
 from orbirig.reference_sut import ReferenceSpacecraft
 from orbirig.subprocess_collection import collect_subprocess_observation
 from orbirig.verification import build_verified_execution_record
@@ -19,9 +24,14 @@ def execute_verified_reference_workflow(
 ) -> VerifiedExecutionRecord:
     """Execute and independently verify one selected reference scenario."""
 
+    command = command_for_scenario(scenario_id)
+    validate_execution_metadata(
+        execution_id=execution_id,
+        executed_at=executed_at,
+    )
     observation = execute_reference_workflow(
         spacecraft=spacecraft,
-        command=command_for_scenario(scenario_id),
+        command=command,
     )
 
     return build_verified_execution_record(
@@ -43,6 +53,10 @@ def execute_verified_subprocess_workflow(
     """Collect and canonically verify one subprocess observation."""
 
     command = command_for_scenario(scenario_id)
+    validate_execution_metadata(
+        execution_id=execution_id,
+        executed_at=executed_at,
+    )
     observation = collect_subprocess_observation(
         argv=argv,
         command=command,

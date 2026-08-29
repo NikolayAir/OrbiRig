@@ -14,6 +14,7 @@ from orbirig.models import (
     Acknowledgement,
     CommandExecutionObservation,
     ExecutionOutcome,
+    InvalidExecutionMetadataError,
     InvariantId,
     OperatingMode,
     ScenarioId,
@@ -104,6 +105,47 @@ def test_verified_reference_workflow_builds_passing_record():
     assert record.outcome is ExecutionOutcome.PASS
     assert len(record.invariant_results) == 4
     assert all(result.passed for result in record.invariant_results)
+
+
+@pytest.mark.parametrize(
+    ("execution_id", "executed_at", "message"),
+    [
+        (
+            "   ",
+            EXECUTED_AT,
+            "execution_id must not be empty or whitespace-only",
+        ),
+        (
+            EXECUTION_ID,
+            datetime(
+                2026,
+                8,
+                6,
+                22,
+                0,
+                tzinfo=timezone(timedelta(hours=2)),
+            ),
+            "executed_at must be timezone-aware UTC",
+        ),
+    ],
+    ids=["blank-execution-id", "non-utc-execution-time"],
+)
+def test_reference_workflow_rejects_invalid_metadata_before_state_mutation(
+    execution_id,
+    executed_at,
+    message,
+):
+    spacecraft = ReferenceSpacecraft()
+    initial_state = spacecraft.read_state()
+
+    with pytest.raises(InvalidExecutionMetadataError, match=message):
+        execute_verified_reference_workflow(
+            spacecraft=spacecraft,
+            execution_id=execution_id,
+            executed_at=executed_at,
+        )
+
+    assert spacecraft.read_state() == initial_state
 
 
 def test_public_builder_verifies_inconsistent_observation_as_fail():
