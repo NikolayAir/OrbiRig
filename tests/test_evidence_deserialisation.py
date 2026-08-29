@@ -7,6 +7,8 @@ import pytest
 
 from orbirig.evidence import (
     deserialize_execution_evidence,
+    deserialize_verified_execution_evidence,
+    deserialize_verified_execution_sequence_evidence,
     serialize_execution_evidence,
 )
 from orbirig.execution import build_verified_execution_record
@@ -66,6 +68,11 @@ def _serialized(document: object) -> str:
     return json.dumps(document)
 
 
+def _deeply_nested_json() -> str:
+    depth = 10_000
+    return "[" * depth + "null" + "]" * depth
+
+
 def _expected_nominal_to_safe_observation() -> CommandExecutionObservation:
     return CommandExecutionObservation(
         command=SetOperatingModeCommand(
@@ -112,6 +119,34 @@ def test_malformed_json_is_rejected():
         deserialize_execution_evidence(
             '{"evidence_format_version": 1',
         )
+
+
+@pytest.mark.parametrize(
+    ("deserialise", "message"),
+    [
+        (
+            deserialize_execution_evidence,
+            "invalid observation evidence JSON",
+        ),
+        (
+            deserialize_verified_execution_evidence,
+            "invalid verified execution evidence JSON",
+        ),
+        (
+            deserialize_verified_execution_sequence_evidence,
+            "invalid verified execution sequence evidence JSON",
+        ),
+    ],
+    ids=["observation", "verified-execution", "verified-sequence"],
+)
+def test_excessive_json_nesting_is_rejected_as_invalid_json(
+    deserialise,
+    message,
+):
+    with pytest.raises(ValueError) as raised:
+        deserialise(_deeply_nested_json())
+
+    assert str(raised.value) == message
 
 
 def test_unsupported_evidence_version_is_rejected():

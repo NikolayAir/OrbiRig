@@ -1,6 +1,5 @@
 """HTTP boundary for OrbiRig evidence inspection and verification."""
 
-import json
 from datetime import datetime
 from pathlib import Path
 
@@ -9,6 +8,8 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from orbirig.evidence import (
+    _StrictJSONError,
+    _load_strict_json,
     deserialize_execution_evidence,
     deserialize_verified_execution_evidence,
     deserialize_verified_execution_sequence_evidence,
@@ -158,8 +159,11 @@ async def _decode_verification_request(
         )
 
     try:
-        document = await request.json()
-    except (json.JSONDecodeError, UnicodeDecodeError):
+        document = _load_strict_json(
+            await request.body(),
+            invalid_json_message="verification request JSON is invalid",
+        )
+    except (UnicodeDecodeError, _StrictJSONError):
         raise _verification_error(
             "invalid_request",
             "verification request JSON is invalid",
