@@ -89,5 +89,11 @@ jobs:
           assert response.status_code == 200
           assert '<div id="root"></div>' in response.text
 
+          favicon_response = TestClient(app).get("/favicon.png")
+
+          assert favicon_response.status_code == 200
+          assert favicon_response.headers["content-type"] == "image/png"
+          assert favicon_response.content.startswith(b"\x89PNG\r\n\x1a\n")
+
           print("Built frontend serving passed")
           PYTHON
