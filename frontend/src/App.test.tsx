@@ -640,6 +640,74 @@ describe("App", () => {
     );
   });
 
+  it.each([
+    [
+      "nominal_to_nominal_rejection",
+      "example-execution-002",
+      "2026-08-26T08:35:00Z",
+      {
+        evidence_format_version: 1,
+        command: { target_mode: "NOMINAL" },
+        pre_state: { operating_mode: "NOMINAL" },
+        acknowledgement: { accepted: false },
+        post_state: { operating_mode: "NOMINAL" },
+        telemetry: { operating_mode: "NOMINAL" },
+      },
+    ],
+    [
+      "safe_to_nominal_mode",
+      "example-execution-003",
+      "2026-08-26T08:40:00Z",
+      {
+        evidence_format_version: 1,
+        command: { target_mode: "NOMINAL" },
+        pre_state: { operating_mode: "SAFE" },
+        acknowledgement: { accepted: true },
+        post_state: { operating_mode: "NOMINAL" },
+        telemetry: { operating_mode: "NOMINAL" },
+      },
+    ],
+  ])(
+    "loads the selected %s verification example",
+    (scenario, executionId, executedAt, expectedEvidence) => {
+      render(<App />);
+
+      fireEvent.change(screen.getByLabelText("Scenario"), {
+        target: { value: scenario },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Load example" }));
+
+      expect(screen.getByLabelText("Execution ID")).toHaveValue(executionId);
+      expect(screen.getByLabelText("Execution time (UTC)")).toHaveValue(
+        executedAt,
+      );
+      expect(screen.getByLabelText("Scenario")).toHaveValue(scenario);
+      expect(
+        JSON.parse(
+          (screen.getByLabelText(
+            "Observation evidence JSON",
+          ) as HTMLTextAreaElement).value,
+        ),
+      ).toMatchObject(expectedEvidence);
+      expect(fetchMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("does not replace observation evidence when only the scenario changes", () => {
+    render(<App />);
+
+    const evidence = screen.getByLabelText("Observation evidence JSON");
+
+    fireEvent.change(evidence, {
+      target: { value: "edited observation evidence" },
+    });
+    fireEvent.change(screen.getByLabelText("Scenario"), {
+      target: { value: "safe_to_nominal_mode" },
+    });
+
+    expect(evidence).toHaveValue("edited observation evidence");
+  });
+
   it("clears a completed verification when loading a new example", async () => {
     fetchMock.mockResolvedValue({
       ok: true,
