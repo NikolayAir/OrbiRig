@@ -45,6 +45,10 @@ _ACKNOWLEDGEMENT_INVARIANT_IDS = frozenset(
 )
 
 
+class _StrictJSONError(ValueError):
+    """Report one controlled failure while decoding strict JSON input."""
+
+
 def _reject_duplicate_object_members(
     pairs: list[tuple[str, object]],
 ) -> dict[str, object]:
@@ -54,11 +58,27 @@ def _reject_duplicate_object_members(
 
     for name, value in pairs:
         if name in document:
-            raise ValueError("duplicate JSON object member name")
+            raise _StrictJSONError("duplicate JSON object member name")
 
         document[name] = value
 
     return document
+
+
+def _load_strict_json(
+    serialized: str | bytes,
+    *,
+    invalid_json_message: str,
+) -> object:
+    """Decode JSON while rejecting duplicates and normalising excess nesting."""
+
+    try:
+        return json.loads(
+            serialized,
+            object_pairs_hook=_reject_duplicate_object_members,
+        )
+    except (json.JSONDecodeError, RecursionError) as exc:
+        raise _StrictJSONError(invalid_json_message) from exc
 
 
 def _require_object(
@@ -340,13 +360,10 @@ def deserialize_execution_evidence(
 ) -> CommandExecutionObservation:
     """Reconstruct an observation from strict versioned JSON evidence."""
 
-    try:
-        document = json.loads(
-            serialized,
-            object_pairs_hook=_reject_duplicate_object_members,
-        )
-    except json.JSONDecodeError as exc:
-        raise ValueError("invalid observation evidence JSON") from exc
+    document = _load_strict_json(
+        serialized,
+        invalid_json_message="invalid observation evidence JSON",
+    )
 
     root = _require_object(
         document,
@@ -538,13 +555,10 @@ def deserialize_verified_execution_evidence(
 ) -> VerifiedExecutionRecord:
     """Reconstruct canonically consistent verified-execution evidence."""
 
-    try:
-        document = json.loads(
-            serialized,
-            object_pairs_hook=_reject_duplicate_object_members,
-        )
-    except json.JSONDecodeError as exc:
-        raise ValueError("invalid verified execution evidence JSON") from exc
+    document = _load_strict_json(
+        serialized,
+        invalid_json_message="invalid verified execution evidence JSON",
+    )
 
     return _parse_verified_execution_document(document, path="")
 
@@ -703,15 +717,12 @@ def deserialize_verified_execution_sequence_evidence(
 ) -> VerifiedExecutionSequence:
     """Reconstruct canonically consistent verified-sequence evidence."""
 
-    try:
-        document = json.loads(
-            serialized,
-            object_pairs_hook=_reject_duplicate_object_members,
-        )
-    except json.JSONDecodeError as exc:
-        raise ValueError(
-            "invalid verified execution sequence evidence JSON",
-        ) from exc
+    document = _load_strict_json(
+        serialized,
+        invalid_json_message=(
+            "invalid verified execution sequence evidence JSON"
+        ),
+    )
 
     root = _require_object(
         document,

@@ -69,6 +69,11 @@ def _assert_error(response, code: str) -> None:
     assert response.json()["detail"]["code"] == code
 
 
+def _deeply_nested_json() -> str:
+    depth = 10_000
+    return "[" * depth + "null" + "]" * depth
+
+
 def test_canonical_pass_returns_verified_execution_presentation() -> None:
     response = _post(_verification_request())
 
@@ -157,6 +162,32 @@ def test_malformed_outer_request_has_stable_error_category() -> None:
     response = CLIENT.post(
         ENDPOINT,
         content="{not-json}",
+        headers={"Content-Type": "application/json"},
+    )
+
+    _assert_error(response, "invalid_request")
+
+
+def test_excessively_nested_outer_request_is_invalid_request() -> None:
+    response = CLIENT.post(
+        ENDPOINT,
+        content=_deeply_nested_json(),
+        headers={"Content-Type": "application/json"},
+    )
+
+    _assert_error(response, "invalid_request")
+
+
+def test_duplicate_outer_member_is_invalid_request() -> None:
+    serialized = json.dumps(_verification_request(), indent=2).replace(
+        '  "execution_id": "exec-web-verify-001",',
+        '  "execution_id": "first",\n  "execution_id": "second",',
+        1,
+    )
+
+    response = CLIENT.post(
+        ENDPOINT,
+        content=serialized,
         headers={"Content-Type": "application/json"},
     )
 
@@ -266,6 +297,22 @@ def test_inner_evidence_text_reaches_deserialiser_unchanged(
 
     assert response.status_code == 200
     assert received == [serialized]
+
+
+def test_unexpected_outer_parser_error_remains_a_server_error(
+    monkeypatch,
+) -> None:
+    def fail_unexpectedly(*_args, **_kwargs):
+        raise ValueError("unexpected parser failure")
+
+    monkeypatch.setattr(web, "_load_strict_json", fail_unexpectedly)
+
+    response = _post(
+        _verification_request(),
+        client=CLIENT_WITH_SERVER_ERRORS,
+    )
+
+    assert response.status_code == 500
 
 
 def test_unexpected_internal_error_remains_a_server_error(monkeypatch) -> None:

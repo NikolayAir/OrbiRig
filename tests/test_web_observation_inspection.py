@@ -2,6 +2,7 @@
 
 import json
 
+import pytest
 from fastapi.testclient import TestClient
 
 import orbirig.web as web
@@ -35,6 +36,11 @@ def _observation_document() -> dict[str, object]:
 
 def _serialized_observation() -> str:
     return json.dumps(_observation_document(), indent=2)
+
+
+def _deeply_nested_json() -> str:
+    depth = 10_000
+    return "[" * depth + "null" + "]" * depth
 
 
 def _post_evidence(content: str | bytes, **headers: str):
@@ -91,6 +97,38 @@ def test_malformed_observation_evidence_is_rejected():
 
     assert response.status_code == 422
     assert response.json() == {"detail": "observation evidence is invalid"}
+
+
+@pytest.mark.parametrize(
+    ("endpoint", "detail"),
+    [
+        (
+            "/api/inspect/observation",
+            "observation evidence is invalid",
+        ),
+        (
+            "/api/inspect/verified-execution",
+            "verified execution evidence is invalid",
+        ),
+        (
+            "/api/inspect/verified-execution-sequence",
+            "verified execution sequence evidence is invalid",
+        ),
+    ],
+    ids=["observation", "verified-execution", "verified-sequence"],
+)
+def test_excessive_json_nesting_is_rejected_as_invalid_evidence(
+    endpoint: str,
+    detail: str,
+) -> None:
+    response = CLIENT.post(
+        endpoint,
+        content=_deeply_nested_json(),
+        headers={"Content-Type": "text/plain"},
+    )
+
+    assert response.status_code == 422
+    assert response.json() == {"detail": detail}
 
 
 def test_duplicate_root_member_is_rejected_without_json_normalisation():
