@@ -7,6 +7,8 @@ type EvidenceType =
 
 type Workflow = "verification" | "inspection";
 
+type PresentationOutcome = "PASS" | "FAIL";
+
 type ScenarioId =
   | "nominal_to_safe_mode"
   | "nominal_to_nominal_rejection"
@@ -61,7 +63,7 @@ type VerifiedExecutionPresentation = {
     actual: boolean | string;
     passed: boolean;
   }>;
-  outcome: string;
+  outcome: PresentationOutcome;
 };
 
 type VerifiedExecutionSequencePresentation = {
@@ -73,7 +75,7 @@ type VerifiedExecutionSequencePresentation = {
     observed_operating_mode: string;
     passed: boolean;
   }>;
-  outcome: string;
+  outcome: PresentationOutcome;
 };
 
 type InspectionState =
@@ -663,26 +665,42 @@ export function App() {
         return;
       }
 
+      const payload: unknown = await response.json();
+
       if (evidenceType === "observation") {
+        if (!isObservationPresentation(payload)) {
+          setInspection({ kind: "transport-failure" });
+          return;
+        }
+
         setInspection({
           kind: "valid-observation",
-          observation: (await response.json()) as ObservationPresentation,
+          observation: payload,
         });
         return;
       }
 
       if (evidenceType === "verified-execution") {
+        if (!isVerifiedExecutionPresentation(payload)) {
+          setInspection({ kind: "transport-failure" });
+          return;
+        }
+
         setInspection({
           kind: "valid-verified-execution",
-          record: (await response.json()) as VerifiedExecutionPresentation,
+          record: payload,
         });
+        return;
+      }
+
+      if (!isVerifiedExecutionSequencePresentation(payload)) {
+        setInspection({ kind: "transport-failure" });
         return;
       }
 
       setInspection({
         kind: "valid-verified-execution-sequence",
-        sequence:
-          (await response.json()) as VerifiedExecutionSequencePresentation,
+        sequence: payload,
       });
     } catch {
       setInspection({ kind: "transport-failure" });
@@ -1221,20 +1239,9 @@ function isVerifiedExecutionPresentation(
     typeof execution.execution_id !== "string" ||
     typeof execution.executed_at !== "string" ||
     typeof execution.scenario_id !== "string" ||
-    !isObject(observation) ||
-    !isObject(observation.command) ||
-    typeof observation.command.command_type !== "string" ||
-    typeof observation.command.target_mode !== "string" ||
-    !isObject(observation.pre_state) ||
-    typeof observation.pre_state.operating_mode !== "string" ||
-    !isObject(observation.acknowledgement) ||
-    typeof observation.acknowledgement.accepted !== "boolean" ||
-    !isObject(observation.post_state) ||
-    typeof observation.post_state.operating_mode !== "string" ||
-    !isObject(observation.telemetry) ||
-    typeof observation.telemetry.operating_mode !== "string" ||
+    !isObservationPresentation(observation) ||
     !Array.isArray(results) ||
-    typeof outcome !== "string"
+    !isPresentationOutcome(outcome)
   ) {
     return false;
   }
@@ -1248,6 +1255,57 @@ function isVerifiedExecutionPresentation(
       (typeof result.actual === "boolean" ||
         typeof result.actual === "string") &&
       typeof result.passed === "boolean",
+  );
+}
+
+function isObservationPresentation(
+  payload: unknown,
+): payload is ObservationPresentation {
+  return (
+    isObject(payload) &&
+    isObject(payload.command) &&
+    typeof payload.command.command_type === "string" &&
+    typeof payload.command.target_mode === "string" &&
+    isObject(payload.pre_state) &&
+    typeof payload.pre_state.operating_mode === "string" &&
+    isObject(payload.acknowledgement) &&
+    typeof payload.acknowledgement.accepted === "boolean" &&
+    isObject(payload.post_state) &&
+    typeof payload.post_state.operating_mode === "string" &&
+    isObject(payload.telemetry) &&
+    typeof payload.telemetry.operating_mode === "string"
+  );
+}
+
+function isPresentationOutcome(
+  value: unknown,
+): value is PresentationOutcome {
+  return value === "PASS" || value === "FAIL";
+}
+
+function isVerifiedExecutionSequencePresentation(
+  payload: unknown,
+): payload is VerifiedExecutionSequencePresentation {
+  if (
+    !isObject(payload) ||
+    !Array.isArray(payload.records) ||
+    !Array.isArray(payload.continuity_results) ||
+    !isPresentationOutcome(payload.outcome)
+  ) {
+    return false;
+  }
+
+  return (
+    payload.records.every(isVerifiedExecutionPresentation) &&
+    payload.continuity_results.every(
+      (result) =>
+        isObject(result) &&
+        typeof result.previous_execution_id === "string" &&
+        typeof result.next_execution_id === "string" &&
+        typeof result.expected_operating_mode === "string" &&
+        typeof result.observed_operating_mode === "string" &&
+        typeof result.passed === "boolean",
+    )
   );
 }
 
