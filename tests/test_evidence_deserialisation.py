@@ -2,6 +2,7 @@
 
 import json
 from datetime import datetime, timezone
+from typing import Any
 
 import pytest
 
@@ -42,7 +43,7 @@ def _document(
     accepted: object = True,
     post_mode: object = "SAFE",
     telemetry_mode: object = "SAFE",
-) -> dict[str, object]:
+) -> dict[str, Any]:
     return {
         "evidence_format_version": 1,
         "command": {
