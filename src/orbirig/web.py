@@ -326,6 +326,15 @@ if _STATIC_DIRECTORY.is_dir():
         name="frontend-assets",
     )
 
+    @app.get("/favicon.png", include_in_schema=False)
+    async def serve_favicon() -> FileResponse:
+        """Serve the built frontend favicon."""
+
+        return FileResponse(
+            _STATIC_DIRECTORY / "favicon.png",
+            media_type="image/png",
+        )
+
     @app.get("/", include_in_schema=False)
     async def serve_frontend() -> FileResponse:
         """Serve the built web interface."""
