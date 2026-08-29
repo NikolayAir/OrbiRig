@@ -2,7 +2,7 @@
 
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -13,6 +13,7 @@ from orbirig.evidence import deserialize_execution_evidence
 from orbirig.execution import execute_verified_subprocess_workflow
 from orbirig.models import (
     ExecutionOutcome,
+    InvalidExecutionMetadataError,
     InvariantId,
     OperatingMode,
     ScenarioId,
@@ -107,6 +108,57 @@ def test_verified_subprocess_workflow_uses_selected_scenario_command():
 
     assert record.scenario_id is ScenarioId.NOMINAL_TO_NOMINAL_REJECTION
     assert record.observation.command.target_mode is OperatingMode.NOMINAL
+
+
+@pytest.mark.parametrize(
+    ("execution_id", "executed_at", "message"),
+    [
+        (
+            "   ",
+            EXECUTED_AT,
+            "execution_id must not be empty or whitespace-only",
+        ),
+        (
+            "external-invalid-metadata",
+            datetime(
+                2026,
+                8,
+                20,
+                14,
+                tzinfo=timezone(timedelta(hours=2)),
+            ),
+            "executed_at must be timezone-aware UTC",
+        ),
+    ],
+    ids=["blank-execution-id", "non-utc-execution-time"],
+)
+def test_verified_subprocess_workflow_rejects_invalid_metadata_before_collection(
+    monkeypatch,
+    execution_id,
+    executed_at,
+    message,
+):
+    collection_called = False
+
+    def track_unexpected_collection(**_kwargs):
+        nonlocal collection_called
+        collection_called = True
+
+    monkeypatch.setattr(
+        execution_module,
+        "collect_subprocess_observation",
+        track_unexpected_collection,
+    )
+
+    with pytest.raises(InvalidExecutionMetadataError, match=message):
+        execute_verified_subprocess_workflow(
+            argv=_argv("pass"),
+            timeout=2.0,
+            execution_id=execution_id,
+            executed_at=executed_at,
+        )
+
+    assert collection_called is False
 
 
 def test_behavioural_mismatch_produces_canonical_fail_with_diagnosis():

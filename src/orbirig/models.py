@@ -41,6 +41,27 @@ class ScenarioCommandMismatchError(ValueError):
     """Raised when an observation command does not match its scenario."""
 
 
+def validate_execution_metadata(
+    *,
+    execution_id: str,
+    executed_at: datetime,
+) -> None:
+    """Validate metadata required by one verified execution."""
+
+    if not execution_id.strip():
+        raise InvalidExecutionMetadataError(
+            "execution_id must not be empty or whitespace-only",
+        )
+
+    if (
+        executed_at.tzinfo is None
+        or executed_at.utcoffset() != timedelta(0)
+    ):
+        raise InvalidExecutionMetadataError(
+            "executed_at must be timezone-aware UTC",
+        )
+
+
 @dataclass(frozen=True, slots=True)
 class SetOperatingModeCommand:
     """Command requesting a transition to the target operating mode."""
@@ -149,18 +170,10 @@ class VerifiedExecutionRecord:
     def __post_init__(self) -> None:
         """Validate inputs and derive scenario metadata and outcome."""
 
-        if not self.execution_id.strip():
-            raise InvalidExecutionMetadataError(
-                "execution_id must not be empty or whitespace-only",
-            )
-
-        if (
-            self.executed_at.tzinfo is None
-            or self.executed_at.utcoffset() != timedelta(0)
-        ):
-            raise InvalidExecutionMetadataError(
-                "executed_at must be timezone-aware UTC",
-            )
+        validate_execution_metadata(
+            execution_id=self.execution_id,
+            executed_at=self.executed_at,
+        )
 
         if (
             self.observation.command
