@@ -8,9 +8,9 @@ OrbiRig is a non-operational verification harness for simplified spacecraft oper
 
 **Web interface:** FastAPI · React · TypeScript · Vite · [Live](https://orbirig-evidence-inspector.onrender.com/)
 
-**Testing and CI:** pytest · pytest-cov · Behave · Vitest · React Testing Library · Ruff · GitHub Actions
+**Testing and CI:** pytest · Behave · Vitest · React Testing Library · Ruff · GitHub Actions
 
-The web interface supports two tasks: verify an observation against a selected scenario, or inspect existing evidence without changing it.
+The web interface verifies observations against selected scenarios and provides read-only evidence inspection.
 
 ![OrbiRig web interface showing the observation-verification workflow](docs/images/orbirig-web-verification.png)
 
@@ -21,12 +21,12 @@ The web interface supports two tasks: verify an observation against a selected s
 * verify observations independently against an explicitly selected `ScenarioId`, distinguishing expected command rejection from failed verification;
 * verify operating-mode continuity across execution records supplied in explicit order;
 * serialise observations, verified execution records, and verified sequences to deterministic versioned JSON;
-* strictly reconstruct persisted evidence and independently recompute stored verification results rather than trusting them;
+* strictly reconstruct persisted evidence and independently recompute stored verification results;
 * verify submitted observation evidence and inspect all three supported evidence forms through the web interface, while evidence deserialisation and verification remain in the OrbiRig core.
 
 ## Verification flow
 
-At a high level, OrbiRig separates observation collection, independent verification, and reconstruction of persisted evidence.
+At a high level, OrbiRig separates observation collection, independent verification, and evidence reconstruction.
 
 ```mermaid
 flowchart LR
