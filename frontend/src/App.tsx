@@ -149,7 +149,7 @@ const REQUIRED_VERIFICATION_MESSAGES: Record<
   observationEvidence: "Observation evidence is required.",
 };
 
-const EXAMPLE_OBSERVATION_DOCUMENT = {
+const NOMINAL_TO_SAFE_EXAMPLE_OBSERVATION_DOCUMENT = {
   evidence_format_version: 1,
   command: {
     command_type: "SET_OPERATING_MODE",
@@ -166,6 +166,46 @@ const EXAMPLE_OBSERVATION_DOCUMENT = {
   },
   telemetry: {
     operating_mode: "SAFE",
+  },
+};
+
+const NOMINAL_TO_NOMINAL_REJECTION_EXAMPLE_OBSERVATION_DOCUMENT = {
+  evidence_format_version: 1,
+  command: {
+    command_type: "SET_OPERATING_MODE",
+    target_mode: "NOMINAL",
+  },
+  pre_state: {
+    operating_mode: "NOMINAL",
+  },
+  acknowledgement: {
+    accepted: false,
+  },
+  post_state: {
+    operating_mode: "NOMINAL",
+  },
+  telemetry: {
+    operating_mode: "NOMINAL",
+  },
+};
+
+const SAFE_TO_NOMINAL_EXAMPLE_OBSERVATION_DOCUMENT = {
+  evidence_format_version: 1,
+  command: {
+    command_type: "SET_OPERATING_MODE",
+    target_mode: "NOMINAL",
+  },
+  pre_state: {
+    operating_mode: "SAFE",
+  },
+  acknowledgement: {
+    accepted: true,
+  },
+  post_state: {
+    operating_mode: "NOMINAL",
+  },
+  telemetry: {
+    operating_mode: "NOMINAL",
   },
 };
 
@@ -300,15 +340,51 @@ const EXAMPLE_VERIFIED_EXECUTION_SEQUENCE_DOCUMENT = {
   outcome: "PASS",
 };
 
-const VERIFICATION_EXAMPLE = {
-  executionId: "example-execution-001",
-  executedAt: "2026-08-26T08:30:00Z",
-  scenarioId: "nominal_to_safe_mode" as const,
-  observationEvidence: JSON.stringify(EXAMPLE_OBSERVATION_DOCUMENT, null, 2),
+const DEFAULT_VERIFICATION_SCENARIO: ScenarioId = "nominal_to_safe_mode";
+
+const VERIFICATION_EXAMPLES: Record<
+  ScenarioId,
+  {
+    executionId: string;
+    executedAt: string;
+    observationEvidence: string;
+  }
+> = {
+  nominal_to_safe_mode: {
+    executionId: "example-execution-001",
+    executedAt: "2026-08-26T08:30:00Z",
+    observationEvidence: JSON.stringify(
+      NOMINAL_TO_SAFE_EXAMPLE_OBSERVATION_DOCUMENT,
+      null,
+      2,
+    ),
+  },
+  nominal_to_nominal_rejection: {
+    executionId: "example-execution-002",
+    executedAt: "2026-08-26T08:35:00Z",
+    observationEvidence: JSON.stringify(
+      NOMINAL_TO_NOMINAL_REJECTION_EXAMPLE_OBSERVATION_DOCUMENT,
+      null,
+      2,
+    ),
+  },
+  safe_to_nominal_mode: {
+    executionId: "example-execution-003",
+    executedAt: "2026-08-26T08:40:00Z",
+    observationEvidence: JSON.stringify(
+      SAFE_TO_NOMINAL_EXAMPLE_OBSERVATION_DOCUMENT,
+      null,
+      2,
+    ),
+  },
 };
 
 const INSPECTION_EXAMPLES: Record<EvidenceType, string> = {
-  observation: JSON.stringify(EXAMPLE_OBSERVATION_DOCUMENT, null, 2),
+  observation: JSON.stringify(
+    NOMINAL_TO_SAFE_EXAMPLE_OBSERVATION_DOCUMENT,
+    null,
+    2,
+  ),
   "verified-execution": JSON.stringify(
     EXAMPLE_VERIFIED_EXECUTION_DOCUMENT,
     null,
@@ -444,10 +520,14 @@ export function App() {
   }
 
   function loadVerificationExample() {
-    setExecutionId(VERIFICATION_EXAMPLE.executionId);
-    setExecutedAt(VERIFICATION_EXAMPLE.executedAt);
-    setScenarioId(VERIFICATION_EXAMPLE.scenarioId);
-    setObservationEvidence(VERIFICATION_EXAMPLE.observationEvidence);
+    const selectedScenario =
+      scenarioId === "" ? DEFAULT_VERIFICATION_SCENARIO : scenarioId;
+    const example = VERIFICATION_EXAMPLES[selectedScenario];
+
+    setExecutionId(example.executionId);
+    setExecutedAt(example.executedAt);
+    setScenarioId(selectedScenario);
+    setObservationEvidence(example.observationEvidence);
     setVerificationRequiredErrors({});
     setVerification({ kind: "idle" });
   }
