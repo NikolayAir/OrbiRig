@@ -1,7 +1,7 @@
 """A non-operational test target with operating-mode state shared between launches.
 
 This program implements command behaviour independently of OrbiRig. It reads
-1 command from stdin and returns observation-evidence v1 on stdout.
+1 command from stdin. A successful run returns observation-evidence v1 on stdout.
 """
 
 import argparse
@@ -90,6 +90,10 @@ def main() -> int:
         "--stale-telemetry", action="store_true",
         help="report the pre-command mode as telemetry while persisting the actual change",
     )
+    parser.add_argument(
+        "--fail-after-commit", action="store_true",
+        help="exit with status 3 after saving an accepted change, without an observation; ignored on rejection",
+    )
     arguments = parser.parse_args()
 
     try:
@@ -115,8 +119,11 @@ def main() -> int:
         print(f"stateful target: {exc}", file=sys.stderr)
         return 2
 
-    # State is committed before reporting it. A later delivery error cannot
-    # establish rollback; the collector must not turn that error into FAIL.
+    # Accepted changes are committed before reporting them. A later delivery
+    # error does not establish rollback or a verification FAIL.
+    if accepted and arguments.fail_after_commit:
+        print("stateful target: simulated response failure after state commit", file=sys.stderr)
+        return 3
     sys.stdout.buffer.write(response)
     return 0
 
