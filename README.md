@@ -247,7 +247,10 @@ Run the Python checks:
 python -m pytest -q
 behave
 python -m ruff check .
+python -m pyright
 ```
+
+Pyright checks the Python package, pytest tests and Behave step definitions in standard mode, targeting Python 3.12. Run it from the project's Python environment; CI provides Node.js 22 for the underlying type checker.
 
 The pytest configuration measures branch coverage across the complete `orbirig` package and reports missing lines and branches in the terminal. Coverage reporting is non-gating.
 
@@ -262,7 +265,7 @@ npm test
 npm run build
 ```
 
-GitHub Actions runs package-import checks, Ruff, pytest, and Behave for the Python package, plus frontend type checking, tests, a production build, and a FastAPI serving smoke check on pull requests and pushes to `main`.
+GitHub Actions runs package-import checks, Pyright, Ruff, pytest, and Behave for the Python package, plus frontend type checking, tests, a production build, and a FastAPI serving smoke check on pull requests and pushes to `main`.
 
 ## Releases
 

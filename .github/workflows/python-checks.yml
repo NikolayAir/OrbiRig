@@ -43,6 +43,16 @@ jobs:
           print("OrbiRig imports passed")
           PY
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Type-check Python
+        run: python -m pyright
+
       - name: Run Ruff checks
         run: python -m ruff check .
 
@@ -51,13 +61,6 @@ jobs:
 
       - name: Run Behave scenarios
         run: behave
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
 
       - name: Install frontend dependencies
         working-directory: frontend

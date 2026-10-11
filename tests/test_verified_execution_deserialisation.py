@@ -1,9 +1,13 @@
-"""Tests for strict verified-execution evidence deserialisation."""
+"""Tests for strict verified-execution evidence deserialisation.
+
+Casts describe known fixture containers; object leaves allow deliberate corruption.
+"""
 
 from copy import deepcopy
 from datetime import datetime, timezone
 import json
 import re
+from typing import cast
 
 import pytest
 
@@ -226,9 +230,9 @@ def test_missing_and_unexpected_fields_are_rejected(mutation, message):
     elif mutation == "unexpected-root":
         document["extra"] = None
     elif mutation == "missing-execution":
-        del document["execution"]["executed_at"]
+        del cast(dict[str, object], document["execution"])["executed_at"]
     else:
-        document["invariant_results"][0]["extra"] = None
+        cast(list[dict[str, object]], document["invariant_results"])[0]["extra"] = None
 
     with pytest.raises(ValueError, match=re.escape(message)):
         deserialize_verified_execution_evidence(_serialized(document))
@@ -251,7 +255,7 @@ def test_invalid_structures_and_primitive_types_are_rejected(
     mutation,
     message,
 ):
-    document: object = _valid_document()
+    document: dict[str, object] | list[object] = _valid_document()
 
     if mutation == "root-array":
         document = []
@@ -264,11 +268,11 @@ def test_invalid_structures_and_primitive_types_are_rejected(
     elif mutation == "schema-string":
         document["schema_version"] = "1"
     elif mutation == "id-number":
-        document["execution"]["execution_id"] = 1
+        cast(dict[str, object], document["execution"])["execution_id"] = 1
     elif mutation == "passed-number":
-        document["invariant_results"][0]["passed"] = 1
+        cast(list[dict[str, object]], document["invariant_results"])[0]["passed"] = 1
     else:
-        document["invariant_results"][0]["expected"] = 1
+        cast(list[dict[str, object]], document["invariant_results"])[0]["expected"] = 1
 
     with pytest.raises(ValueError, match=re.escape(message)):
         deserialize_verified_execution_evidence(_serialized(document))
@@ -287,11 +291,13 @@ def test_unsupported_enum_values_are_rejected(mutation):
     document = _valid_document()
 
     if mutation == "scenario":
-        document["execution"]["scenario_id"] = "unsupported"
+        cast(dict[str, object], document["execution"])["scenario_id"] = "unsupported"
     elif mutation == "mode":
-        document["observation"]["telemetry"]["operating_mode"] = "SCIENCE"
+        observation = cast(dict[str, dict[str, object]], document["observation"])
+        observation["telemetry"]["operating_mode"] = "SCIENCE"
     elif mutation == "invariant-id":
-        document["invariant_results"][0]["invariant_id"] = "unsupported"
+        results = cast(list[dict[str, object]], document["invariant_results"])
+        results[0]["invariant_id"] = "unsupported"
     else:
         document["outcome"] = "UNKNOWN"
 
@@ -302,7 +308,7 @@ def test_unsupported_enum_values_are_rejected(mutation):
 @pytest.mark.parametrize("execution_id", ["", "   "])
 def test_invalid_execution_ids_are_rejected(execution_id):
     document = _valid_document()
-    document["execution"]["execution_id"] = execution_id
+    cast(dict[str, object], document["execution"])["execution_id"] = execution_id
 
     with pytest.raises(ValueError, match="must not be empty or whitespace-only"):
         deserialize_verified_execution_evidence(_serialized(document))
@@ -319,7 +325,7 @@ def test_invalid_execution_ids_are_rejected(execution_id):
 )
 def test_invalid_or_non_utc_timestamps_are_rejected(timestamp):
     document = _valid_document()
-    document["execution"]["executed_at"] = timestamp
+    cast(dict[str, object], document["execution"])["executed_at"] = timestamp
 
     with pytest.raises(ValueError, match="execution.executed_at"):
         deserialize_verified_execution_evidence(_serialized(document))
@@ -327,7 +333,8 @@ def test_invalid_or_non_utc_timestamps_are_rejected(timestamp):
 
 def test_command_incompatible_with_persisted_scenario_is_rejected():
     document = _valid_document()
-    document["execution"]["scenario_id"] = "safe_to_nominal_mode"
+    execution = cast(dict[str, object], document["execution"])
+    execution["scenario_id"] = "safe_to_nominal_mode"
 
     with pytest.raises(
         ValueError,
@@ -342,7 +349,7 @@ def test_command_incompatible_with_persisted_scenario_is_rejected():
 )
 def test_noncanonical_invariant_result_collections_are_rejected(mutation):
     document = _valid_document()
-    results = document["invariant_results"]
+    results = cast(list[dict[str, object]], document["invariant_results"])
 
     if mutation == "missing":
         results.pop()
@@ -371,14 +378,15 @@ def test_noncanonical_invariant_result_collections_are_rejected(mutation):
 )
 def test_altered_invariant_result_values_are_rejected(mutation):
     document = _valid_document()
-    result = document["invariant_results"][1]
+    results = cast(list[dict[str, object]], document["invariant_results"])
+    result = results[1]
 
     if mutation == "invariant-id":
         result["invariant_id"] = "acknowledgement_is_rejected"
     elif mutation == "expected":
-        document["invariant_results"][0]["expected"] = "SAFE"
+        results[0]["expected"] = "SAFE"
     elif mutation == "actual":
-        document["invariant_results"][0]["actual"] = "SAFE"
+        results[0]["actual"] = "SAFE"
     else:
         result["passed"] = False
 
