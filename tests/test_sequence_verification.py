@@ -291,7 +291,9 @@ def test_caller_owned_mutable_input_is_copied_to_immutable_tuple():
     assert isinstance(sequence.continuity_results, tuple)
 
     with pytest.raises(FrozenInstanceError):
-        sequence.outcome = ExecutionOutcome.FAIL
+        # Deliberately attempt a forbidden write to verify runtime immutability.
+        sequence.outcome = ExecutionOutcome.FAIL  # pyright: ignore[reportAttributeAccessIssue]
 
     with pytest.raises(FrozenInstanceError):
-        sequence.continuity_results[0].passed = False
+        # Deliberately attempt a forbidden write to verify runtime immutability.
+        sequence.continuity_results[0].passed = False  # pyright: ignore[reportAttributeAccessIssue]

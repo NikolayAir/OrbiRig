@@ -1,9 +1,13 @@
-"""Tests for verified-execution sequence JSON evidence."""
+"""Tests for verified-execution sequence JSON evidence.
+
+Casts describe known fixture containers; object leaves allow deliberate corruption.
+"""
 
 from copy import deepcopy
 from datetime import datetime, timezone
 import json
 import re
+from typing import cast
 
 import pytest
 
@@ -213,8 +217,10 @@ def _valid_sequence_document() -> dict[str, object]:
 
 def _valid_three_record_document() -> dict[str, object]:
     document = _valid_sequence_document()
-    document["records"].append(_nominal_rejection_document())
-    document["continuity_results"].append(
+    cast(list[dict[str, object]], document["records"]).append(
+        _nominal_rejection_document(),
+    )
+    cast(list[dict[str, object]], document["continuity_results"]).append(
         _boundary_document("second", "third", "NOMINAL"),
     )
     return document
@@ -428,7 +434,7 @@ def test_timestamp_values_do_not_change_persisted_order(
 @pytest.mark.parametrize("record_count", [0, 1])
 def test_fewer_than_two_member_records_are_rejected(record_count):
     document = _valid_sequence_document()
-    document["records"] = document["records"][:record_count]
+    document["records"] = cast(list[dict[str, object]], document["records"])[:record_count]
     document["continuity_results"] = []
 
     with pytest.raises(ValueError, match="requires at least two records"):
@@ -506,9 +512,10 @@ def test_missing_and_unexpected_fields_are_rejected(mutation, message):
     elif mutation == "unexpected-root":
         document["extra"] = None
     elif mutation == "missing-record":
-        del document["records"][0]["outcome"]
+        del cast(list[dict[str, object]], document["records"])[0]["outcome"]
     else:
-        document["continuity_results"][0]["extra"] = None
+        results = cast(list[dict[str, object]], document["continuity_results"])
+        results[0]["extra"] = None
 
     with pytest.raises(ValueError, match=re.escape(message)):
         deserialize_verified_execution_sequence_evidence(_serialized(document))
@@ -532,7 +539,7 @@ def test_incorrect_container_and_primitive_types_are_rejected(
     mutation,
     message,
 ):
-    document: object = _valid_sequence_document()
+    document: dict[str, object] | list[object] = _valid_sequence_document()
 
     if mutation == "root-array":
         document = []
@@ -541,15 +548,17 @@ def test_incorrect_container_and_primitive_types_are_rejected(
     elif mutation == "records-object":
         document["records"] = {}
     elif mutation == "record-array":
-        document["records"][0] = []
+        cast(list[object], document["records"])[0] = []
     elif mutation == "results-object":
         document["continuity_results"] = {}
     elif mutation == "result-array":
-        document["continuity_results"][0] = []
+        cast(list[object], document["continuity_results"])[0] = []
     elif mutation == "previous-id-number":
-        document["continuity_results"][0]["previous_execution_id"] = 1
+        results = cast(list[dict[str, object]], document["continuity_results"])
+        results[0]["previous_execution_id"] = 1
     elif mutation == "passed-number":
-        document["continuity_results"][0]["passed"] = 1
+        results = cast(list[dict[str, object]], document["continuity_results"])
+        results[0]["passed"] = 1
     else:
         document["outcome"] = True
 
@@ -563,14 +572,15 @@ def test_incorrect_container_and_primitive_types_are_rejected(
 )
 def test_corrupted_nested_verified_execution_is_rejected(mutation):
     document = _valid_sequence_document()
-    member = document["records"][0]
+    member = cast(list[dict[str, object]], document["records"])[0]
 
     if mutation == "member-invariant":
-        member["invariant_results"][0]["passed"] = False
+        cast(list[dict[str, object]], member["invariant_results"])[0]["passed"] = False
     elif mutation == "member-outcome":
         member["outcome"] = "FAIL"
     else:
-        member["observation"]["command"]["target_mode"] = "NOMINAL"
+        observation = cast(dict[str, dict[str, object]], member["observation"])
+        observation["command"]["target_mode"] = "NOMINAL"
 
     with pytest.raises(ValueError):
         deserialize_verified_execution_sequence_evidence(_serialized(document))
@@ -583,8 +593,9 @@ def test_noncanonical_continuity_result_count_is_rejected(mutation):
     if mutation == "missing":
         document["continuity_results"] = []
     else:
-        document["continuity_results"].append(
-            deepcopy(document["continuity_results"][0]),
+        results = cast(list[dict[str, object]], document["continuity_results"])
+        results.append(
+            deepcopy(results[0]),
         )
 
     with pytest.raises(
@@ -596,7 +607,7 @@ def test_noncanonical_continuity_result_count_is_rejected(mutation):
 
 def test_continuity_result_order_mismatch_is_rejected():
     document = _valid_three_record_document()
-    document["continuity_results"].reverse()
+    cast(list[dict[str, object]], document["continuity_results"]).reverse()
 
     with pytest.raises(
         ValueError,
@@ -617,7 +628,7 @@ def test_continuity_result_order_mismatch_is_rejected():
 )
 def test_corrupted_continuity_result_is_rejected(mutation):
     document = _valid_sequence_document()
-    result = document["continuity_results"][0]
+    result = cast(list[dict[str, object]], document["continuity_results"])[0]
 
     if mutation == "previous-id":
         result["previous_execution_id"] = "other"
@@ -638,7 +649,8 @@ def test_corrupted_continuity_result_is_rejected(mutation):
 
 def test_unsupported_boundary_operating_mode_is_rejected():
     document = _valid_sequence_document()
-    document["continuity_results"][0]["expected_operating_mode"] = "SCIENCE"
+    result = cast(list[dict[str, object]], document["continuity_results"])[0]
+    result["expected_operating_mode"] = "SCIENCE"
 
     with pytest.raises(ValueError, match="unsupported value"):
         deserialize_verified_execution_sequence_evidence(_serialized(document))
@@ -657,7 +669,7 @@ def test_aggregate_sequence_outcome_mismatch_is_rejected():
 
 def test_self_consistent_boundary_still_must_match_canonical_sequence():
     document = _valid_sequence_document()
-    boundary = document["continuity_results"][0]
+    boundary = cast(list[dict[str, object]], document["continuity_results"])[0]
     boundary["expected_operating_mode"] = "NOMINAL"
     boundary["observed_operating_mode"] = "NOMINAL"
     boundary["passed"] = True
@@ -671,7 +683,8 @@ def test_self_consistent_boundary_still_must_match_canonical_sequence():
 
 def test_self_consistent_member_results_still_must_match_canonical_record():
     document = _valid_sequence_document()
-    result = document["records"][0]["invariant_results"][0]
+    member = cast(list[dict[str, object]], document["records"])[0]
+    result = cast(list[dict[str, object]], member["invariant_results"])[0]
     result["expected"] = "SAFE"
     result["actual"] = "SAFE"
     result["passed"] = True
