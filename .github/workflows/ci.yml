@@ -28,6 +28,9 @@ jobs:
       - name: Install project and development dependencies
         run: python -m pip install ".[test,dev,web]"
 
+      - name: Check dependency consistency
+        run: python -m pip check
+
       - name: Check package imports
         run: |
           python - <<'PY'
@@ -100,3 +103,49 @@ jobs:
 
           print("Built frontend serving passed")
           PYTHON
+
+  compatibility:
+    name: Python ${{ matrix.python-version }} / ${{ matrix.os }}
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # Ordinary PRs use Ubuntu; release PRs and manual runs cover all OSes.
+        os: >-
+          ${{ fromJSON(
+            (github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'release/'))
+            && '["ubuntu-latest", "macos-latest", "windows-latest"]'
+            || '["ubuntu-latest"]'
+          ) }}
+        python-version: ["3.12", "3.13", "3.14", "3.15"]
+        exclude:
+          # The required Python 3.12 check already covers this combination.
+          - os: ubuntu-latest
+            python-version: "3.12"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install project and development dependencies
+        run: python -m pip install ".[test,dev,web]"
+
+      - name: Check dependency consistency
+        run: python -m pip check
+
+      - name: Check package imports
+        run: python -c "import orbirig.evidence, orbirig.execution, orbirig.models, orbirig.reference_sut, orbirig.subprocess_collection, orbirig.verification, orbirig.web, orbirig.workflow; print('OrbiRig imports passed')"
+
+      - name: Run tests without duplicate coverage reports
+        run: python -m pytest -q --no-cov
+
+      - name: Run Behave scenarios
+        run: python -m behave

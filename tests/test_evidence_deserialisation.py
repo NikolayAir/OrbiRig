@@ -70,7 +70,8 @@ def _serialized(document: object) -> str:
 
 
 def _deeply_nested_json() -> str:
-    depth = 10_000
+    # Python 3.14+ checks C-stack usage and can decode 10,000 nested arrays.
+    depth = 500_000
     return "[" * depth + "null" + "]" * depth
 
 
@@ -148,6 +149,7 @@ def test_excessive_json_nesting_is_rejected_as_invalid_json(
         deserialise(_deeply_nested_json())
 
     assert str(raised.value) == message
+    assert isinstance(raised.value.__cause__, RecursionError)
 
 
 def test_unsupported_evidence_version_is_rejected():

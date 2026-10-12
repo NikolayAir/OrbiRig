@@ -70,7 +70,8 @@ def _assert_error(response, code: str) -> None:
 
 
 def _deeply_nested_json() -> str:
-    depth = 10_000
+    # Python 3.14+ checks C-stack usage and can decode 10,000 nested arrays.
+    depth = 500_000
     return "[" * depth + "null" + "]" * depth
 
 
