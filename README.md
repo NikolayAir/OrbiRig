@@ -273,14 +273,18 @@ GitHub Actions runs the following checks:
 
 | Run | Python versions and operating systems | Jobs |
 | --- | --- | --- |
-| Ordinary pull request | Python 3.12–3.15 on Ubuntu | 4 |
-| Pull request from a `release/*` branch | Python 3.12–3.15 on Ubuntu, macOS and Windows | 12 |
-| Manual run (`workflow_dispatch`) | Python 3.12–3.15 on Ubuntu, macOS and Windows | 12 |
-| Push to `main` | Python 3.12 on Ubuntu | 1 |
+| Ordinary pull request | Python 3.12–3.15 on Ubuntu | 5 |
+| Pull request from a `release/*` branch | Python 3.12–3.15 on Ubuntu, macOS and Windows | 13 |
+| Manual run (`workflow_dispatch`) | Python 3.12–3.15 on Ubuntu, macOS and Windows | 13 |
+| Push to `main` | Python 3.12 on Ubuntu | 2 |
 
-Every job checks dependency consistency and package imports, then runs the complete pytest suite and all Behave scenarios.
+Every Python test job checks dependency consistency and package imports, then runs the complete pytest suite and all Behave scenarios.
 
-The Ubuntu/Python 3.12 job keeps the check name `Python 3.12`. It also runs Pyright, Ruff, branch coverage, frontend type checking and tests, a production build, and a check that FastAPI serves the built page and favicon. The other jobs run pytest with `--no-cov` to avoid duplicate coverage reports.
+The Ubuntu/Python 3.12 job keeps the check name `Python 3.12`. It also runs Pyright, Ruff, branch coverage, frontend type checking and tests, a production build, and a check that FastAPI serves the built page and favicon. The other Python test jobs run pytest with `--no-cov` to avoid duplicate coverage reports.
+
+The totals include a final `CI passed` job. It waits for the Python 3.12 job and the complete compatibility matrix, then checks their results without installing dependencies or rerunning tests. Failures, cancellations and unexpected skips make this check fail. A skipped compatibility matrix is accepted only on pushes to `main`, where it is intentionally disabled.
+
+To require the entire selected CI matrix before merging, add `CI passed` to the required status checks for `main` after the check has appeared on a pull request. The workflow alone does not change repository protection settings.
 
 The `macos-latest` runner does not establish compatibility with older macOS versions.
 

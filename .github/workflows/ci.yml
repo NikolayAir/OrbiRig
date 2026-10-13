@@ -149,3 +149,32 @@ jobs:
 
       - name: Run Behave scenarios
         run: python -m behave
+
+  ci-passed:
+    name: CI passed
+    needs: [checks, compatibility]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+
+    steps:
+      - name: Check all job results
+        env:
+          CHECKS_RESULT: ${{ needs.checks.result }}
+          COMPATIBILITY_RESULT: ${{ needs.compatibility.result }}
+          CI_EVENT_NAME: ${{ github.event_name }}
+          CI_REF: ${{ github.ref }}
+        run: |
+          if [[ "$CHECKS_RESULT" != "success" ]]; then
+            echo "::error::Python 3.12 checks ended with $CHECKS_RESULT"
+            exit 1
+          fi
+
+          if [[ "$COMPATIBILITY_RESULT" == "success" ]]; then
+            echo "All CI checks passed"
+          elif [[ "$CI_EVENT_NAME" == "push" && "$CI_REF" == "refs/heads/main" && "$COMPATIBILITY_RESULT" == "skipped" ]]; then
+            echo "Main checks passed; compatibility matrix intentionally skipped"
+          else
+            echo "::error::Compatibility checks ended with $COMPATIBILITY_RESULT"
+            exit 1
+          fi
