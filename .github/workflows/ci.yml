@@ -1,0 +1,180 @@
+name: Checks
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Python 3.12
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install project and development dependencies
+        run: python -m pip install ".[test,dev,web]"
+
+      - name: Check dependency consistency
+        run: python -m pip check
+
+      - name: Check package imports
+        run: |
+          python - <<'PY'
+          import orbirig.evidence
+          import orbirig.execution
+          import orbirig.models
+          import orbirig.reference_sut
+          import orbirig.subprocess_collection
+          import orbirig.verification
+          import orbirig.web
+          import orbirig.workflow
+
+          print("OrbiRig imports passed")
+          PY
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Type-check Python
+        run: python -m pyright
+
+      - name: Run Ruff checks
+        run: python -m ruff check .
+
+      - name: Run tests with branch coverage
+        run: python -m pytest -q
+
+      - name: Run Behave scenarios
+        run: behave
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Type-check frontend
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Test frontend
+        working-directory: frontend
+        run: npm test
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Check built frontend serving
+        env:
+          PYTHONPATH: src
+        run: |
+          python - <<'PYTHON'
+          from fastapi.testclient import TestClient
+
+          from orbirig.web import app
+
+          response = TestClient(app).get("/")
+
+          assert response.status_code == 200
+          assert '<div id="root"></div>' in response.text
+
+          favicon_response = TestClient(app).get("/favicon.png")
+
+          assert favicon_response.status_code == 200
+          assert favicon_response.headers["content-type"] == "image/png"
+          assert favicon_response.content.startswith(b"\x89PNG\r\n\x1a\n")
+
+          print("Built frontend serving passed")
+          PYTHON
+
+  compatibility:
+    name: Python ${{ matrix.python-version }} / ${{ matrix.os }}
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # Ordinary PRs use Ubuntu; release PRs and manual runs cover all OSes.
+        os: >-
+          ${{ fromJSON(
+            (github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'release/'))
+            && '["ubuntu-latest", "macos-latest", "windows-latest"]'
+            || '["ubuntu-latest"]'
+          ) }}
+        python-version: ["3.12", "3.13", "3.14", "3.15"]
+        exclude:
+          # The required Python 3.12 check already covers this combination.
+          - os: ubuntu-latest
+            python-version: "3.12"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install project and development dependencies
+        run: python -m pip install ".[test,dev,web]"
+
+      - name: Check dependency consistency
+        run: python -m pip check
+
+      - name: Check package imports
+        run: python -c "import orbirig.evidence, orbirig.execution, orbirig.models, orbirig.reference_sut, orbirig.subprocess_collection, orbirig.verification, orbirig.web, orbirig.workflow; print('OrbiRig imports passed')"
+
+      - name: Run tests without duplicate coverage reports
+        run: python -m pytest -q --no-cov
+
+      - name: Run Behave scenarios
+        run: python -m behave
+
+  ci-passed:
+    name: CI passed
+    needs: [checks, compatibility]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+
+    steps:
+      - name: Check all job results
+        env:
+          CHECKS_RESULT: ${{ needs.checks.result }}
+          COMPATIBILITY_RESULT: ${{ needs.compatibility.result }}
+          CI_EVENT_NAME: ${{ github.event_name }}
+          CI_REF: ${{ github.ref }}
+        run: |
+          if [[ "$CHECKS_RESULT" != "success" ]]; then
+            echo "::error::Python 3.12 checks ended with $CHECKS_RESULT"
+            exit 1
+          fi
+
+          if [[ "$COMPATIBILITY_RESULT" == "success" ]]; then
+            echo "All CI checks passed"
+          elif [[ "$CI_EVENT_NAME" == "push" && "$CI_REF" == "refs/heads/main" && "$COMPATIBILITY_RESULT" == "skipped" ]]; then
+            echo "Main checks passed; compatibility matrix intentionally skipped"
+          else
+            echo "::error::Compatibility checks ended with $COMPATIBILITY_RESULT"
+            exit 1
+          fi

@@ -233,11 +233,13 @@ Both readers return reconstructed models only when persisted derived values matc
 
 ## Local setup
 
-OrbiRig currently requires Python 3.12. Create and activate a Python 3.12 virtual environment, then install the project with its test, development, and web dependencies:
+Python 3.12 remains OrbiRig's minimum supported version. The intended supported range is Python 3.12–3.15, subject to successful validation across the CI matrix below. Python 3.15 is the default for local development, selected by `.python-version`; the minor-version form allows later 3.15 patch releases. Create and activate a virtual environment with a supported interpreter, then install the project with its test, development, and web dependencies:
 
 ```bash
 python -m pip install -e ".[test,dev,web]"
 ```
+
+The Render Blueprint specifies `PYTHON_VERSION=3.12.15`. When applied to the service, this setting takes precedence over `.python-version`. See [Render's Python version rules](https://render.com/docs/python-version).
 
 ## Development checks
 
@@ -250,9 +252,9 @@ python -m ruff check .
 python -m pyright
 ```
 
-Pyright checks the Python package, pytest tests and Behave step definitions in standard mode, targeting Python 3.12. Run it from the project's Python environment; CI provides Node.js 22 for the underlying type checker.
+Pyright checks the Python package, pytest tests and Behave step definitions in standard mode, targeting Python 3.12 to retain the minimum supported language version regardless of the development interpreter. Run it from the project's Python environment; CI provides Node.js 22 for the underlying type checker.
 
-The pytest configuration measures branch coverage across the complete `orbirig` package and reports missing lines and branches in the terminal. Coverage reporting is non-gating.
+The pytest configuration measures branch coverage across the complete `orbirig` package and reports missing lines and branches in the terminal. There is no required minimum coverage percentage.
 
 Behave covers the three supported reference workflows; detailed negative cases, determinism, evidence behaviour, and deserialisation boundaries are covered in pytest.
 
@@ -265,7 +267,26 @@ npm test
 npm run build
 ```
 
-GitHub Actions runs package-import checks, Pyright, Ruff, pytest, and Behave for the Python package, plus frontend type checking, tests, a production build, and a FastAPI serving smoke check on pull requests and pushes to `main`.
+### GitHub CI
+
+GitHub Actions runs the following checks:
+
+| Run | Python versions and operating systems | Jobs |
+| --- | --- | --- |
+| Ordinary pull request | Python 3.12–3.15 on Ubuntu | 5 |
+| Pull request from a `release/*` branch | Python 3.12–3.15 on Ubuntu, macOS and Windows | 13 |
+| Manual run (`workflow_dispatch`) | Python 3.12–3.15 on Ubuntu, macOS and Windows | 13 |
+| Push to `main` | Python 3.12 on Ubuntu | 2 |
+
+Every Python test job checks dependency consistency and package imports, then runs the complete pytest suite and all Behave scenarios.
+
+The Ubuntu/Python 3.12 job keeps the check name `Python 3.12`. It also runs Pyright, Ruff, branch coverage, frontend type checking and tests, a production build, and a check that FastAPI serves the built page and favicon. The other Python test jobs run pytest with `--no-cov` to avoid duplicate coverage reports.
+
+The totals include a final `CI passed` job. It waits for the Python 3.12 job and the complete compatibility matrix, then checks their results without installing dependencies or rerunning tests. Failures, cancellations and unexpected skips make this check fail. A skipped compatibility matrix is accepted only on pushes to `main`, where it is intentionally disabled.
+
+To require the entire selected CI matrix before merging, add `CI passed` to the required status checks for `main` after the check has appeared on a pull request. The workflow alone does not change repository protection settings.
+
+The `macos-latest` runner does not establish compatibility with older macOS versions.
 
 ## Releases
 
