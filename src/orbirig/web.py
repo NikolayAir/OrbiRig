@@ -30,6 +30,7 @@ from orbirig.verification import build_verified_execution_record
 
 app = FastAPI()
 _STATIC_DIRECTORY = Path(__file__).with_name("static")
+_MAX_EVIDENCE_REQUEST_BYTES = 4 * 1024 * 1024
 _VERIFICATION_REQUEST_FIELDS = frozenset(
     (
         "execution_id",
@@ -116,6 +117,27 @@ def _verified_execution_sequence_presentation(
     }
 
 
+async def _read_evidence_body(request: Request) -> bytes:
+    """Read raw body bytes within the limit, regardless of Content-Length.
+
+    Raise HTTP 413 before appending a chunk that would exceed the limit,
+    without reading any later chunks.
+    """
+
+    body = bytearray()
+    async for chunk in request.stream():
+        if len(body) + len(chunk) > _MAX_EVIDENCE_REQUEST_BYTES:
+            raise HTTPException(
+                status_code=HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+                detail=(
+                    "evidence request body must not exceed "
+                    f"{_MAX_EVIDENCE_REQUEST_BYTES} bytes (4 MiB)"
+                ),
+            )
+        body.extend(chunk)
+    return bytes(body)
+
+
 async def _decode_text_plain_evidence(request: Request) -> str:
     """Decode evidence without parsing or normalising the submitted document."""
 
@@ -128,7 +150,7 @@ async def _decode_text_plain_evidence(request: Request) -> str:
         )
 
     try:
-        return (await request.body()).decode("utf-8")
+        return (await _read_evidence_body(request)).decode("utf-8")
     except UnicodeDecodeError:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
@@ -161,7 +183,7 @@ async def _decode_verification_request(
 
     try:
         document = _load_strict_json(
-            await request.body(),
+            await _read_evidence_body(request),
             invalid_json_message="verification request JSON is invalid",
         )
     except (UnicodeDecodeError, _StrictJSONError):
