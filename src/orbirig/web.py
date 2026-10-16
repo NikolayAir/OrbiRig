@@ -1,9 +1,10 @@
 """HTTP boundary for OrbiRig evidence inspection and verification."""
 
 from datetime import datetime
+from http import HTTPStatus
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request, status
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -122,7 +123,7 @@ async def _decode_text_plain_evidence(request: Request) -> str:
 
     if media_type.strip().lower() != "text/plain":
         raise HTTPException(
-            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            status_code=HTTPStatus.UNSUPPORTED_MEDIA_TYPE,
             detail="only text/plain evidence is supported",
         )
 
@@ -130,14 +131,14 @@ async def _decode_text_plain_evidence(request: Request) -> str:
         return (await request.body()).decode("utf-8")
     except UnicodeDecodeError:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=HTTPStatus.BAD_REQUEST,
             detail="evidence must be valid UTF-8",
         ) from None
 
 
 def _verification_error(code: str, message: str) -> HTTPException:
     return HTTPException(
-        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
         detail={"code": code, "message": message},
     )
 
@@ -151,7 +152,7 @@ async def _decode_verification_request(
 
     if media_type.strip().lower() != "application/json":
         raise HTTPException(
-            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            status_code=HTTPStatus.UNSUPPORTED_MEDIA_TYPE,
             detail={
                 "code": "invalid_request",
                 "message": "verification requests must use application/json",
@@ -216,7 +217,7 @@ async def inspect_observation_evidence(
         observation = deserialize_execution_evidence(serialized)
     except ValueError:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
             detail="observation evidence is invalid",
         ) from None
 
@@ -293,7 +294,7 @@ async def inspect_verified_execution_evidence(
         record = deserialize_verified_execution_evidence(serialized)
     except ValueError:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
             detail="verified execution evidence is invalid",
         ) from None
 
@@ -312,7 +313,7 @@ async def inspect_verified_execution_sequence_evidence(
         sequence = deserialize_verified_execution_sequence_evidence(serialized)
     except ValueError:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
             detail="verified execution sequence evidence is invalid",
         ) from None
 
