@@ -24,7 +24,10 @@ class ReferenceSpacecraft:
         self,
         command: SetOperatingModeCommand,
     ) -> Acknowledgement:
-        """Handle an operating-mode command deterministically."""
+        """Handle an operating-mode command deterministically.
+
+        Rejection and command handling errors leave state unchanged.
+        """
 
         # Keep rejection limited to the explicit NOMINAL-to-NOMINAL scenario.
         if (
@@ -33,8 +36,9 @@ class ReferenceSpacecraft:
         ):
             return Acknowledgement(accepted=False)
 
+        acknowledgement = Acknowledgement(accepted=True)
         self._operating_mode = command.target_mode
-        return Acknowledgement(accepted=True)
+        return acknowledgement
 
     def read_telemetry(self) -> TelemetrySnapshot:
         """Return telemetry derived from the current state."""

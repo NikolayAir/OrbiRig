@@ -107,6 +107,40 @@ def test_verified_reference_workflow_builds_passing_record():
     assert all(result.passed for result in record.invariant_results)
 
 
+def test_acknowledgement_error_does_not_build_a_verified_record(monkeypatch):
+    error = RuntimeError("injected acknowledgement error")
+    builder_called = False
+
+    def fail_acknowledgement(*, accepted):
+        assert accepted is True
+        raise error
+
+    def fail_if_called(**kwargs):
+        nonlocal builder_called
+        builder_called = True
+        raise AssertionError(f"record builder called with {kwargs}")
+
+    monkeypatch.setattr(
+        "orbirig.reference_sut.Acknowledgement",
+        fail_acknowledgement,
+    )
+    monkeypatch.setattr(
+        "orbirig.execution.build_verified_execution_record",
+        fail_if_called,
+    )
+
+    with pytest.raises(RuntimeError) as raised:
+        execute_verified_reference_workflow(
+            spacecraft=ReferenceSpacecraft(),
+            execution_id=EXECUTION_ID,
+            executed_at=EXECUTED_AT,
+            scenario_id=ScenarioId.NOMINAL_TO_SAFE_MODE,
+        )
+
+    assert raised.value is error
+    assert builder_called is False
+
+
 @pytest.mark.parametrize(
     ("execution_id", "executed_at", "message"),
     [
