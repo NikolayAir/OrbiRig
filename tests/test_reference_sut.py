@@ -1,5 +1,7 @@
 """Tests for the deterministic reference SUT."""
 
+import pytest
+
 from orbirig.models import OperatingMode, SetOperatingModeCommand
 from orbirig.reference_sut import ReferenceSpacecraft
 
@@ -86,3 +88,47 @@ def test_reference_spacecraft_applies_nominal_command_from_safe_mode():
         spacecraft.read_telemetry().operating_mode
         is OperatingMode.NOMINAL
     )
+
+
+@pytest.mark.parametrize(
+    ("initial_mode", "target_mode", "expected_accepted"),
+    [
+        (OperatingMode.NOMINAL, OperatingMode.SAFE, True),
+        (OperatingMode.SAFE, OperatingMode.NOMINAL, True),
+        (OperatingMode.NOMINAL, OperatingMode.NOMINAL, False),
+    ],
+    ids=["nominal-to-safe", "safe-to-nominal", "nominal-rejection"],
+)
+def test_acknowledgement_error_preserves_operating_mode(
+    monkeypatch,
+    initial_mode,
+    target_mode,
+    expected_accepted,
+):
+    spacecraft = ReferenceSpacecraft()
+    if initial_mode is OperatingMode.SAFE:
+        spacecraft.handle_command(
+            SetOperatingModeCommand(target_mode=OperatingMode.SAFE),
+        )
+
+    assert spacecraft.read_state().operating_mode is initial_mode
+    assert spacecraft.read_telemetry().operating_mode is initial_mode
+    error = RuntimeError("injected acknowledgement error")
+
+    def fail_acknowledgement(*, accepted):
+        assert accepted is expected_accepted
+        raise error
+
+    monkeypatch.setattr(
+        "orbirig.reference_sut.Acknowledgement",
+        fail_acknowledgement,
+    )
+
+    with pytest.raises(RuntimeError) as raised:
+        spacecraft.handle_command(
+            SetOperatingModeCommand(target_mode=target_mode),
+        )
+
+    assert raised.value is error
+    assert spacecraft.read_state().operating_mode is initial_mode
+    assert spacecraft.read_telemetry().operating_mode is initial_mode
