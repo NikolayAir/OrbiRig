@@ -233,7 +233,9 @@ Both readers return reconstructed models only when persisted derived values matc
 
 ## Local setup
 
-Python 3.12 remains OrbiRig's minimum supported version. The intended supported range is Python 3.12–3.15, subject to successful validation across the CI matrix below. Python 3.15 is the default for local development, selected by `.python-version`; the minor-version form allows later 3.15 patch releases. Create and activate a virtual environment with a supported interpreter, then install the project with its test, development, and web dependencies:
+OrbiRig supports Python 3.12–3.15. Python 3.12 is the minimum supported version.
+
+Python 3.15 is the default for local development, selected by `.python-version`; the minor-version form allows later 3.15 patch releases. Create and activate a virtual environment with a supported interpreter, then install the project with its test, development, and web dependencies:
 
 ```bash
 python -m pip install -e ".[test,dev,web]"
@@ -351,10 +353,10 @@ GitHub Actions runs the following checks:
 
 | Run | Python versions and operating systems | Jobs |
 | --- | --- | --- |
-| Ordinary pull request | Python 3.12–3.15 on Ubuntu | 8 |
+| Ordinary pull request | Python 3.12–3.15 on Ubuntu; Python 3.12 on macOS and Windows | 10 |
 | Pull request from a `release/*` branch | Python 3.12–3.15 on Ubuntu, macOS and Windows | 16 |
 | Manual run (`workflow_dispatch`) | Python 3.12–3.15 on Ubuntu, macOS and Windows | 16 |
-| Push to `main` | Python 3.12 on Ubuntu | 5 |
+| Push to `main` | Python 3.12–3.15 on Ubuntu | 8 |
 
 Every Python test job checks dependency consistency and package imports, then runs the complete pytest suite and all Behave scenarios.
 
@@ -373,11 +375,11 @@ artefacts for seven days.
 
 The totals include a final `CI passed` job. It waits for the Python 3.12 job,
 the compatibility matrix and the browser matrix, then checks their results.
-The Python 3.12 job and all three browser jobs must succeed. The compatibility
-matrix must also succeed, except on pushes to `main`, where it is intentionally skipped.
-Failures, cancellations and any other skipped jobs make `CI passed` fail.
+Every selected Python and browser job must succeed, including all four Ubuntu
+Python versions on pushes to `main`. Failures, cancellations and skipped jobs
+make `CI passed` fail.
 
-To require the entire selected CI matrix before merging, add `CI passed` to the required status checks for `main` after the check has appeared on a pull request. The workflow alone does not change repository protection settings.
+The `main` ruleset requires both `Python 3.12` and `CI passed` before merging. Required checks are configured in GitHub; changing this workflow does not update the ruleset.
 
 The `macos-latest` runner does not establish compatibility with older macOS versions.
 

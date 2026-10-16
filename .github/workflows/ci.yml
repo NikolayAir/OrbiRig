@@ -106,14 +106,13 @@ jobs:
 
   compatibility:
     name: Python ${{ matrix.python-version }} / ${{ matrix.os }}
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
 
     strategy:
       fail-fast: false
       matrix:
-        # Ordinary PRs use Ubuntu; release PRs and manual runs cover all OSes.
+        # Release PRs and manual runs cover every Python/OS combination.
         os: >-
           ${{ fromJSON(
             (github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'release/'))
@@ -125,6 +124,13 @@ jobs:
           # The required Python 3.12 check already covers this combination.
           - os: ubuntu-latest
             python-version: "3.12"
+        # Add platform checks for PRs; pushes to main stay on Ubuntu.
+        include: >-
+          ${{ fromJSON(
+            github.event_name == 'pull_request'
+            && '[{"os":"macos-latest","python-version":"3.12"},{"os":"windows-latest","python-version":"3.12"}]'
+            || '[]'
+          ) }}
 
     steps:
       - name: Check out repository
@@ -230,8 +236,6 @@ jobs:
           CHECKS_RESULT: ${{ needs.checks.result }}
           COMPATIBILITY_RESULT: ${{ needs.compatibility.result }}
           BROWSER_RESULT: ${{ needs.browser.result }}
-          CI_EVENT_NAME: ${{ github.event_name }}
-          CI_REF: ${{ github.ref }}
         run: |
           if [[ "$CHECKS_RESULT" != "success" ]]; then
             echo "::error::Python 3.12 checks ended with $CHECKS_RESULT"
@@ -243,11 +247,9 @@ jobs:
             exit 1
           fi
 
-          if [[ "$COMPATIBILITY_RESULT" == "success" ]]; then
-            echo "All CI checks passed"
-          elif [[ "$CI_EVENT_NAME" == "push" && "$CI_REF" == "refs/heads/main" && "$COMPATIBILITY_RESULT" == "skipped" ]]; then
-            echo "Main checks passed; compatibility matrix intentionally skipped"
-          else
+          if [[ "$COMPATIBILITY_RESULT" != "success" ]]; then
             echo "::error::Compatibility checks ended with $COMPATIBILITY_RESULT"
             exit 1
           fi
+
+          echo "All CI checks passed"
