@@ -8,7 +8,7 @@ OrbiRig is a non-operational verification harness for simplified spacecraft oper
 
 **Web interface:** FastAPI · React · TypeScript · Vite · [Live](https://orbirig-evidence-inspector.onrender.com/)
 
-**Testing and CI:** pytest · Behave · Vitest · React Testing Library · Playwright (Chromium) · Ruff · GitHub Actions
+**Testing and CI:** pytest · Behave · Vitest · React Testing Library · Playwright (Chromium, Firefox, WebKit) · Ruff · GitHub Actions
 
 The web interface verifies observations against selected scenarios and provides read-only evidence inspection.
 
@@ -269,25 +269,34 @@ npm run build
 
 ### Browser tests
 
-Playwright tests the web interface in Chromium against a real FastAPI backend.
-The tests submit observation and sequence JSON, then check the results shown
+Playwright tests the web interface in Chromium, Firefox and WebKit against a
+real FastAPI backend. All three engines run the same scenarios, submitting
+observation, verified-execution and sequence JSON and checking the results shown
 on screen. Activate the project's Python environment with the web dependencies
 installed, then run:
 
 ```bash
 cd frontend
 npm ci
-npx playwright install chromium
+npx playwright install chromium firefox webkit
 npm run test:e2e
 ```
 
-On Linux, use `npx playwright install --with-deps chromium` to install the browser's
-system dependencies as well. The `python` command on `PATH` must refer to the
-project environment.
+On Linux, use `npx playwright install --with-deps chromium firefox webkit` to
+install the browsers' system dependencies as well. The `python` command on
+`PATH` must refer to the project environment.
+
+Run a single engine with `npm run test:e2e -- --project=firefox` (or `chromium`
+or `webkit`). These projects use Playwright's browser builds and desktop device
+profiles. They do not establish compatibility with installed Chrome, Edge,
+Firefox or Safari applications, physical devices, touch input or iOS Safari.
+The E2E suite uses Vite's development server; it does not test the deployed site.
 
 The test runner starts its own FastAPI server at `127.0.0.1:18000` and Vite at
 `127.0.0.1:15173`, waits until both answer HTTP requests and stops them after the
-run, including failed runs. Vite's `e2e` mode routes `/api` requests to this test backend.
+run, including failed runs. On macOS and Linux, the configuration routes
+`SIGTERM` sent to the Playwright runner through the same teardown as `SIGINT`.
+Vite's `e2e` mode routes `/api` requests to this test backend.
 Both ports must be free. Before starting Playwright, `npm run test:e2e` checks
 both TCP ports with a one-second deadline per port. An occupied port is reported
 even when its process does not answer HTTP requests. Playwright then checks HTTP
@@ -299,10 +308,17 @@ The JSON fixtures and expected results are written by hand, independently of
 API responses and `ReferenceSpacecraft`. The tests check that:
 
 - The accepted command and expected command rejection examples both produce `PASS`.
+- The same rejected-command observation produces `FAIL` against an explicitly
+  selected scenario that expects an accepted transition. The observation does
+  not choose its own verification expectations.
 - Valid observations with incorrect behaviour produce `FAIL`. Each check shows
   its expected value, actual value and its own `PASS` or `FAIL` result.
 - Malformed JSON and duplicate keys inside an object produce input errors,
   without verification results.
+- Observation inspection shows reported values without a verification outcome.
+  Verified-execution inspection accepts a canonically consistent `FAIL`,
+  including an execution ID containing non-ASCII text. Record and sequence
+  inspection reject a stored outcome that contradicts the evidence.
 - A sequence reports a mode mismatch and an overall `FAIL` even though every
   record passes. The ending mode of one record does not match the starting mode
   of the next. Records stay in the supplied order, which differs from both
@@ -310,13 +326,21 @@ API responses and `ReferenceSpacecraft`. The tests check that:
 
 Both verification and inspection tests check that the submitted text matches
 the textarea value exactly. Inputs with duplicate keys use both LF and CRLF line
-endings; the tests allow the browser's conversion to LF and require every other
-character to stay unchanged.
+endings. In local checks with Playwright 1.64.1 on macOS, Chromium and Firefox
+converted CRLF to LF after `fill()`, while WebKit retained CRLF. The tests accept
+only the original text or its LF equivalent at this input boundary, then require
+the request to preserve that exact textarea value. They do not parse and
+re-serialise evidence or normalise the request body before comparison.
 
 Browser tests run separately from `npm test` (Vitest); `npm run typecheck` and
 `npm run build` also type-check the browser tests, startup helpers and Playwright
 configuration.
-To check repeatability, run `npm run test:e2e -- --repeat-each=3`. The HTML report
+
+Vitest checks runner shutdown on macOS and Linux using temporary Node.js servers;
+these checks need no Python environment or installed browsers.
+
+The browser tests use one worker and no automatic retries. To check repeatability across
+all three engines, run `npm run test:e2e -- --repeat-each=3`. The HTML report
 is saved in `frontend/playwright-report/`; failed tests retain traces,
 screenshots and videos in `frontend/test-results/`. From `frontend/`, open the
 report with `npx playwright show-report`.
@@ -327,25 +351,30 @@ GitHub Actions runs the following checks:
 
 | Run | Python versions and operating systems | Jobs |
 | --- | --- | --- |
-| Ordinary pull request | Python 3.12–3.15 on Ubuntu | 6 |
-| Pull request from a `release/*` branch | Python 3.12–3.15 on Ubuntu, macOS and Windows | 14 |
-| Manual run (`workflow_dispatch`) | Python 3.12–3.15 on Ubuntu, macOS and Windows | 14 |
-| Push to `main` | Python 3.12 on Ubuntu | 3 |
+| Ordinary pull request | Python 3.12–3.15 on Ubuntu | 8 |
+| Pull request from a `release/*` branch | Python 3.12–3.15 on Ubuntu, macOS and Windows | 16 |
+| Manual run (`workflow_dispatch`) | Python 3.12–3.15 on Ubuntu, macOS and Windows | 16 |
+| Push to `main` | Python 3.12 on Ubuntu | 5 |
 
 Every Python test job checks dependency consistency and package imports, then runs the complete pytest suite and all Behave scenarios.
 
 The Ubuntu/Python 3.12 job keeps the check name `Python 3.12`. It also runs Pyright, Ruff, branch coverage, frontend type checking and tests, a production build, and a check that FastAPI serves the built page and favicon. The other Python test jobs run pytest with `--no-cov` to avoid duplicate coverage reports.
 
-The `Chromium / Ubuntu` job installs Python 3.12, Node.js 22 and Chromium,
-type-checks the frontend and browser tests, then runs Playwright with one worker.
-It runs on pull requests, pushes to `main` and manual runs. If the job fails,
-it uploads the available HTML report, traces, screenshots and videos as
-`chromium-failure-diagnostics`. GitHub keeps this artefact for seven days.
+The `Chromium / Ubuntu`, `Firefox / Ubuntu` and `WebKit / Ubuntu` jobs each
+install Python 3.12, Node.js 22 and their selected Playwright browser with its
+system dependencies, type-check the frontend and browser tests, then run the
+complete E2E suite for that engine with one worker. Chromium uses the headless
+shell. The jobs run on pull requests, pushes to `main` and manual runs; a failure
+in one does not cancel the others. Browser tests run on Ubuntu, independently of
+the Python compatibility matrix. If a job fails, it uploads the available HTML
+report, traces, screenshots and videos as `chromium-failure-diagnostics`,
+`firefox-failure-diagnostics` or `webkit-failure-diagnostics`. GitHub keeps these
+artefacts for seven days.
 
 The totals include a final `CI passed` job. It waits for the Python 3.12 job,
-the compatibility matrix and the Chromium job, then checks their results.
-The Python 3.12 and Chromium jobs must both succeed. The compatibility matrix
-must also succeed, except on pushes to `main`, where it is intentionally skipped.
+the compatibility matrix and the browser matrix, then checks their results.
+The Python 3.12 job and all three browser jobs must succeed. The compatibility
+matrix must also succeed, except on pushes to `main`, where it is intentionally skipped.
 Failures, cancellations and any other skipped jobs make `CI passed` fail.
 
 To require the entire selected CI matrix before merging, add `CI passed` to the required status checks for `main` after the check has appeared on a pull request. The workflow alone does not change repository protection settings.

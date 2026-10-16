@@ -151,9 +151,20 @@ jobs:
         run: python -m behave
 
   browser:
-    name: Chromium / Ubuntu
+    name: ${{ matrix.name }} / Ubuntu
     runs-on: ubuntu-latest
     timeout-minutes: 10
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - browser: chromium
+            name: Chromium
+          - browser: firefox
+            name: Firefox
+          - browser: webkit
+            name: WebKit
 
     steps:
       - name: Check out repository
@@ -178,23 +189,29 @@ jobs:
         working-directory: frontend
         run: npm ci
 
-      - name: Install Chromium and system dependencies
+      - name: Install Chromium headless shell and system dependencies
+        if: ${{ matrix.browser == 'chromium' }}
         working-directory: frontend
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps --only-shell chromium
+
+      - name: Install Firefox or WebKit and system dependencies
+        if: ${{ matrix.browser != 'chromium' }}
+        working-directory: frontend
+        run: npx playwright install --with-deps ${{ matrix.browser }}
 
       - name: Type-check frontend and browser tests
         working-directory: frontend
         run: npm run typecheck
 
-      - name: Run Chromium browser tests
+      - name: Run ${{ matrix.name }} browser tests
         working-directory: frontend
-        run: npm run test:e2e
+        run: npm run test:e2e -- --project=${{ matrix.browser }}
 
       - name: Upload browser reports, traces, screenshots and videos
         if: ${{ failure() }}
         uses: actions/upload-artifact@v7
         with:
-          name: chromium-failure-diagnostics
+          name: ${{ matrix.browser }}-failure-diagnostics
           path: |
             frontend/playwright-report/
             frontend/test-results/
@@ -222,7 +239,7 @@ jobs:
           fi
 
           if [[ "$BROWSER_RESULT" != "success" ]]; then
-            echo "::error::Chromium browser checks ended with $BROWSER_RESULT"
+            echo "::error::Browser matrix checks ended with $BROWSER_RESULT"
             exit 1
           fi
 
