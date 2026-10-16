@@ -1,0 +1,8 @@
+{
+  "evidence_format_version": 1,
+  "command": { "command_type": "SET_OPERATING_MODE", "target_mode": "NOMINAL" },
+  "pre_state": { "operating_mode": "NOMINAL" },
+  "acknowledgement": { "accepted": false },
+  "post_state": { "operating_mode": "NOMINAL" },
+  "telemetry": { "operating_mode": "NOMINAL" }
+}

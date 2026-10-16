@@ -13,6 +13,8 @@ src/orbirig/static/
 # Frontend dependencies and test output
 frontend/node_modules/
 frontend/coverage/
+frontend/playwright-report/
+frontend/test-results/
 
 # Virtual environments
 .venv/
