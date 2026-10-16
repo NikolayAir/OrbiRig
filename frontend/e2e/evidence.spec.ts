@@ -24,6 +24,13 @@ const rejectedChecks: readonly Check[] = [
   ["telemetry_matches_post_state", "NOMINAL", "NOMINAL", "PASS"],
 ];
 
+const mixedChecks: readonly Check[] = [
+  ["pre_state_matches_expected", "NOMINAL", "NOMINAL", "PASS"],
+  ["acknowledgement_is_accepted", "true", "true", "PASS"],
+  ["post_state_matches_requested_mode", "SAFE", "NOMINAL", "FAIL"],
+  ["telemetry_matches_post_state", "NOMINAL", "SAFE", "FAIL"],
+];
+
 function field(scope: Locator, label: string): Locator {
   return scope.locator("dt").filter({ hasText: label }).locator("+ dd");
 }
@@ -49,11 +56,20 @@ async function expectChecks(scope: Locator, expected: readonly Check[]) {
   }
 }
 
-async function fillVerification(page: Page, scenario: string, evidence: string) {
+async function fillEvidence(input: Locator, evidence: string): Promise<string> {
+  await input.fill(evidence);
+  const value = await input.inputValue();
+  // After fill(), browser builds may preserve CRLF or normalise CRLF/CR to LF.
+  // Allow no other changes; requests must preserve the actual textarea value.
+  expect([evidence, evidence.replace(/\r\n?/g, "\n")]).toContain(value);
+  return value;
+}
+
+async function fillVerification(page: Page, scenario: string, evidence: string): Promise<string> {
   await page.getByLabel("Execution ID", { exact: true }).fill("browser-execution");
   await page.getByLabel("Execution time (UTC)", { exact: true }).fill("2026-08-17T08:00:00Z");
   await page.getByLabel("Scenario", { exact: true }).selectOption(scenario);
-  await page.getByLabel("Observation evidence JSON", { exact: true }).fill(evidence);
+  return fillEvidence(page.getByLabel("Observation evidence JSON", { exact: true }), evidence);
 }
 
 test.beforeEach(async ({ page }) => {
@@ -61,6 +77,19 @@ test.beforeEach(async ({ page }) => {
 });
 
 for (const example of [
+  {
+    name: "the same rejection fails against an explicitly selected accepted transition",
+    fixture: "rejected.json",
+    scenario: "safe_to_nominal_mode",
+    outcome: "FAIL",
+    acknowledgement: "Rejected",
+    checks: [
+      ["pre_state_matches_expected", "SAFE", "NOMINAL", "FAIL"],
+      ["acknowledgement_is_accepted", "true", "false", "FAIL"],
+      ["post_state_matches_requested_mode", "NOMINAL", "NOMINAL", "PASS"],
+      ["telemetry_matches_post_state", "NOMINAL", "NOMINAL", "PASS"],
+    ] satisfies readonly Check[],
+  },
   {
     name: "accepted command passes verification",
     fixture: "accepted.json",
@@ -96,17 +125,22 @@ for (const example of [
     scenario: "nominal_to_safe_mode",
     outcome: "FAIL",
     acknowledgement: "Accepted",
-    checks: [
-      ["pre_state_matches_expected", "NOMINAL", "NOMINAL", "PASS"],
-      ["acknowledgement_is_accepted", "true", "true", "PASS"],
-      ["post_state_matches_requested_mode", "SAFE", "NOMINAL", "FAIL"],
-      ["telemetry_matches_post_state", "NOMINAL", "SAFE", "FAIL"],
-    ] satisfies readonly Check[],
+    checks: mixedChecks,
   },
 ]) {
   test(example.name, async ({ page }) => {
-    await fillVerification(page, example.scenario, evidenceFile(example.fixture));
+    const submittedText = await fillVerification(page, example.scenario, evidenceFile(example.fixture));
+    const responsePromise = page.waitForResponse("**/api/verify/observation");
     await page.getByRole("button", { name: "Verify observation", exact: true }).click();
+    const response = await responsePromise;
+
+    expect(response.status()).toBe(200);
+    expect(response.request().postDataJSON()).toEqual({
+      execution_id: "browser-execution",
+      executed_at: "2026-08-17T08:00:00Z",
+      scenario_id: example.scenario,
+      observation_evidence: submittedText,
+    });
 
     const result = page.getByRole("region", { name: "Verified execution", exact: true });
     await expect(result).toBeVisible();
@@ -131,10 +165,7 @@ for (const invalid of [
   { name: "nested duplicate keys with CRLF line endings", text: duplicateKeyEvidence.replace(/\n/g, "\r\n") },
 ]) {
   test(`verification reports an input error for ${invalid.name} and preserves the submitted text`, async ({ page }) => {
-    await fillVerification(page, "nominal_to_safe_mode", invalid.text);
-    const submittedText = await page.getByLabel("Observation evidence JSON", { exact: true }).inputValue();
-    // Browsers convert textarea line endings to LF. Everything else must match the input.
-    expect(submittedText).toBe(invalid.text.replace(/\r\n?/g, "\n"));
+    const submittedText = await fillVerification(page, "nominal_to_safe_mode", invalid.text);
     const responsePromise = page.waitForResponse("**/api/verify/observation");
     await page.getByRole("button", { name: "Verify observation", exact: true }).click();
     const response = await responsePromise;
@@ -148,9 +179,7 @@ for (const invalid of [
 
   test(`inspection reports an input error for ${invalid.name} and preserves the submitted text`, async ({ page }) => {
     await page.getByRole("button", { name: "Show Inspect evidence workflow", exact: true }).click();
-    await page.getByLabel("Evidence JSON", { exact: true }).fill(invalid.text);
-    const submittedText = await page.getByLabel("Evidence JSON", { exact: true }).inputValue();
-    expect(submittedText).toBe(invalid.text.replace(/\r\n?/g, "\n"));
+    const submittedText = await fillEvidence(page.getByLabel("Evidence JSON", { exact: true }), invalid.text);
     const responsePromise = page.waitForResponse("**/api/inspect/observation");
     await page.getByRole("button", { name: "Inspect evidence", exact: true }).click();
     const response = await responsePromise;
@@ -167,8 +196,16 @@ for (const invalid of [
 test("sequence keeps input order and reports a mode mismatch even though every record passes", async ({ page }) => {
   await page.getByRole("button", { name: "Show Inspect evidence workflow", exact: true }).click();
   await page.getByRole("radio", { name: "Verified execution sequence", exact: true }).check();
-  await page.getByLabel("Evidence JSON", { exact: true }).fill(evidenceFile("discontinuous-sequence.json"));
+  const submittedText = await fillEvidence(
+    page.getByLabel("Evidence JSON", { exact: true }), evidenceFile("discontinuous-sequence.json"),
+  );
+  const responsePromise = page.waitForResponse("**/api/inspect/verified-execution-sequence");
   await page.getByRole("button", { name: "Inspect evidence", exact: true }).click();
+  const response = await responsePromise;
+
+  expect(response.status()).toBe(200);
+  expect(response.request().postData()).toBe(submittedText);
+  expect(response.request().headers()["content-type"]).toBe("text/plain; charset=utf-8");
 
   const sequence = page.getByRole("region", { name: "Verified execution sequence", exact: true });
   await expectOutcome(sequence, "Sequence outcome", "FAIL");
@@ -207,3 +244,87 @@ test("sequence keeps input order and reports a mode mismatch even though every r
   }
   await expect(page.getByRole("alert")).toHaveCount(0);
 });
+
+test("observation inspection shows reported behaviour without claiming verification", async ({ page }) => {
+  await page.getByRole("button", { name: "Show Inspect evidence workflow", exact: true }).click();
+  const submittedText = await fillEvidence(
+    page.getByLabel("Evidence JSON", { exact: true }), evidenceFile("incorrect-behaviour.json"),
+  );
+  const responsePromise = page.waitForResponse("**/api/inspect/observation");
+  await page.getByRole("button", { name: "Inspect evidence", exact: true }).click();
+  const response = await responsePromise;
+
+  expect(response.status()).toBe(200);
+  expect(response.request().postData()).toBe(submittedText);
+  const observation = page.getByRole("region", { name: "Observation details", exact: true });
+  await expect(observation).toBeVisible();
+  for (const [label, value] of [
+    ["Command type", "SET_OPERATING_MODE"],
+    ["Target mode", "SAFE"],
+    ["Pre-state operating mode", "SAFE"],
+    ["Acknowledgement", "Rejected"],
+    ["Post-state operating mode", "NOMINAL"],
+    ["Telemetry operating mode", "SAFE"],
+  ]) {
+    await expect(field(observation, label)).toHaveText(value);
+  }
+  await expect(page.getByLabel(/^Verification (outcome|check):/)).toHaveCount(0);
+  await expect(page.getByRole("alert")).toHaveCount(0);
+});
+
+test("verified execution inspection accepts canonical FAIL evidence", async ({ page }) => {
+  await page.getByRole("button", { name: "Show Inspect evidence workflow", exact: true }).click();
+  await page.getByRole("radio", { name: "Verified execution", exact: true }).check();
+  const submittedText = await fillEvidence(
+    page.getByLabel("Evidence JSON", { exact: true }), evidenceFile("failed-execution.json"),
+  );
+  const responsePromise = page.waitForResponse("**/api/inspect/verified-execution");
+  await page.getByRole("button", { name: "Inspect evidence", exact: true }).click();
+  const response = await responsePromise;
+
+  expect(response.status()).toBe(200);
+  expect(response.request().postData()).toBe(submittedText);
+  expect(response.request().headers()["content-type"]).toBe("text/plain; charset=utf-8");
+  const record = page.getByRole("region", { name: "Verified execution", exact: true });
+  await expect(field(record, "Execution ID")).toHaveText("exec-review-Δ");
+  await expect(field(record, "Execution time (UTC)")).toHaveText("2026-08-17T08:00:00Z");
+  await expect(field(record, "Scenario")).toHaveText("nominal_to_safe_mode");
+  await expectOutcome(record, "Verification outcome", "FAIL");
+  await expectChecks(record, mixedChecks);
+  await expect(page.getByRole("alert")).toHaveCount(0);
+});
+
+for (const invalid of [
+  {
+    type: "Verified execution",
+    endpoint: "verified-execution",
+    fixture: "failed-execution.json",
+    error: "The verified-execution evidence is invalid.",
+  },
+  {
+    type: "Verified execution sequence",
+    endpoint: "verified-execution-sequence",
+    fixture: "discontinuous-sequence.json",
+    error: "The verified-execution-sequence evidence is invalid.",
+  },
+]) {
+  test(`${invalid.endpoint} inspection rejects a stored outcome that contradicts the evidence`, async ({ page }) => {
+    await page.getByRole("button", { name: "Show Inspect evidence workflow", exact: true }).click();
+    await page.getByRole("radio", { name: invalid.type, exact: true }).check();
+    const originalEvidence = evidenceFile(invalid.fixture);
+    // Change only the fixture's final top-level outcome; the underlying evidence still implies FAIL.
+    const aggregateOutcome = /(\r?\n  "outcome": )"FAIL"(\r?\n}\s*)$/;
+    expect(originalEvidence, "The fixture must end with a top-level FAIL outcome").toMatch(aggregateOutcome);
+    const evidence = originalEvidence.replace(aggregateOutcome, '$1"PASS"$2');
+    const submittedText = await fillEvidence(page.getByLabel("Evidence JSON", { exact: true }), evidence);
+    const responsePromise = page.waitForResponse(`**/api/inspect/${invalid.endpoint}`);
+    await page.getByRole("button", { name: "Inspect evidence", exact: true }).click();
+    const response = await responsePromise;
+
+    expect(response.status()).toBe(422);
+    expect(response.request().postData()).toBe(submittedText);
+    await expect(page.getByRole("alert")).toHaveText(invalid.error);
+    await expect(page.getByRole("region", { name: invalid.type, exact: true })).toHaveCount(0);
+    await expect(page.getByLabel(/^(Verification (outcome|check)|Sequence outcome|Continuity outcome):/)).toHaveCount(0);
+  });
+}

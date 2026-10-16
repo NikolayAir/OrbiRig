@@ -5,13 +5,18 @@ import { E2E_BACKEND_URL, E2E_FRONTEND_URL } from "./e2e/servers.mjs";
 const backend = new URL(E2E_BACKEND_URL);
 const frontend = new URL(E2E_FRONTEND_URL);
 
+// Playwright cancels on SIGINT. Route SIGTERM through the same server teardown.
+if (process.platform !== "win32") {
+  process.once("SIGTERM", () => process.kill(process.pid, "SIGINT"));
+}
+
 export default defineConfig({
   testDir: "./e2e",
   testMatch: "**/*.spec.ts",
   forbidOnly: Boolean(process.env.CI),
   workers: 1,
   retries: 0,
-  // Stop a stalled startup if another process takes a port after the initial check.
+  // Bound the whole run, including initial HTTP checks outside webServer timeouts.
   globalTimeout: 120_000,
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
@@ -20,7 +25,11 @@ export default defineConfig({
     screenshot: "only-on-failure",
     video: "retain-on-failure",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    { name: "firefox", use: { ...devices["Desktop Firefox"] } },
+    { name: "webkit", use: { ...devices["Desktop Safari"] } },
+  ],
   webServer: [
     {
       name: "FastAPI E2E",
