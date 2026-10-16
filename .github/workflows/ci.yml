@@ -150,9 +150,59 @@ jobs:
       - name: Run Behave scenarios
         run: python -m behave
 
+  browser:
+    name: Chromium / Ubuntu
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install project and web dependencies
+        run: python -m pip install ".[web]"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Chromium and system dependencies
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Type-check frontend and browser tests
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Run Chromium browser tests
+        working-directory: frontend
+        run: npm run test:e2e
+
+      - name: Upload browser reports, traces, screenshots and videos
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: chromium-failure-diagnostics
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          retention-days: 7
+
   ci-passed:
     name: CI passed
-    needs: [checks, compatibility]
+    needs: [checks, compatibility, browser]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 1
@@ -162,11 +212,17 @@ jobs:
         env:
           CHECKS_RESULT: ${{ needs.checks.result }}
           COMPATIBILITY_RESULT: ${{ needs.compatibility.result }}
+          BROWSER_RESULT: ${{ needs.browser.result }}
           CI_EVENT_NAME: ${{ github.event_name }}
           CI_REF: ${{ github.ref }}
         run: |
           if [[ "$CHECKS_RESULT" != "success" ]]; then
             echo "::error::Python 3.12 checks ended with $CHECKS_RESULT"
+            exit 1
+          fi
+
+          if [[ "$BROWSER_RESULT" != "success" ]]; then
+            echo "::error::Chromium browser checks ended with $BROWSER_RESULT"
             exit 1
           fi
 

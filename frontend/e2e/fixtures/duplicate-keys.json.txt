@@ -1,0 +1,8 @@
+{
+  "evidence_format_version": 1,
+  "command": { "command_type": "SET_OPERATING_MODE", "target_mode": "SAFE" },
+  "pre_state": { "operating_mode": "NOMINAL" },
+  "acknowledgement": { "accepted": false, "accepted": true },
+  "post_state": { "operating_mode": "SAFE" },
+  "telemetry": { "operating_mode": "SAFE" }
+}
