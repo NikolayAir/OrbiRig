@@ -351,7 +351,7 @@ GitHub Actions runs the following checks:
 
 | Run | Python versions and operating systems | Jobs |
 | --- | --- | --- |
-| Ordinary pull request | Python 3.12–3.15 on Ubuntu | 8 |
+| Ordinary pull request | Python 3.12–3.15 on Ubuntu; Python 3.12 on macOS and Windows | 10 |
 | Pull request from a `release/*` branch | Python 3.12–3.15 on Ubuntu, macOS and Windows | 16 |
 | Manual run (`workflow_dispatch`) | Python 3.12–3.15 on Ubuntu, macOS and Windows | 16 |
 | Push to `main` | Python 3.12 on Ubuntu | 5 |

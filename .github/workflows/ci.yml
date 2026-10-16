@@ -113,7 +113,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Ordinary PRs use Ubuntu; release PRs and manual runs cover all OSes.
+        # Release PRs and manual runs cover every Python/OS combination.
         os: >-
           ${{ fromJSON(
             (github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'release/'))
@@ -124,6 +124,12 @@ jobs:
         exclude:
           # The required Python 3.12 check already covers this combination.
           - os: ubuntu-latest
+            python-version: "3.12"
+        include:
+          # Keep Python 3.12 on macOS and Windows for ordinary PRs too.
+          - os: macos-latest
+            python-version: "3.12"
+          - os: windows-latest
             python-version: "3.12"
 
     steps:
