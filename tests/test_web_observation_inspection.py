@@ -5,8 +5,7 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
-import orbirig.web as web
-
+from orbirig import web
 
 CLIENT = TestClient(web.app)
 OBSERVATION_ENDPOINT = "/api/inspect/observation"

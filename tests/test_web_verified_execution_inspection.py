@@ -8,7 +8,6 @@ from fastapi.testclient import TestClient
 
 from orbirig import web
 
-
 CLIENT = TestClient(web.app)
 ENDPOINT = "/api/inspect/verified-execution"
 

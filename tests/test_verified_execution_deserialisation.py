@@ -3,10 +3,10 @@
 Casts describe known fixture containers; object leaves allow deliberate corruption.
 """
 
-from copy import deepcopy
-from datetime import datetime, timezone
 import json
 import re
+from copy import deepcopy
+from datetime import UTC, datetime
 from typing import cast
 
 import pytest
@@ -27,8 +27,7 @@ from orbirig.models import (
     TelemetrySnapshot,
 )
 
-
-EXECUTED_AT = datetime(2026, 8, 15, 12, 0, tzinfo=timezone.utc)
+EXECUTED_AT = datetime(2026, 8, 15, 12, 0, tzinfo=UTC)
 
 
 def _valid_document() -> dict[str, object]:
@@ -187,8 +186,10 @@ def test_malformed_json_is_rejected():
             '"schema_version": 1',
         ),
         (
-            '"execution_id": "manual-001", '
-            '"execution_id": "other"',
+            (
+                '"execution_id": "manual-001", '
+                '"execution_id": "other"'
+            ),
             '"execution_id": "manual-001"',
         ),
     ],

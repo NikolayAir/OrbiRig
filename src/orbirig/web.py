@@ -9,8 +9,8 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from orbirig.evidence import (
-    _StrictJSONError,
     _load_strict_json,
+    _StrictJSONError,
     deserialize_execution_evidence,
     deserialize_verified_execution_evidence,
     deserialize_verified_execution_sequence_evidence,
@@ -26,7 +26,6 @@ from orbirig.models import (
     VerifiedExecutionSequence,
 )
 from orbirig.verification import build_verified_execution_record
-
 
 app = FastAPI()
 _STATIC_DIRECTORY = Path(__file__).with_name("static")

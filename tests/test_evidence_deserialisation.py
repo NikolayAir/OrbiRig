@@ -1,7 +1,7 @@
 """Tests for strict observation-evidence deserialisation."""
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -25,14 +25,13 @@ from orbirig.models import (
     TelemetrySnapshot,
 )
 
-
 EXECUTED_AT = datetime(
     2026,
     8,
     8,
     12,
     0,
-    tzinfo=timezone.utc,
+    tzinfo=UTC,
 )
 
 

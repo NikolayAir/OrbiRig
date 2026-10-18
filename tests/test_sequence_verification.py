@@ -1,7 +1,7 @@
 """Tests for ordered cross-execution state continuity verification."""
 
 from dataclasses import FrozenInstanceError
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -19,9 +19,8 @@ from orbirig.models import (
 )
 from orbirig.verification import verify_execution_sequence
 
-
-EARLIER = datetime(2026, 8, 1, tzinfo=timezone.utc)
-LATER = datetime(2026, 8, 2, tzinfo=timezone.utc)
+EARLIER = datetime(2026, 8, 1, tzinfo=UTC)
+LATER = datetime(2026, 8, 2, tzinfo=UTC)
 
 
 def _record(

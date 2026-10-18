@@ -1,7 +1,7 @@
 """Tests for verified execution records and primary evidence."""
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 
@@ -25,7 +25,6 @@ from orbirig.models import (
 )
 from orbirig.reference_sut import ReferenceSpacecraft
 
-
 EXECUTION_ID = "execution-0001"
 EXECUTED_AT = datetime(
     2026,
@@ -33,7 +32,7 @@ EXECUTED_AT = datetime(
     6,
     20,
     0,
-    tzinfo=timezone.utc,
+    tzinfo=UTC,
 )
 
 

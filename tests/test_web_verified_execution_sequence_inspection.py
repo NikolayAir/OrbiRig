@@ -1,6 +1,6 @@
 """HTTP boundary tests for verified-execution-sequence evidence inspection."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi.testclient import TestClient
 
@@ -18,12 +18,11 @@ from orbirig.models import (
 )
 from orbirig.verification import verify_execution_sequence
 
-
 CLIENT = TestClient(web.app)
 ENDPOINT = "/api/inspect/verified-execution-sequence"
-EARLIER = datetime(2026, 8, 17, 10, tzinfo=timezone.utc)
-MIDDLE = datetime(2026, 8, 17, 12, tzinfo=timezone.utc)
-LATER = datetime(2026, 8, 17, 14, tzinfo=timezone.utc)
+EARLIER = datetime(2026, 8, 17, 10, tzinfo=UTC)
+MIDDLE = datetime(2026, 8, 17, 12, tzinfo=UTC)
+LATER = datetime(2026, 8, 17, 14, tzinfo=UTC)
 
 
 def _record(
