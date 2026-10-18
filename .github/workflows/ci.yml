@@ -54,7 +54,7 @@ jobs:
           PY
 
       - name: Set up Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -206,7 +206,7 @@ jobs:
         run: uv sync --locked --no-editable --extra web
 
       - name: Set up Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
