@@ -175,10 +175,10 @@ The target receives `{"command_type":"SET_OPERATING_MODE","target_mode":"SAFE"}`
 
 ### Verify observations and inspect evidence in the web interface
 
-Install the web and frontend dependencies:
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/) and Node.js 22 (selected by `.node-version`), then install the locked web and frontend dependencies from the repository root:
 
 ```bash
-python -m pip install -e ".[web]"
+uv sync --locked --extra web
 cd frontend
 npm ci
 cd ..
@@ -187,7 +187,7 @@ cd ..
 For local development, start FastAPI and Vite in separate terminals:
 
 ```bash
-uvicorn orbirig.web:app --reload
+uv run --no-sync python -m uvicorn orbirig.web:app --reload
 ```
 
 ```bash
@@ -207,7 +207,7 @@ To serve the built interface through FastAPI, build the frontend before starting
 cd frontend
 npm run build
 cd ..
-uvicorn orbirig.web:app
+uv run --no-sync python -m uvicorn orbirig.web:app
 ```
 
 Interactive observation verification renders execution metadata, observation details, verification checks, and the derived outcome. Observation inspection renders observation details only. Verified-execution inspection adds execution metadata, explicit `ScenarioId`, verification checks, and the derived outcome; sequence inspection adds the aggregate outcome, ordered member records, and continuity checks. Canonically consistent `FAIL` records and sequences remain valid evidence.
@@ -237,23 +237,32 @@ Both readers return reconstructed models only when persisted derived values matc
 
 OrbiRig supports Python 3.12–3.15. Python 3.12 is the minimum supported version.
 
-Python 3.15 is the default for local development, selected by `.python-version`; the minor-version form allows later 3.15 patch releases. Create and activate a virtual environment with a supported interpreter, then install the project with its test, development, and web dependencies:
+Python 3.15 is the default for local development, selected by `.python-version`; the minor-version form allows later 3.15 patch releases. Install [uv](https://docs.astral.sh/uv/getting-started/installation/) (CI uses version 0.13.0), then run from the repository root:
 
 ```bash
-python -m pip install -e ".[test,dev,web]"
+uv sync --locked --extra test --extra dev --extra web
 ```
 
-The Render Blueprint specifies `PYTHON_VERSION=3.12.15`. When applied to the service, this setting takes precedence over `.python-version`. See [Render's Python version rules](https://render.com/docs/python-version).
+uv selects or downloads the interpreter and creates `.venv`, with OrbiRig installed in editable mode. No manual environment activation is needed. The `test`, `dev` and `web` extras remain optional: use `uv sync --locked --extra web` for web development alone, or `uv sync --locked` for the Python core alone. Each sync installs exactly the selected extras and removes packages no longer needed, so rerun the full command above before running all development checks.
+
+The committed `uv.lock` records dependency versions and distributions across Python 3.12–3.15 and supported operating systems. `--locked` rejects an out-of-date lock file instead of updating it. Commands below use `uv run --no-sync` to use the prepared environment without resolving dependencies or synchronising it again. After pulling dependency changes, repeat the appropriate `uv sync --locked` command first. See [uv's locking and syncing rules](https://docs.astral.sh/uv/concepts/projects/sync/).
+
+For a different supported interpreter, select it explicitly for both installation and execution, for example `uv sync --locked --python 3.12 --extra test --extra dev --extra web` and `uv run --no-sync --python 3.12 python -m pytest -q`. The lock fixes resolved packages; it does not make installed binaries or behaviour identical across platforms. Python patch releases are not pinned by the lock. The existing `setuptools>=68` build requirement is unchanged; uv resolves isolated build dependencies separately from the project lock.
+
+Dependency updates should change `pyproject.toml` and/or `uv.lock` deliberately. For a targeted update within the declared constraints, run `uv lock --upgrade-package <package>`, review the diff, then synchronise and rerun the relevant checks. Dependabot checks Python (`uv`), frontend (`npm`) and GitHub Actions dependencies monthly, with at most two open version-update PRs per ecosystem. Its security-update PR limit is separate.
+
+The Render Blueprint continues to install `.[web]` with pip and specifies `PYTHON_VERSION=3.12.15`. It does not consume `uv.lock`, so the locked local and CI installations do not make the deployed environment fully locked. When applied to the service, the Blueprint's Python setting takes precedence over `.python-version`. See [Render's Python version rules](https://render.com/docs/python-version). A deployment migration requires a separate assessment.
 
 ## Development checks
 
 Run the Python checks:
 
 ```bash
-python -m pytest -q
-behave
-python -m ruff check .
-python -m pyright
+uv pip check --python .venv
+uv run --no-sync python -m pytest -q
+uv run --no-sync python -m behave
+uv run --no-sync python -m ruff check .
+uv run --no-sync python -m pyright
 ```
 
 Pyright checks the Python package, pytest tests and Behave step definitions in standard mode, targeting Python 3.12 to retain the minimum supported language version regardless of the development interpreter. Run it from the project's Python environment; CI provides Node.js 22 for the underlying type checker.
@@ -267,6 +276,7 @@ Run the frontend checks:
 ```bash
 cd frontend
 npm ci
+npm run typecheck
 npm test
 npm run build
 ```
@@ -276,21 +286,23 @@ npm run build
 Playwright tests the web interface in Chromium, Firefox and WebKit against a
 real FastAPI backend. All three engines run the same scenarios, submitting
 observation, verified-execution and sequence JSON and checking the results shown
-on screen. Activate the project's Python environment with the web dependencies
-installed, then run:
+on screen. From the repository root, install the locked web dependencies and
+run the tests through the same Python environment:
 
 ```bash
+uv sync --locked --extra web
 cd frontend
 npm ci
 npx playwright install chromium firefox webkit
-npm run test:e2e
+uv run --no-sync npm run test:e2e
 ```
 
 On Linux, use `npx playwright install --with-deps chromium firefox webkit` to
-install the browsers' system dependencies as well. The `python` command on
-`PATH` must refer to the project environment.
+install the browsers' system dependencies as well. `uv run --no-sync` finds the
+project from `frontend/` and puts its Python environment on `PATH`, including
+for the FastAPI subprocess started by Playwright.
 
-Run a single engine with `npm run test:e2e -- --project=firefox` (or `chromium`
+Run a single engine with `uv run --no-sync npm run test:e2e -- --project=firefox` (or `chromium`
 or `webkit`). These projects use Playwright's browser builds and desktop device
 profiles. They do not establish compatibility with installed Chrome, Edge,
 Firefox or Safari applications, physical devices, touch input or iOS Safari.
@@ -344,7 +356,7 @@ Vitest checks runner shutdown on macOS and Linux using temporary Node.js servers
 these checks need no Python environment or installed browsers.
 
 The browser tests use one worker and no automatic retries. To check repeatability across
-all three engines, run `npm run test:e2e -- --repeat-each=3`. The HTML report
+all three engines, run `uv run --no-sync npm run test:e2e -- --repeat-each=3`. The HTML report
 is saved in `frontend/playwright-report/`; failed tests retain traces,
 screenshots and videos in `frontend/test-results/`. From `frontend/`, open the
 report with `npx playwright show-report`.
@@ -360,14 +372,18 @@ GitHub Actions runs the following checks:
 | Manual run (`workflow_dispatch`) | Python 3.12–3.15 on Ubuntu, macOS and Windows | 16 |
 | Push to `main` | Python 3.12–3.15 on Ubuntu | 8 |
 
-Every Python test job checks dependency consistency and package imports, then runs the complete pytest suite and all Behave scenarios.
+Every Python job uses uv 0.13.0 and installs dependencies from `uv.lock` with `uv sync --locked --no-editable`, preserving non-editable package installation in CI; local development remains editable. uv receives the exact interpreter path selected by `actions/setup-python`, overriding the local `.python-version` default. Subsequent Python commands use `uv run --no-sync`, so they use that environment without resolving or synchronising dependencies again.
+
+The `Python 3.12` job selects the `test`, `dev` and `web` extras; compatibility jobs select `test` and `web`; browser jobs select only `web`. Every Python test job checks dependency consistency with `uv pip check --python .venv` and checks package imports, then runs the complete pytest suite and all Behave scenarios.
 
 The Ubuntu/Python 3.12 job keeps the check name `Python 3.12`. It also runs Pyright, Ruff, branch coverage, frontend type checking and tests, a production build, and a check that FastAPI serves the built page and favicon. The other Python test jobs run pytest with `--no-cov` to avoid duplicate coverage reports.
 
 The `Chromium / Ubuntu`, `Firefox / Ubuntu` and `WebKit / Ubuntu` jobs each
 install Python 3.12, Node.js 22 and their selected Playwright browser with its
 system dependencies, type-check the frontend and browser tests, then run the
-complete E2E suite for that engine with one worker. Chromium uses the headless
+complete E2E suite for that engine with one worker. The `npm run test:e2e` command runs
+through `uv run --no-sync` so Playwright's FastAPI subprocess inherits the locked
+Python environment. Chromium uses the headless
 shell. The jobs run on pull requests, pushes to `main` and manual runs; a failure
 in one does not cancel the others. Browser tests run on Ubuntu, independently of
 the Python compatibility matrix. If a job fails, it uploads the available HTML
