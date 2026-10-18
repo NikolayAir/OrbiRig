@@ -2,6 +2,7 @@
 
 from collections.abc import Sequence
 from datetime import datetime
+from itertools import pairwise
 
 from orbirig.models import (
     Acknowledgement,
@@ -223,10 +224,7 @@ def verify_execution_sequence(
                 next_record.observation.pre_state.operating_mode
             ),
         )
-        for previous, next_record in zip(
-            ordered_records,
-            ordered_records[1:],
-        )
+        for previous, next_record in pairwise(ordered_records)
     )
 
     return VerifiedExecutionSequence(

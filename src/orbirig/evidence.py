@@ -25,7 +25,6 @@ from orbirig.verification import (
     verify_execution_sequence,
 )
 
-
 EXECUTION_EVIDENCE_FORMAT_VERSION = 1
 VERIFIED_EXECUTION_SCHEMA_VERSION = 1
 VERIFIED_EXECUTION_SEQUENCE_SCHEMA_VERSION = 1
@@ -90,7 +89,8 @@ def _require_object(
     """Validate one JSON object against its exact expected fields."""
 
     if not isinstance(value, dict):
-        raise ValueError(f"{path} must be a JSON object")
+        # Invalid evidence follows the readers' ValueError contract.
+        raise ValueError(f"{path} must be a JSON object")  # noqa: TRY004
 
     actual_fields = set(value)
     expected = set(expected_fields)

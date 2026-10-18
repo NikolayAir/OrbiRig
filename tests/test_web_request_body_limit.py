@@ -2,7 +2,7 @@
 
 import asyncio
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -19,7 +19,6 @@ from orbirig.verification import (
     build_verified_execution_record,
     verify_execution_sequence,
 )
-
 
 LIMIT = 4 * 1024 * 1024
 ENDPOINTS = [
@@ -61,7 +60,7 @@ def _submission(endpoint: str) -> tuple[bytes, str, str]:
         return body, OBSERVATION, "deserialize_execution_evidence"
     record = build_verified_execution_record(
         execution_id=metadata["execution_id"],
-        executed_at=datetime(2026, 10, 17, 12, tzinfo=timezone.utc),
+        executed_at=datetime(2026, 10, 17, 12, tzinfo=UTC),
         scenario_id=ScenarioId.NOMINAL_TO_SAFE_MODE,
         observation=deserialize_execution_evidence(OBSERVATION),
     )

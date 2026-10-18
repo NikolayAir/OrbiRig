@@ -2,7 +2,7 @@
 
 import subprocess
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -24,9 +24,8 @@ from orbirig.subprocess_collection import (
     collect_subprocess_observation,
 )
 
-
 FIXTURE_PATH = Path(__file__).parent / "fixtures" / "subprocess_observation_peer.py"
-EXECUTED_AT = datetime(2026, 8, 20, 12, tzinfo=timezone.utc)
+EXECUTED_AT = datetime(2026, 8, 20, 12, tzinfo=UTC)
 SAFE_COMMAND = SetOperatingModeCommand(target_mode=OperatingMode.SAFE)
 
 

@@ -38,8 +38,7 @@ def collect_subprocess_observation(
         completed = subprocess.run(
             argv,
             input=command_document,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             timeout=timeout,
             check=False,
             shell=False,

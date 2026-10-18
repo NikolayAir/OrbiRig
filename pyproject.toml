@@ -35,6 +35,20 @@ extraPaths = ["src"]
 typeCheckingMode = "standard"
 pythonVersion = "3.12"
 
+[tool.ruff]
+target-version = "py312"
+
+[tool.ruff.lint]
+# Keep the default checks and the rules reviewed for this project.
+select = [
+    "E4", "E7", "E9", "F",
+    "EXE002", "I001", "ISC004", "PLR0402",
+    "RUF007", "TRY004", "UP017", "UP022",
+]
+# ISC004 is a preview rule in the pinned Ruff version.
+preview = true
+explicit-preview-rules = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = [

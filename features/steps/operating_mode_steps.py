@@ -1,6 +1,6 @@
 """Behave steps for supported operating-mode verification workflows."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from behave import given, then, when
 
@@ -8,8 +8,7 @@ from orbirig.execution import execute_verified_reference_workflow
 from orbirig.models import ExecutionOutcome, OperatingMode, ScenarioId
 from orbirig.reference_sut import ReferenceSpacecraft
 
-
-EXECUTED_AT = datetime(2026, 8, 8, tzinfo=timezone.utc)
+EXECUTED_AT = datetime(2026, 8, 8, tzinfo=UTC)
 
 SCENARIO_BY_INTENT = {
     (

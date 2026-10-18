@@ -7,7 +7,6 @@ from fastapi.testclient import TestClient
 
 from orbirig import web
 
-
 CLIENT = TestClient(web.app)
 CLIENT_WITH_SERVER_ERRORS = TestClient(
     web.app,
