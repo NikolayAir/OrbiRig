@@ -175,7 +175,7 @@ The target receives `{"command_type":"SET_OPERATING_MODE","target_mode":"SAFE"}`
 
 ### Verify observations and inspect evidence in the web interface
 
-Install [uv](https://docs.astral.sh/uv/getting-started/installation/) and Node.js 22 (selected by `.node-version`), then install the locked web and frontend dependencies from the repository root:
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/) and Node.js 22.12 or later in the 22.x series (selected by `.node-version`), then install the locked web and frontend dependencies from the repository root:
 
 ```bash
 uv sync --locked --extra web
@@ -209,6 +209,8 @@ npm run build
 cd ..
 uv run --no-sync python -m uvicorn orbirig.web:app
 ```
+
+The production build uses [Vite 8's default browser targets](https://vite.dev/guide/migration#default-browser-target-change): Chrome/Edge 111, Firefox 114 and Safari/iOS 16.4. These targets control generated code. Browser validation covers the Playwright builds described below.
 
 Interactive observation verification renders execution metadata, observation details, verification checks, and the derived outcome. Observation inspection renders observation details only. Verified-execution inspection adds execution metadata, explicit `ScenarioId`, verification checks, and the derived outcome; sequence inspection adds the aggregate outcome, ordered member records, and continuity checks. Canonically consistent `FAIL` records and sequences remain valid evidence.
 
