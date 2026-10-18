@@ -199,6 +199,8 @@ During local development, Vite proxies API requests to FastAPI. For verification
 
 The read-only evidence-inspection workflow submits its textarea value unchanged as a `text/plain; charset=utf-8` request body. The FastAPI backend decodes it and delegates directly to the corresponding strict evidence deserialiser. The browser does not parse or verify submitted evidence; strict evidence validation remains server-side in both workflows.
 
+Observation verification and all three evidence-inspection endpoints limit the complete HTTP request body to **4 MiB (4,194,304 bytes), inclusive**. For verification, this includes the JSON wrapper and the embedded evidence string as encoded in the request; inspection counts the submitted UTF-8 bytes. The backend checks the size while reading, regardless of `Content-Length`, and stops with HTTP **413** when the limit is exceeded. Content-type checks run first and return HTTP **415** for unsupported types. This limit does not apply to the Python evidence APIs.
+
 To serve the built interface through FastAPI, build the frontend before starting the application:
 
 ```bash
