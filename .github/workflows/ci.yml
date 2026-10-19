@@ -88,6 +88,9 @@ jobs:
         working-directory: frontend
         run: npm run build
 
+      - name: Verify Python distributions
+        run: uv run --no-sync python scripts/verify_distributions.py
+
       - name: Check built frontend serving
         env:
           PYTHONPATH: src

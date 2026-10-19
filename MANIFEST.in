@@ -1,0 +1,2 @@
+include scripts/verify_distributions.py
+include scripts/check_installed_core.py
