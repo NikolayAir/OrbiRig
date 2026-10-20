@@ -5,10 +5,120 @@ import importlib.metadata
 import importlib.util
 import json
 import os
+import subprocess
 import sys
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
+
+
+def check_cli(distribution: importlib.metadata.Distribution) -> None:
+    """Exercise the generated console script with independent recorded input."""
+    from orbirig.evidence import (
+        deserialize_verified_execution_evidence,
+        serialize_verified_execution_evidence,
+    )
+    from orbirig.models import ExecutionOutcome
+
+    assert [
+        (entry.name, entry.value)
+        for entry in distribution.entry_points if entry.group == "console_scripts"
+    ] == [("orbirig", "orbirig.cli:main")], "Incorrect installed console entry point"
+    command = Path(sys.executable).with_name("orbirig.exe" if os.name == "nt" else "orbirig")
+    assert command.is_file(), "Missing installed console script"
+    file = Path.cwd() / "recorded observation.json"
+    observation = {
+        "evidence_format_version": 1,
+        "command": {"command_type": "SET_OPERATING_MODE", "target_mode": "SAFE"},
+        "pre_state": {"operating_mode": "NOMINAL"},
+        "acknowledgement": {"accepted": True},
+        "post_state": {"operating_mode": "SAFE"},
+        "telemetry": {"operating_mode": "SAFE"},
+    }
+    arguments = [
+        str(command), "verify-observation", str(file),
+        "--scenario", "nominal_to_safe_mode", "--execution-id", "installed-cli",
+        "--executed-at", "2026-10-21T10:00:00Z",
+    ]
+
+    def run(args: list[str], code: int) -> subprocess.CompletedProcess[bytes]:
+        result = subprocess.run(args, capture_output=True, timeout=10, check=False)
+        assert result.returncode == code, (result.returncode, result.stderr)
+        if code in (0, 1):
+            assert result.stderr == b"", result.stderr
+        else:
+            assert result.stdout == b"", result.stdout
+            assert b"error:" in result.stderr and b"Traceback" not in result.stderr
+        return result
+
+    file.write_text(json.dumps(observation), encoding="utf-8")
+    passed = run(arguments, 0)
+    evidence = json.loads(passed.stdout)
+    assert evidence["schema_version"] == 1
+    assert evidence["execution"] == {
+        "execution_id": "installed-cli",
+        "scenario_id": "nominal_to_safe_mode",
+        "executed_at": "2026-10-21T10:00:00Z",
+    }
+    assert evidence["observation"] == {
+        key: value for key, value in observation.items() if key != "evidence_format_version"
+    }
+    assert evidence["outcome"] == "PASS"
+    assert [
+        (item["invariant_id"], item["passed"], item["expected"], item["actual"])
+        for item in evidence["invariant_results"]
+    ] == [
+        ("pre_state_matches_expected", True, "NOMINAL", "NOMINAL"),
+        ("acknowledgement_is_accepted", True, True, True),
+        ("post_state_matches_requested_mode", True, "SAFE", "SAFE"),
+        ("telemetry_matches_post_state", True, "SAFE", "SAFE"),
+    ]
+    assert passed.stdout == (json.dumps(evidence, indent=2) + "\n").encode("utf-8")
+    assert b"\r" not in passed.stdout
+    assert deserialize_verified_execution_evidence(
+        passed.stdout.decode("utf-8"),
+    ).outcome is ExecutionOutcome.PASS
+    assert run(arguments, 0).stdout == passed.stdout
+
+    observation["telemetry"] = {"operating_mode": "NOMINAL"}
+    file.write_text(json.dumps(observation), encoding="utf-8")
+    failed = run(arguments, 1)
+    evidence = json.loads(failed.stdout)
+    assert evidence["outcome"] == "FAIL"
+    assert [item for item in evidence["invariant_results"] if not item["passed"]] == [{
+        "invariant_id": "telemetry_matches_post_state", "passed": False,
+        "expected": "SAFE", "actual": "NOMINAL",
+    }]
+    record = deserialize_verified_execution_evidence(failed.stdout.decode("utf-8"))
+    assert record.outcome is ExecutionOutcome.FAIL
+    assert serialize_verified_execution_evidence(record).encode("utf-8") == failed.stdout
+
+    invalid_scenario = arguments.copy()
+    invalid_scenario[invalid_scenario.index("--scenario") + 1] = "unknown"
+    assert b"invalid choice" in run(invalid_scenario, 2).stderr
+    file.write_bytes(b'{"evidence_format_version": 1, "evidence_format_version": 1}')
+    assert b"duplicate JSON object member" in run(arguments, 2).stderr
+    file.write_bytes(b"\xff")
+    assert b"valid UTF-8" in run(arguments, 2).stderr
+    file.unlink()
+    assert b"cannot read" in run(arguments, 3).stderr
+    help_result = run([str(command), "verify-observation", "--help"], 0)
+    assert b"usage: orbirig verify-observation" in help_result.stdout
+
+    # The reader is closed before launch, so this cannot race with the child.
+    file.write_text(json.dumps(observation), encoding="utf-8")
+    for invocation in (arguments, [str(command), "--help"], [str(command), "verify-observation", "--help"]):
+        reader, writer = os.pipe()
+        os.close(reader)
+        with os.fdopen(writer, "wb") as output:
+            broken_pipe = subprocess.run(
+                invocation, stdout=output, stderr=subprocess.PIPE, timeout=10, check=False,
+            )
+        assert broken_pipe.returncode == 3, broken_pipe.stderr
+        assert b"cannot write stdout" in broken_pipe.stderr
+        assert b"Traceback" not in broken_pipe.stderr
+        assert b"Exception ignored" not in broken_pipe.stderr
+    print("Installed CLI: PASS, FAIL, input errors, file errors, help and broken pipe passed", flush=True)
 
 
 def main() -> None:
@@ -39,7 +149,7 @@ def main() -> None:
     for name in ("fastapi", "uvicorn"):
         assert importlib.util.find_spec(name) is None, f"Unexpected web dependency: {name}"
     for name in (
-        "evidence", "execution", "models", "reference_sut",
+        "cli", "evidence", "execution", "models", "reference_sut",
         "subprocess_collection", "verification", "workflow",
     ):
         importlib.import_module(f"orbirig.{name}")
@@ -98,6 +208,7 @@ def main() -> None:
     assert deserialize_verified_execution_evidence(
         serialize_verified_execution_evidence(failed)
     ) == failed
+    check_cli(distribution)
     for name, module in tuple(sys.modules.items()):
         if name == "orbirig" or name.startswith("orbirig."):
             assert module.__file__ is not None
