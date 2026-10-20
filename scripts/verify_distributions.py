@@ -1,5 +1,9 @@
 """Build and check Python artefacts, then exercise their isolated installations."""
 
+import base64
+import csv
+import hashlib
+import io
 import os
 import re
 import subprocess
@@ -7,6 +11,7 @@ import sys
 import tarfile
 import tempfile
 import tomllib
+import warnings
 import zipfile
 from collections import Counter
 from email.message import Message
@@ -27,6 +32,10 @@ PACKAGE_FILES = frozenset(
         "workflow",
     )
 )
+# Portable, fixed-length hashes with at least 256-bit digests.
+RECORD_HASH_ALGORITHMS = hashlib.algorithms_guaranteed - {
+    "md5", "sha1", "sha224", "sha3_224", "shake_128", "shake_256",
+}
 
 
 def normalise_requirement(requirement: str) -> str:
@@ -48,6 +57,15 @@ def check_metadata(data: bytes, project: dict) -> Message:
     assert len(versions) == 1 and re.fullmatch(r"[0-9]+\.[0-9]+", versions[0]), (
         "Incorrect Metadata-Version metadata"
     )
+    # Provides-Extra needs 2.1. Accept additive 2.x updates; reassess a new major.
+    assert re.fullmatch(r"2\.[1-9][0-9]*", versions[0]), (
+        f"Unsupported Metadata-Version metadata: {versions[0]}"
+    )
+    if int(versions[0].split(".")[1]) > 6:
+        warnings.warn(
+            f"Metadata-Version {versions[0]} is newer than 2.6; checking known fields",
+            stacklevel=2,
+        )
     for field, value in (("Name", project["name"]), ("Version", project["version"])):
         assert metadata.get_all(field) == [value], f"Incorrect {field} metadata"
     python_requirements = metadata.get_all("Requires-Python", [])
@@ -87,20 +105,56 @@ def check_package_files(files: dict[str, bytes], prefix: str = "") -> None:
     ), "Built frontend assets are outside the Python distribution contract"
 
 
+def check_record(files: dict[str, bytes], info: str) -> None:
+    """Check wheel hashes and sizes, excluding the legacy signature files."""
+    record = info + "RECORD"
+    assert files.get(record), "Missing wheel RECORD"
+    signatures = {info + "RECORD.jws", info + "RECORD.p7s"}
+    recorded: set[str] = set()
+    for row in csv.reader(io.StringIO(files[record].decode("utf-8"), newline=""), strict=True):
+        assert len(row) == 3, "Incorrect wheel RECORD row: expected three fields"
+        name, digest, size = row
+        assert name not in recorded, f"Duplicate wheel RECORD entry: {name}"
+        assert name in files and name not in signatures, f"Unexpected wheel RECORD entry: {name}"
+        recorded.add(name)
+        if name == record:
+            assert not digest, "Wheel RECORD must not hash itself"
+        else:
+            algorithm, separator, value = digest.partition("=")
+            assert separator and algorithm in RECORD_HASH_ALGORITHMS, (
+                f"Unsupported wheel RECORD hash algorithm: {algorithm}"
+            )
+            actual = base64.urlsafe_b64encode(
+                hashlib.new(algorithm, files[name]).digest()
+            ).rstrip(b"=").decode("ascii")
+            assert value == actual, f"Incorrect wheel RECORD hash: {name}"
+        # The inherited RECORD format permits omitted sizes, but wheel hashes are mandatory.
+        assert not size or (re.fullmatch(r"[0-9]+", size) and int(size) == len(files[name])), (
+            f"Incorrect wheel RECORD size: {name}"
+        )
+    missing = set(files) - signatures - recorded
+    assert not missing, f"Incomplete wheel RECORD: missing {sorted(missing)}"
+
+
 def check_wheel(path: Path, project: dict) -> dict[str, bytes]:
     with zipfile.ZipFile(path) as archive:
-        files = {name: archive.read(name) for name in archive.namelist()}
+        members = archive.infolist()
+        names = [member.filename for member in members]
+        assert len(names) == len(set(names)), "Duplicate wheel ZIP entry"
+        files = {
+            member.filename: archive.read(member) for member in members if not member.is_dir()
+        }
     check_package_files(files)
     info = f"{project['name']}-{project['version']}.dist-info/"
     check_metadata(files[info + "METADATA"], project)
-    assert files[info + "RECORD"], "Missing wheel RECORD"
+    check_record(files, info)
     wheel_metadata = BytesParser().parsebytes(files[info + "WHEEL"])
     assert wheel_metadata["Root-Is-Purelib"] == "true"
     assert wheel_metadata.get_all("Tag") == ["py3-none-any"]
     assert any(
         files.get(info + name) for name in ("LICENSE", "licenses/LICENSE")
     ), "Missing wheel licence"
-    return {name: data for name, data in files.items() if name.startswith("orbirig/")}
+    return {name: data for name, data in files.items() if not name.startswith(info)}
 
 
 def check_sdist(path: Path, project: dict) -> None:
