@@ -30,7 +30,7 @@ web = [
 where = ["src"]
 
 [tool.pyright]
-include = ["src", "tests", "features/steps"]
+include = ["src", "tests", "features/steps", "scripts"]
 extraPaths = ["src"]
 typeCheckingMode = "standard"
 pythonVersion = "3.12"

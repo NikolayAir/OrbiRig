@@ -267,7 +267,17 @@ uv run --no-sync python -m ruff check .
 uv run --no-sync python -m pyright
 ```
 
-Pyright checks the Python package, pytest tests and Behave step definitions in standard mode, targeting Python 3.12 to retain the minimum supported language version regardless of the development interpreter. Run it from the project's Python environment; CI provides Node.js 22 for the underlying type checker.
+Pyright checks the Python package, pytest tests, Behave step definitions and distribution-check scripts in standard mode, targeting Python 3.12 to retain the minimum supported language version regardless of the development interpreter. Run it from the project's Python environment; CI provides Node.js 22 for the underlying type checker.
+
+Check the Python distributions separately:
+
+```bash
+uv run --no-sync python scripts/verify_distributions.py
+```
+
+This builds a wheel and sdist, checks their metadata and required files, and builds another wheel from the sdist. Each wheel is installed without extras or dependencies in its own temporary environment outside the checkout. The smoke check verifies the installed version and import origins, executes a reference scenario with explicit expected results, and checks verification and evidence reconstruction for both passing and deliberately inconsistent observations. Temporary environments and distributions are removed when the check finishes.
+
+The Python distributions contain the core and the optional web adapter's Python module. The sdist also includes the distribution-check scripts used by its packaging tests. Built React assets under `src/orbirig/static` are not bundled; serving the complete interface requires the checkout-based frontend build described above. The distribution check rejects accidentally bundled assets and runs after the frontend build in CI to exercise this boundary.
 
 The pytest configuration measures branch coverage across the complete `orbirig` package and reports missing lines and branches in the terminal. There is no required minimum coverage percentage.
 
@@ -378,7 +388,7 @@ Every Python job uses uv 0.13.0 and installs dependencies from `uv.lock` with `u
 
 The `Python 3.12` job selects the `test`, `dev` and `web` extras; compatibility jobs select `test` and `web`; browser jobs select only `web`. Every Python test job checks dependency consistency with `uv pip check --python .venv` and checks package imports, then runs the complete pytest suite and all Behave scenarios.
 
-The Ubuntu/Python 3.12 job keeps the check name `Python 3.12`. It also runs Pyright, Ruff, branch coverage, frontend type checking and tests, a production build, and a check that FastAPI serves the built page and favicon. The other Python test jobs run pytest with `--no-cov` to avoid duplicate coverage reports.
+The Ubuntu/Python 3.12 job keeps the check name `Python 3.12`. It also runs Pyright, Ruff, branch coverage, frontend type checking and tests, a production build, the isolated Python distribution check, and a check that FastAPI serves the built page and favicon. The other Python test jobs run pytest with `--no-cov` to avoid duplicate coverage reports.
 
 The `Chromium / Ubuntu`, `Firefox / Ubuntu` and `WebKit / Ubuntu` jobs each
 install Python 3.12, Node.js 22 and their selected Playwright browser with its
