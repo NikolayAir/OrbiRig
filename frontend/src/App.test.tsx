@@ -458,6 +458,21 @@ function submitVerification({
 }
 
 describe("App", () => {
+  it("pairs the product name with a decorative mark and keeps the page title explicit", () => {
+    render(<App />);
+
+    const heading = screen.getByRole("heading", {
+      name: "Observation verification and evidence inspection",
+      level: 1,
+    });
+    const header = heading.closest("header")!;
+    expect(within(header).getByText("OrbiRig", { exact: true })).toBeVisible();
+    const mark = header.querySelector("img")!;
+    expect(mark.getAttribute("src")).toContain("orbirig-mark");
+    expect(mark).toHaveAttribute("alt", "");
+    expect(within(header).queryByRole("img")).not.toBeInTheDocument();
+  });
+
   it("defaults to the verification workflow while making both tasks available", () => {
     render(<App />);
 

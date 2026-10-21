@@ -9,6 +9,8 @@ import {
   SAFE_TO_NOMINAL_EXAMPLE_OBSERVATION_DOCUMENT,
 } from "./examples";
 
+const orbirigMark = new URL("./assets/orbirig-mark.png", import.meta.url).href;
+
 type EvidenceType =
   | "observation"
   | "verified-execution"
@@ -527,8 +529,11 @@ export function App() {
 
   return (
     <main>
-      <header>
-        <p className="eyebrow">OrbiRig</p>
+      <header className="page-header">
+        <p className="brand">
+          <img src={orbirigMark} width="40" height="40" alt="" />
+          <span>OrbiRig</span>
+        </p>
         <h1>Observation verification and evidence inspection</h1>
         <p>
           Check whether a command produced the expected result in a simplified

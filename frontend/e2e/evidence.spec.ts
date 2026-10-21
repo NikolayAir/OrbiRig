@@ -76,6 +76,17 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/");
 });
 
+test("page identity loads the product mark alongside its name", async ({ page }) => {
+  await expect(page.locator(".brand")).toHaveText("OrbiRig");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "Observation verification and evidence inspection",
+  );
+  const mark = page.locator(".brand img");
+  await expect(mark).toHaveAttribute("alt", "");
+  await expect(mark).toHaveJSProperty("complete", true);
+  expect(await mark.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThanOrEqual(40);
+});
+
 for (const viewport of [
   { width: 1280, height: 800 },
   { width: 320, height: 800 },
