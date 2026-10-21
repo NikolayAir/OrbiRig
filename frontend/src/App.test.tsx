@@ -357,6 +357,17 @@ beforeEach(() => {
     configurable: true,
     value: scrollIntoViewMock,
   });
+  // jsdom lacks the dialog lifecycle; Playwright checks native modal behaviour.
+  Object.defineProperties(HTMLDialogElement.prototype, {
+    showModal: {
+      configurable: true,
+      value: function (this: HTMLDialogElement) { this.open = true; },
+    },
+    close: {
+      configurable: true,
+      value: function (this: HTMLDialogElement) { this.open = false; },
+    },
+  });
   vi.stubGlobal("fetch", fetchMock);
   vi.stubGlobal("matchMedia", matchMediaMock);
 });
@@ -471,26 +482,26 @@ describe("App", () => {
     expect(screen.queryByLabelText("Evidence JSON")).not.toBeInTheDocument();
   });
 
-  it("keeps workflow guidance collapsed until requested", () => {
+  it("keeps workflow guidance closed until requested", () => {
     render(<App />);
 
-    const summary = screen.getByText("How it works", { selector: "summary" });
-    const help = summary.closest("details");
+    const trigger = screen.getByRole("button", { name: "How it works" });
+    const help = screen.getByRole("dialog", { hidden: true });
 
-    expect(help).toBeInTheDocument();
+    expect(trigger).toHaveAttribute("aria-haspopup", "dialog");
+    expect(trigger).toHaveAttribute("aria-controls", help.id);
     expect(help).not.toHaveAttribute("open");
-    expect(
-      screen.getByRole("heading", { name: "In the browser" }),
-    ).not.toBeVisible();
+    expect(screen.getByText("In the browser")).not.toBeVisible();
 
-    fireEvent.click(summary);
+    fireEvent.click(trigger);
 
     expect(help).toHaveAttribute("open");
+    expect(screen.getByRole("dialog", { name: "How it works" })).toBeVisible();
     expect(
       screen.getByRole("heading", { name: "In the browser" }),
     ).toBeVisible();
 
-    fireEvent.click(summary);
+    fireEvent.click(within(help).getByRole("button", { name: "Close" }));
 
     expect(help).not.toHaveAttribute("open");
     expect(fetchMock).not.toHaveBeenCalled();
@@ -499,10 +510,9 @@ describe("App", () => {
 
   it("explains the browser steps and keeps verification meaning precise", () => {
     render(<App />);
-    const summary = screen.getByText("How it works", { selector: "summary" });
-    fireEvent.click(summary);
+    fireEvent.click(screen.getByRole("button", { name: "How it works" }));
 
-    const guidance = within(summary.closest("details")!);
+    const guidance = within(screen.getByRole("dialog", { name: "How it works" }));
     const [verificationSteps, inspectionSteps] = guidance.getAllByRole("list");
 
     expect(
@@ -579,12 +589,13 @@ describe("App", () => {
       target: { value: "preserved observation" },
     });
 
-    const summary = screen.getByText("How it works", { selector: "summary" });
-    fireEvent.click(summary);
+    fireEvent.click(screen.getByRole("button", { name: "How it works" }));
+    const help = screen.getByRole("dialog", { name: "How it works" });
+    expect(help).toHaveAttribute("open");
+    fireEvent.click(within(help).getByRole("button", { name: "Close" }));
     selectInspectionWorkflow();
     selectVerificationWorkflow();
-    expect(summary.closest("details")).toHaveAttribute("open");
-    fireEvent.click(summary);
+    expect(help).not.toHaveAttribute("open");
 
     expect(screen.getByLabelText("Execution ID")).toHaveValue(
       "exec-preserved",
