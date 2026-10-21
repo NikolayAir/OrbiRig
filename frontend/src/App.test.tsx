@@ -357,6 +357,20 @@ beforeEach(() => {
     configurable: true,
     value: scrollIntoViewMock,
   });
+  // jsdom lacks the dialog lifecycle; Playwright checks native modal behaviour.
+  Object.defineProperties(HTMLDialogElement.prototype, {
+    showModal: {
+      configurable: true,
+      value: function (this: HTMLDialogElement) { this.open = true; },
+    },
+    close: {
+      configurable: true,
+      value: function (this: HTMLDialogElement) {
+        this.open = false;
+        this.dispatchEvent(new Event("close"));
+      },
+    },
+  });
   vi.stubGlobal("fetch", fetchMock);
   vi.stubGlobal("matchMedia", matchMediaMock);
 });
@@ -471,6 +485,179 @@ describe("App", () => {
     expect(screen.queryByLabelText("Evidence JSON")).not.toBeInTheDocument();
   });
 
+  it.each(["In the browser", "From the command line"])("opens only the requested %s guidance", (name) => {
+    render(<App />);
+
+    const entryPoints = within(screen.getByRole("region", { name: "How it works" }));
+    const triggers = entryPoints.getAllByRole("button");
+    expect(triggers.map((button) => button.textContent)).toEqual([
+      "In the browser", "From the command line",
+    ]);
+    expect(entryPoints.getByRole("heading", { name: "How it works", level: 2 })).toBeVisible();
+    const trigger = entryPoints.getByRole("button", { name });
+    const help = screen.getByRole("dialog", { hidden: true });
+
+    for (const button of triggers) {
+      expect(button).toHaveAttribute("aria-haspopup", "dialog");
+      expect(button).toHaveAttribute("aria-controls", help.id);
+      expect(button).toHaveAttribute("tabindex", "0");
+      expect(button).not.toHaveAttribute("aria-pressed");
+    }
+    expect(screen.getAllByRole("dialog", { hidden: true })).toHaveLength(1);
+    expect(help).not.toHaveAttribute("open");
+
+    fireEvent.click(trigger);
+
+    expect(help).toHaveAttribute("open");
+    expect(screen.getByRole("dialog", { name })).toBeVisible();
+    const guidance = within(help);
+    expect(guidance.getByRole("heading", { name, level: 2 })).toBeVisible();
+    if (name === "In the browser") {
+      expect(guidance.getByRole("heading", { name: "Verify observation", level: 3 })).toBeVisible();
+      expect(guidance.getByRole("heading", { name: "Inspect evidence", level: 3 })).toBeVisible();
+      expect(guidance.queryByText(/OrbiRig can verify/)).not.toBeInTheDocument();
+      expect(guidance.queryByRole("region", { name: "CLI verification command" })).not.toBeInTheDocument();
+      expect(guidance.queryByRole("link")).not.toBeInTheDocument();
+    } else {
+      expect(guidance.getByRole("region", { name: "CLI verification command" })).toBeVisible();
+      expect(guidance.queryByText(/OrbiRig checks command records/)).not.toBeInTheDocument();
+      expect(guidance.queryByRole("list")).not.toBeInTheDocument();
+    }
+
+    fireEvent.click(within(help).getByRole("button", { name: "Close" }));
+
+    expect(help).not.toHaveAttribute("open");
+    expect(trigger).toHaveFocus();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(scrollIntoViewMock).not.toHaveBeenCalled();
+  });
+
+  it("starts at the top when reopening either guide or switching between them", () => {
+    render(<App />);
+    const help = screen.getByRole("dialog", { hidden: true });
+
+    for (const name of ["In the browser", "In the browser", "From the command line", "From the command line", "In the browser"]) {
+      fireEvent.click(screen.getByRole("button", { name }));
+      expect(screen.getByRole("dialog", { name })).toBeVisible();
+      expect(help.scrollTop).toBe(0);
+      help.scrollTop = 150;
+      fireEvent.click(within(help).getByRole("button", { name: "Close" }));
+    }
+  });
+
+  it.each(["In the browser", "From the command line"])("reopens %s before the native close event arrives", (name) => {
+    render(<App />);
+    const trigger = screen.getByRole("button", { name });
+    fireEvent.click(trigger);
+    const help = screen.getByRole("dialog", { name }) as HTMLDialogElement;
+
+    // Native close() removes open before delivering its queued close event.
+    help.open = false;
+    fireEvent.click(trigger);
+
+    expect(help).toHaveAttribute("open");
+    expect(screen.getByRole("dialog", { name })).toBeVisible();
+  });
+
+  it("explains the browser steps and keeps verification meaning precise", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "In the browser" }));
+
+    const guidance = within(screen.getByRole("dialog", { name: "In the browser" }));
+    const [verificationSteps, inspectionSteps] = guidance.getAllByRole("list");
+
+    expect(
+      within(verificationSteps).getAllByRole("listitem").map((step) => step.textContent?.replace(/\s+/g, " ").trim()),
+    ).toEqual([
+      "Enter an execution ID and the UTC time of the recorded execution.",
+      "Select a scenario describing the expected behaviour, such as switching from NOMINAL to SAFE mode.",
+      "Paste the observation JSON or choose Load example to try a sample.",
+      "Choose Verify observation to see the individual checks and overall PASS or FAIL result.",
+    ]);
+    expect(
+      within(inspectionSteps).getAllByRole("listitem").map((step) => step.textContent?.replace(/\s+/g, " ").trim()),
+    ).toEqual([
+      "Select the type of saved record: observation, verified execution, or verified-execution sequence.",
+      "Paste its JSON or choose Load example.",
+      "Choose Inspect evidence to explore its contents in a structured view.",
+    ]);
+
+    expect(guidance.getByText(/OrbiRig checks command records/)).toHaveTextContent(
+      "OrbiRig checks command records from simplified spacecraft tests. Each observation includes the command, whether it was accepted, the operating modes before and after execution, and the mode reported by telemetry.",
+    );
+    expect(guidance.getByText(/The web interface checks these records/)).toHaveTextContent(
+      "The web interface checks these records. It does not send commands to a spacecraft.",
+    );
+    expect(guidance.getByText(/means the recorded behaviour matches/)).toHaveTextContent(
+      "PASS means the recorded behaviour matches the selected scenario. This can include a rejected command if rejection was expected.",
+    );
+    expect(guidance.getByText(/means the observation is valid/)).toHaveTextContent(
+      "FAIL means the observation is valid, but the recorded behaviour does not meet the scenario's expectations. Invalid evidence is reported separately as an input error.",
+    );
+    expect(guidance.getByText(/The scenario defines/)).toHaveTextContent(
+      "The scenario defines what should happen independently of the recorded observation.",
+    );
+    const observationInspection = guidance.getByText(/Inspecting an observation checks/);
+    expect(observationInspection).toHaveTextContent(
+      "Inspecting an observation checks whether the record is valid. To check it against a scenario, use Verify observation.",
+    );
+    expect(observationInspection.querySelector("strong")).toHaveTextContent("Verify observation");
+    expect(guidance.getByText(/For saved verified executions and sequences/)).toHaveTextContent(
+      "For saved verified executions and sequences, OrbiRig independently recalculates verification results and checks their consistency. Evidence with a correctly derived FAIL outcome is still valid and can be inspected.",
+    );
+  });
+
+  it("explains local CLI setup and shows a complete selectable command", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "From the command line" }));
+
+    const help = screen.getByRole("dialog", { name: "From the command line" });
+    const guidance = within(help);
+    const command = guidance.getByRole("region", { name: "CLI verification command" });
+
+    expect(guidance.getAllByRole("heading").map((heading) => heading.textContent)).toEqual([
+      "From the command line",
+    ]);
+    expect(guidance.getByText(/OrbiRig can verify/)).toHaveTextContent(
+      "OrbiRig can verify a saved observation from a terminal, without opening the web interface. It uses the same Python verification core. The command runs locally on your computer and does not execute spacecraft commands or collect observations.",
+    );
+    expect(guidance.getByText(/Save the observation JSON/)).toHaveTextContent(
+      "Save the observation JSON as observation.json file (UTF-8). You can copy a built-in example from the browser. From an OrbiRig checkout, run uv sync --locked if needed, then:",
+    );
+    expect(command).toHaveAttribute("tabindex", "0");
+    expect(command.querySelector("code")?.textContent).toBe([
+      "uv run --no-sync orbirig verify-observation observation.json \\",
+      "  --scenario nominal_to_safe_mode \\",
+      "  --execution-id demo-001 \\",
+      "  --executed-at 2026-10-21T10:00:00Z",
+    ].join("\n"));
+    expect(guidance.getByText(/The execution ID and timestamp/)).toHaveTextContent(
+      "The execution ID and timestamp above are examples. For recorded executions, use the corresponding recorded metadata.",
+    );
+    expect(guidance.getByRole("link", { name: "CLI setup and full instructions" })).toHaveAttribute(
+      "href",
+      "https://github.com/NikolayAir/OrbiRig#verify-a-saved-observation-from-the-command-line",
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("distinguishes completed CLI PASS and FAIL from input, file and internal errors", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "From the command line" }));
+
+    const cli = within(screen.getByRole("dialog", { name: "From the command line" }));
+    const results = cli.getByText(/The command prints JSON evidence/);
+    expect(results).toHaveTextContent(
+      "The command prints JSON evidence in the terminal for both PASS and FAIL results. Exit code 0 means PASS and 1 means verification completed with FAIL. Invalid input returns 2, file or output errors return 3, and unexpected internal errors return 4.",
+    );
+    expect([...results.querySelectorAll("strong")].map((element) => element.textContent)).toEqual([
+      "PASS", "FAIL", "PASS", "FAIL",
+    ]);
+    expect([...results.querySelectorAll("code")].map((element) => element.textContent)).toEqual([
+      "0", "1", "2", "3", "4",
+    ]);
+  });
+
   it("switches to inspection and restores the verification workflow", () => {
     render(<App />);
 
@@ -490,7 +677,7 @@ describe("App", () => {
     expect(screen.queryByLabelText("Evidence JSON")).not.toBeInTheDocument();
   });
 
-  it("preserves verification form values while another workflow is active", () => {
+  it.each(["In the browser", "From the command line"])("preserves verification inputs through %s help and workflow switches", (name) => {
     render(<App />);
 
     fireEvent.change(screen.getByLabelText("Execution ID"), {
@@ -506,8 +693,13 @@ describe("App", () => {
       target: { value: "preserved observation" },
     });
 
+    fireEvent.click(screen.getByRole("button", { name }));
+    const help = screen.getByRole("dialog", { name });
+    expect(help).toHaveAttribute("open");
+    fireEvent.click(within(help).getByRole("button", { name: "Close" }));
     selectInspectionWorkflow();
     selectVerificationWorkflow();
+    expect(help).not.toHaveAttribute("open");
 
     expect(screen.getByLabelText("Execution ID")).toHaveValue(
       "exec-preserved",
@@ -799,7 +991,9 @@ describe("App", () => {
     expect(
       screen.getByText("Execution time (UTC) is required."),
     ).toBeInTheDocument();
-    expect(screen.getByText("Select a supported scenario.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Select a supported scenario.", { selector: '[role="alert"]' }),
+    ).toBeInTheDocument();
     expect(
       screen.getByText("Observation evidence is required."),
     ).toBeInTheDocument();
@@ -833,7 +1027,9 @@ describe("App", () => {
     expect(
       screen.getByText("Execution time (UTC) is required."),
     ).toBeInTheDocument();
-    expect(screen.getByText("Select a supported scenario.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Select a supported scenario.", { selector: '[role="alert"]' }),
+    ).toBeInTheDocument();
     expect(
       screen.getByText("Observation evidence is required."),
     ).toBeInTheDocument();
@@ -1337,8 +1533,9 @@ describe("App", () => {
     expect(screen.getByText("NOMINAL")).toBeInTheDocument();
     expect(screen.getAllByText("SAFE")).toHaveLength(3);
     expect(screen.getByText("Accepted")).toBeInTheDocument();
-    expect(screen.queryByText("PASS")).not.toBeInTheDocument();
-    expect(screen.queryByText("FAIL")).not.toBeInTheDocument();
+    const result = within(screen.getByRole("region", { name: "Observation details" }));
+    expect(result.queryByText("PASS")).not.toBeInTheDocument();
+    expect(result.queryByText("FAIL")).not.toBeInTheDocument();
     expect(screen.queryByText(/ScenarioId/)).not.toBeInTheDocument();
   });
 
@@ -1405,7 +1602,8 @@ describe("App", () => {
     expect(screen.getByText("nominal_to_safe_mode")).toBeInTheDocument();
     expect(screen.getByText("SET_OPERATING_MODE")).toBeInTheDocument();
 
-    const invariantItems = screen.getAllByRole("listitem");
+    const result = within(screen.getByRole("region", { name: "Verified execution" }));
+    const invariantItems = result.getAllByRole("listitem");
     expect(invariantItems).toHaveLength(2);
     expect(
       within(invariantItems[0]).getByRole("heading", {
@@ -1436,7 +1634,7 @@ describe("App", () => {
     expect(
       within(invariantItems[1]).getByLabelText("Verification check: PASS"),
     ).toBeInTheDocument();
-    expect(screen.getAllByText("PASS")).toHaveLength(3);
+    expect(result.getAllByText("PASS")).toHaveLength(3);
   });
 
   it("renders a FAIL response as valid inspected evidence", async () => {
@@ -1462,7 +1660,8 @@ describe("App", () => {
     expect(
       await screen.findByRole("heading", { name: "Verified execution" }),
     ).toBeInTheDocument();
-    expect(screen.getAllByText("FAIL")).toHaveLength(2);
+    const result = within(screen.getByRole("region", { name: "Verified execution" }));
+    expect(result.getAllByText("FAIL")).toHaveLength(2);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 

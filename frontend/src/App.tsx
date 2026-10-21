@@ -1,5 +1,6 @@
 import { Fragment, type SubmitEvent, useEffect, useRef, useState } from "react";
 
+import { WorkflowHelp } from "./WorkflowHelp";
 import {
   EXAMPLE_VERIFIED_EXECUTION_DOCUMENT,
   EXAMPLE_VERIFIED_EXECUTION_SEQUENCE_DOCUMENT,
@@ -536,6 +537,8 @@ export function App() {
           either workflow.
         </p>
       </header>
+
+      <WorkflowHelp />
 
       <p className="workflow-selector-label" id="workflow-selector-label">
         Choose a workflow

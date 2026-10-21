@@ -59,6 +59,116 @@ header > p:last-child,
   text-transform: uppercase;
 }
 
+.workflow-help {
+  margin-bottom: 1.25rem;
+}
+
+.workflow-help > h2 {
+  font-size: 1.0625rem;
+  margin-bottom: 0.5rem;
+}
+
+.workflow-help-actions {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.workflow-help-trigger {
+  background: #f7fafb;
+  border: 1px solid #c7d6de;
+  border-radius: 0.5rem;
+  color: #0a3a5a;
+  line-height: 1.5;
+  padding: 0.75rem 1rem;
+  text-align: left;
+  width: 100%;
+}
+
+.workflow-help-trigger:hover {
+  background: #edf5f8;
+}
+
+.workflow-help-dialog {
+  background: #f7fafb;
+  border: 1px solid #c7d6de;
+  border-radius: 0.5rem;
+  box-shadow: 0 0.75rem 2rem rgb(23 43 58 / 22%);
+  box-sizing: border-box;
+  color: inherit;
+  inset: 0;
+  margin: auto;
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 0;
+  position: fixed;
+  width: min(61rem, calc(100% - 2rem));
+}
+
+.workflow-help-dialog::backdrop {
+  background: rgb(23 43 58 / 40%);
+}
+
+.workflow-help-heading {
+  align-items: center;
+  background: #f7fafb;
+  border-bottom: 1px solid #dce6eb;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.workflow-help-content {
+  max-width: 94ch;
+  padding: 1rem;
+}
+
+.workflow-help-content h3 {
+  font-size: 1rem;
+  margin: 1rem 0 0.5rem;
+}
+
+.workflow-help-content p {
+  margin: 0.75rem 0 0;
+}
+
+.workflow-help-content > :first-child {
+  margin-top: 0;
+}
+
+.workflow-help-content ol {
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.workflow-help-content li + li {
+  margin-top: 0.25rem;
+}
+
+.workflow-help-command {
+  background: #fff;
+  border: 1px solid #c7d6de;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin: 0.75rem 0 0;
+  overflow-wrap: anywhere;
+  overflow-x: auto;
+  padding: 0.75rem;
+  white-space: pre-wrap;
+}
+
+.workflow-help-command:focus-visible,
+.workflow-help-content a:focus-visible {
+  outline: 3px solid #2498bd;
+  outline-offset: 2px;
+}
+
 .workflow-selector-label {
   color: #486676;
   font-size: 0.75rem;
@@ -726,6 +836,7 @@ dd {
   }
 
   .workflow-switcher,
+  .workflow-help-actions,
   .metadata-fields {
     grid-template-columns: 1fr;
   }

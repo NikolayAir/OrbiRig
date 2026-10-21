@@ -76,6 +76,235 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/");
 });
 
+for (const viewport of [
+  { width: 1280, height: 800 },
+  { width: 320, height: 800 },
+  { width: 390, height: 480 },
+  { width: 320, height: 480 },
+]) {
+  for (const guide of ["In the browser", "From the command line"] as const) {
+    test(`${guide} help overlays the page at ${viewport.width}x${viewport.height}`, async ({ page, browserName }) => {
+      await page.setViewportSize(viewport);
+      const browserTrigger = page.getByRole("button", { name: "In the browser", exact: true });
+      const cliTrigger = page.getByRole("button", { name: "From the command line", exact: true });
+      const trigger = guide === "In the browser" ? browserTrigger : cliTrigger;
+      const otherGuide = guide === "In the browser" ? "From the command line" : "In the browser";
+      const otherTrigger = page.getByRole("button", { name: otherGuide, exact: true });
+      const help = page.getByRole("dialog", { name: guide });
+      const chooser = page.getByRole("group", { name: "Choose a workflow" });
+      const chooserTop = await chooser.evaluate((element) => element.getBoundingClientRect().top + window.scrollY);
+
+      await expect(page.getByRole("heading", { name: "How it works", level: 2 })).toBeVisible();
+      await expect(browserTrigger).toBeVisible();
+      await expect(cliTrigger).toBeVisible();
+      const browserBounds = (await browserTrigger.boundingBox())!;
+      const cliBounds = (await cliTrigger.boundingBox())!;
+      expect(browserBounds.width).toBe(cliBounds.width);
+      if (viewport.width === 1280) {
+        expect(browserBounds.y).toBe(cliBounds.y);
+        expect(browserBounds.x + browserBounds.width).toBeLessThan(cliBounds.x);
+      } else {
+        expect(browserBounds.x).toBe(cliBounds.x);
+        expect(browserBounds.y + browserBounds.height).toBeLessThan(cliBounds.y);
+      }
+      await expect(page.locator("dialog")).toHaveCount(1);
+      await expect(page.locator("dialog")).not.toHaveAttribute("open");
+      await expect(page.getByRole("dialog")).toBeHidden();
+
+      await page.keyboard.press("Tab");
+      await expect(browserTrigger).toBeFocused();
+      if (guide === "From the command line") {
+        await page.keyboard.press("Tab");
+      }
+      await expect(trigger).toBeFocused();
+      await expect(trigger).toHaveCSS("outline-style", "solid");
+      const initialScrollY = await page.evaluate(() => window.scrollY);
+      const initialScrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+
+      await page.keyboard.press("Enter");
+      await expect(help).toBeVisible();
+      await expect(help).toHaveAttribute("open");
+      const close = help.getByRole("button", { name: "Close", exact: true });
+      await expect(close).toBeFocused();
+      await expect(help.getByRole("heading", { name: guide, level: 2 })).toBeInViewport();
+      await expect(help.getByRole("heading", { name: otherGuide })).toHaveCount(0);
+      expect(await help.evaluate((element) => element.scrollTop)).toBe(0);
+      const firstParagraph = help.locator(".workflow-help-content > p").first();
+      await expect(firstParagraph).toBeInViewport();
+      expect(await chooser.evaluate((element) => element.getBoundingClientRect().top + window.scrollY)).toBe(chooserTop);
+      expect(await page.evaluate(() => window.scrollY)).toBe(initialScrollY);
+      expect(await help.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+      const bounds = (await help.boundingBox())!;
+      expect(bounds.x).toBeGreaterThanOrEqual(0);
+      expect(bounds.y).toBeGreaterThanOrEqual(0);
+      expect(bounds.x + bounds.width).toBeLessThanOrEqual(viewport.width);
+      expect(bounds.y + bounds.height).toBeLessThanOrEqual(viewport.height);
+      if (viewport.width === 1280) {
+        const textWidth = await help.locator(".workflow-help-content").evaluate((element) => {
+          const styles = getComputedStyle(element);
+          return element.clientWidth - parseFloat(styles.paddingLeft) - parseFloat(styles.paddingRight);
+        });
+        expect(bounds.width).toBeGreaterThan(928);
+        expect(bounds.width).toBeLessThanOrEqual(992);
+        expect(textWidth).toBeGreaterThan(bounds.width * 0.9);
+      }
+
+      // Native Tab order can include the dialog itself and browser chrome.
+      for (const key of ["Tab", "Shift+Tab"]) {
+        await page.keyboard.press(key);
+        expect(await help.evaluate((element) =>
+          !document.hasFocus() || element.contains(document.activeElement),
+        )).toBe(true);
+      }
+      await close.focus();
+      await expect(close).toBeFocused();
+      await page.getByLabel("Execution ID", { exact: true }).evaluate((element) => (element as HTMLElement).focus());
+      await expect(close).toBeFocused();
+      await page.mouse.click(bounds.x + 1, bounds.y + 1);
+      await expect(help).toBeVisible();
+      if (guide === "In the browser") {
+        await expect(help.getByRole("heading", { name: "Verify observation", level: 3 })).toBeVisible();
+        await expect(help.getByRole("heading", { name: "Inspect evidence", level: 3 })).toBeVisible();
+        await expect(help.getByRole("region", { name: "CLI verification command" })).toHaveCount(0);
+        await expect(help.getByText(/OrbiRig can verify/)).toHaveCount(0);
+        await expect(help.getByRole("link")).toHaveCount(0);
+        const inspectionGuidance = help.getByText(/For saved verified executions and sequences/);
+        await inspectionGuidance.scrollIntoViewIfNeeded();
+        await expect(inspectionGuidance).toBeInViewport();
+      } else {
+        await expect(help.getByRole("heading", { name: "Verify observation" })).toHaveCount(0);
+        await expect(help.getByRole("heading", { name: "Inspect evidence" })).toHaveCount(0);
+        await expect(help.getByText(/OrbiRig checks command records/)).toHaveCount(0);
+
+        if (viewport.width === 1280) {
+          const lastCodeOffset = await help.getByText(/The command prints JSON evidence/)
+            .locator("code").last().evaluate((element) => {
+              const previousText = element.previousSibling!;
+              const range = document.createRange();
+              range.setStart(previousText, previousText.textContent!.lastIndexOf("return"));
+              range.setEnd(previousText, previousText.textContent!.length);
+              return Math.abs(element.getBoundingClientRect().top - range.getBoundingClientRect().top);
+            });
+          // Keep the final exit code on the same line as the preceding word.
+          expect(lastCodeOffset).toBeLessThan(6);
+        }
+
+        // Keyboard focus brings the complete command and README into view.
+        await close.focus();
+        await page.keyboard.press("Tab");
+        const command = help.getByRole("region", { name: "CLI verification command" });
+        await expect(command).toBeFocused();
+        await expect(command).toBeInViewport();
+        await expect(command).toHaveCSS("outline-style", "solid");
+        await expect(command).toHaveCSS("white-space", "pre-wrap");
+        expect(await command.locator("code").textContent()).toBe([
+          "uv run --no-sync orbirig verify-observation observation.json \\",
+          "  --scenario nominal_to_safe_mode \\",
+          "  --execution-id demo-001 \\",
+          "  --executed-at 2026-10-21T10:00:00Z",
+        ].join("\n"));
+        expect(await command.evaluate((element) => getComputedStyle(element).userSelect)).not.toBe("none");
+        expect(await command.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+        const selectedCommand = await command.evaluate((element) => {
+          const range = document.createRange();
+          range.selectNodeContents(element.querySelector("code")!);
+          const selection = window.getSelection()!;
+          selection.removeAllRanges();
+          selection.addRange(range);
+          return selection.toString();
+        });
+        expect(selectedCommand).toBe(await command.textContent());
+
+        // WebKit on macOS uses Option-Tab to include links in keyboard navigation.
+        await page.keyboard.press(browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab");
+        const readme = help.getByRole("link", { name: "CLI setup and full instructions" });
+        await expect(readme).toBeFocused();
+        await expect(readme).toBeInViewport();
+        await expect(readme).toHaveCSS("outline-style", "solid");
+        await expect(readme).toHaveAttribute("href", "https://github.com/NikolayAir/OrbiRig#verify-a-saved-observation-from-the-command-line");
+      }
+      expect(await firstParagraph.evaluate((element) => getComputedStyle(element).userSelect)).not.toBe("none");
+      expect(await help.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(initialScrollWidth);
+
+      await help.evaluate((element) => { element.scrollTop = element.scrollHeight; });
+      if (viewport.width <= 390) {
+        expect(await help.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+      }
+      await expect(close).toBeInViewport();
+
+      await close.click();
+      await expect(help).toBeHidden();
+      await expect(trigger).toBeFocused();
+
+      await page.keyboard.press("Space");
+      await expect(help).toBeVisible();
+      expect(await help.evaluate((element) => element.scrollTop)).toBe(0);
+      await expect(firstParagraph).toBeInViewport();
+      await page.keyboard.press("Escape");
+      await expect(help).toBeHidden();
+      await expect(trigger).toBeFocused();
+
+      await trigger.click();
+      await page.mouse.click(2, 2);
+      await expect(help).toBeHidden();
+      await expect(trigger).toBeFocused();
+
+      await otherTrigger.click();
+      const otherHelp = page.getByRole("dialog", { name: otherGuide });
+      await expect(otherHelp).toBeVisible();
+      expect(await otherHelp.evaluate((element) => element.scrollTop)).toBe(0);
+      await expect(otherHelp.getByRole("heading", { name: guide })).toHaveCount(0);
+      await otherHelp.getByRole("button", { name: "Close", exact: true }).click();
+      await expect(otherHelp).toBeHidden();
+      await expect(otherTrigger).toBeFocused();
+      expect(await chooser.evaluate((element) => element.getBoundingClientRect().top + window.scrollY)).toBe(chooserTop);
+    });
+  }
+}
+
+for (const guide of ["In the browser", "From the command line"] as const) {
+  test(`${guide} help preserves form inputs and completed results`, async ({ page }) => {
+    const evidence = evidenceFile("accepted.json");
+    const submittedText = await fillVerification(page, "nominal_to_safe_mode", evidence);
+    const trigger = page.getByRole("button", { name: guide, exact: true });
+    const help = page.getByRole("dialog", { name: guide });
+    const close = help.getByRole("button", { name: "Close", exact: true });
+    await trigger.click();
+    await close.click();
+
+    await page.getByRole("button", { name: "Verify observation", exact: true }).click();
+    const verification = page.getByRole("region", { name: "Verified execution", exact: true });
+    await expectOutcome(verification, "Verification outcome", "PASS");
+    await trigger.click();
+    await close.click();
+    await expect(verification).toBeVisible();
+
+    await page.getByRole("button", { name: "Show Inspect evidence workflow" }).click();
+    await fillEvidence(page.getByLabel("Evidence JSON", { exact: true }), evidence);
+    await trigger.click();
+    await close.click();
+    await page.getByRole("button", { name: "Inspect evidence", exact: true }).click();
+    const inspection = page.getByRole("region", { name: "Observation details", exact: true });
+    await expect(field(inspection, "Acknowledgement")).toHaveText("Accepted");
+    await expect(page.getByLabel(/^Verification (outcome|check):/)).toHaveCount(0);
+    await trigger.click();
+    await close.click();
+    await expect(inspection).toBeVisible();
+
+    await page.getByRole("button", { name: "Show Verify observation workflow" }).click();
+    await expect(page.getByLabel("Execution ID", { exact: true })).toHaveValue("browser-execution");
+    await expect(page.getByLabel("Execution time (UTC)", { exact: true })).toHaveValue("2026-08-17T08:00:00Z");
+    await expect(page.getByLabel("Scenario", { exact: true })).toHaveValue("nominal_to_safe_mode");
+    await expect(page.getByLabel("Observation evidence JSON", { exact: true })).toHaveValue(submittedText);
+    await expectOutcome(verification, "Verification outcome", "PASS");
+
+    await page.getByRole("button", { name: "Show Inspect evidence workflow" }).click();
+    await expect(page.getByLabel("Evidence JSON", { exact: true })).toHaveValue(submittedText);
+    await expect(field(inspection, "Acknowledgement")).toHaveText("Accepted");
+  });
+}
+
 for (const example of [
   {
     name: "the same rejection fails against an explicitly selected accepted transition",
