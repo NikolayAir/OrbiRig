@@ -87,8 +87,36 @@ test("page identity loads the product mark alongside its name", async ({ page })
   expect(await mark.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThanOrEqual(40);
 });
 
+test("keyboard workflow selection stays separate from help and preserves edited input", async ({ page, browserName }) => {
+  const help = page.getByRole("region", { name: "How it works" });
+  const chooser = page.getByRole("group", { name: "Choose a workflow" });
+  await expect(help.getByRole("button")).toHaveCount(2);
+  await expect(chooser.getByRole("button")).toHaveCount(2);
+
+  await page.getByLabel("Execution ID", { exact: true }).fill("keyboard-review");
+  const verify = chooser.getByRole("button", { name: "Show Verify observation workflow" });
+  const inspect = chooser.getByRole("button", { name: "Show Inspect evidence workflow" });
+  // WebKit on macOS follows native Option-Tab navigation for non-text controls.
+  const optionTab = browserName === "webkit" && process.platform === "darwin";
+  await verify.focus();
+  await expect(verify).toHaveCSS("outline-style", "solid");
+  await page.keyboard.press(optionTab ? "Alt+Tab" : "Tab");
+  await expect(inspect).toBeFocused();
+  await page.keyboard.press("Space");
+  await expect(inspect).toHaveAttribute("aria-pressed", "true");
+  await expect(verify).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByLabel("Evidence JSON", { exact: true })).toBeVisible();
+  await page.keyboard.press(optionTab ? "Alt+Shift+Tab" : "Shift+Tab");
+  await expect(verify).toBeFocused();
+  await page.keyboard.press("Space");
+  await expect(verify).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByLabel("Execution ID", { exact: true })).toHaveValue("keyboard-review");
+});
+
 for (const viewport of [
+  { width: 1440, height: 900 },
   { width: 1280, height: 800 },
+  { width: 768, height: 1024 },
   { width: 320, height: 800 },
   { width: 390, height: 480 },
   { width: 320, height: 480 },
@@ -110,14 +138,19 @@ for (const viewport of [
       await expect(cliTrigger).toBeVisible();
       const browserBounds = (await browserTrigger.boundingBox())!;
       const cliBounds = (await cliTrigger.boundingBox())!;
-      expect(browserBounds.width).toBe(cliBounds.width);
-      if (viewport.width === 1280) {
-        expect(browserBounds.y).toBe(cliBounds.y);
-        expect(browserBounds.x + browserBounds.width).toBeLessThan(cliBounds.x);
-      } else {
-        expect(browserBounds.x).toBe(cliBounds.x);
-        expect(browserBounds.y + browserBounds.height).toBeLessThan(cliBounds.y);
+      // Supporting help uses content-sized controls, which may wrap at narrow widths.
+      expect(
+        browserBounds.x + browserBounds.width <= cliBounds.x ||
+        browserBounds.y + browserBounds.height <= cliBounds.y,
+      ).toBe(true);
+      for (const bounds of [browserBounds, cliBounds]) {
+        expect(bounds.height).toBeGreaterThanOrEqual(24);
+        expect(bounds.x).toBeGreaterThanOrEqual(0);
+        expect(bounds.x + bounds.width).toBeLessThanOrEqual(viewport.width);
       }
+      const helpBounds = (await page.getByRole("region", { name: "How it works" }).boundingBox())!;
+      const chooserBounds = (await chooser.boundingBox())!;
+      expect(helpBounds.y + helpBounds.height).toBeLessThan(chooserBounds.y);
       await expect(page.locator("dialog")).toHaveCount(1);
       await expect(page.locator("dialog")).not.toHaveAttribute("open");
       await expect(page.getByRole("dialog")).toBeHidden();
@@ -150,15 +183,9 @@ for (const viewport of [
       expect(bounds.y).toBeGreaterThanOrEqual(0);
       expect(bounds.x + bounds.width).toBeLessThanOrEqual(viewport.width);
       expect(bounds.y + bounds.height).toBeLessThanOrEqual(viewport.height);
-      if (viewport.width === 1280) {
-        const textWidth = await help.locator(".workflow-help-content").evaluate((element) => {
-          const styles = getComputedStyle(element);
-          return element.clientWidth - parseFloat(styles.paddingLeft) - parseFloat(styles.paddingRight);
-        });
-        expect(bounds.width).toBeGreaterThan(928);
-        expect(bounds.width).toBeLessThanOrEqual(992);
-        expect(textWidth).toBeGreaterThan(bounds.width * 0.9);
-      }
+      const textBounds = (await firstParagraph.boundingBox())!;
+      expect(textBounds.x).toBeGreaterThan(bounds.x);
+      expect(textBounds.x + textBounds.width).toBeLessThan(bounds.x + bounds.width);
 
       // Native Tab order can include the dialog itself and browser chrome.
       for (const key of ["Tab", "Shift+Tab"]) {

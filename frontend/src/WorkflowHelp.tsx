@@ -68,9 +68,12 @@ export function WorkflowHelp() {
         }}
       >
         <div className="workflow-help-heading">
-          <h2 id="workflow-help-title">
-            {section === "cli" ? "From the command line" : "In the browser"}
-          </h2>
+          <div>
+            <p className="dialog-label">How it works</p>
+            <h2 id="workflow-help-title">
+              {section === "cli" ? "From the command line" : "In the browser"}
+            </h2>
+          </div>
           <button
             type="button"
             className="secondary-action"
@@ -183,7 +186,7 @@ export function WorkflowHelp() {
                 Exit code <code>0</code> means <strong>PASS</strong> and <code>1</code> means
                 verification completed with <strong>FAIL</strong>. Invalid input returns <code>2</code>,
                 file or output errors return <code>3</code>, and unexpected internal
-                errors return <code>4</code>.
+                errors <span className="keep-together">return <code>4</code></span>.
               </p>
               <p>
                 <a href="https://github.com/NikolayAir/OrbiRig#verify-a-saved-observation-from-the-command-line">
