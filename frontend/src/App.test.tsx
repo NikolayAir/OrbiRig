@@ -554,6 +554,52 @@ describe("App", () => {
     );
   });
 
+  it("explains local CLI setup and shows a complete selectable command", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "How it works" }));
+
+    const help = screen.getByRole("dialog", { name: "How it works" });
+    const cli = within(help).getByRole("region", { name: "From the command line" });
+    const guidance = within(cli);
+    const command = guidance.getByRole("region", { name: "CLI verification command" });
+
+    expect(within(help).getAllByRole("heading", { level: 3 }).map((heading) => heading.textContent)).toEqual([
+      "In the browser",
+      "From the command line",
+    ]);
+    expect(guidance.getByText(/OrbiRig can also verify/)).toHaveTextContent(
+      "OrbiRig can also verify a saved observation from a terminal, without opening the web interface. It uses the same Python verification core. The command runs locally on your computer and does not execute spacecraft commands or collect observations.",
+    );
+    expect(guidance.getByText(/Save the observation JSON/)).toHaveTextContent(
+      "Save the observation JSON as a UTF-8 file named observation.json. You can start with a built-in example in the browser and copy its JSON into the file. From an OrbiRig checkout, install the Python package with uv sync --locked if it is not already installed, then run:",
+    );
+    expect(command).toHaveAttribute("tabindex", "0");
+    expect(command.querySelector("code")?.textContent).toBe([
+      "uv run --no-sync orbirig verify-observation observation.json \\",
+      "  --scenario nominal_to_safe_mode \\",
+      "  --execution-id demo-001 \\",
+      "  --executed-at 2026-10-21T10:00:00Z",
+    ].join("\n"));
+    expect(guidance.getByText(/The execution ID and timestamp/)).toHaveTextContent(
+      "The execution ID and timestamp above are examples. For recorded executions, use the corresponding recorded metadata.",
+    );
+    expect(guidance.getByRole("link", { name: "CLI setup and full instructions" })).toHaveAttribute(
+      "href",
+      "https://github.com/NikolayAir/OrbiRig#verify-a-saved-observation-from-the-command-line",
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("distinguishes completed CLI PASS and FAIL from input, file and internal errors", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "How it works" }));
+
+    const cli = within(screen.getByRole("region", { name: "From the command line" }));
+    expect(cli.getByText(/The command prints JSON evidence/)).toHaveTextContent(
+      "The command prints JSON evidence in the terminal for both PASS and FAIL. Exit code 0 means PASS, while 1 means verification completed with FAIL. Invalid input returns 2, file or output errors return 3, and unexpected internal errors return 4.",
+    );
+  });
+
   it("switches to inspection and restores the verification workflow", () => {
     render(<App />);
 

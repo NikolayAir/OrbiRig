@@ -80,8 +80,9 @@ for (const viewport of [
   { width: 1280, height: 800 },
   { width: 320, height: 800 },
   { width: 390, height: 480 },
+  { width: 320, height: 480 },
 ]) {
-  test(`workflow help overlays the page at ${viewport.width}x${viewport.height}`, async ({ page }) => {
+  test(`workflow help overlays the page at ${viewport.width}x${viewport.height}`, async ({ page, browserName }) => {
     await page.setViewportSize(viewport);
     const trigger = page.getByRole("button", { name: "How it works", exact: true });
     const help = page.getByRole("dialog", { name: "How it works", includeHidden: true });
@@ -96,6 +97,7 @@ for (const viewport of [
     await expect(trigger).toBeFocused();
     await expect(trigger).toHaveCSS("outline-style", "solid");
     const initialScrollY = await page.evaluate(() => window.scrollY);
+    const initialScrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
 
     await page.keyboard.press("Enter");
     await expect(help).toBeVisible();
@@ -124,18 +126,40 @@ for (const viewport of [
     await expect(close).toBeFocused();
     await page.mouse.click(bounds.x + 1, bounds.y + 1);
     await expect(help).toBeVisible();
-    await help.evaluate((element) => { element.scrollTop = element.scrollHeight; });
-    await expect(help.getByText(/Inspection checks whether the supplied evidence is valid/)).toBeInViewport();
+    const inspectionGuidance = help.getByText(/Inspection checks whether the supplied evidence is valid/);
+    await inspectionGuidance.scrollIntoViewIfNeeded();
+    await expect(inspectionGuidance).toBeInViewport();
+
+    // Keyboard focus brings the complete command and README into view.
+    await close.focus();
+    await page.keyboard.press("Tab");
+    const command = help.getByRole("region", { name: "CLI verification command" });
+    await expect(command).toBeFocused();
+    await expect(command).toBeInViewport();
+    await expect(command).toHaveCSS("outline-style", "solid");
+    await expect(command).toHaveCSS("white-space", "pre-wrap");
+    expect(await command.evaluate((element) => getComputedStyle(element).userSelect)).not.toBe("none");
+    expect(await command.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    expect(await help.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(initialScrollWidth);
+
+    // WebKit on macOS uses Option-Tab to include links in keyboard navigation.
+    await page.keyboard.press(browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab");
+    const readme = help.getByRole("link", { name: "CLI setup and full instructions" });
+    await expect(readme).toBeFocused();
+    await expect(readme).toBeInViewport();
+    await expect(readme).toHaveCSS("outline-style", "solid");
+    expect(await help.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
     await expect(close).toBeInViewport();
 
-    await page.keyboard.press("Escape");
+    await close.click();
     await expect(help).toBeHidden();
     await expect(trigger).toBeFocused();
 
     await page.keyboard.press("Space");
     await expect(help).toBeVisible();
     await expect(help.getByRole("heading", { name: "In the browser" })).toBeInViewport();
-    await close.click();
+    await page.keyboard.press("Escape");
     await expect(help).toBeHidden();
     await expect(trigger).toBeFocused();
 

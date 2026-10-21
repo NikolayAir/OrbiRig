@@ -140,6 +140,29 @@ header > p:last-child,
   margin-top: 0.25rem;
 }
 
+.workflow-help-cli {
+  margin-top: 1.5rem;
+}
+
+.workflow-help-command {
+  background: #fff;
+  border: 1px solid #c7d6de;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin: 0.75rem 0 0;
+  overflow-wrap: anywhere;
+  overflow-x: auto;
+  padding: 0.75rem;
+  white-space: pre-wrap;
+}
+
+.workflow-help-command:focus-visible,
+.workflow-help-cli a:focus-visible {
+  outline: 3px solid #2498bd;
+  outline-offset: 2px;
+}
+
 .workflow-selector-label {
   color: #486676;
   font-size: 0.75rem;

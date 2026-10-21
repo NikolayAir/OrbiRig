@@ -118,6 +118,50 @@ export function WorkflowHelp() {
             with a correctly derived <strong>FAIL</strong> outcome is still valid and
             can be inspected.
           </p>
+
+          <section className="workflow-help-cli" aria-labelledby="workflow-help-cli-title">
+            <h3 id="workflow-help-cli-title">From the command line</h3>
+            <p>
+              OrbiRig can also verify a saved observation from a terminal, without
+              opening the web interface. It uses the same Python verification core.
+              The command runs locally on your computer and does not execute
+              spacecraft commands or collect observations.
+            </p>
+            <p>
+              Save the observation JSON as a UTF-8 file named <code>observation.json</code>.
+              You can start with a built-in example in the browser and copy its
+              JSON into the file. From an OrbiRig checkout, install the Python
+              package with <code>uv sync --locked</code> if it is not already
+              installed, then run:
+            </p>
+            <pre
+              className="workflow-help-command"
+              role="region"
+              aria-label="CLI verification command"
+              tabIndex={0}
+            >
+              <code>{`uv run --no-sync orbirig verify-observation observation.json \\
+  --scenario nominal_to_safe_mode \\
+  --execution-id demo-001 \\
+  --executed-at 2026-10-21T10:00:00Z`}</code>
+            </pre>
+            <p>
+              The execution ID and timestamp above are examples. For recorded
+              executions, use the corresponding recorded metadata.
+            </p>
+            <p>
+              The command prints JSON evidence in the terminal for both <strong>PASS</strong> and <strong>FAIL</strong>.
+              Exit code <code>0</code> means <strong>PASS</strong>, while <code>1</code> means
+              verification completed with <strong>FAIL</strong>. Invalid input returns <code>2</code>,
+              file or output errors return <code>3</code>, and unexpected internal
+              errors return <code>4</code>.
+            </p>
+            <p>
+              <a href="https://github.com/NikolayAir/OrbiRig#verify-a-saved-observation-from-the-command-line">
+                CLI setup and full instructions
+              </a>
+            </p>
+          </section>
         </div>
       </dialog>
     </div>
