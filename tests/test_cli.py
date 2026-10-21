@@ -348,7 +348,7 @@ def test_file_errors_are_distinct_from_invalid_evidence(
     captured = capsysbinary.readouterr()
     assert captured.out == b""
     assert b"cannot read" in captured.err
-    assert str(observation_file).encode("utf-8") in captured.err
+    assert repr(str(observation_file)).encode("utf-8") in captured.err
     assert b"Traceback" not in captured.err
 
 
