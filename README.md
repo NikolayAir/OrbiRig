@@ -22,6 +22,7 @@ The web interface verifies observations against selected scenarios and provides 
 * verify operating-mode continuity across execution records supplied in explicit order;
 * serialise observations, verified execution records, and verified sequences to deterministic versioned JSON;
 * strictly reconstruct persisted evidence and independently recompute stored verification results;
+* verify a saved observation JSON file from the command line, producing canonical verified-execution evidence and distinct exit codes for PASS, FAIL and errors;
 * verify submitted observation evidence and inspect all three supported evidence forms through the web interface, while evidence deserialisation and verification remain in the OrbiRig core.
 
 ## Verification flow
@@ -111,6 +112,70 @@ Observation evidence contains neither `ScenarioId`, invariant results, nor a ver
 `deserialize_verified_execution_sequence_evidence(...)` strictly reconstructs each member through the verified-execution evidence semantics, then recomputes continuity in persisted order. Persisted boundaries and the aggregate outcome must exactly match the canonical sequence result. Duplicate execution IDs and equal or non-monotonic timestamps remain valid; neither determines sequence order.
 
 ## Usage
+
+### Verify a saved observation from the command line
+
+The Python CLI checks recorded observations against an explicitly selected scenario. It requires Python 3.12–3.15 and works without web dependencies, Node.js or a browser.
+
+From the checkout, install the core package and its console command:
+
+```bash
+uv sync --locked
+```
+
+Run the installed command through `uv run --no-sync orbirig`. For a built wheel, install it in an activated Python environment with `python -m pip install /path/to/orbirig-<version>-py3-none-any.whl`, then invoke `orbirig` directly.
+
+Save this UTF-8 JSON as `observation.json`:
+
+```json
+{
+  "evidence_format_version": 1,
+  "command": {
+    "command_type": "SET_OPERATING_MODE",
+    "target_mode": "SAFE"
+  },
+  "pre_state": {"operating_mode": "NOMINAL"},
+  "acknowledgement": {"accepted": true},
+  "post_state": {"operating_mode": "SAFE"},
+  "telemetry": {"operating_mode": "SAFE"}
+}
+```
+
+```bash
+uv run --no-sync orbirig verify-observation observation.json \
+  --scenario nominal_to_safe_mode \
+  --execution-id test-001 \
+  --executed-at 2026-10-21T10:00:00Z
+```
+
+This example exits with code `0` and writes the complete canonical verified-execution JSON to stdout, including `schema_version: 1`, the supplied execution metadata, the observation, four passing invariant results and `outcome: "PASS"`. Stderr is empty.
+
+For a FAIL example, copy the document to `bad-telemetry.json` and change only `telemetry.operating_mode` to `"NOMINAL"`:
+
+```bash
+uv run --no-sync orbirig verify-observation bad-telemetry.json \
+  --scenario nominal_to_safe_mode \
+  --execution-id test-002 \
+  --executed-at 2026-10-21T10:00:00Z
+```
+
+This exits with code `1` and still writes a complete, valid evidence record. Its outcome is `FAIL`; `telemetry_matches_post_state` records expected `"SAFE"`, actual `"NOMINAL"` and `passed: false`. Stderr remains empty. The output can be reconstructed with `deserialize_verified_execution_evidence(...)` or submitted to verified-execution inspection in the web interface.
+
+`FILE`, `--scenario`, `--execution-id` and `--executed-at` are required. Scenario values are exactly `nominal_to_safe_mode`, `nominal_to_nominal_rejection` and `safe_to_nominal_mode`. An expected command rejection can produce `PASS`; the selected scenario supplies the expectations. A command incompatible with that scenario is an input error.
+
+The execution ID must contain a non-whitespace character and is preserved exactly. The timestamp describes the recorded execution, not the time of verification. Use `YYYY-MM-DDTHH:MM:SS[.fraction](Z|+00:00)`, with hours `00`–`23` and 1–6 fractional digits when present. Dates and times must be valid; timestamps without a timezone or with a non-zero offset are rejected rather than converted. Evidence uses the existing canonical UTC representation with `Z`.
+
+| Exit code | Meaning | stdout | stderr |
+| --- | --- | --- | --- |
+| `0` | Completed verification PASS | Canonical verified-execution JSON | Empty |
+| `1` | Completed verification FAIL | Canonical verified-execution JSON | Empty |
+| `2` | Invalid arguments, metadata, evidence or scenario/command mismatch | Empty | Diagnostic |
+| `3` | File I/O or output write error | Empty for read errors; may be partial for write errors | Diagnostic |
+| `4` | Unexpected internal error | Empty before output starts | Diagnostic and traceback |
+
+`orbirig --help` and `orbirig verify-observation --help` exit with code `0` and write help to stdout without reading a file. Argument names cannot be abbreviated. The command accepts one local observation-evidence v1 file; `-` has no stdin meaning. It rejects malformed JSON, duplicate object members at any depth, invalid UTF-8 and a UTF-8 BOM through the existing strict evidence boundary.
+
+For completed verification, stdout contains only the canonical JSON bytes: UTF-8, two-space indentation and LF line endings with one final newline on every operating system. Fixed inputs, including metadata, produce identical bytes. Shell redirection can save this output; there is no CLI output-file option. Input and read errors do not produce verification evidence. The CLI does not execute spacecraft commands or collect fresh observations.
 
 ### Execute and verify a reference workflow
 
@@ -276,6 +341,8 @@ uv run --no-sync python scripts/verify_distributions.py
 ```
 
 This builds a wheel and sdist, checks their metadata and required files, and builds another wheel from the sdist. Each wheel is installed without extras or dependencies in its own temporary environment outside the checkout. The smoke check verifies the installed version and import origins, executes a reference scenario with explicit expected results, and checks verification and evidence reconstruction for both passing and deliberately inconsistent observations. Temporary environments and distributions are removed when the check finishes.
+
+The distribution check also validates the console entry-point metadata and invokes the real installed `orbirig` command from each wheel. Independent recorded observations check PASS and FAIL, canonical output and reconstruction, malformed input, invalid UTF-8, unsupported scenarios, file errors, help and a closed output pipe. These CLI checks run without web dependencies.
 
 The Python distributions contain the core and the optional web adapter's Python module. The sdist also includes the distribution-check scripts used by its packaging tests. Built React assets under `src/orbirig/static` are not bundled; serving the complete interface requires the checkout-based frontend build described above. The distribution check rejects accidentally bundled assets and runs after the frontend build in CI to exercise this boundary.
 

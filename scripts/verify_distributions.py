@@ -14,6 +14,7 @@ import tomllib
 import warnings
 import zipfile
 from collections import Counter
+from configparser import ConfigParser
 from email.message import Message
 from email.parser import BytesParser
 from pathlib import Path
@@ -22,6 +23,7 @@ PACKAGE_FILES = frozenset(
     f"orbirig/{name}.py"
     for name in (
         "__init__",
+        "cli",
         "evidence",
         "execution",
         "models",
@@ -147,6 +149,16 @@ def check_wheel(path: Path, project: dict) -> dict[str, bytes]:
     check_package_files(files)
     info = f"{project['name']}-{project['version']}.dist-info/"
     check_metadata(files[info + "METADATA"], project)
+    entry_points_file = info + "entry_points.txt"
+    assert files.get(entry_points_file), "Missing wheel entry points"
+    entry_points = ConfigParser(interpolation=None)
+    entry_points.optionxform = lambda optionstr: optionstr
+    entry_points.read_string(files[entry_points_file].decode("utf-8"))
+    assert not entry_points.defaults(), "Unexpected entry-point defaults"
+    assert entry_points.sections() == ["console_scripts"], "Incorrect entry-point groups"
+    assert dict(entry_points["console_scripts"]) == project["scripts"], (
+        "Incorrect console entry points"
+    )
     check_record(files, info)
     wheel_metadata = BytesParser().parsebytes(files[info + "WHEEL"])
     assert wheel_metadata["Root-Is-Purelib"] == "true"
@@ -230,7 +242,7 @@ def main() -> None:
                 str(python), "-I", str(checkout / "scripts/check_installed_core.py"),
                 project["version"], str(checkout), str(artifact),
             )
-            print(f"{label}: metadata, contents and isolated core workflow passed", flush=True)
+            print(f"{label}: metadata, contents and isolated core/CLI workflows passed", flush=True)
 
 
 if __name__ == "__main__":

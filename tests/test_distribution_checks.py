@@ -10,6 +10,7 @@ import sys
 import tarfile
 import tomllib
 import zipfile
+from configparser import Error as ConfigParserError
 from pathlib import Path
 
 import pytest
@@ -58,6 +59,7 @@ def wheel_files():
         **{name: b'"""Package module."""' for name in CHECKS["PACKAGE_FILES"]},
         info + "METADATA": ("\n".join(metadata) + "\n").encode(),
         info + "WHEEL": b"Wheel-Version: 1.0\nRoot-Is-Purelib: true\nTag: py3-none-any\n",
+        info + "entry_points.txt": b"[console_scripts]\norbirig = orbirig.cli:main\n",
         info + "licenses/LICENSE": b"MIT licence",
     }
     write_record(files)
@@ -104,6 +106,39 @@ def test_wheel_comparison_allows_generated_metadata_differences(wheel_files, tmp
     write_record(wheel_files)
     rebuilt = CHECKS["check_wheel"](write_wheel(tmp_path, wheel_files), PROJECT)
     assert direct == rebuilt
+
+
+@pytest.mark.parametrize(("content", "message"), [
+    (None, "Missing wheel entry points"),
+    (b"", "Missing wheel entry points"),
+    (b"[console_scripts]\n", "Incorrect console entry points"),
+    (b"[console_scripts]\norbirig = orbirig.web:app\n", "Incorrect console entry points"),
+    (b"[console_scripts]\nOrbiRig = orbirig.cli:main\n", "Incorrect console entry points"),
+    (
+        b"[console_scripts]\norbirig = orbirig.cli:main\nextra = orbirig.cli:main\n",
+        "Incorrect console entry points",
+    ),
+    (b"[gui_scripts]\norbirig = orbirig.cli:main\n", "Incorrect entry-point groups"),
+    (
+        b"[DEFAULT]\norbirig = orbirig.cli:main\n[console_scripts]\n",
+        "Unexpected entry-point defaults",
+    ),
+    (b"[console_scripts]\norbirig = first\norbirig = orbirig.cli:main\n", "already exists"),
+    (b"not an entry-point document", "no section headers"),
+    (b"\xff", "invalid start byte"),
+], ids=[
+    "missing", "empty", "missing-command", "wrong-target", "wrong-case",
+    "extra-command", "wrong-group", "defaults", "duplicate", "malformed", "invalid-utf8",
+])
+def test_wheel_checker_rejects_incorrect_entry_points(wheel_files, tmp_path, content, message):
+    name = INFO + "entry_points.txt"
+    if content is None:
+        del wheel_files[name]
+    else:
+        wheel_files[name] = content
+    write_record(wheel_files)
+    with pytest.raises((AssertionError, ConfigParserError, UnicodeDecodeError), match=message):
+        CHECKS["check_wheel"](write_wheel(tmp_path, wheel_files), PROJECT)
 
 
 @pytest.mark.parametrize("name", ["orbirig/models.py", INFO + "METADATA"])
@@ -396,7 +431,7 @@ def test_sdist_checker_accepts_complete_build_inputs(sdist_files, tmp_path):
 
 
 @pytest.mark.parametrize("missing", [
-    "src/orbirig/evidence.py", "pyproject.toml", "LICENSE",
+    "src/orbirig/evidence.py", "src/orbirig/cli.py", "pyproject.toml", "LICENSE",
     "scripts/verify_distributions.py", "scripts/check_installed_core.py",
 ])
 def test_sdist_checker_rejects_missing_build_inputs(sdist_files, tmp_path, missing):
