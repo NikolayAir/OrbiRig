@@ -471,6 +471,79 @@ describe("App", () => {
     expect(screen.queryByLabelText("Evidence JSON")).not.toBeInTheDocument();
   });
 
+  it("keeps workflow guidance collapsed until requested", () => {
+    render(<App />);
+
+    const summary = screen.getByText("How it works", { selector: "summary" });
+    const help = summary.closest("details");
+
+    expect(help).toBeInTheDocument();
+    expect(help).not.toHaveAttribute("open");
+    expect(
+      screen.getByRole("heading", { name: "In the browser" }),
+    ).not.toBeVisible();
+
+    fireEvent.click(summary);
+
+    expect(help).toHaveAttribute("open");
+    expect(
+      screen.getByRole("heading", { name: "In the browser" }),
+    ).toBeVisible();
+
+    fireEvent.click(summary);
+
+    expect(help).not.toHaveAttribute("open");
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(scrollIntoViewMock).not.toHaveBeenCalled();
+  });
+
+  it("explains the browser steps and keeps verification meaning precise", () => {
+    render(<App />);
+    const summary = screen.getByText("How it works", { selector: "summary" });
+    fireEvent.click(summary);
+
+    const guidance = within(summary.closest("details")!);
+    const [verificationSteps, inspectionSteps] = guidance.getAllByRole("list");
+
+    expect(
+      within(verificationSteps).getAllByRole("listitem").map((step) => step.textContent?.replace(/\s+/g, " ").trim()),
+    ).toEqual([
+      "Enter an execution ID and the UTC time of the recorded execution.",
+      "Select a scenario describing the expected behaviour, such as switching from NOMINAL to SAFE mode.",
+      "Paste the observation JSON or choose Load example to try a sample.",
+      "Choose Verify observation to see the individual checks and overall PASS or FAIL result.",
+    ]);
+    expect(
+      within(inspectionSteps).getAllByRole("listitem").map((step) => step.textContent?.replace(/\s+/g, " ").trim()),
+    ).toEqual([
+      "Select the type of saved record: observation, verified execution, or verified-execution sequence.",
+      "Paste its JSON or choose Load example.",
+      "Choose Inspect evidence to explore its contents in a structured view.",
+    ]);
+
+    expect(guidance.getByText(/OrbiRig checks records/)).toHaveTextContent(
+      "OrbiRig checks records of how commands behaved in simplified spacecraft tests. Each observation contains the command, whether it was accepted, the operating mode before and after execution, and the mode reported by telemetry.",
+    );
+    expect(guidance.getByText(/The web interface checks these records/)).toHaveTextContent(
+      "The web interface checks these records. It does not send commands to a spacecraft.",
+    );
+    expect(guidance.getByText(/means the recorded behaviour matches/)).toHaveTextContent(
+      "PASS means the recorded behaviour matches the selected scenario. This can include a rejected command if rejection was expected.",
+    );
+    expect(guidance.getByText(/means the observation is valid/)).toHaveTextContent(
+      "FAIL means the observation is valid, but the recorded behaviour does not meet the scenario's expectations. Invalid evidence is reported separately as an input error.",
+    );
+    expect(guidance.getByText(/The scenario defines/)).toHaveTextContent(
+      "The scenario defines what should happen independently of the recorded observation.",
+    );
+    expect(guidance.getByText(/Inspection checks whether/)).toHaveTextContent(
+      "Inspection checks whether the supplied evidence is valid. It does not automatically mean the recorded behaviour met a scenario's expectations.",
+    );
+    expect(guidance.getByText(/For saved verified executions and sequences/)).toHaveTextContent(
+      "For saved verified executions and sequences, OrbiRig independently recalculates verification results and checks their consistency. Evidence with a correctly derived FAIL outcome is still valid and can be inspected.",
+    );
+  });
+
   it("switches to inspection and restores the verification workflow", () => {
     render(<App />);
 
@@ -490,7 +563,7 @@ describe("App", () => {
     expect(screen.queryByLabelText("Evidence JSON")).not.toBeInTheDocument();
   });
 
-  it("preserves verification form values while another workflow is active", () => {
+  it("preserves verification inputs when help is toggled and workflows are switched", () => {
     render(<App />);
 
     fireEvent.change(screen.getByLabelText("Execution ID"), {
@@ -506,8 +579,12 @@ describe("App", () => {
       target: { value: "preserved observation" },
     });
 
+    const summary = screen.getByText("How it works", { selector: "summary" });
+    fireEvent.click(summary);
     selectInspectionWorkflow();
     selectVerificationWorkflow();
+    expect(summary.closest("details")).toHaveAttribute("open");
+    fireEvent.click(summary);
 
     expect(screen.getByLabelText("Execution ID")).toHaveValue(
       "exec-preserved",
@@ -799,7 +876,9 @@ describe("App", () => {
     expect(
       screen.getByText("Execution time (UTC) is required."),
     ).toBeInTheDocument();
-    expect(screen.getByText("Select a supported scenario.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Select a supported scenario.", { selector: '[role="alert"]' }),
+    ).toBeInTheDocument();
     expect(
       screen.getByText("Observation evidence is required."),
     ).toBeInTheDocument();
@@ -833,7 +912,9 @@ describe("App", () => {
     expect(
       screen.getByText("Execution time (UTC) is required."),
     ).toBeInTheDocument();
-    expect(screen.getByText("Select a supported scenario.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Select a supported scenario.", { selector: '[role="alert"]' }),
+    ).toBeInTheDocument();
     expect(
       screen.getByText("Observation evidence is required."),
     ).toBeInTheDocument();
@@ -1337,8 +1418,9 @@ describe("App", () => {
     expect(screen.getByText("NOMINAL")).toBeInTheDocument();
     expect(screen.getAllByText("SAFE")).toHaveLength(3);
     expect(screen.getByText("Accepted")).toBeInTheDocument();
-    expect(screen.queryByText("PASS")).not.toBeInTheDocument();
-    expect(screen.queryByText("FAIL")).not.toBeInTheDocument();
+    const result = within(screen.getByRole("region", { name: "Observation details" }));
+    expect(result.queryByText("PASS")).not.toBeInTheDocument();
+    expect(result.queryByText("FAIL")).not.toBeInTheDocument();
     expect(screen.queryByText(/ScenarioId/)).not.toBeInTheDocument();
   });
 
@@ -1405,7 +1487,8 @@ describe("App", () => {
     expect(screen.getByText("nominal_to_safe_mode")).toBeInTheDocument();
     expect(screen.getByText("SET_OPERATING_MODE")).toBeInTheDocument();
 
-    const invariantItems = screen.getAllByRole("listitem");
+    const result = within(screen.getByRole("region", { name: "Verified execution" }));
+    const invariantItems = result.getAllByRole("listitem");
     expect(invariantItems).toHaveLength(2);
     expect(
       within(invariantItems[0]).getByRole("heading", {
@@ -1436,7 +1519,7 @@ describe("App", () => {
     expect(
       within(invariantItems[1]).getByLabelText("Verification check: PASS"),
     ).toBeInTheDocument();
-    expect(screen.getAllByText("PASS")).toHaveLength(3);
+    expect(result.getAllByText("PASS")).toHaveLength(3);
   });
 
   it("renders a FAIL response as valid inspected evidence", async () => {
@@ -1462,7 +1545,8 @@ describe("App", () => {
     expect(
       await screen.findByRole("heading", { name: "Verified execution" }),
     ).toBeInTheDocument();
-    expect(screen.getAllByText("FAIL")).toHaveLength(2);
+    const result = within(screen.getByRole("region", { name: "Verified execution" }));
+    expect(result.getAllByText("FAIL")).toHaveLength(2);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 

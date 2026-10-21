@@ -76,6 +76,85 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/");
 });
 
+for (const width of [1280, 320]) {
+  test(`workflow help supports the keyboard at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+    const summary = page.locator("summary", { hasText: "How it works" });
+    const help = page.locator("details", { has: summary });
+    const browserHeading = help.getByRole("heading", { name: "In the browser" });
+    const chooser = page.getByRole("group", { name: "Choose a workflow" });
+    const chooserTop = await chooser.evaluate((element) => element.getBoundingClientRect().top + window.scrollY);
+
+    await expect(summary).toBeVisible();
+    await expect(help).not.toHaveAttribute("open");
+    await expect(browserHeading).toBeHidden();
+    const initialScrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+
+    await page.keyboard.press("Tab");
+    await expect(summary).toBeFocused();
+    await expect(summary).toHaveCSS("outline-style", "solid");
+
+    await page.keyboard.press("Enter");
+    await expect(help).toHaveAttribute("open");
+    await expect(browserHeading).toBeVisible();
+    expect(await chooser.evaluate((element) => element.getBoundingClientRect().top + window.scrollY)).toBeGreaterThan(chooserTop);
+    await expect(summary).toBeFocused();
+    expect(await help.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(initialScrollWidth);
+
+    await page.keyboard.press("Space");
+    await expect(help).not.toHaveAttribute("open");
+    await expect(browserHeading).toBeHidden();
+    expect(await chooser.evaluate((element) => element.getBoundingClientRect().top + window.scrollY)).toBe(chooserTop);
+
+    await page.keyboard.press("Space");
+    await expect(help).toHaveAttribute("open");
+    await page.keyboard.press("Enter");
+    await expect(help).not.toHaveAttribute("open");
+    await expect(summary).toBeFocused();
+
+    await page.keyboard.press("Tab");
+    await expect(summary).not.toBeFocused();
+    await expect(page.locator("main :focus")).toHaveCount(1);
+  });
+}
+
+test("workflow help preserves inputs and results across workflow switches", async ({ page }) => {
+  const evidence = evidenceFile("accepted.json");
+  const submittedText = await fillVerification(page, "nominal_to_safe_mode", evidence);
+  const summary = page.locator("summary", { hasText: "How it works" });
+  const help = page.locator("details", { has: summary });
+  await summary.click();
+
+  await page.getByRole("button", { name: "Verify observation", exact: true }).click();
+  const verification = page.getByRole("region", { name: "Verified execution", exact: true });
+  await expectOutcome(verification, "Verification outcome", "PASS");
+  await summary.click();
+  await expect(help).not.toHaveAttribute("open");
+  await expect(verification).toBeVisible();
+
+  await page.getByRole("button", { name: "Show Inspect evidence workflow" }).click();
+  await fillEvidence(page.getByLabel("Evidence JSON", { exact: true }), evidence);
+  await summary.click();
+  await page.getByRole("button", { name: "Inspect evidence", exact: true }).click();
+  const inspection = page.getByRole("region", { name: "Observation details", exact: true });
+  await expect(field(inspection, "Acknowledgement")).toHaveText("Accepted");
+  await expect(page.getByLabel(/^Verification (outcome|check):/)).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Show Verify observation workflow" }).click();
+  await expect(help).toHaveAttribute("open");
+  await expect(page.getByLabel("Execution ID", { exact: true })).toHaveValue("browser-execution");
+  await expect(page.getByLabel("Execution time (UTC)", { exact: true })).toHaveValue("2026-08-17T08:00:00Z");
+  await expect(page.getByLabel("Scenario", { exact: true })).toHaveValue("nominal_to_safe_mode");
+  await expect(page.getByLabel("Observation evidence JSON", { exact: true })).toHaveValue(submittedText);
+  await expectOutcome(verification, "Verification outcome", "PASS");
+
+  await page.getByRole("button", { name: "Show Inspect evidence workflow" }).click();
+  await expect(help).toHaveAttribute("open");
+  await expect(page.getByLabel("Evidence JSON", { exact: true })).toHaveValue(submittedText);
+  await expect(field(inspection, "Acknowledgement")).toHaveText("Accepted");
+});
+
 for (const example of [
   {
     name: "the same rejection fails against an explicitly selected accepted transition",
