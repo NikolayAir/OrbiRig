@@ -365,7 +365,10 @@ beforeEach(() => {
     },
     close: {
       configurable: true,
-      value: function (this: HTMLDialogElement) { this.open = false; },
+      value: function (this: HTMLDialogElement) {
+        this.open = false;
+        this.dispatchEvent(new Event("close"));
+      },
     },
   });
   vi.stubGlobal("fetch", fetchMock);
@@ -482,37 +485,85 @@ describe("App", () => {
     expect(screen.queryByLabelText("Evidence JSON")).not.toBeInTheDocument();
   });
 
-  it("keeps workflow guidance closed until requested", () => {
+  it.each(["In the browser", "From the command line"])("opens only the requested %s guidance", (name) => {
     render(<App />);
 
-    const trigger = screen.getByRole("button", { name: "How it works" });
+    const entryPoints = within(screen.getByRole("region", { name: "How it works" }));
+    const triggers = entryPoints.getAllByRole("button");
+    expect(triggers.map((button) => button.textContent)).toEqual([
+      "In the browser", "From the command line",
+    ]);
+    expect(entryPoints.getByRole("heading", { name: "How it works", level: 2 })).toBeVisible();
+    const trigger = entryPoints.getByRole("button", { name });
     const help = screen.getByRole("dialog", { hidden: true });
 
-    expect(trigger).toHaveAttribute("aria-haspopup", "dialog");
-    expect(trigger).toHaveAttribute("aria-controls", help.id);
+    for (const button of triggers) {
+      expect(button).toHaveAttribute("aria-haspopup", "dialog");
+      expect(button).toHaveAttribute("aria-controls", help.id);
+      expect(button).toHaveAttribute("tabindex", "0");
+      expect(button).not.toHaveAttribute("aria-pressed");
+    }
+    expect(screen.getAllByRole("dialog", { hidden: true })).toHaveLength(1);
     expect(help).not.toHaveAttribute("open");
-    expect(screen.getByText("In the browser")).not.toBeVisible();
 
     fireEvent.click(trigger);
 
     expect(help).toHaveAttribute("open");
-    expect(screen.getByRole("dialog", { name: "How it works" })).toBeVisible();
-    expect(
-      screen.getByRole("heading", { name: "In the browser" }),
-    ).toBeVisible();
+    expect(screen.getByRole("dialog", { name })).toBeVisible();
+    const guidance = within(help);
+    expect(guidance.getByRole("heading", { name, level: 2 })).toBeVisible();
+    if (name === "In the browser") {
+      expect(guidance.getByRole("heading", { name: "Verify observation", level: 3 })).toBeVisible();
+      expect(guidance.getByRole("heading", { name: "Inspect evidence", level: 3 })).toBeVisible();
+      expect(guidance.queryByText(/OrbiRig can verify/)).not.toBeInTheDocument();
+      expect(guidance.queryByRole("region", { name: "CLI verification command" })).not.toBeInTheDocument();
+      expect(guidance.queryByRole("link")).not.toBeInTheDocument();
+    } else {
+      expect(guidance.getByRole("region", { name: "CLI verification command" })).toBeVisible();
+      expect(guidance.queryByText(/OrbiRig checks command records/)).not.toBeInTheDocument();
+      expect(guidance.queryByRole("list")).not.toBeInTheDocument();
+    }
 
     fireEvent.click(within(help).getByRole("button", { name: "Close" }));
 
     expect(help).not.toHaveAttribute("open");
+    expect(trigger).toHaveFocus();
     expect(fetchMock).not.toHaveBeenCalled();
     expect(scrollIntoViewMock).not.toHaveBeenCalled();
   });
 
+  it("starts at the top when reopening either guide or switching between them", () => {
+    render(<App />);
+    const help = screen.getByRole("dialog", { hidden: true });
+
+    for (const name of ["In the browser", "In the browser", "From the command line", "From the command line", "In the browser"]) {
+      fireEvent.click(screen.getByRole("button", { name }));
+      expect(screen.getByRole("dialog", { name })).toBeVisible();
+      expect(help.scrollTop).toBe(0);
+      help.scrollTop = 150;
+      fireEvent.click(within(help).getByRole("button", { name: "Close" }));
+    }
+  });
+
+  it.each(["In the browser", "From the command line"])("reopens %s before the native close event arrives", (name) => {
+    render(<App />);
+    const trigger = screen.getByRole("button", { name });
+    fireEvent.click(trigger);
+    const help = screen.getByRole("dialog", { name }) as HTMLDialogElement;
+
+    // Native close() removes open before delivering its queued close event.
+    help.open = false;
+    fireEvent.click(trigger);
+
+    expect(help).toHaveAttribute("open");
+    expect(screen.getByRole("dialog", { name })).toBeVisible();
+  });
+
   it("explains the browser steps and keeps verification meaning precise", () => {
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: "How it works" }));
+    fireEvent.click(screen.getByRole("button", { name: "In the browser" }));
 
-    const guidance = within(screen.getByRole("dialog", { name: "How it works" }));
+    const guidance = within(screen.getByRole("dialog", { name: "In the browser" }));
     const [verificationSteps, inspectionSteps] = guidance.getAllByRole("list");
 
     expect(
@@ -531,8 +582,8 @@ describe("App", () => {
       "Choose Inspect evidence to explore its contents in a structured view.",
     ]);
 
-    expect(guidance.getByText(/OrbiRig checks records/)).toHaveTextContent(
-      "OrbiRig checks records of how commands behaved in simplified spacecraft tests. Each observation contains the command, whether it was accepted, the operating mode before and after execution, and the mode reported by telemetry.",
+    expect(guidance.getByText(/OrbiRig checks command records/)).toHaveTextContent(
+      "OrbiRig checks command records from simplified spacecraft tests. Each observation includes the command, whether it was accepted, the operating modes before and after execution, and the mode reported by telemetry.",
     );
     expect(guidance.getByText(/The web interface checks these records/)).toHaveTextContent(
       "The web interface checks these records. It does not send commands to a spacecraft.",
@@ -546,9 +597,11 @@ describe("App", () => {
     expect(guidance.getByText(/The scenario defines/)).toHaveTextContent(
       "The scenario defines what should happen independently of the recorded observation.",
     );
-    expect(guidance.getByText(/Inspection checks whether/)).toHaveTextContent(
-      "Inspection checks whether the supplied evidence is valid. It does not automatically mean the recorded behaviour met a scenario's expectations.",
+    const observationInspection = guidance.getByText(/Inspecting an observation checks/);
+    expect(observationInspection).toHaveTextContent(
+      "Inspecting an observation checks whether the record is valid. To check it against a scenario, use Verify observation.",
     );
+    expect(observationInspection.querySelector("strong")).toHaveTextContent("Verify observation");
     expect(guidance.getByText(/For saved verified executions and sequences/)).toHaveTextContent(
       "For saved verified executions and sequences, OrbiRig independently recalculates verification results and checks their consistency. Evidence with a correctly derived FAIL outcome is still valid and can be inspected.",
     );
@@ -556,22 +609,20 @@ describe("App", () => {
 
   it("explains local CLI setup and shows a complete selectable command", () => {
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: "How it works" }));
+    fireEvent.click(screen.getByRole("button", { name: "From the command line" }));
 
-    const help = screen.getByRole("dialog", { name: "How it works" });
-    const cli = within(help).getByRole("region", { name: "From the command line" });
-    const guidance = within(cli);
+    const help = screen.getByRole("dialog", { name: "From the command line" });
+    const guidance = within(help);
     const command = guidance.getByRole("region", { name: "CLI verification command" });
 
-    expect(within(help).getAllByRole("heading", { level: 3 }).map((heading) => heading.textContent)).toEqual([
-      "In the browser",
+    expect(guidance.getAllByRole("heading").map((heading) => heading.textContent)).toEqual([
       "From the command line",
     ]);
-    expect(guidance.getByText(/OrbiRig can also verify/)).toHaveTextContent(
-      "OrbiRig can also verify a saved observation from a terminal, without opening the web interface. It uses the same Python verification core. The command runs locally on your computer and does not execute spacecraft commands or collect observations.",
+    expect(guidance.getByText(/OrbiRig can verify/)).toHaveTextContent(
+      "OrbiRig can verify a saved observation from a terminal, without opening the web interface. It uses the same Python verification core. The command runs locally on your computer and does not execute spacecraft commands or collect observations.",
     );
     expect(guidance.getByText(/Save the observation JSON/)).toHaveTextContent(
-      "Save the observation JSON as a UTF-8 file named observation.json. You can start with a built-in example in the browser and copy its JSON into the file. From an OrbiRig checkout, install the Python package with uv sync --locked if it is not already installed, then run:",
+      "Save the observation JSON as observation.json file (UTF-8). You can copy a built-in example from the browser. From an OrbiRig checkout, run uv sync --locked if needed, then:",
     );
     expect(command).toHaveAttribute("tabindex", "0");
     expect(command.querySelector("code")?.textContent).toBe([
@@ -592,12 +643,19 @@ describe("App", () => {
 
   it("distinguishes completed CLI PASS and FAIL from input, file and internal errors", () => {
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: "How it works" }));
+    fireEvent.click(screen.getByRole("button", { name: "From the command line" }));
 
-    const cli = within(screen.getByRole("region", { name: "From the command line" }));
-    expect(cli.getByText(/The command prints JSON evidence/)).toHaveTextContent(
-      "The command prints JSON evidence in the terminal for both PASS and FAIL. Exit code 0 means PASS, while 1 means verification completed with FAIL. Invalid input returns 2, file or output errors return 3, and unexpected internal errors return 4.",
+    const cli = within(screen.getByRole("dialog", { name: "From the command line" }));
+    const results = cli.getByText(/The command prints JSON evidence/);
+    expect(results).toHaveTextContent(
+      "The command prints JSON evidence in the terminal for both PASS and FAIL results. Exit code 0 means PASS and 1 means verification completed with FAIL. Invalid input returns 2, file or output errors return 3, and unexpected internal errors return 4.",
     );
+    expect([...results.querySelectorAll("strong")].map((element) => element.textContent)).toEqual([
+      "PASS", "FAIL", "PASS", "FAIL",
+    ]);
+    expect([...results.querySelectorAll("code")].map((element) => element.textContent)).toEqual([
+      "0", "1", "2", "3", "4",
+    ]);
   });
 
   it("switches to inspection and restores the verification workflow", () => {
@@ -619,7 +677,7 @@ describe("App", () => {
     expect(screen.queryByLabelText("Evidence JSON")).not.toBeInTheDocument();
   });
 
-  it("preserves verification inputs when help is toggled and workflows are switched", () => {
+  it.each(["In the browser", "From the command line"])("preserves verification inputs through %s help and workflow switches", (name) => {
     render(<App />);
 
     fireEvent.change(screen.getByLabelText("Execution ID"), {
@@ -635,8 +693,8 @@ describe("App", () => {
       target: { value: "preserved observation" },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "How it works" }));
-    const help = screen.getByRole("dialog", { name: "How it works" });
+    fireEvent.click(screen.getByRole("button", { name }));
+    const help = screen.getByRole("dialog", { name });
     expect(help).toHaveAttribute("open");
     fireEvent.click(within(help).getByRole("button", { name: "Close" }));
     selectInspectionWorkflow();

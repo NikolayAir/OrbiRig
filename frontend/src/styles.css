@@ -63,6 +63,17 @@ header > p:last-child,
   margin-bottom: 1.25rem;
 }
 
+.workflow-help > h2 {
+  font-size: 1.0625rem;
+  margin-bottom: 0.5rem;
+}
+
+.workflow-help-actions {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .workflow-help-trigger {
   background: #f7fafb;
   border: 1px solid #c7d6de;
@@ -92,7 +103,7 @@ header > p:last-child,
   overscroll-behavior: contain;
   padding: 0;
   position: fixed;
-  width: min(58rem, calc(100% - 2rem));
+  width: min(61rem, calc(100% - 2rem));
 }
 
 .workflow-help-dialog::backdrop {
@@ -113,22 +124,21 @@ header > p:last-child,
 }
 
 .workflow-help-content {
-  max-width: 72ch;
+  max-width: 94ch;
   padding: 1rem;
 }
 
 .workflow-help-content h3 {
-  font-size: 1.0625rem;
-  margin: 0;
-}
-
-.workflow-help-content h4 {
   font-size: 1rem;
   margin: 1rem 0 0.5rem;
 }
 
 .workflow-help-content p {
   margin: 0.75rem 0 0;
+}
+
+.workflow-help-content > :first-child {
+  margin-top: 0;
 }
 
 .workflow-help-content ol {
@@ -138,10 +148,6 @@ header > p:last-child,
 
 .workflow-help-content li + li {
   margin-top: 0.25rem;
-}
-
-.workflow-help-cli {
-  margin-top: 1.5rem;
 }
 
 .workflow-help-command {
@@ -158,7 +164,7 @@ header > p:last-child,
 }
 
 .workflow-help-command:focus-visible,
-.workflow-help-cli a:focus-visible {
+.workflow-help-content a:focus-visible {
   outline: 3px solid #2498bd;
   outline-offset: 2px;
 }
@@ -830,6 +836,7 @@ dd {
   }
 
   .workflow-switcher,
+  .workflow-help-actions,
   .metadata-fields {
     grid-template-columns: 1fr;
   }
