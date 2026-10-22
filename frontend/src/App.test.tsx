@@ -373,6 +373,11 @@ beforeEach(() => {
   });
   vi.stubGlobal("fetch", fetchMock);
   vi.stubGlobal("matchMedia", matchMediaMock);
+  // Rendered sizing and resize behaviour are checked in Playwright.
+  vi.stubGlobal("ResizeObserver", class {
+    observe() {}
+    disconnect() {}
+  });
 });
 
 afterEach(() => {
@@ -458,6 +463,21 @@ function submitVerification({
 }
 
 describe("App", () => {
+  it("pairs the product name with a decorative mark and keeps the page title explicit", () => {
+    render(<App />);
+
+    const heading = screen.getByRole("heading", {
+      name: "Verify observations and inspect evidence",
+      level: 1,
+    });
+    const header = heading.closest("header")!;
+    expect(within(header).getByText("OrbiRig", { exact: true })).toBeVisible();
+    const mark = header.querySelector("img")!;
+    expect(mark.getAttribute("src")).toContain("orbirig-mark");
+    expect(mark).toHaveAttribute("alt", "");
+    expect(within(header).queryByRole("img")).not.toBeInTheDocument();
+  });
+
   it("defaults to the verification workflow while making both tasks available", () => {
     render(<App />);
 
@@ -466,10 +486,10 @@ describe("App", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Check whether a command produced the expected result/,
+        /Check recorded behaviour from simplified spacecraft tests/,
       ),
     ).toHaveTextContent(
-      "Start with a built-in example, or edit one to explore either workflow.",
+      "Check recorded behaviour from simplified spacecraft tests against a selected scenario, or inspect saved evidence.",
     );
 
     const verificationChoice = screen.getByRole("button", {
@@ -509,12 +529,15 @@ describe("App", () => {
     fireEvent.click(trigger);
 
     expect(help).toHaveAttribute("open");
-    expect(screen.getByRole("dialog", { name })).toBeVisible();
+    expect(screen.getByRole("dialog", { name: "How it works" })).toBeVisible();
     const guidance = within(help);
-    expect(guidance.getByRole("heading", { name, level: 2 })).toBeVisible();
+    expect(guidance.getByRole("heading", { name: "How it works", level: 2 })).toBeVisible();
+    expect(guidance.getByRole("tab", { name, selected: true })).toHaveAttribute("tabindex", "0");
+    expect(guidance.getByRole("tabpanel", { name })).toBeVisible();
     if (name === "In the browser") {
-      expect(guidance.getByRole("heading", { name: "Verify observation", level: 3 })).toBeVisible();
-      expect(guidance.getByRole("heading", { name: "Inspect evidence", level: 3 })).toBeVisible();
+      expect(guidance.getByRole("tab", { name: "Verify observation", selected: true })).toBeVisible();
+      expect(guidance.getByRole("tabpanel", { name: "Verify observation" })).toBeVisible();
+      expect(guidance.queryByRole("tabpanel", { name: "Inspect evidence" })).not.toBeInTheDocument();
       expect(guidance.queryByText(/OrbiRig can verify/)).not.toBeInTheDocument();
       expect(guidance.queryByRole("region", { name: "CLI verification command" })).not.toBeInTheDocument();
       expect(guidance.queryByRole("link")).not.toBeInTheDocument();
@@ -532,15 +555,136 @@ describe("App", () => {
     expect(scrollIntoViewMock).not.toHaveBeenCalled();
   });
 
+  it.each(["In the browser", "From the command line"])("switches help tabs without reopening the dialog opened by %s", (name) => {
+    render(<App />);
+    const help = screen.getByRole("dialog", { hidden: true }) as HTMLDialogElement;
+    const showModal = vi.spyOn(help, "showModal");
+    const close = vi.spyOn(help, "close");
+    const trigger = screen.getByRole("button", { name });
+    fireEvent.click(trigger);
+    const otherName = name === "In the browser" ? "From the command line" : "In the browser";
+    const otherTab = within(help).getByRole("tab", { name: otherName });
+    within(help).getByRole("tabpanel", { name: /^(In the browser|From the command line)$/ }).scrollTop = 150;
+
+    fireEvent.click(otherTab);
+
+    expect(help).toHaveAttribute("open");
+    expect(showModal).toHaveBeenCalledTimes(1);
+    expect(close).not.toHaveBeenCalled();
+    expect(within(help).getByRole("tabpanel", { name: /^(In the browser|From the command line)$/ }).scrollTop).toBe(0);
+    expect(otherTab).toHaveAttribute("aria-selected", "true");
+    expect(otherTab).toHaveAttribute("tabindex", "0");
+    const panel = within(help).getByRole("tabpanel", { name: otherName });
+    expect(otherTab).toHaveAttribute("aria-controls", panel.id);
+    expect(panel).toHaveAttribute("aria-labelledby", otherTab.id);
+    expect(within(help).getAllByRole("tabpanel", { name: /^(In the browser|From the command line)$/ })).toHaveLength(1);
+    expect(within(help).getByRole("tab", { name })).toHaveAttribute("tabindex", "-1");
+
+    fireEvent.click(within(help).getByRole("button", { name: "Close" }));
+    expect(trigger).toHaveFocus();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("selects and focuses help tabs with arrows, Home and End", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "In the browser" }));
+    const help = screen.getByRole("dialog", { name: "How it works" });
+    const tabs = within(help).getByRole("tablist", { name: "Help sections" });
+    within(tabs).getByRole("tab", { name: "In the browser" }).focus();
+
+    for (const [key, name] of [
+      ["ArrowRight", "From the command line"],
+      ["ArrowRight", "In the browser"],
+      ["ArrowLeft", "From the command line"],
+      ["ArrowLeft", "In the browser"],
+      ["End", "From the command line"],
+      ["Home", "In the browser"],
+    ]) {
+      within(help).getByRole("tabpanel", { name: /^(In the browser|From the command line)$/ }).scrollTop = 150;
+      fireEvent.keyDown(document.activeElement!, { key });
+      const selected = within(tabs).getByRole("tab", { name, selected: true });
+      expect(selected).toHaveFocus();
+      expect(selected).toHaveAttribute("tabindex", "0");
+      expect(within(help).getByRole("tabpanel", { name })).toBeVisible();
+      expect(within(help).getByRole("tabpanel", { name: /^(In the browser|From the command line)$/ }).scrollTop).toBe(0);
+    }
+  });
+
+  it.each(["verification", "inspection"])("opens browser instructions for the active %s workflow on every opening", (workflow) => {
+    render(<App />);
+    if (workflow === "inspection") selectInspectionWorkflow();
+    const selectedName = workflow === "verification" ? "Verify observation" : "Inspect evidence";
+    const otherName = workflow === "verification" ? "Inspect evidence" : "Verify observation";
+    const trigger = screen.getByRole("button", { name: "In the browser" });
+    fireEvent.click(trigger);
+    const help = within(screen.getByRole("dialog", { name: "How it works" }));
+    expect(help.getByRole("tab", { name: selectedName, selected: true })).toBeVisible();
+    fireEvent.click(help.getByRole("tab", { name: otherName }));
+    expect(help.getByRole("tabpanel", { name: otherName })).toBeVisible();
+    expect(help.queryByRole("tabpanel", { name: selectedName })).not.toBeInTheDocument();
+    expect(help.getAllByRole("list")).toHaveLength(1);
+    fireEvent.click(help.getByRole("button", { name: "Close" }));
+    fireEvent.click(trigger);
+    expect(help.getByRole("tab", { name: selectedName, selected: true })).toBeVisible();
+    expect(screen.getByRole("button", {
+      name: `Show ${selectedName} workflow`,
+    })).toHaveAttribute("aria-pressed", "true");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("navigates browser instruction tabs independently and retains their selection through CLI help", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "In the browser" }));
+    const help = screen.getByRole("dialog", { name: "How it works" }) as HTMLDialogElement;
+    const showModal = vi.spyOn(help, "showModal");
+    const close = vi.spyOn(help, "close");
+    const guidance = within(help);
+    const tabs = guidance.getByRole("tablist", { name: "Browser instructions" });
+    const browserPanel = guidance.getByRole("tabpanel", { name: "In the browser" });
+    Object.defineProperty(tabs, "offsetTop", { value: 200 });
+    Object.defineProperty(browserPanel, "offsetTop", { value: 100 });
+    within(tabs).getByRole("tab", { name: "Verify observation" }).focus();
+    for (const [key, name] of [
+      ["ArrowRight", "Inspect evidence"],
+      ["ArrowRight", "Verify observation"],
+      ["ArrowLeft", "Inspect evidence"],
+      ["ArrowLeft", "Verify observation"],
+      ["End", "Inspect evidence"],
+      ["Home", "Verify observation"],
+      ["End", "Inspect evidence"],
+    ]) {
+      browserPanel.scrollTop = 500;
+      fireEvent.keyDown(document.activeElement!, { key });
+      const selected = within(tabs).getByRole("tab", { name, selected: true });
+      const panel = guidance.getByRole("tabpanel", { name });
+      expect(selected).toHaveFocus();
+      expect(selected).toHaveAttribute("tabindex", "0");
+      expect(within(tabs).getByRole("tab", { selected: false })).toHaveAttribute("tabindex", "-1");
+      expect(selected).toHaveAttribute("aria-controls", panel.id);
+      expect(panel).toHaveAttribute("aria-labelledby", selected.id);
+      expect(panel).toHaveAttribute("tabindex", "0");
+      expect(browserPanel.scrollTop).toBe(100);
+      expect(guidance.getByRole("tab", { name: "In the browser" })).toHaveAttribute("aria-selected", "true");
+    }
+    fireEvent.click(guidance.getByRole("tab", { name: "From the command line" }));
+    expect(guidance.queryByRole("tablist", { name: "Browser instructions" })).not.toBeInTheDocument();
+    fireEvent.click(guidance.getByRole("tab", { name: "In the browser" }));
+    expect(guidance.getByRole("tab", { name: "Inspect evidence", selected: true })).toBeVisible();
+    expect(browserPanel.scrollTop).toBe(0);
+    expect(showModal).not.toHaveBeenCalled();
+    expect(close).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("starts at the top when reopening either guide or switching between them", () => {
     render(<App />);
     const help = screen.getByRole("dialog", { hidden: true });
 
     for (const name of ["In the browser", "In the browser", "From the command line", "From the command line", "In the browser"]) {
       fireEvent.click(screen.getByRole("button", { name }));
-      expect(screen.getByRole("dialog", { name })).toBeVisible();
-      expect(help.scrollTop).toBe(0);
-      help.scrollTop = 150;
+      expect(screen.getByRole("dialog", { name: "How it works" })).toBeVisible();
+      expect(within(help).getByRole("tabpanel", { name: /^(In the browser|From the command line)$/ }).scrollTop).toBe(0);
+      within(help).getByRole("tabpanel", { name: /^(In the browser|From the command line)$/ }).scrollTop = 150;
       fireEvent.click(within(help).getByRole("button", { name: "Close" }));
     }
   });
@@ -549,22 +693,22 @@ describe("App", () => {
     render(<App />);
     const trigger = screen.getByRole("button", { name });
     fireEvent.click(trigger);
-    const help = screen.getByRole("dialog", { name }) as HTMLDialogElement;
+    const help = screen.getByRole("dialog", { name: "How it works" }) as HTMLDialogElement;
 
     // Native close() removes open before delivering its queued close event.
     help.open = false;
     fireEvent.click(trigger);
 
     expect(help).toHaveAttribute("open");
-    expect(screen.getByRole("dialog", { name })).toBeVisible();
+    expect(screen.getByRole("dialog", { name: "How it works" })).toBeVisible();
   });
 
   it("explains the browser steps and keeps verification meaning precise", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "In the browser" }));
 
-    const guidance = within(screen.getByRole("dialog", { name: "In the browser" }));
-    const [verificationSteps, inspectionSteps] = guidance.getAllByRole("list");
+    const guidance = within(screen.getByRole("dialog", { name: "How it works" }));
+    const verificationSteps = guidance.getByRole("list");
 
     expect(
       within(verificationSteps).getAllByRole("listitem").map((step) => step.textContent?.replace(/\s+/g, " ").trim()),
@@ -574,19 +718,12 @@ describe("App", () => {
       "Paste the observation JSON or choose Load example to try a sample.",
       "Choose Verify observation to see the individual checks and overall PASS or FAIL result.",
     ]);
-    expect(
-      within(inspectionSteps).getAllByRole("listitem").map((step) => step.textContent?.replace(/\s+/g, " ").trim()),
-    ).toEqual([
-      "Select the type of saved record: observation, verified execution, or verified-execution sequence.",
-      "Paste its JSON or choose Load example.",
-      "Choose Inspect evidence to explore its contents in a structured view.",
-    ]);
 
     expect(guidance.getByText(/OrbiRig checks command records/)).toHaveTextContent(
-      "OrbiRig checks command records from simplified spacecraft tests. Each observation includes the command, whether it was accepted, the operating modes before and after execution, and the mode reported by telemetry.",
+      "OrbiRig checks command records from simplified spacecraft tests. Each observation includes the command, whether it was accepted, the operating modes before and after execution, and the mode reported in telemetry (recorded status data).",
     );
-    expect(guidance.getByText(/The web interface checks these records/)).toHaveTextContent(
-      "The web interface checks these records. It does not send commands to a spacecraft.",
+    expect(guidance.getByText(/The web interface verifies and inspects submitted records/)).toHaveTextContent(
+      "The web interface verifies and inspects submitted records. It does not connect to a real spacecraft, send spacecraft commands or collect live telemetry.",
     );
     expect(guidance.getByText(/means the recorded behaviour matches/)).toHaveTextContent(
       "PASS means the recorded behaviour matches the selected scenario. This can include a rejected command if rejection was expected.",
@@ -597,6 +734,15 @@ describe("App", () => {
     expect(guidance.getByText(/The scenario defines/)).toHaveTextContent(
       "The scenario defines what should happen independently of the recorded observation.",
     );
+    fireEvent.click(guidance.getByRole("tab", { name: "Inspect evidence" }));
+    const inspectionSteps = guidance.getByRole("list");
+    expect(
+      within(inspectionSteps).getAllByRole("listitem").map((step) => step.textContent?.replace(/\s+/g, " ").trim()),
+    ).toEqual([
+      "Select the type of saved record: observation, verified execution, or verified-execution sequence.",
+      "Paste its JSON or choose Load example.",
+      "Choose Inspect evidence to explore its contents in a structured view.",
+    ]);
     const observationInspection = guidance.getByText(/Inspecting an observation checks/);
     expect(observationInspection).toHaveTextContent(
       "Inspecting an observation checks whether the record is valid. To check it against a scenario, use Verify observation.",
@@ -611,18 +757,18 @@ describe("App", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "From the command line" }));
 
-    const help = screen.getByRole("dialog", { name: "From the command line" });
+    const help = screen.getByRole("dialog", { name: "How it works" });
     const guidance = within(help);
     const command = guidance.getByRole("region", { name: "CLI verification command" });
 
     expect(guidance.getAllByRole("heading").map((heading) => heading.textContent)).toEqual([
-      "From the command line",
+      "How it works",
     ]);
     expect(guidance.getByText(/OrbiRig can verify/)).toHaveTextContent(
       "OrbiRig can verify a saved observation from a terminal, without opening the web interface. It uses the same Python verification core. The command runs locally on your computer and does not execute spacecraft commands or collect observations.",
     );
     expect(guidance.getByText(/Save the observation JSON/)).toHaveTextContent(
-      "Save the observation JSON as observation.json file (UTF-8). You can copy a built-in example from the browser. From an OrbiRig checkout, run uv sync --locked if needed, then:",
+      "Save the observation JSON to a UTF-8 file named observation.json. You can copy a built-in example from the browser. From an OrbiRig checkout, run uv sync --locked if needed, then:",
     );
     expect(command).toHaveAttribute("tabindex", "0");
     expect(command.querySelector("code")?.textContent).toBe([
@@ -645,7 +791,7 @@ describe("App", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "From the command line" }));
 
-    const cli = within(screen.getByRole("dialog", { name: "From the command line" }));
+    const cli = within(screen.getByRole("dialog", { name: "How it works" }));
     const results = cli.getByText(/The command prints JSON evidence/);
     expect(results).toHaveTextContent(
       "The command prints JSON evidence in the terminal for both PASS and FAIL results. Exit code 0 means PASS and 1 means verification completed with FAIL. Invalid input returns 2, file or output errors return 3, and unexpected internal errors return 4.",
@@ -694,8 +840,13 @@ describe("App", () => {
     });
 
     fireEvent.click(screen.getByRole("button", { name }));
-    const help = screen.getByRole("dialog", { name });
+    const help = screen.getByRole("dialog", { name: "How it works" });
     expect(help).toHaveAttribute("open");
+    const otherGuide = name === "In the browser" ? "From the command line" : "In the browser";
+    fireEvent.click(within(help).getByRole("tab", { name: otherGuide }));
+    fireEvent.click(within(help).getByRole("tab", { name: "In the browser" }));
+    fireEvent.click(within(help).getByRole("tab", { name: "Inspect evidence" }));
+    fireEvent.click(within(help).getByRole("tab", { name: "Verify observation" }));
     fireEvent.click(within(help).getByRole("button", { name: "Close" }));
     selectInspectionWorkflow();
     selectVerificationWorkflow();
@@ -847,12 +998,85 @@ describe("App", () => {
       name: "Select a supported scenario",
     }) as HTMLOptionElement;
     const nominalScenario = screen.getByRole("option", {
-      name: "NOMINAL to SAFE (nominal_to_safe_mode)",
+      name: "NOMINAL to SAFE",
     }) as HTMLOptionElement;
 
     expect(scenario).toHaveValue("");
     expect(placeholder.selected).toBe(true);
     expect(nominalScenario.selected).toBe(false);
+    expect(nominalScenario.value).toBe("nominal_to_safe_mode");
+  });
+
+  it.each([
+    ["Verify observation", "Provide execution details, select a supported scenario, and submit observation evidence for verification."],
+    ["Inspect evidence", "Select an evidence type and paste its JSON document to review it in a structured view."],
+  ])("moves the %s introduction into accessible contextual help", (title, text) => {
+    render(<App />);
+    if (title === "Inspect evidence") selectInspectionWorkflow();
+
+    const heading = screen.getByRole("heading", { name: title, level: 2 });
+    const help = within(heading.parentElement!).getByRole("button", { name: `About ${title}` });
+    const description = screen.getByText(text);
+
+    expect(description).toHaveAttribute("role", "tooltip");
+    expect(description.tagName).toBe("SPAN");
+    expect(help).toHaveAccessibleDescription(description.textContent!);
+    expect(help).toHaveAttribute("aria-controls", description.id);
+    expect(help).toHaveTextContent("i");
+
+    help.focus();
+    fireEvent.click(help);
+    expect(help.parentElement).toHaveAttribute("data-open", "true");
+    fireEvent.keyDown(help, { key: "Escape" });
+    expect(help.parentElement).toHaveAttribute("data-open", "false");
+    expect(help.parentElement).toHaveAttribute("data-dismissed", "true");
+    expect(help).toHaveFocus();
+
+    fireEvent.click(help);
+    expect(help.parentElement).toHaveAttribute("data-open", "true");
+    expect(help.parentElement).toHaveAttribute("data-dismissed", "false");
+    fireEvent.click(help);
+    expect(help.parentElement).toHaveAttribute("data-open", "false");
+    expect(help.parentElement).toHaveAttribute("data-dismissed", "true");
+    expect(help).toHaveFocus();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["Verify observation", "Execution ID"],
+    ["Inspect evidence", "Evidence JSON"],
+  ])("dismisses %s help on outside interaction and when focus leaves", (title, outsideLabel) => {
+    render(<App />);
+    if (title === "Inspect evidence") selectInspectionWorkflow();
+
+    const help = screen.getByRole("button", { name: `About ${title}` });
+    help.focus();
+    fireEvent.click(help);
+    fireEvent.pointerDown(screen.getByLabelText(outsideLabel));
+    expect(help.parentElement).toHaveAttribute("data-open", "false");
+    expect(help.parentElement).toHaveAttribute("data-dismissed", "true");
+
+    fireEvent.pointerEnter(help.parentElement!);
+    expect(help.parentElement).toHaveAttribute("data-dismissed", "false");
+    fireEvent.click(help);
+    act(() => screen.getByLabelText(outsideLabel).focus());
+    expect(help.parentElement).toHaveAttribute("data-open", "false");
+    expect(help.parentElement).toHaveAttribute("data-dismissed", "true");
+  });
+
+  it("dismisses workflow introductions on switching without changing inspection inputs", () => {
+    render(<App />);
+    selectInspectionWorkflow();
+    fireEvent.change(screen.getByLabelText("Evidence JSON"), { target: { value: "edited evidence" } });
+    selectVerifiedExecutionSequence();
+    fireEvent.click(screen.getByRole("button", { name: "About Inspect evidence" }));
+    selectVerificationWorkflow();
+    expect(screen.getByRole("button", { name: "About Verify observation" }).parentElement).toHaveAttribute("data-open", "false");
+    selectInspectionWorkflow();
+    expect(screen.getByRole("button", { name: "About Inspect evidence" }).parentElement).toHaveAttribute("data-open", "false");
+    expect(screen.getByLabelText("Evidence JSON")).toHaveValue("edited evidence");
+    expect(screen.getByRole("radio", { name: "Verified execution sequence" })).toBeChecked();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("provides accessible, dismissible Scenario help", () => {
@@ -1015,7 +1239,7 @@ describe("App", () => {
     );
     expect(observationEvidence).toHaveAttribute(
       "aria-describedby",
-      "verification-observation-evidence-error",
+      "verification-observation-hint verification-observation-evidence-error",
     );
     expect(document.activeElement).toBe(executionId);
 
@@ -1035,9 +1259,113 @@ describe("App", () => {
     ).toBeInTheDocument();
   });
 
+  it.each([
+    ["Execution ID", "manual-execution", "example-execution-001"],
+    ["Execution time (UTC)", "2026-10-22T12:00:00Z", "2026-08-26T08:30:00Z"],
+    ["Observation evidence JSON", "manual evidence", observationEvidenceDocument],
+  ])("protects edited %s until replacement is confirmed", (label, value, example) => {
+    render(<App />);
+    const input = screen.getByLabelText(label);
+    const trigger = screen.getByRole("button", { name: "Load example" });
+    fireEvent.change(input, { target: { value } });
+    fireEvent.click(trigger);
+    const dialog = screen.getByRole("dialog", { name: "Replace current inputs?" });
+    expect(dialog).toHaveAccessibleDescription(
+      "Loading the example will replace your current form inputs, including any unsaved changes.",
+    );
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(input).toHaveValue(value);
+    expect(trigger).toHaveFocus();
+    expect(screen.getByLabelText("Scenario")).toHaveValue("");
+
+    fireEvent.click(trigger);
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Replace current inputs?" })).getByRole("button", { name: "Load example" }));
+    expect(input).toHaveValue(example);
+    expect(screen.queryByRole("dialog", { name: "Replace current inputs?" })).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it.each(["verification", "inspection"])("does not prompt for unchanged or reverted %s examples", (workflow) => {
+    render(<App />);
+    if (workflow === "inspection") selectInspectionWorkflow();
+    const input = screen.getByLabelText(workflow === "inspection" ? "Evidence JSON" : "Execution ID") as HTMLInputElement;
+    const trigger = screen.getByRole("button", { name: "Load example" });
+    fireEvent.change(input, { target: { value: " \n " } });
+    fireEvent.click(trigger);
+    expect(screen.queryByRole("dialog", { name: "Replace current inputs?" })).not.toBeInTheDocument();
+    const example = input.value;
+    fireEvent.click(trigger);
+    expect(input).toHaveValue(example);
+    fireEvent.change(input, { target: { value: "manual value" } });
+    fireEvent.change(input, { target: { value: example } });
+    fireEvent.click(trigger);
+    expect(screen.queryByRole("dialog", { name: "Replace current inputs?" })).not.toBeInTheDocument();
+
+    if (workflow === "verification") {
+      fireEvent.change(screen.getByLabelText("Scenario"), { target: { value: "safe_to_nominal_mode" } });
+      fireEvent.click(trigger);
+      expect(screen.queryByRole("dialog", { name: "Replace current inputs?" })).not.toBeInTheDocument();
+      expect(input).toHaveValue("example-execution-003");
+    }
+
+    // Clearing a populated example is also a manual change.
+    fireEvent.change(input, { target: { value: "" } });
+    fireEvent.click(trigger);
+    fireEvent(screen.getByRole("dialog", { name: "Replace current inputs?" }), new Event("cancel", { cancelable: true }));
+    expect(input).toHaveValue("");
+    expect(trigger).toHaveFocus();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("does not prompt when a manually entered value already matches the next example", () => {
+    render(<App />);
+    fireEvent.change(screen.getByLabelText("Execution ID"), { target: { value: "example-execution-001" } });
+    fireEvent.click(screen.getByRole("button", { name: "Load example" }));
+    expect(screen.queryByRole("dialog", { name: "Replace current inputs?" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Scenario")).toHaveValue("nominal_to_safe_mode");
+  });
+
+  it("preserves validation feedback and manual values when example replacement is cancelled", () => {
+    render(<App />);
+    fireEvent.change(screen.getByLabelText("Execution ID"), { target: { value: "manual-id" } });
+    fireEvent.click(screen.getByRole("button", { name: "Verify observation" }));
+    const errors = screen.getAllByRole("alert").map(element => element.textContent);
+    fireEvent.click(screen.getByRole("button", { name: "Load example" }));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Replace current inputs?" })).getByRole("button", { name: "Cancel" }));
+    expect(screen.getAllByRole("alert").map(element => element.textContent)).toEqual(errors);
+    expect(screen.getByLabelText("Execution ID")).toHaveValue("manual-id");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps manual-change protection separate across workflow switches", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Load example" }));
+    fireEvent.change(screen.getByLabelText("Execution ID"), { target: { value: "keep-verification" } });
+    selectInspectionWorkflow();
+    fireEvent.click(screen.getByRole("button", { name: "Load example" }));
+    fireEvent.change(screen.getByLabelText("Evidence JSON"), { target: { value: "keep-inspection" } });
+    selectVerifiedExecutionSequence();
+    selectVerificationWorkflow();
+    fireEvent.click(screen.getByRole("button", { name: "Load example" }));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Replace current inputs?" })).getByRole("button", { name: "Cancel" }));
+    expect(screen.getByLabelText("Execution ID")).toHaveValue("keep-verification");
+    selectInspectionWorkflow();
+    fireEvent.click(screen.getByRole("button", { name: "Load example" }));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Replace current inputs?" })).getByRole("button", { name: "Cancel" }));
+    expect(screen.getByLabelText("Evidence JSON")).toHaveValue("keep-inspection");
+    expect(screen.getByRole("radio", { name: "Verified execution sequence" })).toBeChecked();
+  });
+
   it("loads an editable verification example without submitting it", () => {
     render(<App />);
 
+    expect(screen.getByRole("button", { name: "Load example" })).toHaveAccessibleDescription(
+      "Replaces current inputs",
+    );
+    expect(screen.getByLabelText("Observation evidence JSON")).toHaveAccessibleDescription(
+      "Include the command, acknowledgement, states and telemetry from the recorded execution.",
+    );
     fireEvent.click(screen.getByRole("button", { name: "Load example" }));
 
     expect(screen.getByLabelText("Execution ID")).toHaveValue(
@@ -1135,6 +1463,11 @@ describe("App", () => {
     await expectFeedbackScroll();
 
     fireEvent.click(screen.getByRole("button", { name: "Load example" }));
+    const confirmation = screen.getByRole("dialog", { name: "Replace current inputs?" });
+    fireEvent.click(within(confirmation).getByRole("button", { name: "Cancel" }));
+    expect(screen.getByRole("region", { name: "Verified execution" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Load example" }));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Replace current inputs?" })).getByRole("button", { name: "Load example" }));
 
     expect(
       screen.queryByRole("region", { name: "Verified execution" }),
@@ -1205,6 +1538,8 @@ describe("App", () => {
       name: "Verified execution",
     });
     expect(within(record).getByText("exec-web-001")).toBeInTheDocument();
+    expect(within(record).getByText("Verification result")).toBeInTheDocument();
+    expect(within(record).getByText("The recorded behaviour matches this execution's scenario.")).toBeVisible();
     expect(
       within(record).getByLabelText("Verification outcome: PASS"),
     ).toBeInTheDocument();
@@ -1239,6 +1574,23 @@ describe("App", () => {
     );
   });
 
+  it.each(["verification", "inspection"])("keeps the example action disabled while %s is pending", (workflow) => {
+    fetchMock.mockReturnValue(new Promise(() => {}));
+    if (workflow === "verification") {
+      submitVerification();
+    } else {
+      submitEvidence("pending observation");
+    }
+
+    expect(screen.getByRole("button", { name: "Load example" })).toBeDisabled();
+    if (workflow === "verification") {
+      for (const label of ["Execution ID", "Execution time (UTC)", "Scenario", "Observation evidence JSON"]) {
+        expect(screen.getByLabelText(label, { exact: true })).toBeDisabled();
+      }
+      expect(screen.getByRole("button", { name: "Verify observation" })).toBeDisabled();
+    }
+  });
+
   it("renders completed FAIL verification without an error state", async () => {
     fetchMock.mockResolvedValue({
       ok: true,
@@ -1266,6 +1618,7 @@ describe("App", () => {
       within(record).getByLabelText("Verification outcome: FAIL"),
     ).toBeInTheDocument();
     expect(within(record).getAllByText("FAIL")).toHaveLength(2);
+    expect(within(record).getByText("The recorded behaviour does not meet this execution's scenario expectations. Review the failed checks below.")).toBeVisible();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
@@ -1394,6 +1747,11 @@ describe("App", () => {
     expect(observationOption).toBeChecked();
     expect(verifiedExecutionOption).not.toBeChecked();
     expect(sequenceOption).not.toBeChecked();
+    expect(observationOption).toHaveAccessibleDescription("Recorded behaviour without verification results.");
+    expect(verifiedExecutionOption).toHaveAccessibleDescription("One execution with its scenario and checks.");
+    expect(sequenceOption).toHaveAccessibleDescription("Ordered executions and continuity checks.");
+    expect(screen.getByRole("button", { name: "Load example" })).toHaveAccessibleDescription("Replaces evidence JSON");
+    expect(screen.getByLabelText("Evidence JSON")).toHaveAccessibleDescription("Paste the complete document for the selected evidence type.");
 
     fireEvent.click(verifiedExecutionOption);
 
@@ -1429,6 +1787,7 @@ describe("App", () => {
     expect(evidenceInput).toHaveValue("user evidence");
 
     fireEvent.click(screen.getByRole("button", { name: "Load example" }));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Replace current inputs?" })).getByRole("button", { name: "Load example" }));
     expect(JSON.parse((evidenceInput as HTMLTextAreaElement).value)).toEqual(
       expectedVerifiedExecutionInspectionExample,
     );
@@ -1465,6 +1824,12 @@ describe("App", () => {
     await expectFeedbackScroll();
 
     fireEvent.click(screen.getByRole("button", { name: "Load example" }));
+    const confirmation = screen.getByRole("dialog", { name: "Replace current inputs?" });
+    fireEvent.click(within(confirmation).getByRole("button", { name: "Cancel" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("The observation evidence is invalid.");
+    expect(screen.getByLabelText("Evidence JSON")).toHaveValue("invalid evidence");
+    fireEvent.click(screen.getByRole("button", { name: "Load example" }));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Replace current inputs?" })).getByRole("button", { name: "Load example" }));
 
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Evidence JSON")).toHaveValue(
@@ -1534,6 +1899,8 @@ describe("App", () => {
     expect(screen.getAllByText("SAFE")).toHaveLength(3);
     expect(screen.getByText("Accepted")).toBeInTheDocument();
     const result = within(screen.getByRole("region", { name: "Observation details" }));
+    expect(result.getByText("Valid observation evidence")).toBeVisible();
+    expect(result.getByText("These are reported values. No scenario verification has been performed.")).toBeVisible();
     expect(result.queryByText("PASS")).not.toBeInTheDocument();
     expect(result.queryByText("FAIL")).not.toBeInTheDocument();
     expect(screen.queryByText(/ScenarioId/)).not.toBeInTheDocument();
@@ -1662,6 +2029,7 @@ describe("App", () => {
     ).toBeInTheDocument();
     const result = within(screen.getByRole("region", { name: "Verified execution" }));
     expect(result.getAllByText("FAIL")).toHaveLength(2);
+    expect(result.getByText("Valid saved evidence")).toBeVisible();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
@@ -1844,6 +2212,8 @@ describe("App", () => {
     expect(
       within(sequence).getByLabelText("Sequence outcome: FAIL"),
     ).toBeInTheDocument();
+    expect(within(sequence).getByText("Valid saved evidence")).toBeVisible();
+    expect(within(sequence).getByText("One or more execution or continuity checks did not pass. Records are shown in the supplied order.")).toBeVisible();
 
     const boundary = within(sequence).getByRole("article", {
       name: "Continuity check 1",

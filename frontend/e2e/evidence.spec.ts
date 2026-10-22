@@ -76,8 +76,47 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/");
 });
 
+test("page identity loads the product mark alongside its name", async ({ page }) => {
+  await expect(page.locator(".brand")).toHaveText("OrbiRig");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "Verify observations and inspect evidence",
+  );
+  const mark = page.locator(".brand img");
+  await expect(mark).toHaveAttribute("alt", "");
+  await expect(mark).toHaveJSProperty("complete", true);
+  expect(await mark.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThanOrEqual(40);
+});
+
+test("keyboard workflow selection stays separate from help and preserves edited input", async ({ page, browserName }) => {
+  const help = page.getByRole("region", { name: "How it works" });
+  const chooser = page.getByRole("group", { name: "Choose a workflow" });
+  await expect(help.getByRole("button")).toHaveCount(2);
+  await expect(chooser.getByRole("button")).toHaveCount(2);
+
+  await page.getByLabel("Execution ID", { exact: true }).fill("keyboard-review");
+  const verify = chooser.getByRole("button", { name: "Show Verify observation workflow" });
+  const inspect = chooser.getByRole("button", { name: "Show Inspect evidence workflow" });
+  // WebKit on macOS follows native Option-Tab navigation for non-text controls.
+  const optionTab = browserName === "webkit" && process.platform === "darwin";
+  await verify.focus();
+  await expect(verify).toHaveCSS("outline-style", "solid");
+  await page.keyboard.press(optionTab ? "Alt+Tab" : "Tab");
+  await expect(inspect).toBeFocused();
+  await page.keyboard.press("Space");
+  await expect(inspect).toHaveAttribute("aria-pressed", "true");
+  await expect(verify).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByLabel("Evidence JSON", { exact: true })).toBeVisible();
+  await page.keyboard.press(optionTab ? "Alt+Shift+Tab" : "Shift+Tab");
+  await expect(verify).toBeFocused();
+  await page.keyboard.press("Space");
+  await expect(verify).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByLabel("Execution ID", { exact: true })).toHaveValue("keyboard-review");
+});
+
 for (const viewport of [
+  { width: 1440, height: 900 },
   { width: 1280, height: 800 },
+  { width: 768, height: 1024 },
   { width: 320, height: 800 },
   { width: 390, height: 480 },
   { width: 320, height: 480 },
@@ -90,7 +129,8 @@ for (const viewport of [
       const trigger = guide === "In the browser" ? browserTrigger : cliTrigger;
       const otherGuide = guide === "In the browser" ? "From the command line" : "In the browser";
       const otherTrigger = page.getByRole("button", { name: otherGuide, exact: true });
-      const help = page.getByRole("dialog", { name: guide });
+      const help = page.getByRole("dialog", { name: "How it works" });
+      const activePanel = help.getByRole("tabpanel", { name: /^(In the browser|From the command line)$/ });
       const chooser = page.getByRole("group", { name: "Choose a workflow" });
       const chooserTop = await chooser.evaluate((element) => element.getBoundingClientRect().top + window.scrollY);
 
@@ -99,14 +139,19 @@ for (const viewport of [
       await expect(cliTrigger).toBeVisible();
       const browserBounds = (await browserTrigger.boundingBox())!;
       const cliBounds = (await cliTrigger.boundingBox())!;
-      expect(browserBounds.width).toBe(cliBounds.width);
-      if (viewport.width === 1280) {
-        expect(browserBounds.y).toBe(cliBounds.y);
-        expect(browserBounds.x + browserBounds.width).toBeLessThan(cliBounds.x);
-      } else {
-        expect(browserBounds.x).toBe(cliBounds.x);
-        expect(browserBounds.y + browserBounds.height).toBeLessThan(cliBounds.y);
+      // Supporting help uses content-sized controls, which may wrap at narrow widths.
+      expect(
+        browserBounds.x + browserBounds.width <= cliBounds.x ||
+        browserBounds.y + browserBounds.height <= cliBounds.y,
+      ).toBe(true);
+      for (const bounds of [browserBounds, cliBounds]) {
+        expect(bounds.height).toBeGreaterThanOrEqual(24);
+        expect(bounds.x).toBeGreaterThanOrEqual(0);
+        expect(bounds.x + bounds.width).toBeLessThanOrEqual(viewport.width);
       }
+      const helpBounds = (await page.getByRole("region", { name: "How it works" }).boundingBox())!;
+      const chooserBounds = (await chooser.boundingBox())!;
+      expect(helpBounds.y + helpBounds.height).toBeLessThan(chooserBounds.y);
       await expect(page.locator("dialog")).toHaveCount(1);
       await expect(page.locator("dialog")).not.toHaveAttribute("open");
       await expect(page.getByRole("dialog")).toBeHidden();
@@ -126,28 +171,45 @@ for (const viewport of [
       await expect(help).toHaveAttribute("open");
       const close = help.getByRole("button", { name: "Close", exact: true });
       await expect(close).toBeFocused();
-      await expect(help.getByRole("heading", { name: guide, level: 2 })).toBeInViewport();
+      // Firefox's protocol rounds quad coordinates before subtracting them.
+      // Read DOMRect dimensions directly to preserve the strict 44px minimum.
+      const closeBounds = await close.evaluate(element => {
+        const { width, height } = element.getBoundingClientRect();
+        return { width, height };
+      });
+      expect(closeBounds.width).toBeGreaterThanOrEqual(44);
+      expect(closeBounds.height).toBeGreaterThanOrEqual(44);
+      await expect(help.getByRole("heading", { name: "How it works", level: 2 })).toBeInViewport();
+      const selectedTab = help.getByRole("tab", { name: guide });
+      const otherTab = help.getByRole("tab", { name: otherGuide });
+      await expect(help.getByRole("tablist", { name: "Help sections" })).toBeVisible();
+      await expect(selectedTab).toHaveAttribute("aria-selected", "true");
+      await expect(selectedTab).toHaveAttribute("tabindex", "0");
+      await expect(otherTab).toHaveAttribute("aria-selected", "false");
+      await expect(otherTab).toHaveAttribute("tabindex", "-1");
+      await expect(help.getByRole("tabpanel", { name: guide })).toBeVisible();
+      const tabBounds = await help.getByRole("tablist", { name: "Help sections" }).getByRole("tab").evaluateAll(elements => elements.map(element => {
+        const { x, y, width } = element.getBoundingClientRect();
+        return { x, y, width };
+      }));
+      expect(tabBounds[0].y).toBe(tabBounds[1].y);
+      expect(tabBounds[0].x + tabBounds[0].width).toBeLessThanOrEqual(tabBounds[1].x);
       await expect(help.getByRole("heading", { name: otherGuide })).toHaveCount(0);
-      expect(await help.evaluate((element) => element.scrollTop)).toBe(0);
+      expect(await activePanel.evaluate((element) => element.scrollTop)).toBe(0);
       const firstParagraph = help.locator(".workflow-help-content > p").first();
       await expect(firstParagraph).toBeInViewport();
       expect(await chooser.evaluate((element) => element.getBoundingClientRect().top + window.scrollY)).toBe(chooserTop);
       expect(await page.evaluate(() => window.scrollY)).toBe(initialScrollY);
       expect(await help.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+      expect(await activePanel.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
       const bounds = (await help.boundingBox())!;
       expect(bounds.x).toBeGreaterThanOrEqual(0);
       expect(bounds.y).toBeGreaterThanOrEqual(0);
       expect(bounds.x + bounds.width).toBeLessThanOrEqual(viewport.width);
       expect(bounds.y + bounds.height).toBeLessThanOrEqual(viewport.height);
-      if (viewport.width === 1280) {
-        const textWidth = await help.locator(".workflow-help-content").evaluate((element) => {
-          const styles = getComputedStyle(element);
-          return element.clientWidth - parseFloat(styles.paddingLeft) - parseFloat(styles.paddingRight);
-        });
-        expect(bounds.width).toBeGreaterThan(928);
-        expect(bounds.width).toBeLessThanOrEqual(992);
-        expect(textWidth).toBeGreaterThan(bounds.width * 0.9);
-      }
+      const textBounds = (await firstParagraph.boundingBox())!;
+      expect(textBounds.x).toBeGreaterThan(bounds.x);
+      expect(textBounds.x + textBounds.width).toBeLessThan(bounds.x + bounds.width);
 
       // Native Tab order can include the dialog itself and browser chrome.
       for (const key of ["Tab", "Shift+Tab"]) {
@@ -163,11 +225,40 @@ for (const viewport of [
       await page.mouse.click(bounds.x + 1, bounds.y + 1);
       await expect(help).toBeVisible();
       if (guide === "In the browser") {
-        await expect(help.getByRole("heading", { name: "Verify observation", level: 3 })).toBeVisible();
-        await expect(help.getByRole("heading", { name: "Inspect evidence", level: 3 })).toBeVisible();
+        const webScope = help.getByText(/The web interface verifies and inspects submitted records/);
+        await expect(webScope).toHaveText("The web interface verifies and inspects submitted records. It does not connect to a real spacecraft, send spacecraft commands or collect live telemetry.");
+        await webScope.scrollIntoViewIfNeeded();
+        await expect(webScope).toBeInViewport();
+        await expect(help.getByRole("tab", { name: "Verify observation", selected: true })).toBeVisible();
+        await expect(help.getByRole("tabpanel", { name: "Inspect evidence" })).toBeHidden();
+        await help.getByRole("tab", { name: "Inspect evidence" }).click();
+        await expect(help.getByRole("tabpanel", { name: "Verify observation" })).toBeHidden();
+        await expect(help.getByRole("tabpanel", { name: "Inspect evidence" })).toBeVisible();
         await expect(help.getByRole("region", { name: "CLI verification command" })).toHaveCount(0);
         await expect(help.getByText(/OrbiRig can verify/)).toHaveCount(0);
         await expect(help.getByRole("link")).toHaveCount(0);
+        const browserTabs = help.getByRole("tablist", { name: "Browser instructions" });
+        for (const tab of await browserTabs.getByRole("tab").all()) {
+          expect((await tab.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+        }
+        await browserTabs.getByRole("tab", { name: "Inspect evidence" }).focus();
+        for (const [key, name] of [
+          ["Home", "Verify observation"],
+          ["ArrowLeft", "Inspect evidence"],
+          ["ArrowRight", "Verify observation"],
+          ["End", "Inspect evidence"],
+        ]) {
+          await activePanel.evaluate(element => { element.scrollTop = element.scrollHeight; });
+          await page.keyboard.press(key);
+          const selected = browserTabs.getByRole("tab", { name, selected: true });
+          await expect(selected).toBeFocused();
+          await expect(selected).toHaveCSS("outline-style", "solid");
+          await expect(selected).toBeInViewport({ ratio: 1 });
+          await expect(help.getByRole("tabpanel", { name }).getByRole("listitem").first()).toBeInViewport();
+          await expect(selectedTab).toHaveAttribute("aria-selected", "true");
+        }
+        await page.keyboard.press("Tab");
+        await expect(help.getByRole("tabpanel", { name: "Inspect evidence" })).toBeFocused();
         const inspectionGuidance = help.getByText(/For saved verified executions and sequences/);
         await inspectionGuidance.scrollIntoViewIfNeeded();
         await expect(inspectionGuidance).toBeInViewport();
@@ -189,8 +280,12 @@ for (const viewport of [
           expect(lastCodeOffset).toBeLessThan(6);
         }
 
-        // Keyboard focus brings the complete command and README into view.
+        // The selected tab and its panel precede the command in the tab order.
         await close.focus();
+        await page.keyboard.press("Tab");
+        await expect(help.getByRole("tab", { name: guide, selected: true })).toBeFocused();
+        await page.keyboard.press("Tab");
+        await expect(help.getByRole("tabpanel", { name: guide })).toBeFocused();
         await page.keyboard.press("Tab");
         const command = help.getByRole("region", { name: "CLI verification command" });
         await expect(command).toBeFocused();
@@ -227,11 +322,41 @@ for (const viewport of [
       expect(await help.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(initialScrollWidth);
 
-      await help.evaluate((element) => { element.scrollTop = element.scrollHeight; });
+      await activePanel.evaluate((element) => { element.scrollTop = element.scrollHeight; });
       if (viewport.width <= 390) {
-        expect(await help.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+        expect(await activePanel.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
       }
       await expect(close).toBeInViewport();
+
+      await expect(selectedTab).toBeInViewport();
+      await expect(otherTab).toBeInViewport();
+      await otherTab.click();
+      await expect(help).toHaveAttribute("open");
+      await expect(otherTab).toHaveAttribute("aria-selected", "true");
+      await expect(help.getByRole("tabpanel", { name: otherGuide })).toBeVisible();
+      expect(await activePanel.evaluate(element => element.scrollTop)).toBe(0);
+
+      for (const [key, name] of [
+        ["ArrowRight", guide],
+        ["End", "From the command line"],
+        ["Home", "In the browser"],
+        ["ArrowLeft", "From the command line"],
+        ["ArrowRight", "In the browser"],
+      ]) {
+        await page.keyboard.press(key);
+        await expect(help.getByRole("tab", { name, selected: true })).toBeFocused();
+        await expect(help.getByRole("tabpanel", { name })).toBeVisible();
+        expect(await activePanel.evaluate(element => element.scrollTop)).toBe(0);
+      }
+      await page.keyboard.press("Tab");
+      const focusedPanel = help.getByRole("tabpanel", { name: "In the browser" });
+      await expect(focusedPanel).toBeFocused();
+      const focusedParagraphBounds = (await focusedPanel.locator("p").first().boundingBox())!;
+      const navigationBounds = (await help.locator(".workflow-help-header").boundingBox())!;
+      expect(focusedParagraphBounds.y).toBeGreaterThanOrEqual(navigationBounds.y + navigationBounds.height);
+      await page.keyboard.press("Shift+Tab");
+      await expect(help.getByRole("tab", { name: "In the browser", selected: true })).toBeFocused();
+      expect(await help.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
 
       await close.click();
       await expect(help).toBeHidden();
@@ -239,7 +364,7 @@ for (const viewport of [
 
       await page.keyboard.press("Space");
       await expect(help).toBeVisible();
-      expect(await help.evaluate((element) => element.scrollTop)).toBe(0);
+      expect(await activePanel.evaluate((element) => element.scrollTop)).toBe(0);
       await expect(firstParagraph).toBeInViewport();
       await page.keyboard.press("Escape");
       await expect(help).toBeHidden();
@@ -251,9 +376,10 @@ for (const viewport of [
       await expect(trigger).toBeFocused();
 
       await otherTrigger.click();
-      const otherHelp = page.getByRole("dialog", { name: otherGuide });
+      const otherHelp = page.getByRole("dialog", { name: "How it works" });
       await expect(otherHelp).toBeVisible();
-      expect(await otherHelp.evaluate((element) => element.scrollTop)).toBe(0);
+      await expect(otherHelp.getByRole("tab", { name: otherGuide, selected: true })).toBeVisible();
+      expect(await otherHelp.getByRole("tabpanel", { name: otherGuide }).evaluate((element) => element.scrollTop)).toBe(0);
       await expect(otherHelp.getByRole("heading", { name: guide })).toHaveCount(0);
       await otherHelp.getByRole("button", { name: "Close", exact: true }).click();
       await expect(otherHelp).toBeHidden();
@@ -263,33 +389,63 @@ for (const viewport of [
   }
 }
 
+test.describe("Touch browser instructions", () => {
+  test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
+  test.skip(({ browserName }) => browserName === "firefox", "Firefox does not support Playwright touch emulation.");
+
+  test("switches instructions by touch without changing the form", async ({ page }) => {
+    await page.getByLabel("Execution ID", { exact: true }).fill("touch-preserved");
+    await page.getByRole("button", { name: "In the browser", exact: true }).tap();
+    const help = page.getByRole("dialog", { name: "How it works" });
+    for (const name of ["Inspect evidence", "Verify observation"]) {
+      const tab = help.getByRole("tab", { name, exact: true });
+      await tab.tap();
+      await expect(tab).toHaveAttribute("aria-selected", "true");
+      await expect(tab).toBeInViewport({ ratio: 1 });
+      await expect(help.getByRole("tabpanel", { name })).toBeVisible();
+    }
+    await help.getByRole("button", { name: "Close", exact: true }).tap();
+    await expect(page.getByLabel("Execution ID", { exact: true })).toHaveValue("touch-preserved");
+    await expect(page.getByRole("button", { name: "Show Verify observation workflow" })).toHaveAttribute("aria-pressed", "true");
+  });
+});
+
 for (const guide of ["In the browser", "From the command line"] as const) {
   test(`${guide} help preserves form inputs and completed results`, async ({ page }) => {
     const evidence = evidenceFile("accepted.json");
     const submittedText = await fillVerification(page, "nominal_to_safe_mode", evidence);
     const trigger = page.getByRole("button", { name: guide, exact: true });
-    const help = page.getByRole("dialog", { name: guide });
+    const help = page.getByRole("dialog", { name: "How it works" });
     const close = help.getByRole("button", { name: "Close", exact: true });
-    await trigger.click();
-    await close.click();
+    async function browseInstructions(workflow: "Verify observation" | "Inspect evidence") {
+      await trigger.click();
+      await help.getByRole("tab", { name: "In the browser", exact: true }).click();
+      await expect(help.getByRole("tab", { name: workflow, selected: true })).toBeVisible();
+      const other = workflow === "Verify observation" ? "Inspect evidence" : "Verify observation";
+      await help.getByRole("tab", { name: other, exact: true }).click();
+      await help.getByRole("tab", { name: "From the command line" }).click();
+      await expect(help.getByRole("tablist", { name: "Browser instructions" })).toHaveCount(0);
+      await help.getByRole("tab", { name: "In the browser", exact: true }).click();
+      await expect(help.getByRole("tab", { name: other, selected: true })).toBeVisible();
+      await close.click();
+      await expect(page.getByRole("button", { name: `Show ${workflow} workflow` })).toHaveAttribute("aria-pressed", "true");
+    }
+    await browseInstructions("Verify observation");
 
     await page.getByRole("button", { name: "Verify observation", exact: true }).click();
     const verification = page.getByRole("region", { name: "Verified execution", exact: true });
     await expectOutcome(verification, "Verification outcome", "PASS");
-    await trigger.click();
-    await close.click();
+    await browseInstructions("Verify observation");
     await expect(verification).toBeVisible();
 
     await page.getByRole("button", { name: "Show Inspect evidence workflow" }).click();
     await fillEvidence(page.getByLabel("Evidence JSON", { exact: true }), evidence);
-    await trigger.click();
-    await close.click();
+    await browseInstructions("Inspect evidence");
     await page.getByRole("button", { name: "Inspect evidence", exact: true }).click();
     const inspection = page.getByRole("region", { name: "Observation details", exact: true });
     await expect(field(inspection, "Acknowledgement")).toHaveText("Accepted");
     await expect(page.getByLabel(/^Verification (outcome|check):/)).toHaveCount(0);
-    await trigger.click();
-    await close.click();
+    await browseInstructions("Inspect evidence");
     await expect(inspection).toBeVisible();
 
     await page.getByRole("button", { name: "Show Verify observation workflow" }).click();
@@ -401,7 +557,8 @@ for (const invalid of [
 
     expect(response.status()).toBe(422);
     expect(response.request().postDataJSON().observation_evidence).toBe(submittedText);
-    await expect(page.getByRole("alert")).toHaveText("The observation evidence is invalid.");
+    await expect(page.getByRole("alert").locator("strong")).toHaveText("Input error");
+    await expect(page.getByRole("alert").locator("span")).toHaveText("The observation evidence is invalid.");
     await expect(page.getByRole("region", { name: "Verified execution", exact: true })).toHaveCount(0);
     await expect(page.getByLabel(/^Verification (outcome|check):/)).toHaveCount(0);
   });
@@ -416,7 +573,8 @@ for (const invalid of [
     expect(response.status()).toBe(422);
     expect(response.request().postData()).toBe(submittedText);
     expect(response.request().headers()["content-type"]).toBe("text/plain; charset=utf-8");
-    await expect(page.getByRole("alert")).toHaveText("The observation evidence is invalid.");
+    await expect(page.getByRole("alert").locator("strong")).toHaveText("Invalid evidence");
+    await expect(page.getByRole("alert").locator("span")).toHaveText("The observation evidence is invalid.");
     await expect(page.getByRole("region", { name: "Observation details", exact: true })).toHaveCount(0);
     await expect(page.getByLabel(/^Verification (outcome|check):/)).toHaveCount(0);
   });
@@ -486,6 +644,8 @@ test("observation inspection shows reported behaviour without claiming verificat
   expect(response.status()).toBe(200);
   expect(response.request().postData()).toBe(submittedText);
   const observation = page.getByRole("region", { name: "Observation details", exact: true });
+  await expect(observation.getByText("Valid observation evidence", { exact: true })).toBeVisible();
+  await expect(observation.getByText("These are reported values. No scenario verification has been performed.")).toBeVisible();
   await expect(observation).toBeVisible();
   for (const [label, value] of [
     ["Command type", "SET_OPERATING_MODE"],
@@ -515,6 +675,7 @@ test("verified execution inspection accepts canonical FAIL evidence", async ({ p
   expect(response.request().postData()).toBe(submittedText);
   expect(response.request().headers()["content-type"]).toBe("text/plain; charset=utf-8");
   const record = page.getByRole("region", { name: "Verified execution", exact: true });
+  await expect(record.getByText("Valid saved evidence", { exact: true })).toBeVisible();
   await expect(field(record, "Execution ID")).toHaveText("exec-review-Δ");
   await expect(field(record, "Execution time (UTC)")).toHaveText("2026-08-17T08:00:00Z");
   await expect(field(record, "Scenario")).toHaveText("nominal_to_safe_mode");
@@ -552,7 +713,8 @@ for (const invalid of [
 
     expect(response.status()).toBe(422);
     expect(response.request().postData()).toBe(submittedText);
-    await expect(page.getByRole("alert")).toHaveText(invalid.error);
+    await expect(page.getByRole("alert").locator("strong")).toHaveText("Invalid evidence");
+    await expect(page.getByRole("alert").locator("span")).toHaveText(invalid.error);
     await expect(page.getByRole("region", { name: invalid.type, exact: true })).toHaveCount(0);
     await expect(page.getByLabel(/^(Verification (outcome|check)|Sequence outcome|Continuity outcome):/)).toHaveCount(0);
   });

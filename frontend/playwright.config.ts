@@ -16,8 +16,9 @@ export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
   workers: 1,
   retries: 0,
-  // Bound the whole run, including initial HTTP checks outside webServer timeouts.
-  globalTimeout: 120_000,
+  // Allow the full three-browser suite while bounding setup and tests,
+  // including initial HTTP checks outside webServer timeouts.
+  globalTimeout: 300_000,
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
     baseURL: E2E_FRONTEND_URL,

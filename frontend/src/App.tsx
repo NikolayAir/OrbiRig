@@ -1,6 +1,8 @@
 import { Fragment, type SubmitEvent, useEffect, useRef, useState } from "react";
 
 import { WorkflowHelp } from "./WorkflowHelp";
+import { LoadExampleButton } from "./LoadExampleButton";
+import { WorkflowTitle } from "./WorkflowTitle";
 import {
   EXAMPLE_VERIFIED_EXECUTION_DOCUMENT,
   EXAMPLE_VERIFIED_EXECUTION_SEQUENCE_DOCUMENT,
@@ -8,6 +10,8 @@ import {
   NOMINAL_TO_SAFE_EXAMPLE_OBSERVATION_DOCUMENT,
   SAFE_TO_NOMINAL_EXAMPLE_OBSERVATION_DOCUMENT,
 } from "./examples";
+
+const orbirigMark = new URL("./assets/orbirig-mark.png", import.meta.url).href;
 
 type EvidenceType =
   | "observation"
@@ -247,6 +251,16 @@ export function App() {
   const inspectionFeedbackRef = useRef<HTMLDivElement>(null);
   const verificationScrollPendingRef = useRef(false);
   const inspectionScrollPendingRef = useRef(false);
+  const verificationExampleBaselineRef = useRef({
+    executionId: "", executedAt: "", observationEvidence: "",
+  });
+  const inspectionExampleBaselineRef = useRef("");
+  const verificationExample = VERIFICATION_EXAMPLES[scenarioId || DEFAULT_VERIFICATION_SCENARIO];
+  const verificationNeedsConfirmation = [
+    [executionId, verificationExampleBaselineRef.current.executionId, verificationExample.executionId],
+    [executedAt, verificationExampleBaselineRef.current.executedAt, verificationExample.executedAt],
+    [observationEvidence, verificationExampleBaselineRef.current.observationEvidence, verificationExample.observationEvidence],
+  ].some(([current, baseline, next]) => wouldReplaceEditedValue(current, baseline, next));
 
   useEffect(() => {
     function dismissHelpOutside(event: PointerEvent) {
@@ -344,6 +358,7 @@ export function App() {
       scenarioId === "" ? DEFAULT_VERIFICATION_SCENARIO : scenarioId;
     const example = VERIFICATION_EXAMPLES[selectedScenario];
 
+    verificationExampleBaselineRef.current = example;
     setExecutionId(example.executionId);
     setExecutedAt(example.executedAt);
     setScenarioId(selectedScenario);
@@ -353,6 +368,7 @@ export function App() {
   }
 
   function loadInspectionExample() {
+    inspectionExampleBaselineRef.current = INSPECTION_EXAMPLES[evidenceType];
     setEvidence(INSPECTION_EXAMPLES[evidenceType]);
     setInspection({ kind: "idle" });
   }
@@ -527,18 +543,19 @@ export function App() {
 
   return (
     <main>
-      <header>
-        <p className="eyebrow">OrbiRig</p>
-        <h1>Observation verification and evidence inspection</h1>
+      <header className="page-header">
+        <p className="brand">
+          <img src={orbirigMark} width="40" height="40" alt="" />
+          <span>OrbiRig</span>
+        </p>
+        <h1>Verify observations and inspect evidence</h1>
         <p>
-          Check whether a command produced the expected result in a simplified
-          spacecraft test workflow, or inspect existing evidence without
-          changing it. Start with a built-in example, or edit one to explore
-          either workflow.
+          Check recorded behaviour from simplified spacecraft tests against a
+          selected scenario, or inspect saved evidence.
         </p>
       </header>
 
-      <WorkflowHelp />
+      <WorkflowHelp activeWorkflow={activeWorkflow} />
 
       <p className="workflow-selector-label" id="workflow-selector-label">
         Choose a workflow
@@ -556,7 +573,7 @@ export function App() {
           onClick={() => setActiveWorkflow("verification")}
         >
           <span>Verify observation</span>
-          <small>Check a submitted observation against the selected scenario.</small>
+          <small>Check if expectations are met.</small>
         </button>
         <button
           type="button"
@@ -566,7 +583,7 @@ export function App() {
           onClick={() => setActiveWorkflow("inspection")}
         >
           <span>Inspect evidence</span>
-          <small>Review an existing evidence document in a structured view.</small>
+          <small>Review saved evidence.</small>
         </button>
       </div>
 
@@ -577,11 +594,22 @@ export function App() {
           aria-labelledby="observation-verification"
         >
           <div className="workflow-heading">
-            <h2 id="observation-verification">Verify observation</h2>
-            <p>
-              Provide execution details, select a supported scenario, and
-              submit observation evidence for verification.
-            </p>
+            <WorkflowTitle
+              headingId="observation-verification"
+              helpId="verification-help-description"
+              title="Verify observation"
+              description="Provide execution details, select a supported scenario, and submit observation evidence for verification."
+              onHelpOpen={() => {
+                setExecutionIdHelpOpen(false);
+                setScenarioHelpOpen(false);
+              }}
+            />
+            <LoadExampleButton
+              description="Replaces current inputs"
+              disabled={verification.kind === "loading"}
+              requiresConfirmation={verificationNeedsConfirmation}
+              onLoad={loadVerificationExample}
+            />
           </div>
 
           <form
@@ -688,7 +716,7 @@ export function App() {
                       clearVerificationRequiredError("executedAt");
                       setVerification({ kind: "idle" });
                     }}
-                    placeholder="2026-08-25T18:30:00Z"
+                    placeholder="YYYY-MM-DDTHH:MM:SSZ"
                     required
                   />
                   {verificationRequiredErrors.executedAt && (
@@ -765,7 +793,7 @@ export function App() {
                   <option value="">Select a supported scenario</option>
                   {SUPPORTED_SCENARIOS.map((scenario) => (
                     <option key={scenario.value} value={scenario.value}>
-                      {scenario.label} ({scenario.value})
+                      {scenario.label}
                     </option>
                   ))}
                 </select>
@@ -779,15 +807,22 @@ export function App() {
                   </p>
                 )}
               </div>
+            </fieldset>
 
-              <div className="form-field">
+            <div className="verification-evidence">
+              <div className="form-field evidence-input">
                 <label htmlFor="verification-observation-evidence">
                   Observation evidence JSON
                 </label>
+                <p className="field-hint" id="verification-observation-hint">
+                  Include the command, acknowledgement, states and telemetry from
+                  the recorded execution.
+                </p>
                 <textarea
                   id="verification-observation-evidence"
                   ref={observationEvidenceInputRef}
                   aria-describedby={describedBy(
+                    "verification-observation-hint",
                     verificationRequiredErrors.observationEvidence
                       ? "verification-observation-evidence-error"
                       : undefined,
@@ -803,8 +838,9 @@ export function App() {
                     clearVerificationRequiredError("observationEvidence");
                     setVerification({ kind: "idle" });
                   }}
+                  disabled={verification.kind === "loading"}
                   spellCheck={false}
-                  rows={6}
+                  rows={7}
                   required
                 />
                 {verificationRequiredErrors.observationEvidence && (
@@ -817,24 +853,16 @@ export function App() {
                   </p>
                 )}
               </div>
-            </fieldset>
 
-            <div className="form-actions">
-              <button
-                type="button"
-                className="secondary-action"
-                disabled={verification.kind === "loading"}
-                onClick={loadVerificationExample}
-              >
-                Load example
-              </button>
-              <button
-                type="submit"
-                className="primary-action"
-                disabled={verification.kind === "loading"}
-              >
-                Verify observation
-              </button>
+              <div className="form-actions">
+                <button
+                  type="submit"
+                  className="primary-action"
+                  disabled={verification.kind === "loading"}
+                >
+                  Verify observation
+                </button>
+              </div>
             </div>
           </form>
 
@@ -845,19 +873,22 @@ export function App() {
 
             {verification.kind === "validation-failure" && (
               <p role="alert">
-                {VERIFICATION_ERROR_MESSAGES[verification.code]}
+                <strong className="feedback-label">Input error</strong>
+                <span>{VERIFICATION_ERROR_MESSAGES[verification.code]}</span>
               </p>
             )}
 
             {verification.kind === "network-failure" && (
               <p role="alert">
-                The verification request could not reach the server. Try again.
+                <strong className="feedback-label">Verification unavailable</strong>
+                <span>The verification request could not reach the server. Try again.</span>
               </p>
             )}
 
             {verification.kind === "server-failure" && (
               <p role="alert">
-                The server could not complete verification. Try again.
+                <strong className="feedback-label">Verification unavailable</strong>
+                <span>The server could not complete verification. Try again.</span>
               </p>
             )}
 
@@ -878,14 +909,21 @@ export function App() {
           aria-labelledby="evidence-inspection"
         >
           <div className="workflow-heading">
-            <h2 id="evidence-inspection">Inspect evidence</h2>
-            <p>
-              Select an evidence type and paste its JSON document to review
-              it in a structured view.
-            </p>
+            <WorkflowTitle
+              headingId="evidence-inspection"
+              helpId="inspection-help-description"
+              title="Inspect evidence"
+              description="Select an evidence type and paste its JSON document to review it in a structured view."
+            />
+            <LoadExampleButton
+              description="Replaces evidence JSON"
+              disabled={inspection.kind === "loading"}
+              requiresConfirmation={wouldReplaceEditedValue(evidence, inspectionExampleBaselineRef.current, INSPECTION_EXAMPLES[evidenceType])}
+              onLoad={loadInspectionExample}
+            />
           </div>
 
-          <form onSubmit={inspectEvidence}>
+          <form className="inspection-form" onSubmit={inspectEvidence}>
             <fieldset
               className="evidence-types"
               disabled={inspection.kind === "loading"}
@@ -896,66 +934,79 @@ export function App() {
                   type="radio"
                   name="evidence-type"
                   value="observation"
+                  aria-labelledby="observation-type-label"
+                  aria-describedby="observation-type-description"
                   checked={evidenceType === "observation"}
                   onChange={() => selectEvidenceType("observation")}
                 />
-                Observation
+                <span>
+                  <span id="observation-type-label">Observation</span>
+                  <small id="observation-type-description">Recorded behaviour without verification results.</small>
+                </span>
               </label>
               <label>
                 <input
                   type="radio"
                   name="evidence-type"
                   value="verified-execution"
+                  aria-labelledby="execution-type-label"
+                  aria-describedby="execution-type-description"
                   checked={evidenceType === "verified-execution"}
                   onChange={() => selectEvidenceType("verified-execution")}
                 />
-                Verified execution
+                <span>
+                  <span id="execution-type-label">Verified execution</span>
+                  <small id="execution-type-description">One execution with its scenario and checks.</small>
+                </span>
               </label>
               <label>
                 <input
                   type="radio"
                   name="evidence-type"
                   value="verified-execution-sequence"
+                  aria-labelledby="sequence-type-label"
+                  aria-describedby="sequence-type-description"
                   checked={evidenceType === "verified-execution-sequence"}
                   onChange={() =>
                     selectEvidenceType("verified-execution-sequence")
                   }
                 />
-                Verified execution sequence
+                <span>
+                  <span id="sequence-type-label">Verified execution sequence</span>
+                  <small id="sequence-type-description">Ordered executions and continuity checks.</small>
+                </span>
               </label>
             </fieldset>
 
-            <div className="form-field">
-              <label htmlFor="evidence">Evidence JSON</label>
-              <textarea
-                id="evidence"
-                name="evidence"
-                value={evidence}
-                onChange={(event) => {
-                  setEvidence(event.target.value);
-                  setInspection({ kind: "idle" });
-                }}
-                disabled={inspection.kind === "loading"}
-                spellCheck={false}
-                rows={6}
-              />
-            </div>
-            <div className="form-actions">
-              <button
-                type="button"
-                className="secondary-action"
-                disabled={inspection.kind === "loading"}
-                onClick={loadInspectionExample}
-              >
-                Load example
-              </button>
-              <button
-                type="submit"
-                className="primary-action"
-                disabled={inspection.kind === "loading"}
-              >
-                Inspect evidence
-              </button>
+            <div className="inspection-evidence">
+              <div className="form-field evidence-input">
+                <label htmlFor="evidence">Evidence JSON</label>
+                <p className="field-hint" id="inspection-evidence-hint">
+                  Paste the complete document for the selected evidence type.
+                </p>
+                <textarea
+                  id="evidence"
+                  name="evidence"
+                  aria-describedby="inspection-evidence-hint"
+                  value={evidence}
+                  onChange={(event) => {
+                    setEvidence(event.target.value);
+                    setInspection({ kind: "idle" });
+                  }}
+                  disabled={inspection.kind === "loading"}
+                  spellCheck={false}
+                  rows={7}
+                />
+              </div>
+              <div className="form-actions">
+                <button
+                  type="submit"
+                  className="primary-action"
+                  disabled={inspection.kind === "loading"}
+                >
+                  Inspect evidence
+                </button>
+              </div>
             </div>
           </form>
 
@@ -966,13 +1017,15 @@ export function App() {
 
             {inspection.kind === "invalid" && (
               <p role="alert">
-                {invalidEvidenceMessage(inspection.evidenceType)}
+                <strong className="feedback-label">Invalid evidence</strong>
+                <span>{invalidEvidenceMessage(inspection.evidenceType)}</span>
               </p>
             )}
 
             {inspection.kind === "transport-failure" && (
               <p role="alert">
-                The inspection request could not be completed. Try again.
+                <strong className="feedback-label">Inspection unavailable</strong>
+                <span>The inspection request could not be completed. Try again.</span>
               </p>
             )}
 
@@ -981,7 +1034,7 @@ export function App() {
             )}
 
             {inspection.kind === "valid-verified-execution" && (
-              <VerifiedExecutionDetails record={inspection.record} />
+              <VerifiedExecutionDetails record={inspection.record} inspected />
             )}
 
             {inspection.kind === "valid-verified-execution-sequence" && (
@@ -992,6 +1045,10 @@ export function App() {
       )}
     </main>
   );
+}
+
+function wouldReplaceEditedValue(current: string, baseline: string, next: string): boolean {
+  return current !== baseline && current !== next && (baseline !== "" || current.trim() !== "");
 }
 
 function describedBy(...ids: Array<string | undefined>): string | undefined {
@@ -1163,7 +1220,15 @@ function ObservationDetails({
 }) {
   return (
     <section className="observation-details" aria-labelledby="reconstructed-observation">
-      <h2 id="reconstructed-observation">Observation details</h2>
+      <div className="result-heading">
+        <div>
+          <p className="result-context">Valid observation evidence</p>
+          <h2 id="reconstructed-observation">Observation details</h2>
+        </div>
+      </div>
+      <p className="result-description">
+        These are reported values. No scenario verification has been performed.
+      </p>
       <ObservationFields observation={observation} />
     </section>
   );
@@ -1180,7 +1245,7 @@ function VerifiedExecutionFields({
   const InvariantHeading = nested ? "h6" : "h4";
 
   return (
-    <div className={`verified-execution-fields${nested ? " is-nested" : ""}`}>
+    <div className="verified-execution-fields">
       <div className="verified-execution-summary">
         <section className="execution-summary">
           <Subheading>Execution summary</Subheading>
@@ -1204,15 +1269,12 @@ function VerifiedExecutionFields({
         Verification checks
       </Subheading>
       <div className="invariant-results-wrapper">
-        <div className="invariant-column-headings" aria-hidden="true">
-          <span>Check</span>
-          <span>Expected</span>
-          <span>Actual</span>
-          <span>Result</span>
-        </div>
         <ol className="invariant-results">
           {record.invariant_results.map((result, index) => (
-            <li key={`${result.invariant_id}-${index}`}>
+            <li
+              key={`${result.invariant_id}-${index}`}
+              data-outcome={result.passed ? "PASS" : "FAIL"}
+            >
               <div className="invariant-summary">
                 <InvariantHeading className="invariant-title">
                   {Object.hasOwn(INVARIANT_TITLES, result.invariant_id)
@@ -1271,16 +1333,28 @@ function OutcomeBadge({
 function VerifiedExecutionDetails({
   record,
   headingId = "verified-execution",
+  inspected = false,
 }: {
   record: VerifiedExecutionPresentation;
   headingId?: string;
+  inspected?: boolean;
 }) {
   return (
     <section aria-labelledby={headingId}>
       <div className="result-heading">
-        <h2 id={headingId}>Verified execution</h2>
+        <div>
+          <p className="result-context">
+            {inspected ? "Valid saved evidence" : "Verification result"}
+          </p>
+          <h2 id={headingId}>Verified execution</h2>
+        </div>
         <OutcomeBadge outcome={record.outcome} />
       </div>
+      <p className="result-description">
+        {record.outcome === "PASS"
+          ? "The recorded behaviour matches this execution's scenario."
+          : "The recorded behaviour does not meet this execution's scenario expectations. Review the failed checks below."}
+      </p>
       <VerifiedExecutionFields record={record} />
     </section>
   );
@@ -1294,9 +1368,18 @@ function VerifiedExecutionSequenceDetails({
   return (
     <section aria-labelledby="verified-execution-sequence">
       <div className="result-heading">
-        <h2 id="verified-execution-sequence">Verified execution sequence</h2>
+        <div>
+          <p className="result-context">Valid saved evidence</p>
+          <h2 id="verified-execution-sequence">Verified execution sequence</h2>
+        </div>
         <OutcomeBadge outcome={sequence.outcome} label="Sequence outcome" />
       </div>
+      <p className="result-description">
+        {sequence.outcome === "PASS"
+          ? "All execution and continuity checks passed."
+          : "One or more execution or continuity checks did not pass."}{" "}
+        Records are shown in the supplied order.
+      </p>
 
       <h3 className="sequence-flow-heading">Member records and continuity</h3>
       <ol
@@ -1348,7 +1431,11 @@ function ContinuityBoundaryDetails({
   const headingId = `continuity-boundary-${ordinal - 1}`;
 
   return (
-    <article className="continuity-boundary" aria-labelledby={headingId}>
+    <article
+      className="continuity-boundary"
+      aria-labelledby={headingId}
+      data-outcome={result.passed ? "PASS" : "FAIL"}
+    >
       <div className="continuity-boundary-heading">
         <h4 id={headingId}>Continuity check {ordinal}</h4>
         <OutcomeBadge
