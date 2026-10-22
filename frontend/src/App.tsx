@@ -1,6 +1,7 @@
 import { Fragment, type SubmitEvent, useEffect, useRef, useState } from "react";
 
 import { WorkflowHelp } from "./WorkflowHelp";
+import { LoadExampleButton } from "./LoadExampleButton";
 import {
   EXAMPLE_VERIFIED_EXECUTION_DOCUMENT,
   EXAMPLE_VERIFIED_EXECUTION_SEQUENCE_DOCUMENT,
@@ -253,6 +254,16 @@ export function App() {
   const inspectionFeedbackRef = useRef<HTMLDivElement>(null);
   const verificationScrollPendingRef = useRef(false);
   const inspectionScrollPendingRef = useRef(false);
+  const verificationExampleBaselineRef = useRef({
+    executionId: "", executedAt: "", observationEvidence: "",
+  });
+  const inspectionExampleBaselineRef = useRef("");
+  const verificationExample = VERIFICATION_EXAMPLES[scenarioId || DEFAULT_VERIFICATION_SCENARIO];
+  const verificationNeedsConfirmation = [
+    [executionId, verificationExampleBaselineRef.current.executionId, verificationExample.executionId],
+    [executedAt, verificationExampleBaselineRef.current.executedAt, verificationExample.executedAt],
+    [observationEvidence, verificationExampleBaselineRef.current.observationEvidence, verificationExample.observationEvidence],
+  ].some(([current, baseline, next]) => wouldReplaceEditedValue(current, baseline, next));
 
   useEffect(() => {
     function dismissHelpOutside(event: PointerEvent) {
@@ -384,6 +395,7 @@ export function App() {
       scenarioId === "" ? DEFAULT_VERIFICATION_SCENARIO : scenarioId;
     const example = VERIFICATION_EXAMPLES[selectedScenario];
 
+    verificationExampleBaselineRef.current = example;
     setExecutionId(example.executionId);
     setExecutedAt(example.executedAt);
     setScenarioId(selectedScenario);
@@ -393,6 +405,7 @@ export function App() {
   }
 
   function loadInspectionExample() {
+    inspectionExampleBaselineRef.current = INSPECTION_EXAMPLES[evidenceType];
     setEvidence(INSPECTION_EXAMPLES[evidenceType]);
     setInspection({ kind: "idle" });
   }
@@ -655,18 +668,12 @@ export function App() {
                 </span>
               </span>
             </div>
-            <div className="example-action">
-              <button
-                type="button"
-                className="secondary-action"
-                aria-describedby="verification-example-note"
-                disabled={verification.kind === "loading"}
-                onClick={loadVerificationExample}
-              >
-                Load example
-              </button>
-              <small id="verification-example-note">Replaces current inputs</small>
-            </div>
+            <LoadExampleButton
+              description="Replaces current inputs"
+              disabled={verification.kind === "loading"}
+              requiresConfirmation={verificationNeedsConfirmation}
+              onLoad={loadVerificationExample}
+            />
           </div>
 
           <form
@@ -970,18 +977,12 @@ export function App() {
                 it in a structured view.
               </p>
             </div>
-            <div className="example-action">
-              <button
-                type="button"
-                className="secondary-action"
-                aria-describedby="inspection-example-note"
-                disabled={inspection.kind === "loading"}
-                onClick={loadInspectionExample}
-              >
-                Load example
-              </button>
-              <small id="inspection-example-note">Replaces evidence JSON</small>
-            </div>
+            <LoadExampleButton
+              description="Replaces evidence JSON"
+              disabled={inspection.kind === "loading"}
+              requiresConfirmation={wouldReplaceEditedValue(evidence, inspectionExampleBaselineRef.current, INSPECTION_EXAMPLES[evidenceType])}
+              onLoad={loadInspectionExample}
+            />
           </div>
 
           <form onSubmit={inspectEvidence}>
@@ -1104,6 +1105,10 @@ export function App() {
       )}
     </main>
   );
+}
+
+function wouldReplaceEditedValue(current: string, baseline: string, next: string): boolean {
+  return current !== baseline && current !== next && (baseline !== "" || current.trim() !== "");
 }
 
 function describedBy(...ids: Array<string | undefined>): string | undefined {

@@ -56,7 +56,11 @@ for (const viewport of [
 
     const example = page.getByRole("button", { name: "Load example", exact: true });
     await expect(example).toHaveAccessibleDescription("Replaces current inputs");
-    await expect(page.getByText("Replaces current inputs", { exact: true })).toBeVisible();
+    const exampleHint = page.getByText("Replaces current inputs", { exact: true });
+    await expect(exampleHint).toBeHidden();
+    await example.hover();
+    await expect(exampleHint).toBeVisible();
+    await expectWithinWidth(exampleHint, viewport.width);
     const exampleBounds = (await example.boundingBox())!;
     const inputBounds = (await executionId.boundingBox())!;
     expect(exampleBounds.y + exampleBounds.height).toBeLessThan(inputBounds.y);
@@ -151,7 +155,7 @@ for (const width of [1440, 390, 320]) {
     await expect(tooltip).toBeVisible();
     await page.getByLabel("Execution ID", { exact: true }).tap();
     await expect(tooltip).toBeHidden();
-    await expect(page.getByText("Replaces current inputs", { exact: true })).toBeVisible();
+    await expect(page.getByText("Replaces current inputs", { exact: true })).toBeHidden();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
 
     await page.setViewportSize({ width, height: 480 });

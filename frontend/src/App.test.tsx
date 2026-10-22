@@ -1161,6 +1161,104 @@ describe("App", () => {
     ).toBeInTheDocument();
   });
 
+  it.each([
+    ["Execution ID", "manual-execution", "example-execution-001"],
+    ["Execution time (UTC)", "2026-10-22T12:00:00Z", "2026-08-26T08:30:00Z"],
+    ["Observation evidence JSON", "manual evidence", observationEvidenceDocument],
+  ])("protects edited %s until replacement is confirmed", (label, value, example) => {
+    render(<App />);
+    const input = screen.getByLabelText(label);
+    const trigger = screen.getByRole("button", { name: "Load example" });
+    fireEvent.change(input, { target: { value } });
+    fireEvent.click(trigger);
+    const dialog = screen.getByRole("dialog", { name: "Replace current inputs?" });
+    expect(dialog).toHaveAccessibleDescription(
+      "Loading the example will replace your current form inputs, including any unsaved changes.",
+    );
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(input).toHaveValue(value);
+    expect(trigger).toHaveFocus();
+    expect(screen.getByLabelText("Scenario")).toHaveValue("");
+
+    fireEvent.click(trigger);
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Replace current inputs?" })).getByRole("button", { name: "Load example" }));
+    expect(input).toHaveValue(example);
+    expect(screen.queryByRole("dialog", { name: "Replace current inputs?" })).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it.each(["verification", "inspection"])("does not prompt for unchanged or reverted %s examples", (workflow) => {
+    render(<App />);
+    if (workflow === "inspection") selectInspectionWorkflow();
+    const input = screen.getByLabelText(workflow === "inspection" ? "Evidence JSON" : "Execution ID") as HTMLInputElement;
+    const trigger = screen.getByRole("button", { name: "Load example" });
+    fireEvent.change(input, { target: { value: " \n " } });
+    fireEvent.click(trigger);
+    expect(screen.queryByRole("dialog", { name: "Replace current inputs?" })).not.toBeInTheDocument();
+    const example = input.value;
+    fireEvent.click(trigger);
+    expect(input).toHaveValue(example);
+    fireEvent.change(input, { target: { value: "manual value" } });
+    fireEvent.change(input, { target: { value: example } });
+    fireEvent.click(trigger);
+    expect(screen.queryByRole("dialog", { name: "Replace current inputs?" })).not.toBeInTheDocument();
+
+    if (workflow === "verification") {
+      fireEvent.change(screen.getByLabelText("Scenario"), { target: { value: "safe_to_nominal_mode" } });
+      fireEvent.click(trigger);
+      expect(screen.queryByRole("dialog", { name: "Replace current inputs?" })).not.toBeInTheDocument();
+      expect(input).toHaveValue("example-execution-003");
+    }
+
+    // Clearing a populated example is also a manual change.
+    fireEvent.change(input, { target: { value: "" } });
+    fireEvent.click(trigger);
+    fireEvent(screen.getByRole("dialog", { name: "Replace current inputs?" }), new Event("cancel", { cancelable: true }));
+    expect(input).toHaveValue("");
+    expect(trigger).toHaveFocus();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("does not prompt when a manually entered value already matches the next example", () => {
+    render(<App />);
+    fireEvent.change(screen.getByLabelText("Execution ID"), { target: { value: "example-execution-001" } });
+    fireEvent.click(screen.getByRole("button", { name: "Load example" }));
+    expect(screen.queryByRole("dialog", { name: "Replace current inputs?" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Scenario")).toHaveValue("nominal_to_safe_mode");
+  });
+
+  it("preserves validation feedback and manual values when example replacement is cancelled", () => {
+    render(<App />);
+    fireEvent.change(screen.getByLabelText("Execution ID"), { target: { value: "manual-id" } });
+    fireEvent.click(screen.getByRole("button", { name: "Verify observation" }));
+    const errors = screen.getAllByRole("alert").map(element => element.textContent);
+    fireEvent.click(screen.getByRole("button", { name: "Load example" }));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Replace current inputs?" })).getByRole("button", { name: "Cancel" }));
+    expect(screen.getAllByRole("alert").map(element => element.textContent)).toEqual(errors);
+    expect(screen.getByLabelText("Execution ID")).toHaveValue("manual-id");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps manual-change protection separate across workflow switches", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Load example" }));
+    fireEvent.change(screen.getByLabelText("Execution ID"), { target: { value: "keep-verification" } });
+    selectInspectionWorkflow();
+    fireEvent.click(screen.getByRole("button", { name: "Load example" }));
+    fireEvent.change(screen.getByLabelText("Evidence JSON"), { target: { value: "keep-inspection" } });
+    selectVerifiedExecutionSequence();
+    selectVerificationWorkflow();
+    fireEvent.click(screen.getByRole("button", { name: "Load example" }));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Replace current inputs?" })).getByRole("button", { name: "Cancel" }));
+    expect(screen.getByLabelText("Execution ID")).toHaveValue("keep-verification");
+    selectInspectionWorkflow();
+    fireEvent.click(screen.getByRole("button", { name: "Load example" }));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Replace current inputs?" })).getByRole("button", { name: "Cancel" }));
+    expect(screen.getByLabelText("Evidence JSON")).toHaveValue("keep-inspection");
+    expect(screen.getByRole("radio", { name: "Verified execution sequence" })).toBeChecked();
+  });
+
   it("loads an editable verification example without submitting it", () => {
     render(<App />);
 
@@ -1267,6 +1365,11 @@ describe("App", () => {
     await expectFeedbackScroll();
 
     fireEvent.click(screen.getByRole("button", { name: "Load example" }));
+    const confirmation = screen.getByRole("dialog", { name: "Replace current inputs?" });
+    fireEvent.click(within(confirmation).getByRole("button", { name: "Cancel" }));
+    expect(screen.getByRole("region", { name: "Verified execution" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Load example" }));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Replace current inputs?" })).getByRole("button", { name: "Load example" }));
 
     expect(
       screen.queryByRole("region", { name: "Verified execution" }),
@@ -1580,6 +1683,7 @@ describe("App", () => {
     expect(evidenceInput).toHaveValue("user evidence");
 
     fireEvent.click(screen.getByRole("button", { name: "Load example" }));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Replace current inputs?" })).getByRole("button", { name: "Load example" }));
     expect(JSON.parse((evidenceInput as HTMLTextAreaElement).value)).toEqual(
       expectedVerifiedExecutionInspectionExample,
     );
@@ -1616,6 +1720,12 @@ describe("App", () => {
     await expectFeedbackScroll();
 
     fireEvent.click(screen.getByRole("button", { name: "Load example" }));
+    const confirmation = screen.getByRole("dialog", { name: "Replace current inputs?" });
+    fireEvent.click(within(confirmation).getByRole("button", { name: "Cancel" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("The observation evidence is invalid.");
+    expect(screen.getByLabelText("Evidence JSON")).toHaveValue("invalid evidence");
+    fireEvent.click(screen.getByRole("button", { name: "Load example" }));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Replace current inputs?" })).getByRole("button", { name: "Load example" }));
 
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Evidence JSON")).toHaveValue(
