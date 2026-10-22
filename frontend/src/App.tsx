@@ -923,7 +923,7 @@ export function App() {
             />
           </div>
 
-          <form onSubmit={inspectEvidence}>
+          <form className="inspection-form" onSubmit={inspectEvidence}>
             <fieldset
               className="evidence-types"
               disabled={inspection.kind === "loading"}
@@ -978,33 +978,35 @@ export function App() {
               </label>
             </fieldset>
 
-            <div className="form-field evidence-input">
-              <label htmlFor="evidence">Evidence JSON</label>
-              <p className="field-hint" id="inspection-evidence-hint">
-                Paste the complete document for the selected evidence type.
-              </p>
-              <textarea
-                id="evidence"
-                name="evidence"
-                aria-describedby="inspection-evidence-hint"
-                value={evidence}
-                onChange={(event) => {
-                  setEvidence(event.target.value);
-                  setInspection({ kind: "idle" });
-                }}
-                disabled={inspection.kind === "loading"}
-                spellCheck={false}
-                rows={12}
-              />
-            </div>
-            <div className="form-actions">
-              <button
-                type="submit"
-                className="primary-action"
-                disabled={inspection.kind === "loading"}
-              >
-                Inspect evidence
-              </button>
+            <div className="inspection-evidence">
+              <div className="form-field evidence-input">
+                <label htmlFor="evidence">Evidence JSON</label>
+                <p className="field-hint" id="inspection-evidence-hint">
+                  Paste the complete document for the selected evidence type.
+                </p>
+                <textarea
+                  id="evidence"
+                  name="evidence"
+                  aria-describedby="inspection-evidence-hint"
+                  value={evidence}
+                  onChange={(event) => {
+                    setEvidence(event.target.value);
+                    setInspection({ kind: "idle" });
+                  }}
+                  disabled={inspection.kind === "loading"}
+                  spellCheck={false}
+                  rows={7}
+                />
+              </div>
+              <div className="form-actions">
+                <button
+                  type="submit"
+                  className="primary-action"
+                  disabled={inspection.kind === "loading"}
+                >
+                  Inspect evidence
+                </button>
+              </div>
             </div>
           </form>
 

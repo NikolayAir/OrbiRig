@@ -663,7 +663,8 @@ textarea {
   tab-size: 2;
 }
 
-.verification-evidence textarea {
+.verification-evidence textarea,
+.inspection-evidence textarea {
   min-height: 11rem;
 }
 
@@ -759,7 +760,7 @@ button:disabled {
 .evidence-types {
   display: grid;
   gap: 0.75rem;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
 }
 
 .evidence-types label {
@@ -1172,7 +1173,8 @@ dd {
 }
 
 @media (min-width: 75rem) {
-  .verification-form {
+  .verification-form,
+  .inspection-form {
     align-items: start;
     display: grid;
     gap: 2rem;
@@ -1183,17 +1185,20 @@ dd {
     grid-template-columns: 1fr;
   }
 
-  .verification-evidence {
+  .verification-evidence,
+  .inspection-evidence {
     min-width: 0;
   }
 
-  .verification-evidence .evidence-input {
+  .verification-evidence .evidence-input,
+  .inspection-evidence .evidence-input {
     border: 0;
     margin: 0;
     padding: 0;
   }
 
-  .verification-evidence .form-actions {
+  .verification-evidence .form-actions,
+  .inspection-evidence .form-actions {
     border: 0;
     justify-content: flex-end;
     margin-top: 1rem;

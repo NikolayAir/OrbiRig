@@ -124,8 +124,45 @@ for (const viewport of [
     expect(await result.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
 
     await page.getByRole("button", { name: "Show Inspect evidence workflow", exact: true }).click();
+    const types = (await page.getByRole("group", { name: "Evidence type", exact: true }).boundingBox())!;
+    const inspectionEditor = page.getByLabel("Evidence JSON", { exact: true });
+    const inspectionEditorBounds = (await inspectionEditor.boundingBox())!;
+    const inspectionAction = (await page.getByRole("button", { name: "Inspect evidence", exact: true }).boundingBox())!;
+    const cards = page.locator(".evidence-types label");
+    await expect(cards).toHaveCount(3);
+    let previousCardBottom = 0;
+    for (const card of await cards.all()) {
+      const bounds = (await card.boundingBox())!;
+      expect(bounds.y).toBeGreaterThanOrEqual(previousCardBottom);
+      expect(bounds.x).toBeCloseTo(types.x, 0);
+      expect(bounds.width).toBeCloseTo(types.width, 0);
+      expect(await card.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+      if (viewport.width >= 1200) expect(bounds.height).toBeLessThanOrEqual(104);
+      previousCardBottom = bounds.y + bounds.height;
+    }
+    expect(inspectionEditorBounds.height).toBeGreaterThanOrEqual(176);
+    expect(inspectionAction.y).toBeGreaterThanOrEqual(inspectionEditorBounds.y + inspectionEditorBounds.height);
+    if (viewport.width >= 1200) {
+      expect(inspectionEditorBounds.x).toBeGreaterThan(types.x + types.width);
+      expect(inspectionEditorBounds.y).toBeLessThan(types.y + types.height);
+      expect(inspectionEditorBounds.width).toBeGreaterThanOrEqual(680);
+      expect(inspectionEditorBounds.width / types.width).toBeCloseTo(2, 1);
+      expect(inspectionAction.x + inspectionAction.width).toBeCloseTo(inspectionEditorBounds.x + inspectionEditorBounds.width, 0);
+      expect(inspectionAction.width).toBeLessThan(inspectionEditorBounds.width);
+      expect(inspectionAction.y - (inspectionEditorBounds.y + inspectionEditorBounds.height)).toBeCloseTo(16, 0);
+      if (viewport.width >= 1280 && viewport.height >= 900) {
+        expect(inspectionAction.y + inspectionAction.height).toBeLessThanOrEqual(viewport.height);
+      }
+    } else {
+      expect(inspectionEditorBounds.y).toBeGreaterThan(types.y + types.height);
+      expect(inspectionEditorBounds.x).toBeCloseTo(types.x, 0);
+      expect(inspectionEditorBounds.width).toBeCloseTo(types.width, 0);
+      expect(inspectionAction.x).toBeCloseTo(inspectionEditorBounds.x, 0);
+    }
     await page.getByRole("radio", { name: "Verified execution sequence", exact: true }).check();
-    await page.getByLabel("Evidence JSON", { exact: true }).fill(sequence);
+    await inspectionEditor.fill(sequence);
+    expect(await inspectionEditor.evaluate(element => element.scrollHeight > element.clientHeight)).toBe(true);
+    expect(await inspectionEditor.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
     await page.getByRole("button", { name: "Inspect evidence", exact: true }).click();
     const inspected = page.getByRole("region", { name: "Verified execution sequence", exact: true });
     await expect(inspected.getByLabel("Sequence outcome: FAIL", { exact: true })).toBeInViewport();
@@ -137,6 +174,51 @@ for (const viewport of [
     await expectWithinWidth(inspected.locator("dd, code, .outcome-badge"), viewport.width);
     expect(await inspected.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(viewport.width);
+  });
+}
+
+for (const viewport of [
+  { width: 1440, height: 900 },
+  { width: 768, height: 1024 },
+  { width: 390, height: 844 },
+  { width: 320, height: 800 },
+]) {
+  test(`inspection selects evidence by keyboard and preserves JSON at ${viewport.width}px`, async ({ page, browserName }) => {
+    await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Show Inspect evidence workflow", exact: true }).click();
+    await page.getByRole("button", { name: "Load example", exact: true }).click();
+    const editor = page.getByLabel("Evidence JSON", { exact: true });
+    const observationText = await editor.inputValue();
+    const observation = page.getByRole("radio", { name: "Observation", exact: true });
+    await expect(observation).toBeChecked();
+    await observation.focus();
+    for (const [name, description] of [
+      ["Verified execution", "One execution with its scenario and checks."],
+      ["Verified execution sequence", "Ordered executions and continuity checks."],
+    ]) {
+      await page.keyboard.press("ArrowDown");
+      const radio = page.getByRole("radio", { name, exact: true });
+      await expect(radio).toBeChecked();
+      await expect(radio).toBeFocused();
+      await expect(radio).toHaveAccessibleDescription(description);
+      expect(await radio.locator("..").evaluate(element => getComputedStyle(element).outlineStyle)).toBe("solid");
+      await expect(editor).toHaveValue(observationText);
+    }
+    await page.keyboard.press(browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab");
+    await expect(editor).toBeFocused();
+    await editor.fill(sequence);
+    await page.keyboard.press(browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab");
+    const action = page.getByRole("button", { name: "Inspect evidence", exact: true });
+    await expect(action).toBeFocused();
+    await expect(action).toBeInViewport();
+    await page.keyboard.press("Enter");
+    const result = page.getByRole("region", { name: "Verified execution sequence", exact: true });
+    await expect(result.getByLabel("Sequence outcome: FAIL", { exact: true })).toBeInViewport();
+    await observation.check();
+    await expect(result).toHaveCount(0);
+    await expect(editor).toHaveValue(sequence);
   });
 }
 
