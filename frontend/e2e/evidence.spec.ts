@@ -129,7 +129,8 @@ for (const viewport of [
       const trigger = guide === "In the browser" ? browserTrigger : cliTrigger;
       const otherGuide = guide === "In the browser" ? "From the command line" : "In the browser";
       const otherTrigger = page.getByRole("button", { name: otherGuide, exact: true });
-      const help = page.getByRole("dialog", { name: guide });
+      const help = page.getByRole("dialog", { name: "How it works" });
+      const activePanel = help.getByRole("tabpanel");
       const chooser = page.getByRole("group", { name: "Choose a workflow" });
       const chooserTop = await chooser.evaluate((element) => element.getBoundingClientRect().top + window.scrollY);
 
@@ -170,14 +171,32 @@ for (const viewport of [
       await expect(help).toHaveAttribute("open");
       const close = help.getByRole("button", { name: "Close", exact: true });
       await expect(close).toBeFocused();
-      await expect(help.getByRole("heading", { name: guide, level: 2 })).toBeInViewport();
+      const closeBounds = (await close.boundingBox())!;
+      expect(closeBounds.width).toBeGreaterThanOrEqual(44);
+      expect(closeBounds.height).toBeGreaterThanOrEqual(44);
+      await expect(help.getByRole("heading", { name: "How it works", level: 2 })).toBeInViewport();
+      const selectedTab = help.getByRole("tab", { name: guide });
+      const otherTab = help.getByRole("tab", { name: otherGuide });
+      await expect(help.getByRole("tablist", { name: "Help sections" })).toBeVisible();
+      await expect(selectedTab).toHaveAttribute("aria-selected", "true");
+      await expect(selectedTab).toHaveAttribute("tabindex", "0");
+      await expect(otherTab).toHaveAttribute("aria-selected", "false");
+      await expect(otherTab).toHaveAttribute("tabindex", "-1");
+      await expect(help.getByRole("tabpanel", { name: guide })).toBeVisible();
+      const tabBounds = await help.getByRole("tab").evaluateAll(elements => elements.map(element => {
+        const { x, y, width } = element.getBoundingClientRect();
+        return { x, y, width };
+      }));
+      expect(tabBounds[0].y).toBe(tabBounds[1].y);
+      expect(tabBounds[0].x + tabBounds[0].width).toBeLessThanOrEqual(tabBounds[1].x);
       await expect(help.getByRole("heading", { name: otherGuide })).toHaveCount(0);
-      expect(await help.evaluate((element) => element.scrollTop)).toBe(0);
+      expect(await activePanel.evaluate((element) => element.scrollTop)).toBe(0);
       const firstParagraph = help.locator(".workflow-help-content > p").first();
       await expect(firstParagraph).toBeInViewport();
       expect(await chooser.evaluate((element) => element.getBoundingClientRect().top + window.scrollY)).toBe(chooserTop);
       expect(await page.evaluate(() => window.scrollY)).toBe(initialScrollY);
       expect(await help.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+      expect(await activePanel.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
       const bounds = (await help.boundingBox())!;
       expect(bounds.x).toBeGreaterThanOrEqual(0);
       expect(bounds.y).toBeGreaterThanOrEqual(0);
@@ -201,6 +220,10 @@ for (const viewport of [
       await page.mouse.click(bounds.x + 1, bounds.y + 1);
       await expect(help).toBeVisible();
       if (guide === "In the browser") {
+        const webScope = help.getByText(/The web interface verifies and inspects submitted records/);
+        await expect(webScope).toHaveText("The web interface verifies and inspects submitted records. It does not connect to a real spacecraft, send spacecraft commands or collect live telemetry.");
+        await webScope.scrollIntoViewIfNeeded();
+        await expect(webScope).toBeInViewport();
         await expect(help.getByRole("heading", { name: "Verify observation", level: 3 })).toBeVisible();
         await expect(help.getByRole("heading", { name: "Inspect evidence", level: 3 })).toBeVisible();
         await expect(help.getByRole("region", { name: "CLI verification command" })).toHaveCount(0);
@@ -227,8 +250,12 @@ for (const viewport of [
           expect(lastCodeOffset).toBeLessThan(6);
         }
 
-        // Keyboard focus brings the complete command and README into view.
+        // The selected tab and its panel precede the command in the tab order.
         await close.focus();
+        await page.keyboard.press("Tab");
+        await expect(help.getByRole("tab", { name: guide, selected: true })).toBeFocused();
+        await page.keyboard.press("Tab");
+        await expect(help.getByRole("tabpanel", { name: guide })).toBeFocused();
         await page.keyboard.press("Tab");
         const command = help.getByRole("region", { name: "CLI verification command" });
         await expect(command).toBeFocused();
@@ -265,11 +292,41 @@ for (const viewport of [
       expect(await help.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(initialScrollWidth);
 
-      await help.evaluate((element) => { element.scrollTop = element.scrollHeight; });
+      await activePanel.evaluate((element) => { element.scrollTop = element.scrollHeight; });
       if (viewport.width <= 390) {
-        expect(await help.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+        expect(await activePanel.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
       }
       await expect(close).toBeInViewport();
+
+      await expect(selectedTab).toBeInViewport();
+      await expect(otherTab).toBeInViewport();
+      await otherTab.click();
+      await expect(help).toHaveAttribute("open");
+      await expect(otherTab).toHaveAttribute("aria-selected", "true");
+      await expect(help.getByRole("tabpanel", { name: otherGuide })).toBeVisible();
+      expect(await activePanel.evaluate(element => element.scrollTop)).toBe(0);
+
+      for (const [key, name] of [
+        ["ArrowRight", guide],
+        ["End", "From the command line"],
+        ["Home", "In the browser"],
+        ["ArrowLeft", "From the command line"],
+        ["ArrowRight", "In the browser"],
+      ]) {
+        await page.keyboard.press(key);
+        await expect(help.getByRole("tab", { name, selected: true })).toBeFocused();
+        await expect(help.getByRole("tabpanel", { name })).toBeVisible();
+        expect(await activePanel.evaluate(element => element.scrollTop)).toBe(0);
+      }
+      await page.keyboard.press("Tab");
+      const focusedPanel = help.getByRole("tabpanel", { name: "In the browser" });
+      await expect(focusedPanel).toBeFocused();
+      const focusedParagraphBounds = (await focusedPanel.locator("p").first().boundingBox())!;
+      const navigationBounds = (await help.locator(".workflow-help-header").boundingBox())!;
+      expect(focusedParagraphBounds.y).toBeGreaterThanOrEqual(navigationBounds.y + navigationBounds.height);
+      await page.keyboard.press("Shift+Tab");
+      await expect(help.getByRole("tab", { name: "In the browser", selected: true })).toBeFocused();
+      expect(await help.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
 
       await close.click();
       await expect(help).toBeHidden();
@@ -277,7 +334,7 @@ for (const viewport of [
 
       await page.keyboard.press("Space");
       await expect(help).toBeVisible();
-      expect(await help.evaluate((element) => element.scrollTop)).toBe(0);
+      expect(await activePanel.evaluate((element) => element.scrollTop)).toBe(0);
       await expect(firstParagraph).toBeInViewport();
       await page.keyboard.press("Escape");
       await expect(help).toBeHidden();
@@ -289,9 +346,10 @@ for (const viewport of [
       await expect(trigger).toBeFocused();
 
       await otherTrigger.click();
-      const otherHelp = page.getByRole("dialog", { name: otherGuide });
+      const otherHelp = page.getByRole("dialog", { name: "How it works" });
       await expect(otherHelp).toBeVisible();
-      expect(await otherHelp.evaluate((element) => element.scrollTop)).toBe(0);
+      await expect(otherHelp.getByRole("tab", { name: otherGuide, selected: true })).toBeVisible();
+      expect(await otherHelp.getByRole("tabpanel").evaluate((element) => element.scrollTop)).toBe(0);
       await expect(otherHelp.getByRole("heading", { name: guide })).toHaveCount(0);
       await otherHelp.getByRole("button", { name: "Close", exact: true }).click();
       await expect(otherHelp).toBeHidden();
@@ -306,7 +364,7 @@ for (const guide of ["In the browser", "From the command line"] as const) {
     const evidence = evidenceFile("accepted.json");
     const submittedText = await fillVerification(page, "nominal_to_safe_mode", evidence);
     const trigger = page.getByRole("button", { name: guide, exact: true });
-    const help = page.getByRole("dialog", { name: guide });
+    const help = page.getByRole("dialog", { name: "How it works" });
     const close = help.getByRole("button", { name: "Close", exact: true });
     await trigger.click();
     await close.click();

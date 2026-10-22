@@ -524,9 +524,11 @@ describe("App", () => {
     fireEvent.click(trigger);
 
     expect(help).toHaveAttribute("open");
-    expect(screen.getByRole("dialog", { name })).toBeVisible();
+    expect(screen.getByRole("dialog", { name: "How it works" })).toBeVisible();
     const guidance = within(help);
-    expect(guidance.getByRole("heading", { name, level: 2 })).toBeVisible();
+    expect(guidance.getByRole("heading", { name: "How it works", level: 2 })).toBeVisible();
+    expect(guidance.getByRole("tab", { name, selected: true })).toHaveAttribute("tabindex", "0");
+    expect(guidance.getByRole("tabpanel", { name })).toBeVisible();
     if (name === "In the browser") {
       expect(guidance.getByRole("heading", { name: "Verify observation", level: 3 })).toBeVisible();
       expect(guidance.getByRole("heading", { name: "Inspect evidence", level: 3 })).toBeVisible();
@@ -547,15 +549,70 @@ describe("App", () => {
     expect(scrollIntoViewMock).not.toHaveBeenCalled();
   });
 
+  it.each(["In the browser", "From the command line"])("switches help tabs without reopening the dialog opened by %s", (name) => {
+    render(<App />);
+    const help = screen.getByRole("dialog", { hidden: true }) as HTMLDialogElement;
+    const showModal = vi.spyOn(help, "showModal");
+    const close = vi.spyOn(help, "close");
+    const trigger = screen.getByRole("button", { name });
+    fireEvent.click(trigger);
+    const otherName = name === "In the browser" ? "From the command line" : "In the browser";
+    const otherTab = within(help).getByRole("tab", { name: otherName });
+    within(help).getByRole("tabpanel").scrollTop = 150;
+
+    fireEvent.click(otherTab);
+
+    expect(help).toHaveAttribute("open");
+    expect(showModal).toHaveBeenCalledTimes(1);
+    expect(close).not.toHaveBeenCalled();
+    expect(within(help).getByRole("tabpanel").scrollTop).toBe(0);
+    expect(otherTab).toHaveAttribute("aria-selected", "true");
+    expect(otherTab).toHaveAttribute("tabindex", "0");
+    const panel = within(help).getByRole("tabpanel", { name: otherName });
+    expect(otherTab).toHaveAttribute("aria-controls", panel.id);
+    expect(panel).toHaveAttribute("aria-labelledby", otherTab.id);
+    expect(within(help).getAllByRole("tabpanel")).toHaveLength(1);
+    expect(within(help).getByRole("tab", { name })).toHaveAttribute("tabindex", "-1");
+
+    fireEvent.click(within(help).getByRole("button", { name: "Close" }));
+    expect(trigger).toHaveFocus();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("selects and focuses help tabs with arrows, Home and End", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "In the browser" }));
+    const help = screen.getByRole("dialog", { name: "How it works" });
+    const tabs = within(help).getByRole("tablist", { name: "Help sections" });
+    within(tabs).getByRole("tab", { name: "In the browser" }).focus();
+
+    for (const [key, name] of [
+      ["ArrowRight", "From the command line"],
+      ["ArrowRight", "In the browser"],
+      ["ArrowLeft", "From the command line"],
+      ["ArrowLeft", "In the browser"],
+      ["End", "From the command line"],
+      ["Home", "In the browser"],
+    ]) {
+      within(help).getByRole("tabpanel").scrollTop = 150;
+      fireEvent.keyDown(document.activeElement!, { key });
+      const selected = within(tabs).getByRole("tab", { name, selected: true });
+      expect(selected).toHaveFocus();
+      expect(selected).toHaveAttribute("tabindex", "0");
+      expect(within(help).getByRole("tabpanel", { name })).toBeVisible();
+      expect(within(help).getByRole("tabpanel").scrollTop).toBe(0);
+    }
+  });
+
   it("starts at the top when reopening either guide or switching between them", () => {
     render(<App />);
     const help = screen.getByRole("dialog", { hidden: true });
 
     for (const name of ["In the browser", "In the browser", "From the command line", "From the command line", "In the browser"]) {
       fireEvent.click(screen.getByRole("button", { name }));
-      expect(screen.getByRole("dialog", { name })).toBeVisible();
-      expect(help.scrollTop).toBe(0);
-      help.scrollTop = 150;
+      expect(screen.getByRole("dialog", { name: "How it works" })).toBeVisible();
+      expect(within(help).getByRole("tabpanel").scrollTop).toBe(0);
+      within(help).getByRole("tabpanel").scrollTop = 150;
       fireEvent.click(within(help).getByRole("button", { name: "Close" }));
     }
   });
@@ -564,21 +621,21 @@ describe("App", () => {
     render(<App />);
     const trigger = screen.getByRole("button", { name });
     fireEvent.click(trigger);
-    const help = screen.getByRole("dialog", { name }) as HTMLDialogElement;
+    const help = screen.getByRole("dialog", { name: "How it works" }) as HTMLDialogElement;
 
     // Native close() removes open before delivering its queued close event.
     help.open = false;
     fireEvent.click(trigger);
 
     expect(help).toHaveAttribute("open");
-    expect(screen.getByRole("dialog", { name })).toBeVisible();
+    expect(screen.getByRole("dialog", { name: "How it works" })).toBeVisible();
   });
 
   it("explains the browser steps and keeps verification meaning precise", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "In the browser" }));
 
-    const guidance = within(screen.getByRole("dialog", { name: "In the browser" }));
+    const guidance = within(screen.getByRole("dialog", { name: "How it works" }));
     const [verificationSteps, inspectionSteps] = guidance.getAllByRole("list");
 
     expect(
@@ -598,10 +655,10 @@ describe("App", () => {
     ]);
 
     expect(guidance.getByText(/OrbiRig checks command records/)).toHaveTextContent(
-      "OrbiRig checks command records from simplified spacecraft tests. Each observation includes the command, whether it was accepted, the operating modes before and after execution, and the mode reported by telemetry.",
+      "OrbiRig checks command records from simplified spacecraft tests. Each observation includes the command, whether it was accepted, the operating modes before and after execution, and the mode reported in telemetry (recorded status data).",
     );
-    expect(guidance.getByText(/The web interface checks these records/)).toHaveTextContent(
-      "The web interface checks these records. It does not send commands to a spacecraft.",
+    expect(guidance.getByText(/The web interface verifies and inspects submitted records/)).toHaveTextContent(
+      "The web interface verifies and inspects submitted records. It does not connect to a real spacecraft, send spacecraft commands or collect live telemetry.",
     );
     expect(guidance.getByText(/means the recorded behaviour matches/)).toHaveTextContent(
       "PASS means the recorded behaviour matches the selected scenario. This can include a rejected command if rejection was expected.",
@@ -626,18 +683,18 @@ describe("App", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "From the command line" }));
 
-    const help = screen.getByRole("dialog", { name: "From the command line" });
+    const help = screen.getByRole("dialog", { name: "How it works" });
     const guidance = within(help);
     const command = guidance.getByRole("region", { name: "CLI verification command" });
 
     expect(guidance.getAllByRole("heading").map((heading) => heading.textContent)).toEqual([
-      "From the command line",
+      "How it works",
     ]);
     expect(guidance.getByText(/OrbiRig can verify/)).toHaveTextContent(
       "OrbiRig can verify a saved observation from a terminal, without opening the web interface. It uses the same Python verification core. The command runs locally on your computer and does not execute spacecraft commands or collect observations.",
     );
     expect(guidance.getByText(/Save the observation JSON/)).toHaveTextContent(
-      "Save the observation JSON as observation.json file (UTF-8). You can copy a built-in example from the browser. From an OrbiRig checkout, run uv sync --locked if needed, then:",
+      "Save the observation JSON to a UTF-8 file named observation.json. You can copy a built-in example from the browser. From an OrbiRig checkout, run uv sync --locked if needed, then:",
     );
     expect(command).toHaveAttribute("tabindex", "0");
     expect(command.querySelector("code")?.textContent).toBe([
@@ -660,7 +717,7 @@ describe("App", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "From the command line" }));
 
-    const cli = within(screen.getByRole("dialog", { name: "From the command line" }));
+    const cli = within(screen.getByRole("dialog", { name: "How it works" }));
     const results = cli.getByText(/The command prints JSON evidence/);
     expect(results).toHaveTextContent(
       "The command prints JSON evidence in the terminal for both PASS and FAIL results. Exit code 0 means PASS and 1 means verification completed with FAIL. Invalid input returns 2, file or output errors return 3, and unexpected internal errors return 4.",
@@ -709,8 +766,10 @@ describe("App", () => {
     });
 
     fireEvent.click(screen.getByRole("button", { name }));
-    const help = screen.getByRole("dialog", { name });
+    const help = screen.getByRole("dialog", { name: "How it works" });
     expect(help).toHaveAttribute("open");
+    const otherGuide = name === "In the browser" ? "From the command line" : "In the browser";
+    fireEvent.click(within(help).getByRole("tab", { name: otherGuide }));
     fireEvent.click(within(help).getByRole("button", { name: "Close" }));
     selectInspectionWorkflow();
     selectVerificationWorkflow();

@@ -1,9 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 
 type HelpSection = "browser" | "cli";
 
 export function WorkflowHelp() {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const browserTabRef = useRef<HTMLButtonElement>(null);
+  const cliTabRef = useRef<HTMLButtonElement>(null);
+  const browserPanelRef = useRef<HTMLDivElement>(null);
+  const cliPanelRef = useRef<HTMLDivElement>(null);
   const [help, setHelp] = useState<{
     section: HelpSection;
     trigger: HTMLButtonElement;
@@ -12,14 +16,46 @@ export function WorkflowHelp() {
 
   useEffect(() => {
     if (help !== null && dialogRef.current !== null) {
-      dialogRef.current.showModal();
-      dialogRef.current.scrollTop = 0;
+      if (!dialogRef.current.open) {
+        dialogRef.current.showModal();
+      }
+      const panel = help.section === "browser" ? browserPanelRef.current : cliPanelRef.current;
+      if (panel !== null) {
+        panel.scrollTop = 0;
+      }
     }
   }, [help]);
 
   function openHelp(section: HelpSection, trigger: HTMLButtonElement) {
     // A distinct request also reopens the same guide before the close event arrives.
     setHelp({ section, trigger });
+  }
+
+  function selectHelp(section: HelpSection) {
+    setHelp((current) => current === null || current.section === section
+      ? current
+      : { ...current, section });
+  }
+
+  function navigateTabs(event: KeyboardEvent<HTMLButtonElement>, current: HelpSection) {
+    let next: HelpSection;
+    switch (event.key) {
+      case "ArrowLeft":
+      case "ArrowRight":
+        next = current === "browser" ? "cli" : "browser";
+        break;
+      case "Home":
+        next = "browser";
+        break;
+      case "End":
+        next = "cli";
+        break;
+      default:
+        return;
+    }
+    event.preventDefault();
+    selectHelp(next);
+    (next === "browser" ? browserTabRef : cliTabRef).current?.focus({ preventScroll: true });
   }
 
   return (
@@ -67,34 +103,83 @@ export function WorkflowHelp() {
           }
         }}
       >
-        <div className="workflow-help-heading">
-          <div>
-            <p className="dialog-label">How it works</p>
-            <h2 id="workflow-help-title">
-              {section === "cli" ? "From the command line" : "In the browser"}
-            </h2>
+        <div className="workflow-help-header">
+          <div className="workflow-help-heading">
+            <h2 id="workflow-help-title">How it works</h2>
+            <button
+              type="button"
+              className="workflow-help-close"
+              aria-label="Close"
+              autoFocus
+              onClick={() => dialogRef.current?.close()}
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.75"
+                strokeLinecap="round"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M6 6l12 12M18 6L6 18" />
+              </svg>
+            </button>
           </div>
-          <button
-            type="button"
-            className="secondary-action"
-            autoFocus
-            onClick={() => dialogRef.current?.close()}
-          >
-            Close
-          </button>
+          <div className="workflow-help-tabs" role="tablist" aria-label="Help sections">
+            <button
+              ref={browserTabRef}
+              type="button"
+              role="tab"
+              id="workflow-help-browser-tab"
+              className="workflow-help-tab"
+              aria-selected={section === "browser"}
+              aria-controls="workflow-help-browser-panel"
+              tabIndex={section === "browser" ? 0 : -1}
+              onClick={() => selectHelp("browser")}
+              onKeyDown={(event) => navigateTabs(event, "browser")}
+            >
+              In the browser
+            </button>
+            <button
+              ref={cliTabRef}
+              type="button"
+              role="tab"
+              id="workflow-help-cli-tab"
+              className="workflow-help-tab"
+              aria-selected={section === "cli"}
+              aria-controls="workflow-help-cli-panel"
+              tabIndex={section === "cli" ? 0 : -1}
+              onClick={() => selectHelp("cli")}
+              onKeyDown={(event) => navigateTabs(event, "cli")}
+            >
+              From the command line
+            </button>
+          </div>
         </div>
-        <div className="workflow-help-content">
+        <div
+          ref={browserPanelRef}
+          className="workflow-help-content"
+          role="tabpanel"
+          id="workflow-help-browser-panel"
+          aria-labelledby="workflow-help-browser-tab"
+          hidden={section !== "browser"}
+          tabIndex={0}
+        >
           {section === "browser" && (
             <>
               <p>
                 OrbiRig checks command records from simplified spacecraft tests.
                 Each observation includes the command, whether it was accepted,
-                the operating modes before and after execution, and the mode reported by
-                telemetry.
+                the operating modes before and after execution, and the mode reported in
+                telemetry (recorded status data).
               </p>
               <p>
-                The web interface checks these records. It does not send commands to a
-                spacecraft.
+                The web interface verifies and inspects submitted records. It does not
+                connect to a real spacecraft, send spacecraft commands or collect live
+                telemetry.
               </p>
 
               <h3>Verify observation</h3>
@@ -153,6 +238,16 @@ export function WorkflowHelp() {
               </p>
             </>
           )}
+        </div>
+        <div
+          ref={cliPanelRef}
+          className="workflow-help-content"
+          role="tabpanel"
+          id="workflow-help-cli-panel"
+          aria-labelledby="workflow-help-cli-tab"
+          hidden={section !== "cli"}
+          tabIndex={0}
+        >
           {section === "cli" && (
             <>
               <p>
@@ -162,7 +257,7 @@ export function WorkflowHelp() {
                 spacecraft commands or collect observations.
               </p>
               <p>
-                Save the observation JSON as <code>observation.json</code> file (UTF-8).
+                Save the observation JSON to a UTF-8 file named <code>observation.json</code>.
                 You can copy a built-in example from the browser. From an OrbiRig
                 checkout, run <code>uv sync --locked</code> if needed, then:
               </p>
