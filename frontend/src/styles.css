@@ -242,8 +242,18 @@ h2 {
   line-height: 1.65;
   min-height: 0;
   overflow: auto;
+  overflow-wrap: anywhere;
   overscroll-behavior: contain;
   padding: 1.5rem 1.75rem 1.75rem;
+}
+
+.workflow-help-dialog[open][data-scroll-whole="true"] {
+  display: block;
+  overflow: auto;
+}
+
+.workflow-help-dialog[data-scroll-whole="true"] .workflow-help-content {
+  overflow: visible;
 }
 
 .workflow-help-content:focus-visible {
@@ -503,6 +513,7 @@ button {
   flex: 0 0 auto;
   flex-direction: column;
   gap: 0.4rem;
+  isolation: isolate;
   max-width: 100%;
   min-width: 0;
   position: relative;
@@ -511,6 +522,9 @@ button {
 .example-action > button {
   max-width: 100%;
   overflow-wrap: anywhere;
+  /* Keep the hover bridge behind the button's complete hit area. */
+  position: relative;
+  z-index: 2;
 }
 
 .example-action.field-help [role="tooltip"] {
@@ -668,11 +682,13 @@ label {
   visibility: hidden;
 }
 
-.workflow-title [role="tooltip"] {
+.workflow-title [role="tooltip"],
+.example-action [role="tooltip"] {
   pointer-events: auto;
 }
 
-.workflow-title [role="tooltip"]::before {
+.workflow-title [role="tooltip"]::before,
+.example-action [role="tooltip"]::before {
   bottom: 100%;
   content: "";
   height: 1rem;

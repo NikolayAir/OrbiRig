@@ -1,5 +1,80 @@
 import { expect, test } from "@playwright/test";
 
+test("example tooltips leave touch taps at the button edge usable", async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 }, hasTouch: true });
+  try {
+    const page = await context.newPage();
+    await page.goto("/");
+    for (const workflow of ["Verify observation", "Inspect evidence"]) {
+      if (workflow === "Inspect evidence") {
+        await page.getByRole("button", { name: "Show Inspect evidence workflow" }).tap();
+      }
+      const trigger = page.getByRole("button", { name: "Load example", exact: true });
+      const hint = page.locator(`[id="${await trigger.getAttribute("aria-describedby")}"]`);
+      await trigger.scrollIntoViewIfNeeded();
+      const bounds = (await trigger.boundingBox())!;
+      await page.touchscreen.tap(bounds.x + bounds.width / 2, bounds.y + bounds.height - 1);
+      await expect(page.getByLabel(workflow === "Verify observation" ? "Observation evidence JSON" : "Evidence JSON", { exact: true })).not.toHaveValue("");
+      await expect(hint).toBeHidden();
+      await expect(page.getByRole("dialog", { name: "Replace current inputs?" })).toHaveCount(0);
+    }
+  } finally {
+    await context.close();
+  }
+});
+
+for (const width of [1440, 320]) {
+  for (const workflow of ["Verify observation", "Inspect evidence"]) {
+    test(`${workflow} example tooltip supports hover-only dismissal and reopening at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto("/");
+      if (workflow === "Inspect evidence") {
+        await page.getByRole("button", { name: "Show Inspect evidence workflow" }).click();
+      }
+      const input = page.getByLabel(workflow === "Verify observation" ? "Execution ID" : "Evidence JSON", { exact: true });
+      const trigger = page.getByRole("button", { name: "Load example", exact: true });
+      const hint = page.locator(`[id="${await trigger.getAttribute("aria-describedby")}"]`);
+      await input.focus();
+      await trigger.hover();
+      await expect(hint).toBeVisible();
+      await expect(input).toBeFocused();
+      await page.keyboard.press("Escape");
+      await expect(hint).toBeHidden();
+      await expect(input).toBeFocused();
+      const buttonBounds = (await trigger.boundingBox())!;
+      await page.mouse.move(buttonBounds.x + buttonBounds.width / 2 + 1, buttonBounds.y + buttonBounds.height / 2);
+      await expect(hint).toBeHidden();
+
+      await page.mouse.move(0, 0);
+      await trigger.hover();
+      await expect(hint).toBeVisible();
+      const hintBounds = (await hint.boundingBox())!;
+      await page.mouse.move(hintBounds.x + hintBounds.width / 2, hintBounds.y + hintBounds.height / 2, { steps: 12 });
+      await expect(hint).toBeVisible();
+      expect(await hint.evaluate(node => node.matches(":hover"))).toBe(true);
+      await expect(input).toBeFocused();
+      await page.keyboard.press("Escape");
+      await expect(hint).toBeHidden();
+      await expect(input).toBeFocused();
+
+      await trigger.focus();
+      await expect(hint).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(hint).toBeHidden();
+      await expect(trigger).toBeFocused();
+      await input.focus();
+      await trigger.focus();
+      await expect(hint).toBeVisible();
+      // The hover bridge must not intercept the lower edge of the button.
+      const bounds = (await trigger.boundingBox())!;
+      await page.mouse.click(bounds.x + bounds.width / 2, bounds.y + bounds.height - 1);
+      await expect(hint).toBeHidden();
+      await expect(page.getByRole("dialog", { name: "Replace current inputs?" })).toHaveCount(0);
+      await expect(page.getByLabel(workflow === "Verify observation" ? "Observation evidence JSON" : "Evidence JSON", { exact: true })).not.toHaveValue("");
+    });
+  }
+}
+
 for (const width of [1440, 768, 320]) {
   for (const workflow of ["Verify observation", "Inspect evidence"]) {
     test(`${workflow} protects manual inputs when loading an example at ${width}px`, async ({ page, browserName }) => {

@@ -20,15 +20,20 @@ export function LoadExampleButton({ description, disabled, requiresConfirmation,
     }
   }, [confirming]);
 
+  useEffect(() => {
+    function dismissOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setTooltipDismissed(true);
+    }
+    document.addEventListener("keydown", dismissOnEscape);
+    return () => document.removeEventListener("keydown", dismissOnEscape);
+  }, []);
+
   return (
     <div
       className="example-action field-help"
       data-dismissed={tooltipDismissed || confirming}
       onPointerEnter={() => setTooltipDismissed(false)}
       onFocus={() => setTooltipDismissed(false)}
-      onKeyDown={(event) => {
-        if (event.key === "Escape") setTooltipDismissed(true);
-      }}
     >
       <button
         ref={triggerRef}

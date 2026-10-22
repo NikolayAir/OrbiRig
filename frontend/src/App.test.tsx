@@ -373,6 +373,11 @@ beforeEach(() => {
   });
   vi.stubGlobal("fetch", fetchMock);
   vi.stubGlobal("matchMedia", matchMediaMock);
+  // Rendered sizing and resize behaviour are checked in Playwright.
+  vi.stubGlobal("ResizeObserver", class {
+    observe() {}
+    disconnect() {}
+  });
 });
 
 afterEach(() => {

@@ -5,6 +5,7 @@ type BrowserWorkflow = "verification" | "inspection";
 
 export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: BrowserWorkflow }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
   const browserTabRef = useRef<HTMLButtonElement>(null);
   const cliTabRef = useRef<HTMLButtonElement>(null);
   const browserPanelRef = useRef<HTMLDivElement>(null);
@@ -18,6 +19,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: BrowserWorkfl
     scrollToWorkflow: boolean;
     trigger: HTMLButtonElement;
   } | null>(null);
+  const [scrollWholeDialog, setScrollWholeDialog] = useState(false);
   const section = help?.section;
   const browserWorkflow = help?.browserWorkflow;
 
@@ -25,15 +27,55 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: BrowserWorkfl
     if (help !== null && dialogRef.current !== null) {
       if (!dialogRef.current.open) {
         dialogRef.current.showModal();
+        dialogRef.current.scrollTop = 0;
       }
       const panel = help.section === "browser" ? browserPanelRef.current : cliPanelRef.current;
       if (panel !== null) {
         const tabs = browserWorkflowsRef.current;
-        panel.scrollTop = help.scrollToWorkflow && tabs !== null
-          ? tabs.offsetTop - panel.offsetTop
-          : 0;
+        if (scrollWholeDialog) {
+          panel.scrollTop = 0;
+          if (help.scrollToWorkflow && tabs !== null) {
+            dialogRef.current.scrollTop = tabs.offsetTop;
+          } else if (document.activeElement instanceof HTMLElement && headerRef.current?.contains(document.activeElement)) {
+            const focused = document.activeElement.getBoundingClientRect();
+            const top = dialogRef.current.getBoundingClientRect().top + dialogRef.current.clientTop;
+            const bottom = top + dialogRef.current.clientHeight;
+            if (focused.top < top) {
+              dialogRef.current.scrollTop += focused.top - top;
+            } else if (focused.bottom > bottom) {
+              dialogRef.current.scrollTop += focused.bottom - bottom;
+            }
+          }
+        } else {
+          dialogRef.current.scrollTop = 0;
+          panel.scrollTop = help.scrollToWorkflow && tabs !== null
+            ? tabs.offsetTop - panel.offsetTop
+            : 0;
+        }
       }
     }
+  }, [help, scrollWholeDialog]);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    const header = headerRef.current;
+    const panel = help?.section === "browser" ? browserPanelRef.current : cliPanelRef.current;
+    if (help === null || dialog === null || header === null || panel === null) return;
+
+    const measureAvailableSpace = () => {
+      if (!dialog.open) return;
+      const style = getComputedStyle(panel);
+      // Keep the header stationary only while the panel can show a full line.
+      const minimumPanelHeight = parseFloat(style.lineHeight)
+        + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+      setScrollWholeDialog(header.getBoundingClientRect().height + minimumPanelHeight > dialog.clientHeight);
+    };
+
+    measureAvailableSpace();
+    const observer = new ResizeObserver(measureAvailableSpace);
+    observer.observe(dialog);
+    observer.observe(header);
+    return () => observer.disconnect();
   }, [help]);
 
   function openHelp(section: HelpSection, trigger: HTMLButtonElement) {
@@ -124,6 +166,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: BrowserWorkfl
         ref={dialogRef}
         id="workflow-help-dialog"
         className="workflow-help-dialog"
+        data-scroll-whole={scrollWholeDialog}
         aria-labelledby="workflow-help-title"
         onClose={() => help?.trigger.focus({ preventScroll: true })}
         onClick={(event) => {
@@ -140,7 +183,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: BrowserWorkfl
           }
         }}
       >
-        <div className="workflow-help-header">
+        <div ref={headerRef} className="workflow-help-header">
           <div className="workflow-help-heading">
             <h2 id="workflow-help-title">How it works</h2>
             <button
