@@ -1,18 +1,25 @@
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 
 type HelpSection = "browser" | "cli";
+type BrowserWorkflow = "verification" | "inspection";
 
-export function WorkflowHelp() {
+export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: BrowserWorkflow }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const browserTabRef = useRef<HTMLButtonElement>(null);
   const cliTabRef = useRef<HTMLButtonElement>(null);
   const browserPanelRef = useRef<HTMLDivElement>(null);
   const cliPanelRef = useRef<HTMLDivElement>(null);
+  const browserWorkflowsRef = useRef<HTMLDivElement>(null);
+  const verificationTabRef = useRef<HTMLButtonElement>(null);
+  const inspectionTabRef = useRef<HTMLButtonElement>(null);
   const [help, setHelp] = useState<{
     section: HelpSection;
+    browserWorkflow: BrowserWorkflow;
+    scrollToWorkflow: boolean;
     trigger: HTMLButtonElement;
   } | null>(null);
   const section = help?.section;
+  const browserWorkflow = help?.browserWorkflow;
 
   useEffect(() => {
     if (help !== null && dialogRef.current !== null) {
@@ -21,20 +28,50 @@ export function WorkflowHelp() {
       }
       const panel = help.section === "browser" ? browserPanelRef.current : cliPanelRef.current;
       if (panel !== null) {
-        panel.scrollTop = 0;
+        const tabs = browserWorkflowsRef.current;
+        panel.scrollTop = help.scrollToWorkflow && tabs !== null
+          ? tabs.offsetTop - panel.offsetTop
+          : 0;
       }
     }
   }, [help]);
 
   function openHelp(section: HelpSection, trigger: HTMLButtonElement) {
     // A distinct request also reopens the same guide before the close event arrives.
-    setHelp({ section, trigger });
+    setHelp({ section, trigger, browserWorkflow: activeWorkflow, scrollToWorkflow: false });
   }
 
   function selectHelp(section: HelpSection) {
     setHelp((current) => current === null || current.section === section
       ? current
-      : { ...current, section });
+      : { ...current, section, scrollToWorkflow: false });
+  }
+
+  function selectBrowserWorkflow(browserWorkflow: BrowserWorkflow) {
+    setHelp((current) => current === null || current.browserWorkflow === browserWorkflow
+      ? current
+      : { ...current, browserWorkflow, scrollToWorkflow: true });
+  }
+
+  function navigateBrowserTabs(event: KeyboardEvent<HTMLButtonElement>, current: BrowserWorkflow) {
+    let next: BrowserWorkflow;
+    switch (event.key) {
+      case "ArrowLeft":
+      case "ArrowRight":
+        next = current === "verification" ? "inspection" : "verification";
+        break;
+      case "Home":
+        next = "verification";
+        break;
+      case "End":
+        next = "inspection";
+        break;
+      default:
+        return;
+    }
+    event.preventDefault();
+    selectBrowserWorkflow(next);
+    (next === "verification" ? verificationTabRef : inspectionTabRef).current?.focus({ preventScroll: true });
   }
 
   function navigateTabs(event: KeyboardEvent<HTMLButtonElement>, current: HelpSection) {
@@ -182,60 +219,108 @@ export function WorkflowHelp() {
                 telemetry.
               </p>
 
-              <h3>Verify observation</h3>
-              <ol>
-                <li>Enter an execution ID and the UTC time of the recorded execution.</li>
-                <li>
-                  Select a scenario describing the expected behaviour, such as switching
-                  from NOMINAL to SAFE mode.
-                </li>
-                <li>
-                  Paste the observation JSON or choose <strong>Load example</strong> to
-                  try a sample.
-                </li>
-                <li>
-                  Choose <strong>Verify observation</strong> to see the individual checks
-                  and overall <strong>PASS</strong> or <strong>FAIL</strong> result.
-                </li>
-              </ol>
-              <p>
-                <strong>PASS</strong> means the recorded behaviour matches the selected
-                scenario. This can include a rejected command if rejection was expected.
-              </p>
-              <p>
-                <strong>FAIL</strong> means the observation is valid, but the recorded
-                behaviour does not meet the scenario's expectations. Invalid evidence is
-                reported separately as an input error.
-              </p>
-              <p>
-                The scenario defines what should happen independently of the recorded
-                observation.
-              </p>
-
-              <h3>Inspect evidence</h3>
-              <ol>
-                <li>
-                  Select the type of saved record: observation, verified execution, or
-                  verified-execution sequence.
-                </li>
-                <li>
-                  Paste its JSON or choose <strong>Load example</strong>.
-                </li>
-                <li>
-                  Choose <strong>Inspect evidence</strong> to explore its contents in a
-                  structured view.
-                </li>
-              </ol>
-              <p>
-                Inspecting an observation checks whether the record is valid. To check
-                it against a scenario, use <strong>Verify observation</strong>.
-              </p>
-              <p>
-                For saved verified executions and sequences, OrbiRig independently
-                recalculates verification results and checks their consistency. Evidence
-                with a correctly derived <strong>FAIL</strong> outcome is still valid and
-                can be inspected.
-              </p>
+              <div
+                ref={browserWorkflowsRef}
+                className="workflow-help-workflows"
+                role="tablist"
+                aria-label="Browser instructions"
+              >
+                <button
+                  ref={verificationTabRef}
+                  type="button"
+                  role="tab"
+                  id="workflow-help-verification-tab"
+                  aria-selected={browserWorkflow === "verification"}
+                  aria-controls="workflow-help-verification-panel"
+                  tabIndex={browserWorkflow === "verification" ? 0 : -1}
+                  onClick={() => selectBrowserWorkflow("verification")}
+                  onKeyDown={(event) => navigateBrowserTabs(event, "verification")}
+                >
+                  Verify observation
+                </button>
+                <button
+                  ref={inspectionTabRef}
+                  type="button"
+                  role="tab"
+                  id="workflow-help-inspection-tab"
+                  aria-selected={browserWorkflow === "inspection"}
+                  aria-controls="workflow-help-inspection-panel"
+                  tabIndex={browserWorkflow === "inspection" ? 0 : -1}
+                  onClick={() => selectBrowserWorkflow("inspection")}
+                  onKeyDown={(event) => navigateBrowserTabs(event, "inspection")}
+                >
+                  Inspect evidence
+                </button>
+              </div>
+              <div
+                className="workflow-help-instructions"
+                role="tabpanel"
+                id="workflow-help-verification-panel"
+                aria-labelledby="workflow-help-verification-tab"
+                hidden={browserWorkflow !== "verification"}
+                tabIndex={0}
+              >
+                <ol>
+                  <li>Enter an execution ID and the UTC time of the recorded execution.</li>
+                  <li>
+                    Select a scenario describing the expected behaviour, such as switching
+                    from NOMINAL to SAFE mode.
+                  </li>
+                  <li>
+                    Paste the observation JSON or choose <strong>Load example</strong> to
+                    try a sample.
+                  </li>
+                  <li>
+                    Choose <strong>Verify observation</strong> to see the individual checks
+                    and overall <strong>PASS</strong> or <strong>FAIL</strong> result.
+                  </li>
+                </ol>
+                <p>
+                  <strong>PASS</strong> means the recorded behaviour matches the selected
+                  scenario. This can include a rejected command if rejection was expected.
+                </p>
+                <p>
+                  <strong>FAIL</strong> means the observation is valid, but the recorded
+                  behaviour does not meet the scenario's expectations. Invalid evidence is
+                  reported separately as an input error.
+                </p>
+                <p>
+                  The scenario defines what should happen independently of the recorded
+                  observation.
+                </p>
+              </div>
+              <div
+                className="workflow-help-instructions"
+                role="tabpanel"
+                id="workflow-help-inspection-panel"
+                aria-labelledby="workflow-help-inspection-tab"
+                hidden={browserWorkflow !== "inspection"}
+                tabIndex={0}
+              >
+                <ol>
+                  <li>
+                    Select the type of saved record: observation, verified execution, or
+                    verified-execution sequence.
+                  </li>
+                  <li>
+                    Paste its JSON or choose <strong>Load example</strong>.
+                  </li>
+                  <li>
+                    Choose <strong>Inspect evidence</strong> to explore its contents in a
+                    structured view.
+                  </li>
+                </ol>
+                <p>
+                  Inspecting an observation checks whether the record is valid. To check
+                  it against a scenario, use <strong>Verify observation</strong>.
+                </p>
+                <p>
+                  For saved verified executions and sequences, OrbiRig independently
+                  recalculates verification results and checks their consistency. Evidence
+                  with a correctly derived <strong>FAIL</strong> outcome is still valid and
+                  can be inspected.
+                </p>
+              </div>
             </>
           )}
         </div>

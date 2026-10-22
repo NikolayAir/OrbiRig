@@ -256,9 +256,46 @@ h2 {
   white-space: nowrap;
 }
 
-.workflow-help-content h3 {
-  font-size: 1.0625rem;
-  margin: 1.75rem 0 0.75rem;
+.workflow-help-workflows {
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  display: inline-flex;
+  margin: 1rem 0 0.75rem;
+  max-width: 100%;
+  padding: 0.25rem;
+}
+
+.workflow-help-workflows [role="tab"] {
+  background: transparent;
+  border: 0;
+  border-radius: 0.25rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.4;
+  min-height: 2.75rem;
+  min-width: 0;
+  padding: 0.5rem 0.75rem;
+}
+
+.workflow-help-workflows [role="tab"]:hover {
+  color: var(--accent-strong);
+}
+
+.workflow-help-workflows [aria-selected="true"] {
+  background: var(--accent);
+  color: var(--surface);
+}
+
+.workflow-help-workflows [aria-selected="true"]:hover {
+  background: var(--accent-strong);
+  color: var(--surface);
+}
+
+.workflow-help-instructions:focus-visible {
+  box-shadow: var(--focus-ring);
+  outline: 1px solid var(--focus-edge);
+  outline-offset: 4px;
 }
 
 .workflow-help-content p {

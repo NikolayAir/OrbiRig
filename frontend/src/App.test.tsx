@@ -530,8 +530,9 @@ describe("App", () => {
     expect(guidance.getByRole("tab", { name, selected: true })).toHaveAttribute("tabindex", "0");
     expect(guidance.getByRole("tabpanel", { name })).toBeVisible();
     if (name === "In the browser") {
-      expect(guidance.getByRole("heading", { name: "Verify observation", level: 3 })).toBeVisible();
-      expect(guidance.getByRole("heading", { name: "Inspect evidence", level: 3 })).toBeVisible();
+      expect(guidance.getByRole("tab", { name: "Verify observation", selected: true })).toBeVisible();
+      expect(guidance.getByRole("tabpanel", { name: "Verify observation" })).toBeVisible();
+      expect(guidance.queryByRole("tabpanel", { name: "Inspect evidence" })).not.toBeInTheDocument();
       expect(guidance.queryByText(/OrbiRig can verify/)).not.toBeInTheDocument();
       expect(guidance.queryByRole("region", { name: "CLI verification command" })).not.toBeInTheDocument();
       expect(guidance.queryByRole("link")).not.toBeInTheDocument();
@@ -558,20 +559,20 @@ describe("App", () => {
     fireEvent.click(trigger);
     const otherName = name === "In the browser" ? "From the command line" : "In the browser";
     const otherTab = within(help).getByRole("tab", { name: otherName });
-    within(help).getByRole("tabpanel").scrollTop = 150;
+    within(help).getByRole("tabpanel", { name: /^(In the browser|From the command line)$/ }).scrollTop = 150;
 
     fireEvent.click(otherTab);
 
     expect(help).toHaveAttribute("open");
     expect(showModal).toHaveBeenCalledTimes(1);
     expect(close).not.toHaveBeenCalled();
-    expect(within(help).getByRole("tabpanel").scrollTop).toBe(0);
+    expect(within(help).getByRole("tabpanel", { name: /^(In the browser|From the command line)$/ }).scrollTop).toBe(0);
     expect(otherTab).toHaveAttribute("aria-selected", "true");
     expect(otherTab).toHaveAttribute("tabindex", "0");
     const panel = within(help).getByRole("tabpanel", { name: otherName });
     expect(otherTab).toHaveAttribute("aria-controls", panel.id);
     expect(panel).toHaveAttribute("aria-labelledby", otherTab.id);
-    expect(within(help).getAllByRole("tabpanel")).toHaveLength(1);
+    expect(within(help).getAllByRole("tabpanel", { name: /^(In the browser|From the command line)$/ })).toHaveLength(1);
     expect(within(help).getByRole("tab", { name })).toHaveAttribute("tabindex", "-1");
 
     fireEvent.click(within(help).getByRole("button", { name: "Close" }));
@@ -594,14 +595,80 @@ describe("App", () => {
       ["End", "From the command line"],
       ["Home", "In the browser"],
     ]) {
-      within(help).getByRole("tabpanel").scrollTop = 150;
+      within(help).getByRole("tabpanel", { name: /^(In the browser|From the command line)$/ }).scrollTop = 150;
       fireEvent.keyDown(document.activeElement!, { key });
       const selected = within(tabs).getByRole("tab", { name, selected: true });
       expect(selected).toHaveFocus();
       expect(selected).toHaveAttribute("tabindex", "0");
       expect(within(help).getByRole("tabpanel", { name })).toBeVisible();
-      expect(within(help).getByRole("tabpanel").scrollTop).toBe(0);
+      expect(within(help).getByRole("tabpanel", { name: /^(In the browser|From the command line)$/ }).scrollTop).toBe(0);
     }
+  });
+
+  it.each(["verification", "inspection"])("opens browser instructions for the active %s workflow on every opening", (workflow) => {
+    render(<App />);
+    if (workflow === "inspection") selectInspectionWorkflow();
+    const selectedName = workflow === "verification" ? "Verify observation" : "Inspect evidence";
+    const otherName = workflow === "verification" ? "Inspect evidence" : "Verify observation";
+    const trigger = screen.getByRole("button", { name: "In the browser" });
+    fireEvent.click(trigger);
+    const help = within(screen.getByRole("dialog", { name: "How it works" }));
+    expect(help.getByRole("tab", { name: selectedName, selected: true })).toBeVisible();
+    fireEvent.click(help.getByRole("tab", { name: otherName }));
+    expect(help.getByRole("tabpanel", { name: otherName })).toBeVisible();
+    expect(help.queryByRole("tabpanel", { name: selectedName })).not.toBeInTheDocument();
+    expect(help.getAllByRole("list")).toHaveLength(1);
+    fireEvent.click(help.getByRole("button", { name: "Close" }));
+    fireEvent.click(trigger);
+    expect(help.getByRole("tab", { name: selectedName, selected: true })).toBeVisible();
+    expect(screen.getByRole("button", {
+      name: `Show ${selectedName} workflow`,
+    })).toHaveAttribute("aria-pressed", "true");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("navigates browser instruction tabs independently and retains their selection through CLI help", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "In the browser" }));
+    const help = screen.getByRole("dialog", { name: "How it works" }) as HTMLDialogElement;
+    const showModal = vi.spyOn(help, "showModal");
+    const close = vi.spyOn(help, "close");
+    const guidance = within(help);
+    const tabs = guidance.getByRole("tablist", { name: "Browser instructions" });
+    const browserPanel = guidance.getByRole("tabpanel", { name: "In the browser" });
+    Object.defineProperty(tabs, "offsetTop", { value: 200 });
+    Object.defineProperty(browserPanel, "offsetTop", { value: 100 });
+    within(tabs).getByRole("tab", { name: "Verify observation" }).focus();
+    for (const [key, name] of [
+      ["ArrowRight", "Inspect evidence"],
+      ["ArrowRight", "Verify observation"],
+      ["ArrowLeft", "Inspect evidence"],
+      ["ArrowLeft", "Verify observation"],
+      ["End", "Inspect evidence"],
+      ["Home", "Verify observation"],
+      ["End", "Inspect evidence"],
+    ]) {
+      browserPanel.scrollTop = 500;
+      fireEvent.keyDown(document.activeElement!, { key });
+      const selected = within(tabs).getByRole("tab", { name, selected: true });
+      const panel = guidance.getByRole("tabpanel", { name });
+      expect(selected).toHaveFocus();
+      expect(selected).toHaveAttribute("tabindex", "0");
+      expect(within(tabs).getByRole("tab", { selected: false })).toHaveAttribute("tabindex", "-1");
+      expect(selected).toHaveAttribute("aria-controls", panel.id);
+      expect(panel).toHaveAttribute("aria-labelledby", selected.id);
+      expect(panel).toHaveAttribute("tabindex", "0");
+      expect(browserPanel.scrollTop).toBe(100);
+      expect(guidance.getByRole("tab", { name: "In the browser" })).toHaveAttribute("aria-selected", "true");
+    }
+    fireEvent.click(guidance.getByRole("tab", { name: "From the command line" }));
+    expect(guidance.queryByRole("tablist", { name: "Browser instructions" })).not.toBeInTheDocument();
+    fireEvent.click(guidance.getByRole("tab", { name: "In the browser" }));
+    expect(guidance.getByRole("tab", { name: "Inspect evidence", selected: true })).toBeVisible();
+    expect(browserPanel.scrollTop).toBe(0);
+    expect(showModal).not.toHaveBeenCalled();
+    expect(close).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("starts at the top when reopening either guide or switching between them", () => {
@@ -611,8 +678,8 @@ describe("App", () => {
     for (const name of ["In the browser", "In the browser", "From the command line", "From the command line", "In the browser"]) {
       fireEvent.click(screen.getByRole("button", { name }));
       expect(screen.getByRole("dialog", { name: "How it works" })).toBeVisible();
-      expect(within(help).getByRole("tabpanel").scrollTop).toBe(0);
-      within(help).getByRole("tabpanel").scrollTop = 150;
+      expect(within(help).getByRole("tabpanel", { name: /^(In the browser|From the command line)$/ }).scrollTop).toBe(0);
+      within(help).getByRole("tabpanel", { name: /^(In the browser|From the command line)$/ }).scrollTop = 150;
       fireEvent.click(within(help).getByRole("button", { name: "Close" }));
     }
   });
@@ -636,7 +703,7 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "In the browser" }));
 
     const guidance = within(screen.getByRole("dialog", { name: "How it works" }));
-    const [verificationSteps, inspectionSteps] = guidance.getAllByRole("list");
+    const verificationSteps = guidance.getByRole("list");
 
     expect(
       within(verificationSteps).getAllByRole("listitem").map((step) => step.textContent?.replace(/\s+/g, " ").trim()),
@@ -645,13 +712,6 @@ describe("App", () => {
       "Select a scenario describing the expected behaviour, such as switching from NOMINAL to SAFE mode.",
       "Paste the observation JSON or choose Load example to try a sample.",
       "Choose Verify observation to see the individual checks and overall PASS or FAIL result.",
-    ]);
-    expect(
-      within(inspectionSteps).getAllByRole("listitem").map((step) => step.textContent?.replace(/\s+/g, " ").trim()),
-    ).toEqual([
-      "Select the type of saved record: observation, verified execution, or verified-execution sequence.",
-      "Paste its JSON or choose Load example.",
-      "Choose Inspect evidence to explore its contents in a structured view.",
     ]);
 
     expect(guidance.getByText(/OrbiRig checks command records/)).toHaveTextContent(
@@ -669,6 +729,15 @@ describe("App", () => {
     expect(guidance.getByText(/The scenario defines/)).toHaveTextContent(
       "The scenario defines what should happen independently of the recorded observation.",
     );
+    fireEvent.click(guidance.getByRole("tab", { name: "Inspect evidence" }));
+    const inspectionSteps = guidance.getByRole("list");
+    expect(
+      within(inspectionSteps).getAllByRole("listitem").map((step) => step.textContent?.replace(/\s+/g, " ").trim()),
+    ).toEqual([
+      "Select the type of saved record: observation, verified execution, or verified-execution sequence.",
+      "Paste its JSON or choose Load example.",
+      "Choose Inspect evidence to explore its contents in a structured view.",
+    ]);
     const observationInspection = guidance.getByText(/Inspecting an observation checks/);
     expect(observationInspection).toHaveTextContent(
       "Inspecting an observation checks whether the record is valid. To check it against a scenario, use Verify observation.",
@@ -770,6 +839,9 @@ describe("App", () => {
     expect(help).toHaveAttribute("open");
     const otherGuide = name === "In the browser" ? "From the command line" : "In the browser";
     fireEvent.click(within(help).getByRole("tab", { name: otherGuide }));
+    fireEvent.click(within(help).getByRole("tab", { name: "In the browser" }));
+    fireEvent.click(within(help).getByRole("tab", { name: "Inspect evidence" }));
+    fireEvent.click(within(help).getByRole("tab", { name: "Verify observation" }));
     fireEvent.click(within(help).getByRole("button", { name: "Close" }));
     selectInspectionWorkflow();
     selectVerificationWorkflow();

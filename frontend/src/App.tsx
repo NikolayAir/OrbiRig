@@ -555,7 +555,7 @@ export function App() {
         </p>
       </header>
 
-      <WorkflowHelp />
+      <WorkflowHelp activeWorkflow={activeWorkflow} />
 
       <p className="workflow-selector-label" id="workflow-selector-label">
         Choose a workflow
