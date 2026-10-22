@@ -534,11 +534,10 @@ export function App() {
           <img src={orbirigMark} width="40" height="40" alt="" />
           <span>OrbiRig</span>
         </p>
-        <h1>Observation verification and evidence inspection</h1>
+        <h1>Verify observations and inspect evidence</h1>
         <p>
-          Check whether a command produced the expected result in a simplified
-          spacecraft test, or inspect saved evidence without changing it. Start
-          with a built-in example.
+          Check recorded behaviour from simplified spacecraft tests against a
+          selected scenario, or inspect saved evidence.
         </p>
       </header>
 

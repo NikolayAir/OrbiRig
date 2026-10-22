@@ -27,6 +27,25 @@ for (const viewport of [
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/");
 
+    if (viewport.width >= 1280) {
+      const introductionLines = await page.locator(".page-header > p:last-child").evaluate(element => {
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        return range.getClientRects().length;
+      });
+      expect(introductionLines).toBe(1);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(viewport.width);
+    for (const name of ["About Execution ID", "About Scenario"]) {
+      await page.getByRole("button", { name, exact: true }).focus();
+      const tooltip = page.getByRole("tooltip");
+      await expect(tooltip).toBeVisible();
+      await expectWithinWidth(tooltip, viewport.width);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(viewport.width);
+      await page.keyboard.press("Escape");
+      await expect(tooltip).toBeHidden();
+    }
+
     await page.getByRole("button", { name: "Verify observation", exact: true }).click();
     const executionId = page.getByLabel("Execution ID", { exact: true });
     await expect(executionId).toBeFocused();
@@ -76,7 +95,23 @@ for (const viewport of [
     await expect(boundary.getByText("NOMINAL", { exact: true })).toBeVisible();
     await expectWithinWidth(inspected.locator("dd, code, .outcome-badge"), viewport.width);
     expect(await inspected.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
-    // The verification field tooltips are unmounted in inspection; they have a separate known overflow.
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(viewport.width);
   });
 }
+
+test("forms reflow with doubled text at 320px", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page.goto("/");
+  await page.locator("html").evaluate(element => { element.style.fontSize = "200%"; });
+
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
+  await page.getByRole("button", { name: "Show Inspect evidence workflow", exact: true }).click();
+  await expectWithinWidth(page.locator(".evidence-types label"), 320);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
+
+  const sequence = page.getByRole("radio", { name: "Verified execution sequence", exact: true });
+  await sequence.check();
+  await expect(sequence).toBeChecked();
+  await page.getByRole("button", { name: "Load example", exact: true }).click();
+  await expect(page.getByLabel("Evidence JSON", { exact: true })).not.toHaveValue("");
+});
