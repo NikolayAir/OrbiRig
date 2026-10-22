@@ -2,7 +2,7 @@
   --ink: #213547;
   --heading: #153e56;
   --muted: #536779;
-  --canvas: #f4f7fa;
+  --canvas: #edf1f4;
   --surface: #fff;
   --soft: #f8fafc;
   --line: #d5e0e8;
@@ -38,17 +38,19 @@ main {
 
 .brand {
   align-items: center;
-  color: var(--heading);
+  color: #466176;
   display: flex;
-  font-size: 1.375rem;
-  font-weight: 750;
-  gap: 0.65rem;
-  letter-spacing: -0.025em;
+  font-size: 1.25rem;
+  font-weight: 650;
+  gap: 0.5rem;
+  letter-spacing: 0.09em;
   margin: 0 0 1.25rem;
 }
 
 .brand img {
   flex: 0 0 auto;
+  height: 2.25rem;
+  width: 2.25rem;
 }
 
 h1,
@@ -148,7 +150,7 @@ h2 {
 }
 
 .workflow-help-dialog::backdrop {
-  background: rgb(23 43 58 / 40%);
+  background: rgb(23 43 58 / 48%);
 }
 
 .workflow-help-heading {
