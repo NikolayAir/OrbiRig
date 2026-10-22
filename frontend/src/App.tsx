@@ -2,6 +2,7 @@ import { Fragment, type SubmitEvent, useEffect, useRef, useState } from "react";
 
 import { WorkflowHelp } from "./WorkflowHelp";
 import { LoadExampleButton } from "./LoadExampleButton";
+import { WorkflowTitle } from "./WorkflowTitle";
 import {
   EXAMPLE_VERIFIED_EXECUTION_DOCUMENT,
   EXAMPLE_VERIFIED_EXECUTION_SEQUENCE_DOCUMENT,
@@ -225,9 +226,6 @@ export function App() {
     useState<Workflow>("verification");
   const [executionIdHelpOpen, setExecutionIdHelpOpen] = useState(false);
   const [scenarioHelpOpen, setScenarioHelpOpen] = useState(false);
-  const [verificationHelpOpen, setVerificationHelpOpen] = useState(false);
-  const [verificationHelpDismissed, setVerificationHelpDismissed] = useState(false);
-  const [verificationHelpAbove, setVerificationHelpAbove] = useState(false);
   const [executionId, setExecutionId] = useState("");
   const [executedAt, setExecutedAt] = useState("");
   const [scenarioId, setScenarioId] = useState<ScenarioId | "">("");
@@ -245,7 +243,6 @@ export function App() {
   });
   const executionIdHelpRef = useRef<HTMLSpanElement>(null);
   const scenarioHelpRef = useRef<HTMLSpanElement>(null);
-  const verificationHelpRef = useRef<HTMLSpanElement>(null);
   const executionIdInputRef = useRef<HTMLInputElement>(null);
   const executedAtInputRef = useRef<HTMLInputElement>(null);
   const scenarioInputRef = useRef<HTMLSelectElement>(null);
@@ -269,14 +266,6 @@ export function App() {
     function dismissHelpOutside(event: PointerEvent) {
       if (!(event.target instanceof Node)) {
         return;
-      }
-
-      if (
-        verificationHelpOpen &&
-        !verificationHelpRef.current?.contains(event.target)
-      ) {
-        setVerificationHelpOpen(false);
-        setVerificationHelpDismissed(true);
       }
 
       const executionHelpContainer = executionIdHelpRef.current;
@@ -311,19 +300,7 @@ export function App() {
     document.addEventListener("pointerdown", dismissHelpOutside);
     return () =>
       document.removeEventListener("pointerdown", dismissHelpOutside);
-  }, [executionIdHelpOpen, scenarioHelpOpen, verificationHelpOpen]);
-
-  useEffect(() => {
-    function dismissVerificationHelp(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setVerificationHelpOpen(false);
-        setVerificationHelpDismissed(true);
-      }
-    }
-
-    document.addEventListener("keydown", dismissVerificationHelp);
-    return () => document.removeEventListener("keydown", dismissVerificationHelp);
-  }, []);
+  }, [executionIdHelpOpen, scenarioHelpOpen]);
 
   useEffect(() => {
     const isTerminal =
@@ -374,20 +351,6 @@ export function App() {
       delete remainingErrors[field];
       return remainingErrors;
     });
-  }
-
-  function revealVerificationHelp() {
-    const title = verificationHelpRef.current?.parentElement;
-    const tooltip = verificationHelpRef.current?.querySelector<HTMLElement>('[role="tooltip"]');
-    if (title && tooltip) {
-      const bounds = title.getBoundingClientRect();
-      const gap = 0.4 * (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16);
-      const requiredSpace = tooltip.getBoundingClientRect().height + gap;
-      setVerificationHelpAbove(
-        bounds.bottom + requiredSpace > window.innerHeight && bounds.top >= requiredSpace,
-      );
-    }
-    setVerificationHelpDismissed(false);
   }
 
   function loadVerificationExample() {
@@ -630,44 +593,17 @@ export function App() {
           id="verification-workflow"
           aria-labelledby="observation-verification"
         >
-          <div className="workflow-heading verification-heading">
-            <div className="verification-title">
-              <h2 id="observation-verification">Verify observation</h2>
-              <span
-                ref={verificationHelpRef}
-                className="field-help"
-                data-open={verificationHelpOpen}
-                data-dismissed={verificationHelpDismissed}
-                data-above={verificationHelpAbove}
-                onPointerEnter={revealVerificationHelp}
-                onFocus={revealVerificationHelp}
-                onBlur={() => {
-                  setVerificationHelpOpen(false);
-                  setVerificationHelpDismissed(true);
-                }}
-              >
-                <button
-                  type="button"
-                  className="field-help-button"
-                  aria-label="About Verify observation"
-                  aria-controls="verification-help-description"
-                  aria-describedby="verification-help-description"
-                  onClick={() => {
-                    revealVerificationHelp();
-                    setExecutionIdHelpOpen(false);
-                    setScenarioHelpOpen(false);
-                    setVerificationHelpDismissed(verificationHelpOpen);
-                    setVerificationHelpOpen(!verificationHelpOpen);
-                  }}
-                >
-                  <span aria-hidden="true">i</span>
-                </button>
-                <span id="verification-help-description" role="tooltip">
-                  Provide execution details, select a supported scenario, and
-                  submit observation evidence for verification.
-                </span>
-              </span>
-            </div>
+          <div className="workflow-heading">
+            <WorkflowTitle
+              headingId="observation-verification"
+              helpId="verification-help-description"
+              title="Verify observation"
+              description="Provide execution details, select a supported scenario, and submit observation evidence for verification."
+              onHelpOpen={() => {
+                setExecutionIdHelpOpen(false);
+                setScenarioHelpOpen(false);
+              }}
+            />
             <LoadExampleButton
               description="Replaces current inputs"
               disabled={verification.kind === "loading"}
@@ -970,13 +906,12 @@ export function App() {
           aria-labelledby="evidence-inspection"
         >
           <div className="workflow-heading">
-            <div>
-              <h2 id="evidence-inspection">Inspect evidence</h2>
-              <p>
-                Select an evidence type and paste its JSON document to review
-                it in a structured view.
-              </p>
-            </div>
+            <WorkflowTitle
+              headingId="evidence-inspection"
+              helpId="inspection-help-description"
+              title="Inspect evidence"
+              description="Select an evidence type and paste its JSON document to review it in a structured view."
+            />
             <LoadExampleButton
               description="Replaces evidence JSON"
               disabled={inspection.kind === "loading"}

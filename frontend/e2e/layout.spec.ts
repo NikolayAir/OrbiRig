@@ -107,69 +107,79 @@ for (const viewport of [
 }
 
 for (const width of [1440, 390, 320]) {
-  test(`verification introduction supports hover, keyboard and touch at ${width}px`, async ({ browser, baseURL }) => {
-    const context = await browser.newContext({ baseURL, viewport: { width, height: 800 }, hasTouch: true });
-    const page = await context.newPage();
-    await page.goto("/");
-    const help = page.getByRole("button", { name: "About Verify observation", exact: true });
-    const tooltip = page.locator("#verification-help-description");
-    const heading = page.getByRole("heading", { name: "Verify observation", exact: true });
-    await expect(tooltip).toBeHidden();
-    await expect(help).toHaveAccessibleDescription(
-      "Provide execution details, select a supported scenario, and submit observation evidence for verification.",
-    );
-    const headingBounds = (await heading.boundingBox())!;
-    const helpBounds = (await help.boundingBox())!;
-    expect(helpBounds.x).toBeGreaterThanOrEqual(headingBounds.x + headingBounds.width);
-    expect(Math.abs(helpBounds.y + helpBounds.height / 2 - headingBounds.y - headingBounds.height / 2)).toBeLessThan(1);
+  for (const [title, helpId, description, outsideLabel, reminder] of [
+    ["Verify observation", "verification-help-description", "Provide execution details, select a supported scenario, and submit observation evidence for verification.", "Execution ID", "Replaces current inputs"],
+    ["Inspect evidence", "inspection-help-description", "Select an evidence type and paste its JSON document to review it in a structured view.", "Evidence JSON", "Replaces evidence JSON"],
+  ]) {
+    test(`${title} introduction supports hover, keyboard and touch at ${width}px`, async ({ browser, baseURL, browserName }) => {
+      const context = await browser.newContext({ baseURL, viewport: { width, height: 800 }, hasTouch: true });
+      const page = await context.newPage();
+      await page.goto("/");
+      if (title === "Inspect evidence") await page.getByRole("button", { name: "Show Inspect evidence workflow" }).click();
+      const help = page.getByRole("button", { name: `About ${title}`, exact: true });
+      const tooltip = page.locator(`#${helpId}`);
+      const heading = page.getByRole("heading", { name: title, exact: true });
+      await expect(tooltip).toBeHidden();
+      await expect(help).toHaveAccessibleDescription(
+        description,
+      );
+      const headingBounds = (await heading.boundingBox())!;
+      const helpBounds = (await help.boundingBox())!;
+      expect(helpBounds.x).toBeGreaterThanOrEqual(headingBounds.x + headingBounds.width);
+      expect(Math.abs(helpBounds.y + helpBounds.height / 2 - headingBounds.y - headingBounds.height / 2)).toBeLessThan(1);
 
-    await help.hover();
-    await expect(tooltip).toBeVisible();
-    await expectWithinWidth(tooltip, width);
-    await tooltip.hover();
-    await expect(tooltip).toBeVisible();
-    await page.keyboard.press("Escape");
-    await expect(tooltip).toBeHidden();
-    await page.mouse.move(0, 0);
+      await help.hover();
+      await expect(tooltip).toBeVisible();
+      await expectWithinWidth(tooltip, width);
+      await tooltip.hover();
+      await expect(tooltip).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(tooltip).toBeHidden();
+      await page.mouse.move(0, 0);
 
-    await help.focus();
-    await expect(tooltip).toBeVisible();
-    await expect(help).toHaveCSS("outline-style", "solid");
-    await page.keyboard.press("Escape");
-    await expect(tooltip).toBeHidden();
-    await expect(help).toBeFocused();
-    await page.keyboard.press("Enter");
-    await expect(tooltip).toBeVisible();
-    await page.keyboard.press("Enter");
-    await expect(tooltip).toBeHidden();
-    await page.keyboard.press("Space");
-    await expect(tooltip).toBeVisible();
-    await page.keyboard.press("Tab");
-    await expect(tooltip).toBeHidden();
+      await help.focus();
+      const optionTab = browserName === "webkit" && process.platform === "darwin";
+      await page.keyboard.press(optionTab ? "Alt+Shift+Tab" : "Shift+Tab");
+      await page.keyboard.press(optionTab ? "Alt+Tab" : "Tab");
+      await expect(help).toBeFocused();
+      await expect(tooltip).toBeVisible();
+      await expect(help).toHaveCSS("outline-style", "solid");
+      await page.keyboard.press("Escape");
+      await expect(tooltip).toBeHidden();
+      await expect(help).toBeFocused();
+      await page.keyboard.press("Enter");
+      await expect(tooltip).toBeVisible();
+      await page.keyboard.press("Enter");
+      await expect(tooltip).toBeHidden();
+      await page.keyboard.press("Space");
+      await expect(tooltip).toBeVisible();
+      await page.keyboard.press("Tab");
+      await expect(tooltip).toBeHidden();
 
-    await help.tap();
-    await expect(tooltip).toBeVisible();
-    await help.tap();
-    await expect(tooltip).toBeHidden();
-    await help.tap();
-    await expect(tooltip).toBeVisible();
-    await page.getByLabel("Execution ID", { exact: true }).tap();
-    await expect(tooltip).toBeHidden();
-    await expect(page.getByText("Replaces current inputs", { exact: true })).toBeHidden();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
+      await help.tap();
+      await expect(tooltip).toBeVisible();
+      await help.tap();
+      await expect(tooltip).toBeHidden();
+      await help.tap();
+      await expect(tooltip).toBeVisible();
+      await page.getByLabel(outsideLabel, { exact: true }).tap();
+      await expect(tooltip).toBeHidden();
+      await expect(page.getByText(reminder, { exact: true })).toBeHidden();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
 
-    await page.setViewportSize({ width, height: 480 });
-    await page.mouse.move(0, 0);
-    await help.evaluate(element => {
-      window.scrollBy(0, element.getBoundingClientRect().bottom - window.innerHeight + 16);
+      await page.setViewportSize({ width, height: 480 });
+      await page.mouse.move(0, 0);
+      await help.evaluate(element => {
+        window.scrollBy(0, element.getBoundingClientRect().bottom - window.innerHeight + 16);
+      });
+      await help.hover();
+      await expect(tooltip).toBeVisible();
+      const tooltipBounds = (await tooltip.boundingBox())!;
+      expect(tooltipBounds.y).toBeGreaterThanOrEqual(0);
+      expect(tooltipBounds.y + tooltipBounds.height).toBeLessThanOrEqual(480);
+      await context.close();
     });
-    await help.hover();
-    await expect(tooltip).toBeVisible();
-    const tooltipBounds = (await tooltip.boundingBox())!;
-    expect(tooltipBounds.y).toBeGreaterThanOrEqual(0);
-    expect(tooltipBounds.y + tooltipBounds.height).toBeLessThanOrEqual(480);
-    await context.close();
-  });
+  }
 }
 
 test("forms reflow with doubled text at 320px", async ({ page }) => {
@@ -182,6 +192,9 @@ test("forms reflow with doubled text at 320px", async ({ page }) => {
   await expectWithinWidth(page.getByRole("tooltip"), 320);
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Show Inspect evidence workflow", exact: true }).click();
+  await page.getByRole("button", { name: "About Inspect evidence", exact: true }).focus();
+  await expectWithinWidth(page.getByRole("tooltip"), 320);
+  await page.keyboard.press("Escape");
   await expectWithinWidth(page.locator(".evidence-types label"), 320);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
 

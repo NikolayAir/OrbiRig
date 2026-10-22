@@ -405,20 +405,15 @@ button {
   display: flex;
   gap: 1.5rem;
   justify-content: space-between;
-  margin-bottom: 1.25rem;
-  padding-bottom: 1.25rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
 }
 
 .workflow-heading > div:first-child {
   min-width: 0;
 }
 
-.verification-heading {
-  margin-bottom: 0.75rem;
-  padding-bottom: 0.75rem;
-}
-
-.verification-title {
+.workflow-title {
   align-items: center;
   display: flex;
   gap: 0.5rem;
@@ -426,12 +421,12 @@ button {
   position: relative;
 }
 
-.verification-title h2 {
+.workflow-title h2 {
   min-width: 0;
   overflow-wrap: anywhere;
 }
 
-.verification-title .field-help {
+.workflow-title .field-help {
   flex: 0 0 auto;
 }
 
@@ -612,11 +607,11 @@ label {
   visibility: hidden;
 }
 
-.verification-title [role="tooltip"] {
+.workflow-title [role="tooltip"] {
   pointer-events: auto;
 }
 
-.verification-title [role="tooltip"]::before {
+.workflow-title [role="tooltip"]::before {
   bottom: 100%;
   content: "";
   height: 1rem;
@@ -625,12 +620,12 @@ label {
   width: 100%;
 }
 
-.verification-title .field-help[data-above="true"] [role="tooltip"] {
+.workflow-title .field-help[data-above="true"] [role="tooltip"] {
   bottom: calc(100% + 0.4rem);
   top: auto;
 }
 
-.verification-title .field-help[data-above="true"] [role="tooltip"]::before {
+.workflow-title .field-help[data-above="true"] [role="tooltip"]::before {
   bottom: auto;
   top: 100%;
 }
