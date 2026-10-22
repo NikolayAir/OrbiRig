@@ -840,7 +840,7 @@ export function App() {
                   }}
                   disabled={verification.kind === "loading"}
                   spellCheck={false}
-                  rows={8}
+                  rows={7}
                   required
                 />
                 {verificationRequiredErrors.observationEvidence && (

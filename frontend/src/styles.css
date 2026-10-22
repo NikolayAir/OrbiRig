@@ -664,7 +664,7 @@ textarea {
 }
 
 .verification-evidence textarea {
-  min-height: 14rem;
+  min-height: 11rem;
 }
 
 input:not([type="radio"]):hover:not(:disabled),
@@ -1195,6 +1195,7 @@ dd {
 
   .verification-evidence .form-actions {
     border: 0;
+    justify-content: flex-end;
     margin-top: 1rem;
     padding: 0;
   }

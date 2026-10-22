@@ -48,10 +48,12 @@ for (const viewport of [
     const metadataBounds = (await page.locator(".verification-inputs").boundingBox())!;
     const editorBounds = (await editor.boundingBox())!;
     const actionBounds = (await action.boundingBox())!;
-    expect(editorBounds.height).toBeGreaterThanOrEqual(224);
+    expect(editorBounds.height).toBeGreaterThanOrEqual(176);
     expect(actionBounds.y).toBeGreaterThanOrEqual(editorBounds.y + editorBounds.height);
-    expect(actionBounds.x).toBeCloseTo(editorBounds.x, 0);
     if (viewport.width >= 1200) {
+      expect(actionBounds.x + actionBounds.width).toBeCloseTo(editorBounds.x + editorBounds.width, 0);
+      expect(actionBounds.width).toBeLessThan(editorBounds.width);
+      expect(actionBounds.y - (editorBounds.y + editorBounds.height)).toBeCloseTo(16, 0);
       expect(editorBounds.x).toBeGreaterThan(metadataBounds.x + metadataBounds.width);
       expect(editorBounds.y).toBeLessThan(metadataBounds.y + metadataBounds.height);
       expect(editorBounds.width).toBeGreaterThanOrEqual(680);
@@ -62,6 +64,7 @@ for (const viewport of [
         expect(actionBounds.y + actionBounds.height).toBeLessThanOrEqual(viewport.height);
       }
     } else {
+      expect(actionBounds.x).toBeCloseTo(editorBounds.x, 0);
       expect(editorBounds.x).toBeCloseTo(metadataBounds.x, 0);
       expect(editorBounds.width).toBeCloseTo(metadataBounds.width, 0);
       expect(editorBounds.y).toBeGreaterThan(metadataBounds.y + metadataBounds.height);
