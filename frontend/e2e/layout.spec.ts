@@ -36,7 +36,9 @@ for (const viewport of [
       expect(introductionLines).toBe(1);
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(viewport.width);
-    for (const name of ["About Execution ID", "About Scenario"]) {
+    const appBounds = (await page.locator("main").boundingBox())!;
+    expect(appBounds.width).toBe(Math.min(viewport.width, 1280));
+    for (const name of ["About Verify observation", "About Execution ID", "About Scenario"]) {
       await page.getByRole("button", { name, exact: true }).focus();
       const tooltip = page.getByRole("tooltip");
       await expect(tooltip).toBeVisible();
@@ -53,7 +55,8 @@ for (const viewport of [
     await expect(page.getByRole("alert")).toHaveCount(4);
 
     const example = page.getByRole("button", { name: "Load example", exact: true });
-    await expect(example).toHaveAccessibleDescription("Replaces all form inputs");
+    await expect(example).toHaveAccessibleDescription("Replaces current inputs");
+    await expect(page.getByText("Replaces current inputs", { exact: true })).toBeVisible();
     const exampleBounds = (await example.boundingBox())!;
     const inputBounds = (await executionId.boundingBox())!;
     expect(exampleBounds.y + exampleBounds.height).toBeLessThan(inputBounds.y);
@@ -99,12 +102,81 @@ for (const viewport of [
   });
 }
 
+for (const width of [1440, 390, 320]) {
+  test(`verification introduction supports hover, keyboard and touch at ${width}px`, async ({ browser, baseURL }) => {
+    const context = await browser.newContext({ baseURL, viewport: { width, height: 800 }, hasTouch: true });
+    const page = await context.newPage();
+    await page.goto("/");
+    const help = page.getByRole("button", { name: "About Verify observation", exact: true });
+    const tooltip = page.locator("#verification-help-description");
+    const heading = page.getByRole("heading", { name: "Verify observation", exact: true });
+    await expect(tooltip).toBeHidden();
+    await expect(help).toHaveAccessibleDescription(
+      "Provide execution details, select a supported scenario, and submit observation evidence for verification.",
+    );
+    const headingBounds = (await heading.boundingBox())!;
+    const helpBounds = (await help.boundingBox())!;
+    expect(helpBounds.x).toBeGreaterThanOrEqual(headingBounds.x + headingBounds.width);
+    expect(Math.abs(helpBounds.y + helpBounds.height / 2 - headingBounds.y - headingBounds.height / 2)).toBeLessThan(1);
+
+    await help.hover();
+    await expect(tooltip).toBeVisible();
+    await expectWithinWidth(tooltip, width);
+    await tooltip.hover();
+    await expect(tooltip).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(tooltip).toBeHidden();
+    await page.mouse.move(0, 0);
+
+    await help.focus();
+    await expect(tooltip).toBeVisible();
+    await expect(help).toHaveCSS("outline-style", "solid");
+    await page.keyboard.press("Escape");
+    await expect(tooltip).toBeHidden();
+    await expect(help).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(tooltip).toBeVisible();
+    await page.keyboard.press("Enter");
+    await expect(tooltip).toBeHidden();
+    await page.keyboard.press("Space");
+    await expect(tooltip).toBeVisible();
+    await page.keyboard.press("Tab");
+    await expect(tooltip).toBeHidden();
+
+    await help.tap();
+    await expect(tooltip).toBeVisible();
+    await help.tap();
+    await expect(tooltip).toBeHidden();
+    await help.tap();
+    await expect(tooltip).toBeVisible();
+    await page.getByLabel("Execution ID", { exact: true }).tap();
+    await expect(tooltip).toBeHidden();
+    await expect(page.getByText("Replaces current inputs", { exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
+
+    await page.setViewportSize({ width, height: 480 });
+    await page.mouse.move(0, 0);
+    await help.evaluate(element => {
+      window.scrollBy(0, element.getBoundingClientRect().bottom - window.innerHeight + 16);
+    });
+    await help.hover();
+    await expect(tooltip).toBeVisible();
+    const tooltipBounds = (await tooltip.boundingBox())!;
+    expect(tooltipBounds.y).toBeGreaterThanOrEqual(0);
+    expect(tooltipBounds.y + tooltipBounds.height).toBeLessThanOrEqual(480);
+    await context.close();
+  });
+}
+
 test("forms reflow with doubled text at 320px", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 800 });
   await page.goto("/");
   await page.locator("html").evaluate(element => { element.style.fontSize = "200%"; });
 
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
+  await page.getByRole("button", { name: "About Verify observation", exact: true }).focus();
+  await expectWithinWidth(page.getByRole("tooltip"), 320);
+  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Show Inspect evidence workflow", exact: true }).click();
   await expectWithinWidth(page.locator(".evidence-types label"), 320);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);

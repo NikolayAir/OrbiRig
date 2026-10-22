@@ -930,6 +930,57 @@ describe("App", () => {
     expect(nominalScenario.value).toBe("nominal_to_safe_mode");
   });
 
+  it("moves the verification introduction into accessible contextual help", () => {
+    render(<App />);
+
+    const heading = screen.getByRole("heading", { name: "Verify observation", level: 2 });
+    const help = within(heading.parentElement!).getByRole("button", { name: "About Verify observation" });
+    const description = screen.getByText(
+      "Provide execution details, select a supported scenario, and submit observation evidence for verification.",
+    );
+
+    expect(description).toHaveAttribute("role", "tooltip");
+    expect(description.tagName).toBe("SPAN");
+    expect(help).toHaveAccessibleDescription(description.textContent!);
+    expect(help).toHaveAttribute("aria-controls", description.id);
+    expect(help).toHaveTextContent("i");
+
+    help.focus();
+    fireEvent.click(help);
+    expect(help.parentElement).toHaveAttribute("data-open", "true");
+    fireEvent.keyDown(help, { key: "Escape" });
+    expect(help.parentElement).toHaveAttribute("data-open", "false");
+    expect(help.parentElement).toHaveAttribute("data-dismissed", "true");
+    expect(help).toHaveFocus();
+
+    fireEvent.click(help);
+    expect(help.parentElement).toHaveAttribute("data-open", "true");
+    expect(help.parentElement).toHaveAttribute("data-dismissed", "false");
+    fireEvent.click(help);
+    expect(help.parentElement).toHaveAttribute("data-open", "false");
+    expect(help.parentElement).toHaveAttribute("data-dismissed", "true");
+    expect(help).toHaveFocus();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("dismisses verification help on outside interaction and when focus leaves", () => {
+    render(<App />);
+
+    const help = screen.getByRole("button", { name: "About Verify observation" });
+    help.focus();
+    fireEvent.click(help);
+    fireEvent.pointerDown(screen.getByLabelText("Execution ID"));
+    expect(help.parentElement).toHaveAttribute("data-open", "false");
+    expect(help.parentElement).toHaveAttribute("data-dismissed", "true");
+
+    fireEvent.pointerEnter(help.parentElement!);
+    expect(help.parentElement).toHaveAttribute("data-dismissed", "false");
+    fireEvent.click(help);
+    act(() => screen.getByLabelText("Execution ID").focus());
+    expect(help.parentElement).toHaveAttribute("data-open", "false");
+    expect(help.parentElement).toHaveAttribute("data-dismissed", "true");
+  });
+
   it("provides accessible, dismissible Scenario help", () => {
     render(<App />);
 
@@ -1114,7 +1165,7 @@ describe("App", () => {
     render(<App />);
 
     expect(screen.getByRole("button", { name: "Load example" })).toHaveAccessibleDescription(
-      "Replaces all form inputs",
+      "Replaces current inputs",
     );
     expect(screen.getByLabelText("Observation evidence JSON")).toHaveAccessibleDescription(
       "Include the command, acknowledgement, states and telemetry from the recorded execution.",

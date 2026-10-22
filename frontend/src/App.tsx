@@ -224,6 +224,9 @@ export function App() {
     useState<Workflow>("verification");
   const [executionIdHelpOpen, setExecutionIdHelpOpen] = useState(false);
   const [scenarioHelpOpen, setScenarioHelpOpen] = useState(false);
+  const [verificationHelpOpen, setVerificationHelpOpen] = useState(false);
+  const [verificationHelpDismissed, setVerificationHelpDismissed] = useState(false);
+  const [verificationHelpAbove, setVerificationHelpAbove] = useState(false);
   const [executionId, setExecutionId] = useState("");
   const [executedAt, setExecutedAt] = useState("");
   const [scenarioId, setScenarioId] = useState<ScenarioId | "">("");
@@ -241,6 +244,7 @@ export function App() {
   });
   const executionIdHelpRef = useRef<HTMLSpanElement>(null);
   const scenarioHelpRef = useRef<HTMLSpanElement>(null);
+  const verificationHelpRef = useRef<HTMLSpanElement>(null);
   const executionIdInputRef = useRef<HTMLInputElement>(null);
   const executedAtInputRef = useRef<HTMLInputElement>(null);
   const scenarioInputRef = useRef<HTMLSelectElement>(null);
@@ -254,6 +258,14 @@ export function App() {
     function dismissHelpOutside(event: PointerEvent) {
       if (!(event.target instanceof Node)) {
         return;
+      }
+
+      if (
+        verificationHelpOpen &&
+        !verificationHelpRef.current?.contains(event.target)
+      ) {
+        setVerificationHelpOpen(false);
+        setVerificationHelpDismissed(true);
       }
 
       const executionHelpContainer = executionIdHelpRef.current;
@@ -288,7 +300,19 @@ export function App() {
     document.addEventListener("pointerdown", dismissHelpOutside);
     return () =>
       document.removeEventListener("pointerdown", dismissHelpOutside);
-  }, [executionIdHelpOpen, scenarioHelpOpen]);
+  }, [executionIdHelpOpen, scenarioHelpOpen, verificationHelpOpen]);
+
+  useEffect(() => {
+    function dismissVerificationHelp(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setVerificationHelpOpen(false);
+        setVerificationHelpDismissed(true);
+      }
+    }
+
+    document.addEventListener("keydown", dismissVerificationHelp);
+    return () => document.removeEventListener("keydown", dismissVerificationHelp);
+  }, []);
 
   useEffect(() => {
     const isTerminal =
@@ -339,6 +363,20 @@ export function App() {
       delete remainingErrors[field];
       return remainingErrors;
     });
+  }
+
+  function revealVerificationHelp() {
+    const title = verificationHelpRef.current?.parentElement;
+    const tooltip = verificationHelpRef.current?.querySelector<HTMLElement>('[role="tooltip"]');
+    if (title && tooltip) {
+      const bounds = title.getBoundingClientRect();
+      const gap = 0.4 * (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16);
+      const requiredSpace = tooltip.getBoundingClientRect().height + gap;
+      setVerificationHelpAbove(
+        bounds.bottom + requiredSpace > window.innerHeight && bounds.top >= requiredSpace,
+      );
+    }
+    setVerificationHelpDismissed(false);
   }
 
   function loadVerificationExample() {
@@ -579,13 +617,43 @@ export function App() {
           id="verification-workflow"
           aria-labelledby="observation-verification"
         >
-          <div className="workflow-heading">
-            <div>
+          <div className="workflow-heading verification-heading">
+            <div className="verification-title">
               <h2 id="observation-verification">Verify observation</h2>
-              <p>
-                Provide execution details, select a supported scenario, and
-                submit observation evidence for verification.
-              </p>
+              <span
+                ref={verificationHelpRef}
+                className="field-help"
+                data-open={verificationHelpOpen}
+                data-dismissed={verificationHelpDismissed}
+                data-above={verificationHelpAbove}
+                onPointerEnter={revealVerificationHelp}
+                onFocus={revealVerificationHelp}
+                onBlur={() => {
+                  setVerificationHelpOpen(false);
+                  setVerificationHelpDismissed(true);
+                }}
+              >
+                <button
+                  type="button"
+                  className="field-help-button"
+                  aria-label="About Verify observation"
+                  aria-controls="verification-help-description"
+                  aria-describedby="verification-help-description"
+                  onClick={() => {
+                    revealVerificationHelp();
+                    setExecutionIdHelpOpen(false);
+                    setScenarioHelpOpen(false);
+                    setVerificationHelpDismissed(verificationHelpOpen);
+                    setVerificationHelpOpen(!verificationHelpOpen);
+                  }}
+                >
+                  <span aria-hidden="true">i</span>
+                </button>
+                <span id="verification-help-description" role="tooltip">
+                  Provide execution details, select a supported scenario, and
+                  submit observation evidence for verification.
+                </span>
+              </span>
             </div>
             <div className="example-action">
               <button
@@ -597,7 +665,7 @@ export function App() {
               >
                 Load example
               </button>
-              <small id="verification-example-note">Replaces all form inputs</small>
+              <small id="verification-example-note">Replaces current inputs</small>
             </div>
           </div>
 
