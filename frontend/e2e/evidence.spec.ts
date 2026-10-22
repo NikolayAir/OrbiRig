@@ -439,7 +439,8 @@ for (const invalid of [
 
     expect(response.status()).toBe(422);
     expect(response.request().postDataJSON().observation_evidence).toBe(submittedText);
-    await expect(page.getByRole("alert")).toHaveText("The observation evidence is invalid.");
+    await expect(page.getByRole("alert").locator("strong")).toHaveText("Input error");
+    await expect(page.getByRole("alert").locator("span")).toHaveText("The observation evidence is invalid.");
     await expect(page.getByRole("region", { name: "Verified execution", exact: true })).toHaveCount(0);
     await expect(page.getByLabel(/^Verification (outcome|check):/)).toHaveCount(0);
   });
@@ -454,7 +455,8 @@ for (const invalid of [
     expect(response.status()).toBe(422);
     expect(response.request().postData()).toBe(submittedText);
     expect(response.request().headers()["content-type"]).toBe("text/plain; charset=utf-8");
-    await expect(page.getByRole("alert")).toHaveText("The observation evidence is invalid.");
+    await expect(page.getByRole("alert").locator("strong")).toHaveText("Invalid evidence");
+    await expect(page.getByRole("alert").locator("span")).toHaveText("The observation evidence is invalid.");
     await expect(page.getByRole("region", { name: "Observation details", exact: true })).toHaveCount(0);
     await expect(page.getByLabel(/^Verification (outcome|check):/)).toHaveCount(0);
   });
@@ -524,6 +526,8 @@ test("observation inspection shows reported behaviour without claiming verificat
   expect(response.status()).toBe(200);
   expect(response.request().postData()).toBe(submittedText);
   const observation = page.getByRole("region", { name: "Observation details", exact: true });
+  await expect(observation.getByText("Valid observation evidence", { exact: true })).toBeVisible();
+  await expect(observation.getByText("These are reported values. No scenario verification has been performed.")).toBeVisible();
   await expect(observation).toBeVisible();
   for (const [label, value] of [
     ["Command type", "SET_OPERATING_MODE"],
@@ -553,6 +557,7 @@ test("verified execution inspection accepts canonical FAIL evidence", async ({ p
   expect(response.request().postData()).toBe(submittedText);
   expect(response.request().headers()["content-type"]).toBe("text/plain; charset=utf-8");
   const record = page.getByRole("region", { name: "Verified execution", exact: true });
+  await expect(record.getByText("Valid saved evidence", { exact: true })).toBeVisible();
   await expect(field(record, "Execution ID")).toHaveText("exec-review-Δ");
   await expect(field(record, "Execution time (UTC)")).toHaveText("2026-08-17T08:00:00Z");
   await expect(field(record, "Scenario")).toHaveText("nominal_to_safe_mode");
@@ -590,7 +595,8 @@ for (const invalid of [
 
     expect(response.status()).toBe(422);
     expect(response.request().postData()).toBe(submittedText);
-    await expect(page.getByRole("alert")).toHaveText(invalid.error);
+    await expect(page.getByRole("alert").locator("strong")).toHaveText("Invalid evidence");
+    await expect(page.getByRole("alert").locator("span")).toHaveText(invalid.error);
     await expect(page.getByRole("region", { name: invalid.type, exact: true })).toHaveCount(0);
     await expect(page.getByLabel(/^(Verification (outcome|check)|Sequence outcome|Continuity outcome):/)).toHaveCount(0);
   });

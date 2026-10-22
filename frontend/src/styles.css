@@ -9,6 +9,10 @@
   --accent: #125f89;
   --accent-strong: #0c486b;
   --focus: #0e648f;
+  --positive: #1c624b;
+  --positive-soft: #edf7f2;
+  --negative: #963f2d;
+  --negative-soft: #fff4f0;
   color: var(--ink);
   background: var(--canvas);
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
@@ -61,7 +65,6 @@ h1 {
   letter-spacing: -0.035em;
   line-height: 1.15;
   margin: 0 0 0.875rem;
-  max-width: 22ch;
 }
 
 h2 {
@@ -70,7 +73,7 @@ h2 {
 }
 
 .page-header > p:last-child,
-.workflow-heading > p {
+.workflow-heading p {
   color: var(--muted);
   line-height: 1.5;
   margin: 0.5rem 0 0;
@@ -329,9 +332,36 @@ button {
 }
 
 .workflow-heading {
+  align-items: flex-start;
   border-bottom: 1px solid var(--line);
-  margin-bottom: 1.25rem;
-  padding-bottom: 1rem;
+  display: flex;
+  gap: 1.5rem;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+}
+
+.workflow-heading > div:first-child {
+  min-width: 0;
+}
+
+.workflow-heading p {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  max-width: 66ch;
+}
+
+.example-action {
+  align-items: flex-end;
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.example-action small {
+  color: var(--muted);
+  font-size: 0.75rem;
 }
 
 form {
@@ -348,21 +378,32 @@ fieldset {
 legend {
   color: var(--muted);
   font-size: 0.8125rem;
-  font-weight: 750;
-  letter-spacing: 0.04em;
-  margin-bottom: 0.75rem;
+  font-weight: 650;
+  margin-bottom: 1rem;
   padding: 0;
-  text-transform: uppercase;
 }
 
 .metadata-fields {
   display: grid;
-  gap: 1rem;
+  gap: 1.25rem;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .form-field {
-  margin-top: 1rem;
+  margin-top: 1.25rem;
+}
+
+.evidence-input {
+  border-top: 1px solid var(--line);
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+}
+
+.field-hint {
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin: 0.25rem 0 0.75rem;
 }
 
 .metadata-fields > .form-field {
@@ -371,8 +412,9 @@ legend {
 
 label {
   display: block;
-  font-weight: 700;
-  margin-bottom: 0.4rem;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  margin-bottom: 0.5rem;
 }
 
 .field-label {
@@ -399,11 +441,11 @@ label {
   color: var(--accent);
   display: inline-flex;
   font-size: 0.75rem;
-  height: 1.25rem;
+  height: 1.5rem;
   justify-content: center;
   line-height: 1;
   padding: 0;
-  width: 1.25rem;
+  width: 1.5rem;
 }
 
 .field-help-button:hover {
@@ -442,21 +484,34 @@ label {
 input:not([type="radio"]),
 select,
 textarea {
-  background: #fdfeff;
-  border: 1px solid #9fb5c1;
-  border-radius: 0.3125rem;
+  background: var(--surface);
+  border: 1px solid #7e95a5;
+  border-radius: 0.5rem;
   box-sizing: border-box;
   color: inherit;
   font: inherit;
-  padding: 0.65rem 0.75rem;
+  font-size: 1rem;
+  padding: 0.75rem 0.875rem;
   width: 100%;
 }
 
+input::placeholder,
+textarea::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
 textarea {
+  background: var(--soft);
+  display: block;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  line-height: 1.45;
-  min-height: 8rem;
+  font-size: 0.875rem;
+  font-variant-ligatures: none;
+  line-height: 1.65;
+  min-height: 18rem;
+  overflow-wrap: anywhere;
   resize: vertical;
+  tab-size: 2;
 }
 
 input:not([type="radio"]):hover:not(:disabled),
@@ -493,7 +548,7 @@ textarea[aria-invalid="true"] {
 }
 
 .field-error {
-  color: #934737;
+  color: var(--negative);
   font-size: 0.875rem;
   font-weight: 600;
   margin: 0.4rem 0 0;
@@ -504,20 +559,21 @@ textarea[aria-invalid="true"] {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
-  margin-top: 1.25rem;
-  padding-top: 1rem;
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
 }
 
 .form-actions .primary-action {
   background: var(--accent);
   box-shadow: 0 1px 1px rgb(23 43 58 / 14%);
   color: #fff;
-  min-height: 2.75rem;
-  padding: 0.7rem 1rem;
+  border-radius: 0.5rem;
+  min-height: 2.875rem;
+  padding: 0.8rem 1.25rem;
 }
 
 .form-actions .primary-action:hover:not(:disabled) {
-  background: #084d70;
+  background: #0e5278;
 }
 
 .form-actions .primary-action:active:not(:disabled) {
@@ -548,36 +604,43 @@ button:disabled {
 }
 
 .evidence-types {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.65rem;
-}
-
-.evidence-types legend {
-  flex-basis: 100%;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .evidence-types label {
-  align-items: center;
-  background: #fbfdfe;
-  border: 1px solid #c7d6de;
-  border-radius: 0.3125rem;
+  align-items: flex-start;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  cursor: pointer;
   display: flex;
-  flex: 1 1 11rem;
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
   margin: 0;
-  padding: 0.65rem 0.75rem;
+  padding: 1rem;
+}
+
+.evidence-types label small {
+  color: var(--muted);
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  margin-top: 0.4rem;
 }
 
 .evidence-types input[type="radio"] {
   accent-color: var(--accent);
   flex: 0 0 auto;
-  margin: 0 0.5rem 0 0;
+  height: 1rem;
+  margin: 0.2rem 0.625rem 0 0;
+  width: 1rem;
 }
 
 .evidence-types label:has(input[type="radio"]:checked) {
-  background: #edf5f8;
-  border-color: #5c8da7;
+  background: #f0f6fa;
+  border-color: var(--accent);
 }
 
 .evidence-types label:hover {
@@ -585,12 +648,17 @@ button:disabled {
 }
 
 .evidence-types label:focus-within {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgb(36 152 189 / 38%);
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
 }
 
 .workflow-feedback {
-  margin-top: 1.25rem;
+  margin-top: 2rem;
+  scroll-margin-top: 1rem;
+}
+
+.workflow-feedback:empty {
+  margin-top: 0;
 }
 
 .workflow-feedback > [role="status"],
@@ -605,14 +673,25 @@ button:disabled {
 }
 
 .workflow-feedback > [role="alert"] {
-  background: #fff6f5;
-  border-color: #ecc8c1;
-  border-left-color: #a74833;
-  color: #7e392d;
+  background: var(--negative-soft);
+  border-color: #dfb3a6;
+  border-left-color: var(--negative);
+  color: var(--negative);
+}
+
+.feedback-label {
+  display: block;
+  font-size: 0.9375rem;
+  margin-bottom: 0.35rem;
 }
 
 .workflow-feedback > section {
-  margin-top: 1.25rem;
+  background: transparent;
+  border: 0;
+  border-top: 2px solid var(--line);
+  border-radius: 0;
+  margin: 0;
+  padding: 1.75rem 0 0;
 }
 
 .result-heading,
@@ -625,9 +704,28 @@ button:disabled {
 }
 
 .result-heading {
-  border-bottom: 1px solid var(--line);
-  margin-bottom: 1.25rem;
-  padding-bottom: 0.75rem;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.result-heading > div {
+  min-width: 0;
+}
+
+.result-context {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  margin: 0 0 0.35rem;
+  text-transform: uppercase;
+}
+
+.result-description {
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 0 0 1.5rem;
+  max-width: 76ch;
 }
 
 .result-heading h2,
@@ -639,32 +737,37 @@ button:disabled {
 .outcome-badge {
   background: #edf3f5;
   border: 1px solid #9fb5c1;
-  border-radius: 0.25rem;
+  border-radius: 0.375rem;
   color: #254253;
   flex: 0 0 auto;
   font-size: 0.75rem;
   font-weight: 750;
   letter-spacing: 0.06em;
-  line-height: 1;
-  padding: 0.35rem 0.5rem;
+  line-height: 1.2;
+  padding: 0.3rem 0.5rem;
+}
+
+.result-heading > .outcome-badge {
+  font-size: 1.0625rem;
+  padding: 0.6rem 0.75rem;
 }
 
 .outcome-badge[data-outcome="PASS"] {
-  background: #eaf5f0;
+  background: var(--positive-soft);
   border-color: #7ab19d;
-  color: #175f4b;
+  color: var(--positive);
 }
 
 .outcome-badge[data-outcome="FAIL"] {
-  background: #fbeeed;
+  background: var(--negative-soft);
   border-color: #d2a198;
-  color: #934737;
+  color: var(--negative);
 }
 
 .verified-execution-summary {
   display: grid;
-  gap: 1.25rem;
-  grid-template-columns: minmax(22rem, 1.1fr) minmax(0, 1fr);
+  gap: 1.5rem;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
 }
 
 .execution-summary,
@@ -708,17 +811,19 @@ dd {
 .execution-summary-fields dt,
 .observation-fields dt {
   color: var(--muted);
-  font-size: 0.875rem;
-  font-weight: 700;
+  font-size: 0.8125rem;
+  font-weight: 600;
   margin: 0;
 }
 
 .execution-summary-fields dd,
 .observation-fields dd {
-  color: #1c394a;
-  font-weight: 600;
+  color: var(--ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.875rem;
+  font-weight: 500;
   margin-left: 0;
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
 }
 
 .continuity-boundary-fields dd {
@@ -730,8 +835,21 @@ dd {
   font-variant-numeric: tabular-nums;
 }
 
+.execution-summary-fields {
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: 0.2rem;
+}
+
+.execution-summary-fields dd {
+  margin-bottom: 0.75rem;
+}
+
+.execution-summary-fields dd:last-child {
+  margin-bottom: 0;
+}
+
 .observation-details .observation-fields {
-  max-width: 36rem;
+  max-width: 42rem;
 }
 
 .invariant-results-heading {
@@ -739,21 +857,11 @@ dd {
   margin: 1.5rem 0 0.75rem;
 }
 
-.invariant-column-headings,
 .invariant-results > li {
   display: grid;
   grid-template-columns:
-    minmax(15rem, 2.2fr) repeat(2, minmax(6rem, 1fr))
+    minmax(15rem, 2.2fr) repeat(2, minmax(5rem, 1fr))
     minmax(4.5rem, 0.75fr);
-}
-
-.invariant-column-headings {
-  color: var(--muted);
-  font-size: 0.75rem;
-  font-weight: 750;
-  letter-spacing: 0.04em;
-  padding: 0 0.75rem 0.4rem;
-  text-transform: uppercase;
 }
 
 .invariant-results {
@@ -767,11 +875,23 @@ dd {
 .invariant-results > li {
   border-bottom: 1px solid #d5e1e7;
   display: grid;
-  gap: 1rem;
-  padding: 0.75rem;
+  gap: 1.25rem;
+  padding: 1rem;
+}
+
+.invariant-results > li[data-outcome="FAIL"] {
+  background: var(--negative-soft);
+  box-shadow: inset 3px 0 0 var(--negative);
+}
+
+.invariant-summary {
+  min-width: 0;
 }
 
 .invariant-title {
+  font-size: 0.9375rem;
+  font-weight: 650;
+  line-height: 1.5;
   margin: 0;
 }
 
@@ -782,7 +902,7 @@ dd {
 }
 
 .invariant-id code {
-  font-size: 0.875rem;
+  font-size: 0.75rem;
 }
 
 .invariant-values {
@@ -801,13 +921,15 @@ dd {
 }
 
 .invariant-values dd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.875rem;
   margin: 0;
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
 }
 
 .sequence-flow {
   display: grid;
-  gap: 0.75rem;
+  gap: 1rem;
   list-style: none;
   margin: 0;
   padding-left: 0;
@@ -815,8 +937,8 @@ dd {
 
 .sequence-member,
 .continuity-boundary {
-  border: 1px solid #d8e2e8;
-  border-radius: 0.3125rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
 }
 
 .sequence-member {
@@ -825,10 +947,14 @@ dd {
 }
 
 .continuity-boundary {
-  background: #f2f7f9;
-  border-color: #c4d6de;
-  border-left: 0.25rem solid #5c8da7;
-  padding: 0.8rem 1rem 0.8rem 0.85rem;
+  background: var(--soft);
+  border-left: 3px solid #7e95a5;
+  padding: 1rem;
+}
+
+.continuity-boundary[data-outcome="FAIL"] {
+  background: var(--negative-soft);
+  border-left-color: var(--negative);
 }
 
 .sequence-flow-heading {
@@ -856,7 +982,7 @@ dd {
   color: #1c394a;
   font-weight: 600;
   margin: 0;
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
 }
 
 .visually-hidden {
@@ -872,22 +998,19 @@ dd {
 
 .sequence-member-heading,
 .continuity-boundary-heading {
+  flex-wrap: wrap;
   margin-top: 0;
 }
 
-.verified-execution-fields.is-nested .verified-execution-summary {
-  grid-template-columns: 1fr;
+.sequence-member-heading {
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.875rem;
 }
 
-.verified-execution-fields.is-nested .result-observation {
-  border-left: 0;
-  border-top: 1px solid #e1e8ec;
-  padding-left: 0;
-  padding-top: 1rem;
-}
-
-.verified-execution-fields.is-nested .invariant-column-headings {
-  display: none;
+.continuity-boundary-heading h4 {
+  font-size: 0.9375rem;
+  line-height: 1.5;
 }
 
 @media (max-width: 52rem) {
@@ -900,10 +1023,6 @@ dd {
     border-top: 1px solid #e1e8ec;
     padding-left: 0;
     padding-top: 1rem;
-  }
-
-  .invariant-column-headings {
-    display: none;
   }
 
   .invariant-results > li {
@@ -928,8 +1047,34 @@ dd {
   }
 
   .workflow-switcher,
-  .metadata-fields {
+  .metadata-fields,
+  .evidence-types {
     grid-template-columns: 1fr;
+  }
+
+  .workflow-heading {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .example-action {
+    align-items: flex-start;
+  }
+
+  .form-actions .primary-action {
+    width: 100%;
+  }
+
+  textarea {
+    font-size: 1rem;
+  }
+
+  .sequence-member {
+    padding: 1rem;
+  }
+
+  .invariant-results > li {
+    padding: 1rem 0.75rem;
   }
 
   .workflow-choice {
@@ -991,10 +1136,11 @@ dd {
 
 @media (max-width: 28rem) {
   .invariant-values {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .invariant-values > div:last-child {
+    grid-column: 1 / -1;
     justify-self: start;
     text-align: left;
   }
