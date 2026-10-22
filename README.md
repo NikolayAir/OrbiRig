@@ -304,7 +304,7 @@ Both readers return reconstructed models only when persisted derived values matc
 
 OrbiRig supports Python 3.12–3.15. Python 3.12 is the minimum supported version.
 
-Python 3.15 is the default for local development, selected by `.python-version`; the minor-version form allows later 3.15 patch releases. Install [uv](https://docs.astral.sh/uv/getting-started/installation/) (CI uses version 0.13.0), then run from the repository root:
+Python 3.15 is the default for local development, selected by `.python-version`; the minor-version form allows later 3.15 patch releases. Install [uv](https://docs.astral.sh/uv/getting-started/installation/) (CI uses version 0.13.4), then run from the repository root:
 
 ```bash
 uv sync --locked --extra test --extra dev --extra web
@@ -462,7 +462,7 @@ Each browser job has a timeout of 15 minutes, and the final `CI passed` job has
 a timeout of one minute. Job timeouts cover setup and checks. Browser test
 invocations also use the separate Playwright timeout of five minutes.
 
-Every Python job uses uv 0.13.0 and installs dependencies from `uv.lock` with `uv sync --locked --no-editable`, preserving non-editable package installation in CI; local development remains editable. uv receives the exact interpreter path selected by `actions/setup-python`, overriding the local `.python-version` default. Subsequent Python commands use `uv run --no-sync`, so they use that environment without resolving or synchronising dependencies again.
+Every Python job uses uv 0.13.4 and installs dependencies from `uv.lock` with `uv sync --locked --no-editable`, preserving non-editable package installation in CI; local development remains editable. uv receives the exact interpreter path selected by `actions/setup-python`, overriding the local `.python-version` default. Subsequent Python commands use `uv run --no-sync`, so they use that environment without resolving or synchronising dependencies again.
 
 The `Python 3.12` job selects the `test`, `dev` and `web` extras; compatibility jobs select `test` and `web`; browser jobs select only `web`. Every Python test job checks dependency consistency with `uv pip check --python .venv` and checks package imports, then runs the complete pytest suite and all Behave scenarios.
 
