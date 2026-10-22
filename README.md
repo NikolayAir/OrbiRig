@@ -395,9 +395,10 @@ Vite's `e2e` mode routes `/api` requests to this test backend.
 Both ports must be free. Before starting Playwright, `npm run test:e2e` checks
 both TCP ports with a one-second deadline per port. An occupied port is reported
 even when its process does not answer HTTP requests. Playwright then checks HTTP
-readiness; Vite stops if its assigned port is busy. The complete Playwright run also
-has a two-minute timeout covering setup and tests. Ordinary development continues
-to use the backend on port `8000`.
+readiness; Vite stops if its assigned port is busy. Each Playwright invocation has
+a timeout of five minutes covering setup and tests. The default local invocation
+runs all three engines within that budget. Ordinary development continues to use
+the backend on port `8000`.
 
 The JSON fixtures and expected results are written by hand, independently of
 API responses and `ReferenceSpacecraft`. The tests check that:
@@ -434,9 +435,14 @@ configuration.
 Vitest checks runner shutdown on macOS and Linux using temporary Node.js servers;
 these checks need no Python environment or installed browsers.
 
-The browser tests use one worker and no automatic retries. To check repeatability across
-all three engines, run `uv run --no-sync npm run test:e2e -- --repeat-each=3`. The HTML report
-is saved in `frontend/playwright-report/`; failed tests retain traces,
+The browser tests use one worker and no automatic retries. To check repeatability
+across all three engines with a timeout of 15 minutes, run:
+
+```bash
+uv run --no-sync npm run test:e2e -- --repeat-each=3 --global-timeout=900000
+```
+
+The HTML report is saved in `frontend/playwright-report/`; failed tests retain traces,
 screenshots and videos in `frontend/test-results/`. From `frontend/`, open the
 report with `npx playwright show-report`.
 
@@ -450,6 +456,11 @@ GitHub Actions runs the following checks:
 | Pull request from a `release/*` branch | Python 3.12–3.15 on Ubuntu, macOS and Windows | 16 |
 | Manual run (`workflow_dispatch`) | Python 3.12–3.15 on Ubuntu, macOS and Windows | 16 |
 | Push to `main` | Python 3.12–3.15 on Ubuntu | 8 |
+
+The `Python 3.12` and compatibility jobs each have a timeout of 10 minutes.
+Each browser job has a timeout of 15 minutes, and the final `CI passed` job has
+a timeout of one minute. Job timeouts cover setup and checks. Browser test
+invocations also use the separate Playwright timeout of five minutes.
 
 Every Python job uses uv 0.13.0 and installs dependencies from `uv.lock` with `uv sync --locked --no-editable`, preserving non-editable package installation in CI; local development remains editable. uv receives the exact interpreter path selected by `actions/setup-python`, overriding the local `.python-version` default. Subsequent Python commands use `uv run --no-sync`, so they use that environment without resolving or synchronising dependencies again.
 
