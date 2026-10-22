@@ -66,8 +66,12 @@ for (const width of [1440, 320]) {
       await trigger.focus();
       await expect(hint).toBeVisible();
       // The hover bridge must not intercept the lower edge of the button.
-      const bounds = (await trigger.boundingBox())!;
-      await page.mouse.click(bounds.x + bounds.width / 2, bounds.y + bounds.height - 1);
+      // Use an actionable relative click while Firefox completes focus scrolling.
+      const edge = await trigger.evaluate(element => {
+        const { width, height } = element.getBoundingClientRect();
+        return { x: width / 2 - element.clientLeft, y: height - element.clientTop - 1 };
+      });
+      await trigger.click({ position: edge });
       await expect(hint).toBeHidden();
       await expect(page.getByRole("dialog", { name: "Replace current inputs?" })).toHaveCount(0);
       await expect(page.getByLabel(workflow === "Verify observation" ? "Observation evidence JSON" : "Evidence JSON", { exact: true })).not.toHaveValue("");

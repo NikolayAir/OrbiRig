@@ -3,6 +3,21 @@ import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 type HelpSection = "browser" | "cli";
 type BrowserWorkflow = "verification" | "inspection";
 
+function revealFocusedControl(dialog: HTMLDialogElement, element: HTMLElement) {
+  const focused = element.getBoundingClientRect();
+  const style = getComputedStyle(element);
+  const outline = Math.max(0, parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset));
+  const viewportTop = dialog.getBoundingClientRect().top + dialog.clientTop;
+  const top = viewportTop + outline;
+  const bottom = viewportTop + dialog.clientHeight - outline;
+  // Keep the focus outline visible, including engines with integral scroll offsets.
+  if (focused.top < top) {
+    dialog.scrollTop += Math.floor(focused.top - top);
+  } else if (focused.bottom > bottom) {
+    dialog.scrollTop += Math.ceil(focused.bottom - bottom);
+  }
+}
+
 export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: BrowserWorkflow }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
@@ -37,14 +52,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: BrowserWorkfl
           if (help.scrollToWorkflow && tabs !== null) {
             dialogRef.current.scrollTop = tabs.offsetTop;
           } else if (document.activeElement instanceof HTMLElement && headerRef.current?.contains(document.activeElement)) {
-            const focused = document.activeElement.getBoundingClientRect();
-            const top = dialogRef.current.getBoundingClientRect().top + dialogRef.current.clientTop;
-            const bottom = top + dialogRef.current.clientHeight;
-            if (focused.top < top) {
-              dialogRef.current.scrollTop += focused.top - top;
-            } else if (focused.bottom > bottom) {
-              dialogRef.current.scrollTop += focused.bottom - bottom;
-            }
+            revealFocusedControl(dialogRef.current, document.activeElement);
           }
         } else {
           dialogRef.current.scrollTop = 0;
@@ -183,7 +191,15 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: BrowserWorkfl
           }
         }}
       >
-        <div ref={headerRef} className="workflow-help-header">
+        <div
+          ref={headerRef}
+          className="workflow-help-header"
+          onFocus={(event) => {
+            if (scrollWholeDialog && dialogRef.current !== null) {
+              revealFocusedControl(dialogRef.current, event.target);
+            }
+          }}
+        >
           <div className="workflow-help-heading">
             <h2 id="workflow-help-title">How it works</h2>
             <button

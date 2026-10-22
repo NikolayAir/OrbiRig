@@ -171,7 +171,12 @@ for (const viewport of [
       await expect(help).toHaveAttribute("open");
       const close = help.getByRole("button", { name: "Close", exact: true });
       await expect(close).toBeFocused();
-      const closeBounds = (await close.boundingBox())!;
+      // Firefox's protocol rounds quad coordinates before subtracting them.
+      // Read DOMRect dimensions directly to preserve the strict 44px minimum.
+      const closeBounds = await close.evaluate(element => {
+        const { width, height } = element.getBoundingClientRect();
+        return { width, height };
+      });
       expect(closeBounds.width).toBeGreaterThanOrEqual(44);
       expect(closeBounds.height).toBeGreaterThanOrEqual(44);
       await expect(help.getByRole("heading", { name: "How it works", level: 2 })).toBeInViewport();

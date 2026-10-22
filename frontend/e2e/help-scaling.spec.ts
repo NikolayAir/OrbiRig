@@ -1,27 +1,50 @@
 import { expect, test, type Locator } from "@playwright/test";
 
-for (const { height, textScale } of [
+for (const { height, textScale, fontFamily } of [
   { height: 480, textScale: 200 },
+  { height: 480, textScale: 200, fontFamily: "monospace" },
   // The layout viewport of a 1280x800 browser window at 400% zoom.
   { height: 200, textScale: 100 },
 ]) {
-  test(`help remains reachable at 320x${height} with ${textScale}% text`, async ({ page, browserName }) => {
+  test(`help remains reachable at 320x${height} with ${textScale}% text${fontFamily ? ` in ${fontFamily}` : ""}`, async ({ page, browserName }) => {
     await page.setViewportSize({ width: 320, height });
     await page.goto("/");
     await page.getByLabel("Execution ID", { exact: true }).fill("preserved-through-scaling");
-    await page.locator("html").evaluate((element, scale) => {
+    await page.locator("html").evaluate((element, { scale, fontFamily }) => {
       element.style.fontSize = `${scale}%`;
-    }, textScale);
+      if (fontFamily) element.style.fontFamily = fontFamily;
+    }, { scale: textScale, fontFamily });
     const trigger = page.getByRole("button", { name: "In the browser", exact: true });
     await trigger.click();
     const help = page.getByRole("dialog", { name: "How it works" });
     const close = help.getByRole("button", { name: "Close", exact: true });
     const tab = browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab";
-    async function wheelTo(target: Locator, direction: number) {
+    async function expectFocusedTabInView(target: Locator) {
+      await expect(target).toBeFocused();
+      await expect(target).toHaveCSS("outline-style", "solid");
+      await expect(target).toBeInViewport({ ratio: 1 });
+      const focus = await target.evaluate(element => {
+        const dialog = element.closest("dialog")!;
+        const bounds = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        const outline = parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset);
+        const top = dialog.getBoundingClientRect().top + dialog.clientTop;
+        return {
+          top: bounds.top - outline,
+          bottom: bounds.bottom + outline,
+          viewportTop: top,
+          viewportBottom: top + dialog.clientHeight,
+        };
+      });
+      expect(focus.top).toBeGreaterThanOrEqual(focus.viewportTop);
+      expect(focus.bottom).toBeLessThanOrEqual(focus.viewportBottom);
+    }
+    async function wheelTo(target: Locator, direction: number, ratio = 0) {
       // Engines may limit one wheel event to a fraction of the viewport.
+      // Stop only when the target has the visibility required by the next action.
       await expect(async () => {
         await page.mouse.wheel(0, direction * 800);
-        await expect(target).toBeInViewport({ timeout: 100 });
+        await expect(target).toBeInViewport({ ratio, timeout: 100 });
       }).toPass({ timeout: 10_000, intervals: [50] });
     }
 
@@ -37,17 +60,16 @@ for (const { height, textScale } of [
     // scrollIntoView() alone could conceal an overflow:hidden regression.
     await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
     await wheelTo(help.getByText(/The scenario defines what should happen/), 1);
-    await wheelTo(close, -1);
+    await wheelTo(close, -1, 1);
     await expect(help.getByRole("heading", { name: "How it works" })).toBeInViewport();
     await expect(close).toBeInViewport({ ratio: 1 });
 
     await close.focus();
     await page.keyboard.press(tab);
-    await expect(help.getByRole("tab", { name: "In the browser", exact: true })).toBeFocused();
+    await expectFocusedTabInView(help.getByRole("tab", { name: "In the browser", exact: true }));
     await page.keyboard.press("ArrowRight");
     const cliTab = help.getByRole("tab", { name: "From the command line", exact: true });
-    await expect(cliTab).toBeFocused();
-    await expect(cliTab).toBeInViewport({ ratio: 1 });
+    await expectFocusedTabInView(cliTab);
     await page.keyboard.press(tab);
     await expect(help.getByRole("tabpanel", { name: "From the command line", exact: true })).toBeFocused();
     await page.keyboard.press(tab);
@@ -65,8 +87,7 @@ for (const { height, textScale } of [
     await cliTab.click();
     await page.keyboard.press("ArrowLeft");
     const browserTab = help.getByRole("tab", { name: "In the browser", exact: true });
-    await expect(browserTab).toBeFocused();
-    await expect(browserTab).toBeInViewport({ ratio: 1 });
+    await expectFocusedTabInView(browserTab);
     await page.keyboard.press(tab);
     await expect(help.getByRole("tabpanel", { name: "In the browser", exact: true })).toBeFocused();
     await page.keyboard.press(tab);
@@ -82,7 +103,7 @@ for (const { height, textScale } of [
 
     await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
     await wheelTo(help.getByText(/For saved verified executions and sequences/), 1);
-    await wheelTo(close, -1);
+    await wheelTo(close, -1, 1);
     await expect(close).toBeInViewport({ ratio: 1 });
     await close.click();
     await expect(help).toBeHidden();
