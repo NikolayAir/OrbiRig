@@ -1506,6 +1506,12 @@ describe("App", () => {
     }
 
     expect(screen.getByRole("button", { name: "Load example" })).toBeDisabled();
+    if (workflow === "verification") {
+      for (const label of ["Execution ID", "Execution time (UTC)", "Scenario", "Observation evidence JSON"]) {
+        expect(screen.getByLabelText(label, { exact: true })).toBeDisabled();
+      }
+      expect(screen.getByRole("button", { name: "Verify observation" })).toBeDisabled();
+    }
   });
 
   it("renders completed FAIL verification without an error state", async () => {

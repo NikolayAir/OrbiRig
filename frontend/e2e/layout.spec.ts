@@ -16,7 +16,11 @@ async function expectWithinWidth(elements: Locator, width: number) {
 
 for (const viewport of [
   { width: 1440, height: 900 },
+  { width: 1366, height: 768 },
   { width: 1280, height: 800 },
+  { width: 1200, height: 900 },
+  { width: 1199, height: 900 },
+  { width: 1024, height: 768 },
   { width: 768, height: 1024 },
   { width: 390, height: 480 },
   { width: 320, height: 800 },
@@ -38,6 +42,30 @@ for (const viewport of [
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(viewport.width);
     const appBounds = (await page.locator("main").boundingBox())!;
     expect(appBounds.width).toBe(Math.min(viewport.width, 1280));
+    const executionId = page.getByLabel("Execution ID", { exact: true });
+    const editor = page.getByLabel("Observation evidence JSON", { exact: true });
+    const action = page.getByRole("button", { name: "Verify observation", exact: true });
+    const metadataBounds = (await page.locator(".verification-inputs").boundingBox())!;
+    const editorBounds = (await editor.boundingBox())!;
+    const actionBounds = (await action.boundingBox())!;
+    expect(editorBounds.height).toBeGreaterThanOrEqual(224);
+    expect(actionBounds.y).toBeGreaterThanOrEqual(editorBounds.y + editorBounds.height);
+    expect(actionBounds.x).toBeCloseTo(editorBounds.x, 0);
+    if (viewport.width >= 1200) {
+      expect(editorBounds.x).toBeGreaterThan(metadataBounds.x + metadataBounds.width);
+      expect(editorBounds.y).toBeLessThan(metadataBounds.y + metadataBounds.height);
+      expect(editorBounds.width).toBeGreaterThanOrEqual(680);
+      const idBounds = (await executionId.boundingBox())!;
+      const timeBounds = (await page.getByLabel("Execution time (UTC)", { exact: true }).boundingBox())!;
+      expect(timeBounds.y).toBeGreaterThan(idBounds.y + idBounds.height);
+      if (viewport.width >= 1280 && viewport.height >= 900) {
+        expect(actionBounds.y + actionBounds.height).toBeLessThanOrEqual(viewport.height);
+      }
+    } else {
+      expect(editorBounds.x).toBeCloseTo(metadataBounds.x, 0);
+      expect(editorBounds.width).toBeCloseTo(metadataBounds.width, 0);
+      expect(editorBounds.y).toBeGreaterThan(metadataBounds.y + metadataBounds.height);
+    }
     for (const name of ["About Verify observation", "About Execution ID", "About Scenario"]) {
       await page.getByRole("button", { name, exact: true }).focus();
       const tooltip = page.getByRole("tooltip");
@@ -49,10 +77,10 @@ for (const viewport of [
     }
 
     await page.getByRole("button", { name: "Verify observation", exact: true }).click();
-    const executionId = page.getByLabel("Execution ID", { exact: true });
     await expect(executionId).toBeFocused();
     await expect(executionId).toHaveAttribute("aria-invalid", "true");
     await expect(page.getByRole("alert")).toHaveCount(4);
+    await expectWithinWidth(page.getByRole("alert"), viewport.width);
 
     const example = page.getByRole("button", { name: "Load example", exact: true });
     await expect(example).toHaveAccessibleDescription("Replaces current inputs");
@@ -66,6 +94,8 @@ for (const viewport of [
     expect(exampleBounds.y + exampleBounds.height).toBeLessThan(inputBounds.y);
     await example.click();
     await expect(executionId).toHaveValue("example-execution-001");
+    await expect(page.getByLabel("Scenario", { exact: true })).toHaveValue("nominal_to_safe_mode");
+    expect(await editor.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
     await expect(page.getByRole("alert")).toHaveCount(0);
     await expect(page.getByRole("region", { name: "Verified execution", exact: true })).toHaveCount(0);
 
@@ -73,7 +103,8 @@ for (const viewport of [
     await executionId.fill(longId);
     await page.getByLabel("Execution time (UTC)", { exact: true }).fill("2026-08-17T08:00:00Z");
     await page.getByLabel("Scenario", { exact: true }).selectOption("nominal_to_safe_mode");
-    await page.getByLabel("Observation evidence JSON", { exact: true }).fill(observation);
+    await editor.fill(JSON.stringify(JSON.parse(observation)));
+    expect(await editor.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
     await expectWithinWidth(page.locator(".verification-form input, .verification-form select, .verification-form textarea, .primary-action"), viewport.width);
     await page.getByRole("button", { name: "Verify observation", exact: true }).click();
 
@@ -103,6 +134,36 @@ for (const viewport of [
     await expectWithinWidth(inspected.locator("dd, code, .outcome-badge"), viewport.width);
     expect(await inspected.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(viewport.width);
+  });
+}
+
+for (const viewport of [
+  { width: 1440, height: 900 },
+  { width: 768, height: 1024 },
+  { width: 390, height: 844 },
+]) {
+  test(`verification follows the field order and submits by keyboard at ${viewport.width}px`, async ({ page, browserName }) => {
+    await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Load example", exact: true }).click();
+    await page.getByLabel("Execution ID", { exact: true }).focus();
+    const tab = browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab";
+    for (const control of [
+      page.getByLabel("Execution time (UTC)", { exact: true }),
+      page.getByRole("button", { name: "About Scenario", exact: true }),
+      page.getByLabel("Scenario", { exact: true }),
+      page.getByLabel("Observation evidence JSON", { exact: true }),
+      page.getByRole("button", { name: "Verify observation", exact: true }),
+    ]) {
+      await page.keyboard.press(tab);
+      await expect(control).toBeFocused();
+      await expect(control).toBeInViewport();
+      expect(await control.evaluate(element => getComputedStyle(element).outlineStyle)).toBe("solid");
+    }
+    await page.keyboard.press("Enter");
+    const result = page.getByRole("region", { name: "Verified execution", exact: true });
+    await expect(result.getByLabel("Verification outcome: PASS", { exact: true })).toBeInViewport();
   });
 }
 

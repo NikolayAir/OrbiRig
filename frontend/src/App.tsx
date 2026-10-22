@@ -807,7 +807,9 @@ export function App() {
                   </p>
                 )}
               </div>
+            </fieldset>
 
+            <div className="verification-evidence">
               <div className="form-field evidence-input">
                 <label htmlFor="verification-observation-evidence">
                   Observation evidence JSON
@@ -836,8 +838,9 @@ export function App() {
                     clearVerificationRequiredError("observationEvidence");
                     setVerification({ kind: "idle" });
                   }}
+                  disabled={verification.kind === "loading"}
                   spellCheck={false}
-                  rows={12}
+                  rows={8}
                   required
                 />
                 {verificationRequiredErrors.observationEvidence && (
@@ -850,16 +853,16 @@ export function App() {
                   </p>
                 )}
               </div>
-            </fieldset>
 
-            <div className="form-actions">
-              <button
-                type="submit"
-                className="primary-action"
-                disabled={verification.kind === "loading"}
-              >
-                Verify observation
-              </button>
+              <div className="form-actions">
+                <button
+                  type="submit"
+                  className="primary-action"
+                  disabled={verification.kind === "loading"}
+                >
+                  Verify observation
+                </button>
+              </div>
             </div>
           </form>
 

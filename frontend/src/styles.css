@@ -663,6 +663,10 @@ textarea {
   tab-size: 2;
 }
 
+.verification-evidence textarea {
+  min-height: 14rem;
+}
+
 input:not([type="radio"]):hover:not(:disabled),
 select:hover:not(:disabled),
 textarea:hover:not(:disabled) {
@@ -1165,6 +1169,35 @@ dd {
 .continuity-boundary-heading h4 {
   font-size: 0.9375rem;
   line-height: 1.5;
+}
+
+@media (min-width: 75rem) {
+  .verification-form {
+    align-items: start;
+    display: grid;
+    gap: 2rem;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  }
+
+  .verification-form .metadata-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .verification-evidence {
+    min-width: 0;
+  }
+
+  .verification-evidence .evidence-input {
+    border: 0;
+    margin: 0;
+    padding: 0;
+  }
+
+  .verification-evidence .form-actions {
+    border: 0;
+    margin-top: 1rem;
+    padding: 0;
+  }
 }
 
 @media (max-width: 52rem) {
