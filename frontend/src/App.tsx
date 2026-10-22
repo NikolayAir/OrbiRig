@@ -716,7 +716,7 @@ export function App() {
                       clearVerificationRequiredError("executedAt");
                       setVerification({ kind: "idle" });
                     }}
-                    placeholder="2026-08-25T18:30:00Z"
+                    placeholder="YYYY-MM-DDTHH:MM:SSZ"
                     required
                   />
                   {verificationRequiredErrors.executedAt && (
