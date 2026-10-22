@@ -501,6 +501,12 @@ button {
   flex: 0 0 auto;
 }
 
+.workflow-title .field-help-button {
+  /* Keep the hover bridge behind the button's complete hit area. */
+  position: relative;
+  z-index: 2;
+}
+
 .workflow-heading p {
   font-size: 0.9375rem;
   line-height: 1.6;

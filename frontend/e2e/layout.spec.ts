@@ -277,6 +277,11 @@ for (const width of [1440, 390, 320]) {
       await help.hover();
       await expect(tooltip).toBeVisible();
       await expectWithinWidth(tooltip, width);
+      // The hover bridge must leave the lower edge of the button clickable.
+      await page.mouse.click(helpBounds.x + helpBounds.width / 2, helpBounds.y + helpBounds.height - 2);
+      await expect(help.locator("..")).toHaveAttribute("data-open", "true");
+      await page.mouse.move(0, 0);
+      await expect(tooltip).toBeVisible();
       await tooltip.hover();
       await expect(tooltip).toBeVisible();
       await page.keyboard.press("Escape");
@@ -323,8 +328,46 @@ for (const width of [1440, 390, 320]) {
       const tooltipBounds = (await tooltip.boundingBox())!;
       expect(tooltipBounds.y).toBeGreaterThanOrEqual(0);
       expect(tooltipBounds.y + tooltipBounds.height).toBeLessThanOrEqual(480);
+      await expect(help.locator("..")).toHaveAttribute("data-above", "true");
+      // A tooltip above the heading must also leave the upper edge usable.
+      const aboveHelpBounds = (await help.boundingBox())!;
+      await page.mouse.click(aboveHelpBounds.x + aboveHelpBounds.width / 2, aboveHelpBounds.y + 2);
+      await expect(help.locator("..")).toHaveAttribute("data-open", "true");
+      await page.mouse.move(0, 0);
+      await expect(tooltip).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(tooltip).toBeHidden();
       await context.close();
     });
+
+    if (width !== 1440) {
+      test(`${title} introduction toggles with touch-only edge taps at ${width}px`, async ({ browser, baseURL, browserName }) => {
+        test.skip(browserName === "firefox", "Firefox does not support Playwright mobile emulation.");
+        const context = await browser.newContext({ baseURL, viewport: { width, height: 844 }, hasTouch: true, isMobile: true });
+        try {
+          const page = await context.newPage();
+          await page.goto("/");
+          if (title === "Inspect evidence") await page.getByRole("button", { name: "Show Inspect evidence workflow" }).tap();
+          const input = page.getByLabel(outsideLabel, { exact: true });
+          await input.fill("preserved-through-edge-taps");
+          const help = page.getByRole("button", { name: `About ${title}`, exact: true });
+          const tooltip = page.locator(`#${helpId}`);
+          await help.scrollIntoViewIfNeeded();
+          const bounds = (await help.boundingBox())!;
+          const x = bounds.x + bounds.width / 2;
+          const y = bounds.y + bounds.height - 2;
+          await page.touchscreen.tap(x, y);
+          await expect(tooltip).toBeVisible();
+          await expect(help.locator("..")).toHaveAttribute("data-open", "true");
+          await page.touchscreen.tap(x, y);
+          await expect(tooltip).toBeHidden();
+          await expect(help.locator("..")).toHaveAttribute("data-open", "false");
+          await expect(input).toHaveValue("preserved-through-edge-taps");
+        } finally {
+          await context.close();
+        }
+      });
+    }
   }
 }
 
