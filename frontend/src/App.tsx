@@ -573,7 +573,7 @@ export function App() {
           onClick={() => setActiveWorkflow("verification")}
         >
           <span>Verify observation</span>
-          <small>Check a submitted observation against the selected scenario.</small>
+          <small>Check if expectations are met.</small>
         </button>
         <button
           type="button"
@@ -583,7 +583,7 @@ export function App() {
           onClick={() => setActiveWorkflow("inspection")}
         >
           <span>Inspect evidence</span>
-          <small>Review an existing evidence document in a structured view.</small>
+          <small>Review saved evidence.</small>
         </button>
       </div>
 
