@@ -257,9 +257,6 @@ h2 {
 }
 
 .workflow-help-workflows {
-  background: color-mix(in srgb, #effbff 35%, var(--surface));
-  border: 1px solid var(--line);
-  border-radius: 0.375rem;
   box-sizing: border-box;
   display: flex;
   margin: 1rem auto 0.75rem;
