@@ -148,6 +148,8 @@ def test_acknowledgement_error_does_not_build_a_verified_record(monkeypatch):
             EXECUTED_AT,
             "execution_id must not be empty or whitespace-only",
         ),
+        ("before\ud800after", EXECUTED_AT, "surrogate code points"),
+        ("before\udfffafter", EXECUTED_AT, "surrogate code points"),
         (
             EXECUTION_ID,
             datetime(
@@ -161,7 +163,7 @@ def test_acknowledgement_error_does_not_build_a_verified_record(monkeypatch):
             "executed_at must be timezone-aware UTC",
         ),
     ],
-    ids=["blank-execution-id", "non-utc-execution-time"],
+    ids=["blank-execution-id", "high-surrogate", "low-surrogate", "non-utc-execution-time"],
 )
 def test_reference_workflow_rejects_invalid_metadata_before_state_mutation(
     execution_id,
@@ -454,6 +456,34 @@ def test_verified_record_rejects_empty_execution_id(
             scenario_id=ScenarioId.NOMINAL_TO_SAFE_MODE,
             observation=_observation(),
         )
+
+
+@pytest.mark.parametrize("execution_id", [
+    "before\ud800after", "before\udbffafter", "before\udc00after", "before\udfffafter",
+])
+def test_public_builder_rejects_surrogate_execution_ids(execution_id):
+    with pytest.raises(InvalidExecutionMetadataError, match="surrogate code points"):
+        build_verified_execution_record(
+            execution_id=execution_id,
+            executed_at=EXECUTED_AT,
+            scenario_id=ScenarioId.NOMINAL_TO_SAFE_MODE,
+            observation=_observation(),
+        )
+
+
+@pytest.mark.parametrize("execution_id", [
+    "  essai-e\u0301-🚀-𐐷  ", "\ud7ff", "\ue000", "\U00010000", "\U0010ffff",
+])
+def test_public_builder_preserves_unicode_execution_ids(execution_id):
+    record = build_verified_execution_record(
+        execution_id=execution_id,
+        executed_at=EXECUTED_AT,
+        scenario_id=ScenarioId.NOMINAL_TO_SAFE_MODE,
+        observation=_observation(),
+    )
+
+    assert record.execution_id == execution_id
+    assert record.outcome is ExecutionOutcome.PASS
 
 
 def test_verified_record_rejects_empty_invariant_results():

@@ -48,6 +48,15 @@ class _StrictJSONError(ValueError):
     """Report one controlled failure while decoding strict JSON input."""
 
 
+def _parse_json_integer(serialized: str) -> int:
+    """Convert a JSON integer, reporting digit-limit failures as decoding errors."""
+
+    try:
+        return int(serialized)
+    except ValueError as exc:
+        raise _StrictJSONError("JSON integer exceeds the conversion limit") from exc
+
+
 def _reject_duplicate_object_members(
     pairs: list[tuple[str, object]],
 ) -> dict[str, object]:
@@ -69,11 +78,12 @@ def _load_strict_json(
     *,
     invalid_json_message: str,
 ) -> object:
-    """Decode JSON while rejecting duplicates and normalising excess nesting."""
+    """Decode JSON, rejecting duplicate members, overlong integers and excessive nesting."""
 
     try:
         return json.loads(
             serialized,
+            parse_int=_parse_json_integer,
             object_pairs_hook=_reject_duplicate_object_members,
         )
     except (json.JSONDecodeError, RecursionError) as exc:

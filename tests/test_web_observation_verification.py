@@ -238,6 +238,40 @@ def test_empty_execution_id_has_stable_error_category() -> None:
     _assert_error(response, "invalid_execution_metadata")
 
 
+@pytest.mark.parametrize("execution_id", ["before\ud800after", "before\udfffafter"])
+def test_surrogate_execution_id_has_no_verification_result(execution_id):
+    response = CLIENT_WITH_SERVER_ERRORS.post(
+        ENDPOINT,
+        content=json.dumps(_verification_request(execution_id=execution_id)),
+        headers={"Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "detail": {
+            "code": "invalid_execution_metadata",
+            "message": "execution ID or UTC execution timestamp is invalid",
+        },
+    }
+
+
+@pytest.mark.parametrize("ensure_ascii", [True, False], ids=["escaped", "literal"])
+def test_unicode_execution_id_is_preserved_in_verification(ensure_ascii):
+    execution_id = "  essai-e\u0301-🚀-𐐷  "
+    response = CLIENT.post(
+        ENDPOINT,
+        content=json.dumps(
+            _verification_request(execution_id=execution_id),
+            ensure_ascii=ensure_ascii,
+        ),
+        headers={"Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["execution"]["execution_id"] == execution_id
+    assert response.json()["outcome"] == "PASS"
+
+
 def test_invalid_execution_timestamp_has_stable_error_category() -> None:
     response = _post(_verification_request(executed_at="not-a-timestamp"))
 

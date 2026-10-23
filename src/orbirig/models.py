@@ -53,6 +53,11 @@ def validate_execution_metadata(
             "execution_id must not be empty or whitespace-only",
         )
 
+    if any(0xD800 <= ord(character) <= 0xDFFF for character in execution_id):
+        raise InvalidExecutionMetadataError(
+            "execution_id must not contain surrogate code points",
+        )
+
     if (
         executed_at.tzinfo is None
         or executed_at.utcoffset() != timedelta(0)

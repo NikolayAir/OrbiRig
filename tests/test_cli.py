@@ -247,8 +247,10 @@ def test_invalid_timestamp_is_an_argument_error(observation_file, capsysbinary, 
     assert b"Traceback" not in captured.err
 
 
-@pytest.mark.parametrize("execution_id", ["", "   ", "\t\n"])
-def test_empty_execution_id_is_invalid_metadata(observation_file, capsysbinary, execution_id):
+@pytest.mark.parametrize("execution_id", [
+    "", "   ", "\t\n", "before\ud800after", "before\udfffafter",
+])
+def test_invalid_execution_id_is_invalid_metadata(observation_file, capsysbinary, execution_id):
     assert _run(_args(observation_file, execution_id=execution_id)) == 2
     captured = capsysbinary.readouterr()
     assert captured.out == b""

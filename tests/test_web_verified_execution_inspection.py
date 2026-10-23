@@ -200,6 +200,41 @@ def test_malformed_or_structurally_invalid_evidence_is_rejected(
     assert response.json() == {"detail": "verified execution evidence is invalid"}
 
 
+@pytest.mark.parametrize("execution_id", ["before\ud800after", "before\udfffafter"])
+def test_surrogate_execution_id_is_invalid_evidence(execution_id):
+    document = _verified_execution_document()
+    execution = document["execution"]
+    assert isinstance(execution, dict)
+    execution["execution_id"] = execution_id
+
+    response = TestClient(web.app, raise_server_exceptions=False).post(
+        ENDPOINT,
+        content=_serialized_document(document),
+        headers={"Content-Type": "text/plain"},
+    )
+
+    assert response.status_code == 422
+    assert response.json() == {"detail": "verified execution evidence is invalid"}
+
+
+def test_unicode_execution_id_is_preserved_in_inspection():
+    execution_id = "  essai-e\u0301-🚀-𐐷  "
+    document = _verified_execution_document()
+    execution = document["execution"]
+    assert isinstance(execution, dict)
+    execution["execution_id"] = execution_id
+
+    response = CLIENT.post(
+        ENDPOINT,
+        content=_serialized_document(document),
+        headers={"Content-Type": "text/plain"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["execution"]["execution_id"] == execution_id
+    assert response.json()["outcome"] == "PASS"
+
+
 def test_inconsistent_persisted_invariant_result_is_rejected() -> None:
     document = _verified_execution_document()
     results = document["invariant_results"]
