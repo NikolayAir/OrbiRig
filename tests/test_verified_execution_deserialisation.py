@@ -344,6 +344,8 @@ def test_unicode_execution_id_is_preserved(ensure_ascii):
     ("2026-08-15T12:00:00.000001Z", EXECUTED_AT.replace(microsecond=1)),
     ("2026-08-15T12:00:00,1234560Z", EXECUTED_AT.replace(microsecond=123456)),
     ("2026-08-15T12:00:00.999999Z", EXECUTED_AT.replace(microsecond=999999)),
+    ("2026-W33-120000.5Z", datetime(2026, 8, 10, 12, 0, 0, 500000, tzinfo=UTC)),
+    ("2026-W33-230000,1234560Z", datetime(2026, 8, 10, 23, 0, 0, 123456, tzinfo=UTC)),
 ])
 def test_lossless_timestamp_forms_preserve_the_recorded_time(timestamp, expected):
     document = _valid_document()
@@ -376,6 +378,9 @@ def test_lossless_timestamp_forms_preserve_the_recorded_time(timestamp, expected
         "2026-08-15T24:00:00Z",
         "2026-08-15T12.5Z",
         "2026-08-15T12:00,5Z",
+        "2026-W33-240000Z",
+        "2026-W33-2400.0000000Z",
+        "2026-W33-120000.1234567Z",
     ],
 )
 def test_invalid_or_non_utc_timestamps_are_rejected(timestamp):

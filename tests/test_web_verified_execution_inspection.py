@@ -204,6 +204,7 @@ def test_malformed_or_structurally_invalid_evidence_is_rejected(
     "2026-08-17T10:15:30.1234567Z",
     "2026-08-17T10:15:30+00:00:00.5",
     "2026-08-17T10:15:30-00:00:00.0000001",
+    "2026-W33-240000Z",
 ])
 def test_invalid_timestamp_is_invalid_evidence(timestamp):
     document = _verified_execution_document()

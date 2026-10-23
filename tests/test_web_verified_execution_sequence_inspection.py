@@ -223,6 +223,7 @@ def test_invalid_sequence_evidence_is_rejected() -> None:
     "2026-08-17T10:15:30.1234567Z",
     "2026-08-17T10:15:30+00:00:00.5",
     "2026-08-17T10:15:30-00:00:00.0000001",
+    "2026-W33-240000Z",
 ])
 def test_invalid_member_timestamp_is_invalid_sequence_evidence(timestamp):
     document = json.loads(serialize_verified_execution_sequence_evidence(_passing_sequence()))

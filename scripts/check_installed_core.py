@@ -83,6 +83,7 @@ def check_cli(distribution: importlib.metadata.Distribution) -> None:
     for timestamp, expected in (
         ("2026W336T120000,1234560-00:00", "2026-08-15T12:00:00.123456Z"),
         ("2026-08-15 12:00:00+00:00:00.0000000", "2026-08-15T12:00:00Z"),
+        ("2026-W33-120000.5Z", "2026-08-10T12:00:00.500000Z"),
     ):
         timestamp_arguments = arguments.copy()
         timestamp_arguments[timestamp_arguments.index("--executed-at") + 1] = timestamp
@@ -94,6 +95,7 @@ def check_cli(distribution: importlib.metadata.Distribution) -> None:
         "2026-08-15T12:00:00.1234567Z",
         "2026-08-15T12:00:00+00:00:00.5",
         "2026-08-15T12:00:00-00:00:00.0000001",
+        "2026-W33-240000Z",
     ):
         timestamp_arguments = arguments.copy()
         timestamp_arguments[timestamp_arguments.index("--executed-at") + 1] = timestamp

@@ -292,6 +292,8 @@ def test_non_utc_execution_timestamp_has_stable_error_category() -> None:
     ("2026-08-15T12:00:00.000001Z", "2026-08-15T12:00:00.000001Z"),
     ("2026-08-15T12:00:00,1234560Z", "2026-08-15T12:00:00.123456Z"),
     ("2026-08-15T12:00:00.999999Z", "2026-08-15T12:00:00.999999Z"),
+    ("2026-W33-120000.5Z", "2026-08-10T12:00:00.500000Z"),
+    ("2026-W33-230000,1234560Z", "2026-08-10T23:00:00.123456Z"),
 ])
 def test_lossless_execution_timestamp_forms_preserve_time(timestamp, expected):
     response = _post(_verification_request(executed_at=timestamp))
@@ -311,12 +313,42 @@ def test_lossless_execution_timestamp_forms_preserve_time(timestamp, expected):
     "2026-08-15T24:00:00Z",
     "2026-08-15T12.5Z",
     "2026-08-15T12:00,5Z",
+    "2026-W33-240000Z",
+    "2026-W33-2400.0000000Z",
+    "2026-W33-120000.1234567Z",
 ])
 def test_unsupported_timestamp_is_invalid_metadata_without_verification(timestamp):
     response = _post(_verification_request(executed_at=timestamp))
 
     _assert_error(response, "invalid_execution_metadata")
     assert set(response.json()) == {"detail"}
+
+
+@pytest.mark.parametrize(("timestamp", "message"), [
+    (
+        "2026-08-15T12:00:00.1234567Z",
+        (
+            "fractional seconds may have more than six decimal places "
+            "only if the extra digits are zero"
+        ),
+    ),
+    (
+        "2026-08-15T12:00:00+00:00:00.5",
+        "timestamp must be ISO 8601 with a zero UTC offset and hours 00–23",
+    ),
+    (
+        "2026-08-15T12.5Z",
+        "non-zero fractions of hours or minutes are unsupported",
+    ),
+    ("2026-02-30T12:00:00Z", "timestamp must be a valid UTC date and time"),
+])
+def test_invalid_timestamp_reports_the_controlled_reason(timestamp, message):
+    response = _post(_verification_request(executed_at=timestamp))
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "detail": {"code": "invalid_execution_metadata", "message": message},
+    }
 
 
 def test_scenario_command_mismatch_has_stable_error_category() -> None:

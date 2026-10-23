@@ -276,10 +276,10 @@ async def verify_observation_evidence(
 
     try:
         executed_at = parse_utc_timestamp(serialized_executed_at)
-    except InvalidExecutionMetadataError:
+    except InvalidExecutionMetadataError as exc:
         raise _verification_error(
             "invalid_execution_metadata",
-            "execution timestamp must be ISO 8601 UTC",
+            str(exc),
         ) from None
 
     try:

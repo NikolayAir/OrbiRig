@@ -231,6 +231,8 @@ def test_invalid_evidence_has_no_verification_output(observation_file, capsysbin
     ("2026-08-15T12:00:00,1234560Z", "2026-08-15T12:00:00.123456Z"),
     ("2026-08-15T12:00:00.999999Z", "2026-08-15T12:00:00.999999Z"),
     ("2026-08-15T12:00:00+00:00:00.0000000", "2026-08-15T12:00:00Z"),
+    ("2026-W33-120000.5Z", "2026-08-10T12:00:00.500000Z"),
+    ("2026-W33-230000,1234560Z", "2026-08-10T23:00:00.123456Z"),
 ])
 def test_valid_timestamp_is_serialised_canonically(
     observation_file, capsysbinary, timestamp, expected,
@@ -251,6 +253,8 @@ def test_valid_timestamp_is_serialised_canonically(
     "2026-10-21T10:00:00+00:00:00.0000001", "2026-10-21T10:00:00+00:00:01",
     "2026-10-21T10:00:00Z\n", "2026-10-21T10.5Z", "2026-10-21T10:00,5Z",
     "2026-02-30T10:00:00Z", "2026-10-21T24:00:00Z", "2026-10-21T10:00:60Z",
+    "2026-W33-240000Z", "2026-W33-2400.0000000Z",
+    "2026-W33-120000.1234567Z",
 ])
 def test_invalid_timestamp_is_an_argument_error(observation_file, capsysbinary, timestamp):
     assert _run(_args(observation_file, executed_at=timestamp)) == 2

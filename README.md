@@ -109,7 +109,13 @@ This validation applies to new records and reconstruction of saved records and s
 
 Timestamp text uses the same validation in saved evidence, HTTP observation verification and the CLI. The recommended form is `YYYY-MM-DDTHH:MM:SS[.fraction](Z|+00:00)`. Dates and times must be valid, hours must be `00`–`23`, and the timezone must be explicitly zero; non-zero offsets are rejected rather than converted. Fractional seconds must be exactly representable in microseconds: digits after the sixth decimal place are accepted only when they are all zero. For example, `.1234560` preserves the value `.123456`, while `.1234567` is rejected.
 
-Previously accepted lossless forms within these limits remain supported: compact calendar dates, ISO week dates, a single character such as a space in place of `T`, compact times, omitted minutes or seconds, and a decimal comma. Zero offsets may use either sign, with hours alone or with minutes and optional seconds, with or without colons; any fractional offset digits must all be zero. Non-zero fractions after hours or minutes are unsupported. All-zero fractions remain accepted. Canonical output continues to use `Z` and at most six fractional digits.
+Previously accepted lossless forms within these limits remain supported:
+
+- Date and time forms include compact calendar dates, ISO week dates, a single character such as a space in place of `T`, compact times, omitted minutes or seconds, and a decimal comma.
+- Zero offsets may use either sign, with hours alone or with minutes and optional seconds, with or without colons. Any fractional offset digits must all be zero.
+- Fractions after hours or minutes are accepted only when all their digits are zero.
+
+Canonical output continues to use `Z` and at most six fractional digits.
 
 Saved evidence containing precision-losing timestamps, non-zero offsets or unsupported time forms is now rejected consistently across supported Python versions. Evidence structures and schema versions are unchanged.
 
