@@ -117,6 +117,8 @@ def test_verified_subprocess_workflow_uses_selected_scenario_command():
             EXECUTED_AT,
             "execution_id must not be empty or whitespace-only",
         ),
+        ("before\ud800after", EXECUTED_AT, "surrogate code points"),
+        ("before\udfffafter", EXECUTED_AT, "surrogate code points"),
         (
             "external-invalid-metadata",
             datetime(
@@ -129,7 +131,7 @@ def test_verified_subprocess_workflow_uses_selected_scenario_command():
             "executed_at must be timezone-aware UTC",
         ),
     ],
-    ids=["blank-execution-id", "non-utc-execution-time"],
+    ids=["blank-execution-id", "high-surrogate", "low-surrogate", "non-utc-execution-time"],
 )
 def test_verified_subprocess_workflow_rejects_invalid_metadata_before_collection(
     monkeypatch,

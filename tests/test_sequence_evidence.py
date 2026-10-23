@@ -21,6 +21,7 @@ from orbirig.models import (
     Acknowledgement,
     CommandExecutionObservation,
     ExecutionOutcome,
+    InvalidExecutionMetadataError,
     OperatingMode,
     ScenarioId,
     SetOperatingModeCommand,
@@ -402,6 +403,40 @@ def test_duplicate_execution_ids_are_preserved():
     )
     assert loaded.continuity_results[0].previous_execution_id == "duplicate"
     assert loaded.continuity_results[0].next_execution_id == "duplicate"
+
+
+@pytest.mark.parametrize("execution_id", ["before\ud800after", "before\udfffafter"])
+@pytest.mark.parametrize("member_index", [0, 1])
+def test_surrogate_member_execution_ids_are_rejected(execution_id, member_index):
+    document = _valid_sequence_document()
+    records = cast(list[dict[str, object]], document["records"])
+    cast(dict[str, object], records[member_index]["execution"])["execution_id"] = execution_id
+    boundary = cast(list[dict[str, object]], document["continuity_results"])[0]
+    field = "previous_execution_id" if member_index == 0 else "next_execution_id"
+    boundary[field] = execution_id
+
+    with pytest.raises(InvalidExecutionMetadataError, match="surrogate code points"):
+        deserialize_verified_execution_sequence_evidence(_serialized(document))
+
+
+@pytest.mark.parametrize("ensure_ascii", [True, False], ids=["escaped", "literal"])
+def test_unicode_member_execution_ids_are_preserved(ensure_ascii):
+    document = _valid_sequence_document()
+    execution_ids = ("  série-e\u0301-🚀  ", "essai-𐐷")
+    records = cast(list[dict[str, object]], document["records"])
+    for record, execution_id in zip(records, execution_ids, strict=True):
+        cast(dict[str, object], record["execution"])["execution_id"] = execution_id
+    boundary = cast(list[dict[str, object]], document["continuity_results"])[0]
+    boundary["previous_execution_id"], boundary["next_execution_id"] = execution_ids
+
+    sequence = deserialize_verified_execution_sequence_evidence(
+        json.dumps(document, ensure_ascii=ensure_ascii),
+    )
+
+    assert tuple(record.execution_id for record in sequence.records) == execution_ids
+    assert sequence.continuity_results[0].previous_execution_id == execution_ids[0]
+    assert sequence.continuity_results[0].next_execution_id == execution_ids[1]
+    assert sequence.outcome is ExecutionOutcome.PASS
 
 
 @pytest.mark.parametrize(

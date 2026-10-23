@@ -20,6 +20,7 @@ from orbirig.models import (
     Acknowledgement,
     CommandExecutionObservation,
     ExecutionOutcome,
+    InvalidExecutionMetadataError,
     OperatingMode,
     ScenarioId,
     SetOperatingModeCommand,
@@ -306,13 +307,32 @@ def test_unsupported_enum_values_are_rejected(mutation):
         deserialize_verified_execution_evidence(_serialized(document))
 
 
-@pytest.mark.parametrize("execution_id", ["", "   "])
-def test_invalid_execution_ids_are_rejected(execution_id):
+@pytest.mark.parametrize(("execution_id", "message"), [
+    ("", "must not be empty or whitespace-only"),
+    ("   ", "must not be empty or whitespace-only"),
+    ("before\ud800after", "surrogate code points"),
+    ("before\udfffafter", "surrogate code points"),
+])
+def test_invalid_execution_ids_are_rejected(execution_id, message):
     document = _valid_document()
     cast(dict[str, object], document["execution"])["execution_id"] = execution_id
 
-    with pytest.raises(ValueError, match="must not be empty or whitespace-only"):
+    with pytest.raises(InvalidExecutionMetadataError, match=message):
         deserialize_verified_execution_evidence(_serialized(document))
+
+
+@pytest.mark.parametrize("ensure_ascii", [True, False], ids=["escaped", "literal"])
+def test_unicode_execution_id_is_preserved(ensure_ascii):
+    execution_id = "  essai-e\u0301-🚀-𐐷  "
+    document = _valid_document()
+    cast(dict[str, object], document["execution"])["execution_id"] = execution_id
+
+    record = deserialize_verified_execution_evidence(
+        json.dumps(document, ensure_ascii=ensure_ascii),
+    )
+
+    assert record.execution_id == execution_id
+    assert record.outcome is ExecutionOutcome.PASS
 
 
 @pytest.mark.parametrize(

@@ -1,7 +1,9 @@
 """HTTP boundary tests for verified-execution-sequence evidence inspection."""
 
+import json
 from datetime import UTC, datetime
 
+import pytest
 from fastapi.testclient import TestClient
 
 from orbirig import web
@@ -210,6 +212,27 @@ def test_continuity_fail_sequence_is_presented_as_valid_evidence() -> None:
 
 def test_invalid_sequence_evidence_is_rejected() -> None:
     response = _post_evidence('{"schema_version": 1}')
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "detail": "verified execution sequence evidence is invalid",
+    }
+
+
+@pytest.mark.parametrize("execution_id", ["before\ud800after", "before\udfffafter"])
+def test_surrogate_member_execution_id_is_invalid_evidence(execution_id):
+    document = json.loads(serialize_verified_execution_sequence_evidence(_passing_sequence()))
+    document["records"][1]["execution"]["execution_id"] = execution_id
+    for boundary in document["continuity_results"]:
+        for field in ("previous_execution_id", "next_execution_id"):
+            if boundary[field] == "exec-a":
+                boundary[field] = execution_id
+
+    response = TestClient(web.app, raise_server_exceptions=False).post(
+        ENDPOINT,
+        content=json.dumps(document),
+        headers={"Content-Type": "text/plain"},
+    )
 
     assert response.status_code == 422
     assert response.json() == {
