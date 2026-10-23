@@ -465,6 +465,45 @@ def test_timestamp_values_do_not_change_persisted_order(
     )
 
 
+def test_lossless_timestamp_forms_preserve_member_values_and_supplied_order():
+    document = _valid_sequence_document()
+    records = cast(list[dict[str, object]], document["records"])
+    cast(dict[str, object], records[0]["execution"])["executed_at"] = (
+        "2026-W33-6T12:00:00,9999990-0000"
+    )
+    cast(dict[str, object], records[1]["execution"])["executed_at"] = (
+        "20260815 100000.000001+00:00:00.0000000"
+    )
+
+    loaded = deserialize_verified_execution_sequence_evidence(_serialized(document))
+
+    assert [(record.execution_id, record.executed_at) for record in loaded.records] == [
+        ("first", LATER.replace(microsecond=999999)),
+        ("second", EARLIER.replace(microsecond=1)),
+    ]
+    assert loaded.outcome is ExecutionOutcome.PASS
+    assert loaded.continuity_results[0].passed is True
+
+
+@pytest.mark.parametrize("member_index", [0, 1])
+@pytest.mark.parametrize("timestamp", [
+    "2026-08-15T12:00:00.1234567Z",
+    "2026-08-15T12:00:00+00:00:00.5",
+    "2026-08-15T12:00:00-00:00:00.0000001",
+    "2026-08-15T24:00:00Z",
+])
+def test_invalid_member_timestamp_is_rejected_with_its_path(member_index, timestamp):
+    document = _valid_sequence_document()
+    records = cast(list[dict[str, object]], document["records"])
+    cast(dict[str, object], records[member_index]["execution"])["executed_at"] = timestamp
+
+    with pytest.raises(
+        ValueError,
+        match=rf"records\[{member_index}\]\.execution\.executed_at",
+    ):
+        deserialize_verified_execution_sequence_evidence(_serialized(document))
+
+
 @pytest.mark.parametrize("record_count", [0, 1])
 def test_fewer_than_two_member_records_are_rejected(record_count):
     document = _valid_sequence_document()

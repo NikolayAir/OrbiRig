@@ -80,6 +80,28 @@ def check_cli(distribution: importlib.metadata.Distribution) -> None:
     ).outcome is ExecutionOutcome.PASS
     assert run(arguments, 0).stdout == passed.stdout
 
+    for timestamp, expected in (
+        ("2026W336T120000,1234560-00:00", "2026-08-15T12:00:00.123456Z"),
+        ("2026-08-15 12:00:00+00:00:00.0000000", "2026-08-15T12:00:00Z"),
+    ):
+        timestamp_arguments = arguments.copy()
+        timestamp_arguments[timestamp_arguments.index("--executed-at") + 1] = timestamp
+        result = run(timestamp_arguments, 0)
+        assert json.loads(result.stdout)["execution"]["executed_at"] == expected
+        assert not result.stderr
+
+    for timestamp in (
+        "2026-08-15T12:00:00.1234567Z",
+        "2026-08-15T12:00:00+00:00:00.5",
+        "2026-08-15T12:00:00-00:00:00.0000001",
+    ):
+        timestamp_arguments = arguments.copy()
+        timestamp_arguments[timestamp_arguments.index("--executed-at") + 1] = timestamp
+        result = run(timestamp_arguments, 2)
+        assert not result.stdout
+        assert b"--executed-at" in result.stderr
+        assert b"Traceback" not in result.stderr
+
     observation["telemetry"] = {"operating_mode": "NOMINAL"}
     file.write_text(json.dumps(observation), encoding="utf-8")
     failed = run(arguments, 1)

@@ -286,6 +286,39 @@ def test_non_utc_execution_timestamp_has_stable_error_category() -> None:
     _assert_error(response, "invalid_execution_metadata")
 
 
+@pytest.mark.parametrize(("timestamp", "expected"), [
+    ("2026-08-15 12:00:00-0000", "2026-08-15T12:00:00Z"),
+    ("2026W336T120000+00:00:00.0000000", "2026-08-15T12:00:00Z"),
+    ("2026-08-15T12:00:00.000001Z", "2026-08-15T12:00:00.000001Z"),
+    ("2026-08-15T12:00:00,1234560Z", "2026-08-15T12:00:00.123456Z"),
+    ("2026-08-15T12:00:00.999999Z", "2026-08-15T12:00:00.999999Z"),
+])
+def test_lossless_execution_timestamp_forms_preserve_time(timestamp, expected):
+    response = _post(_verification_request(executed_at=timestamp))
+
+    assert response.status_code == 200
+    assert response.json()["execution"]["executed_at"] == expected
+    assert response.json()["outcome"] == "PASS"
+
+
+@pytest.mark.parametrize("timestamp", [
+    "2026-08-15T12:00:00.1234567Z",
+    "2026-08-15T12:00:00,0000001+00:00",
+    "2026-08-15T12:00:00+00:00:00.5",
+    "2026-08-15T12:00:00-00:00:00.5",
+    "2026-08-15T12:00:00+00:00:00.0000001",
+    "2026-08-15T12:00:00+00:00:01",
+    "2026-08-15T24:00:00Z",
+    "2026-08-15T12.5Z",
+    "2026-08-15T12:00,5Z",
+])
+def test_unsupported_timestamp_is_invalid_metadata_without_verification(timestamp):
+    response = _post(_verification_request(executed_at=timestamp))
+
+    _assert_error(response, "invalid_execution_metadata")
+    assert set(response.json()) == {"detail"}
+
+
 def test_scenario_command_mismatch_has_stable_error_category() -> None:
     response = _post(
         _verification_request(scenario_id="safe_to_nominal_mode"),
@@ -349,13 +382,16 @@ def test_unexpected_outer_parser_error_remains_a_server_error(
     assert response.status_code == 500
 
 
-def test_unexpected_internal_error_remains_a_server_error(monkeypatch) -> None:
-    def fail_unexpectedly(**_kwargs):
+@pytest.mark.parametrize("function", [
+    "parse_utc_timestamp", "build_verified_execution_record",
+])
+def test_unexpected_internal_error_remains_a_server_error(monkeypatch, function) -> None:
+    def fail_unexpectedly(*_args, **_kwargs):
         raise ValueError("unexpected verification failure")
 
     monkeypatch.setattr(
         web,
-        "build_verified_execution_record",
+        function,
         fail_unexpectedly,
     )
 

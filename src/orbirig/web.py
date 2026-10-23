@@ -1,6 +1,5 @@
 """HTTP boundary for OrbiRig evidence inspection and verification."""
 
-from datetime import datetime
 from http import HTTPStatus
 from pathlib import Path
 
@@ -24,6 +23,7 @@ from orbirig.models import (
     ScenarioId,
     VerifiedExecutionRecord,
     VerifiedExecutionSequence,
+    parse_utc_timestamp,
 )
 from orbirig.verification import build_verified_execution_record
 
@@ -275,8 +275,8 @@ async def verify_observation_evidence(
         ) from None
 
     try:
-        executed_at = datetime.fromisoformat(serialized_executed_at)
-    except ValueError:
+        executed_at = parse_utc_timestamp(serialized_executed_at)
+    except InvalidExecutionMetadataError:
         raise _verification_error(
             "invalid_execution_metadata",
             "execution timestamp must be ISO 8601 UTC",

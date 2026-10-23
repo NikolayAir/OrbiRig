@@ -1,7 +1,7 @@
 """Versioned JSON evidence for observations, records, and sequences."""
 
 import json
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from orbirig.models import (
     Acknowledgement,
@@ -9,6 +9,7 @@ from orbirig.models import (
     CommandType,
     ContinuityBoundaryResult,
     ExecutionOutcome,
+    InvalidExecutionMetadataError,
     InvariantId,
     InvariantResult,
     InvariantValue,
@@ -19,6 +20,7 @@ from orbirig.models import (
     TelemetrySnapshot,
     VerifiedExecutionRecord,
     VerifiedExecutionSequence,
+    parse_utc_timestamp,
 )
 from orbirig.verification import (
     build_verified_execution_record,
@@ -251,24 +253,14 @@ def _parse_utc_datetime(
     *,
     path: str,
 ) -> datetime:
-    """Parse one timezone-aware UTC ISO 8601 timestamp."""
+    """Parse one lossless UTC timestamp, retaining the evidence field path."""
 
     serialized_timestamp = _require_string(value, path=path)
 
     try:
-        timestamp = datetime.fromisoformat(serialized_timestamp)
-    except ValueError:
-        raise ValueError(
-            f"{path} must be an ISO 8601 timestamp",
-        ) from None
-
-    if (
-        timestamp.tzinfo is None
-        or timestamp.utcoffset() != timedelta(0)
-    ):
-        raise ValueError(f"{path} must be timezone-aware UTC")
-
-    return timestamp
+        return parse_utc_timestamp(serialized_timestamp)
+    except InvalidExecutionMetadataError as exc:
+        raise ValueError(f"{path}: {exc}") from None
 
 
 def _parse_observation_document(

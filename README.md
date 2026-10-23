@@ -107,6 +107,12 @@ Execution IDs must contain a non-whitespace character. Unicode surrogate code po
 
 This validation applies to new records and reconstruction of saved records and sequence members. Previously accepted version `1` evidence whose decoded execution IDs contain surrogate code points is now rejected; evidence structures and schema versions remain unchanged.
 
+Timestamp text uses the same validation in saved evidence, HTTP observation verification and the CLI. The recommended form is `YYYY-MM-DDTHH:MM:SS[.fraction](Z|+00:00)`. Dates and times must be valid, hours must be `00`–`23`, and the timezone must be explicitly zero; non-zero offsets are rejected rather than converted. Fractional seconds must be exactly representable in microseconds: digits after the sixth decimal place are accepted only when they are all zero. For example, `.1234560` preserves the value `.123456`, while `.1234567` is rejected.
+
+Previously accepted lossless forms within these limits remain supported: compact calendar dates, ISO week dates, a single character such as a space in place of `T`, compact times, omitted minutes or seconds, and a decimal comma. Zero offsets may use either sign, with hours alone or with minutes and optional seconds, with or without colons; any fractional offset digits must all be zero. Non-zero fractions after hours or minutes are unsupported. All-zero fractions remain accepted. Canonical output continues to use `Z` and at most six fractional digits.
+
+Saved evidence containing precision-losing timestamps, non-zero offsets or unsupported time forms is now rejected consistently across supported Python versions. Evidence structures and schema versions are unchanged.
+
 `serialize_verified_execution_evidence(...)` writes deterministic JSON using verified-execution schema version `1`. `deserialize_verified_execution_evidence(...)` strictly reconstructs a record by independently deriving its canonical invariant results and outcome from the persisted scenario and observation, then requiring the stored derived values to match exactly. A canonically consistent `FAIL` record remains valid evidence. Package and evidence/schema versions are independent; changing one does not imply changing the other.
 
 ### Verified execution sequences
@@ -167,7 +173,7 @@ This exits with code `1` and still writes a complete, valid evidence record. Its
 
 `FILE`, `--scenario`, `--execution-id` and `--executed-at` are required. Scenario values are exactly `nominal_to_safe_mode`, `nominal_to_nominal_rejection` and `safe_to_nominal_mode`. An expected command rejection can produce `PASS`; the selected scenario supplies the expectations. A command incompatible with that scenario is an input error.
 
-The execution ID must contain a non-whitespace character and must not contain surrogate code points. Its value is preserved exactly. The timestamp describes the recorded execution, not the time of verification. Use `YYYY-MM-DDTHH:MM:SS[.fraction](Z|+00:00)`, with hours `00`–`23` and 1–6 fractional digits when present. Dates and times must be valid; timestamps without a timezone or with a non-zero offset are rejected rather than converted. Evidence uses the existing canonical UTC representation with `Z`.
+The execution ID must contain a non-whitespace character and must not contain surrogate code points. Its value is preserved exactly. The timestamp describes the recorded execution, not the time of verification. Use `YYYY-MM-DDTHH:MM:SS[.fraction](Z|+00:00)`; the CLI also accepts the lossless UTC forms described under [verified execution records](#verified-execution-records). Evidence uses the existing canonical UTC representation with `Z`.
 
 | Exit code | Meaning | stdout | stderr |
 | --- | --- | --- | --- |
