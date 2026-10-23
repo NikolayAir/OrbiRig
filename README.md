@@ -458,7 +458,7 @@ GitHub Actions runs the following checks:
 | Push to `main` | Python 3.12–3.15 on Ubuntu | 8 |
 
 The `Python 3.12` and compatibility jobs each have a timeout of 10 minutes.
-Each browser job has a timeout of 15 minutes, and the final `CI passed` job has
+Each browser job has a timeout of 30 minutes, and the final `CI passed` job has
 a timeout of one minute. Job timeouts cover setup and checks. Browser test
 invocations also use the separate Playwright timeout of five minutes.
 
