@@ -1185,15 +1185,17 @@ describe("App", () => {
 
     fireEvent.click(help);
     expect(helpContainer).toHaveAttribute("data-open", "false");
-    expect(document.activeElement).not.toBe(help);
+    expect(helpContainer).toHaveAttribute("data-dismissed", "true");
+    expect(help).toHaveFocus();
 
-    help.focus();
     fireEvent.click(help);
     expect(helpContainer).toHaveAttribute("data-open", "true");
+    expect(helpContainer).toHaveAttribute("data-dismissed", "false");
 
     fireEvent.keyDown(help, { key: "Escape" });
     expect(helpContainer).toHaveAttribute("data-open", "false");
-    expect(document.activeElement).not.toBe(help);
+    expect(helpContainer).toHaveAttribute("data-dismissed", "true");
+    expect(help).toHaveFocus();
   });
 
   it("provides accessible, dismissible Execution ID help", () => {
@@ -1222,13 +1224,15 @@ describe("App", () => {
 
     fireEvent.click(help);
     expect(helpContainer).toHaveAttribute("data-open", "false");
-    expect(document.activeElement).not.toBe(help);
+    expect(helpContainer).toHaveAttribute("data-dismissed", "true");
+    expect(help).toHaveFocus();
 
-    help.focus();
     fireEvent.click(help);
+    expect(helpContainer).toHaveAttribute("data-dismissed", "false");
     fireEvent.keyDown(help, { key: "Escape" });
     expect(helpContainer).toHaveAttribute("data-open", "false");
-    expect(document.activeElement).not.toBe(help);
+    expect(helpContainer).toHaveAttribute("data-dismissed", "true");
+    expect(help).toHaveFocus();
   });
 
   it("keeps only one contextual-help control click-pinned at a time", () => {

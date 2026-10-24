@@ -252,6 +252,107 @@ for (const viewport of [
   });
 }
 
+for (const [field, helpId] of [
+  ["Execution ID", "execution-id-help-description"],
+  ["Scenario", "scenario-help-description"],
+]) {
+  test(`${field} help dismisses with Escape under a stationary pointer and reopens deliberately`, async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/");
+    const input = page.getByLabel("Execution ID", { exact: true });
+    await input.fill("preserved-through-help");
+    const help = page.getByRole("button", { name: `About ${field}`, exact: true });
+    const tooltip = page.locator(`#${helpId}`);
+    await expect(tooltip).toBeHidden();
+    await help.hover();
+    await expect(tooltip).toBeVisible();
+    await help.click();
+    await expect(help.locator("..")).toHaveAttribute("data-open", "true");
+    // Do not move the pointer between opening the tooltip and pressing Escape.
+    await page.keyboard.press("Escape");
+    await expect(tooltip).toBeHidden();
+    expect(await help.evaluate(element => element.matches(":hover"))).toBe(true);
+    await expect(help.locator("..")).toHaveAttribute("data-open", "false");
+
+    const bounds = (await help.boundingBox())!;
+    await page.mouse.move(bounds.x + bounds.width / 2 + 1, bounds.y + bounds.height / 2);
+    await expect(tooltip).toBeHidden();
+    await help.click();
+    await expect(tooltip).toBeVisible();
+    await help.click();
+    await expect(tooltip).toBeHidden();
+
+    // Hover-only dismissal also works while focus stays in the form input.
+    await input.focus();
+    await page.mouse.move(0, 0);
+    await help.hover();
+    await expect(tooltip).toBeVisible();
+    await expect(input).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(tooltip).toBeHidden();
+    await expect(input).toBeFocused();
+    await page.mouse.move(0, 0);
+    await help.hover();
+    await expect(tooltip).toBeVisible();
+    await expect(input).toHaveValue("preserved-through-help");
+  });
+
+  test(`${field} help dismisses and reopens by keyboard without losing focus`, async ({ page, browserName }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/");
+    const help = page.getByRole("button", { name: `About ${field}`, exact: true });
+    const tooltip = page.locator(`#${helpId}`);
+    const optionTab = browserName === "webkit" && process.platform === "darwin";
+    const tab = optionTab ? "Alt+Tab" : "Tab";
+    // Reach the trigger using the keyboard only, including WebKit's macOS convention.
+    for (let index = 0; index < 15 && !await help.evaluate(element => document.activeElement === element); index++) {
+      await page.keyboard.press(tab);
+    }
+    await expect(help).toBeFocused();
+    await expect(tooltip).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(tooltip).toBeHidden();
+    await expect(help).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(tooltip).toBeVisible();
+    await page.keyboard.press("Enter");
+    await expect(tooltip).toBeHidden();
+    await page.keyboard.press("Space");
+    await expect(tooltip).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(tooltip).toBeHidden();
+    await page.keyboard.press(tab);
+    await expect(page.getByLabel(field, { exact: true })).toBeFocused();
+    await page.keyboard.press(optionTab ? "Alt+Shift+Tab" : "Shift+Tab");
+    await expect(help).toBeFocused();
+    await expect(tooltip).toBeVisible();
+  });
+
+  test(`${field} help toggles and reopens with touch`, async ({ browser, baseURL }) => {
+    const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 }, hasTouch: true });
+    try {
+      const page = await context.newPage();
+      await page.goto("/");
+      const help = page.getByRole("button", { name: `About ${field}`, exact: true });
+      const tooltip = page.locator(`#${helpId}`);
+      await help.tap();
+      await expect(tooltip).toBeVisible();
+      await help.tap();
+      await expect(tooltip).toBeHidden();
+      await help.tap();
+      await expect(tooltip).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(tooltip).toBeHidden();
+      await help.tap();
+      await expect(tooltip).toBeVisible();
+      await page.getByLabel(field, { exact: true }).tap();
+      await expect(tooltip).toBeHidden();
+    } finally {
+      await context.close();
+    }
+  });
+}
+
 for (const width of [1440, 390, 320]) {
   for (const [title, helpId, description, outsideLabel, reminder] of [
     ["Verify observation", "verification-help-description", "Provide execution details, select a supported scenario, and submit observation evidence for verification.", "Execution ID", "Replaces current inputs"],

@@ -228,6 +228,8 @@ export function App() {
     useState<Workflow>("verification");
   const [executionIdHelpOpen, setExecutionIdHelpOpen] = useState(false);
   const [scenarioHelpOpen, setScenarioHelpOpen] = useState(false);
+  const [executionIdHelpDismissed, setExecutionIdHelpDismissed] = useState(false);
+  const [scenarioHelpDismissed, setScenarioHelpDismissed] = useState(false);
   const [executionId, setExecutionId] = useState("");
   const [executedAt, setExecutedAt] = useState("");
   const [scenarioId, setScenarioId] = useState<ScenarioId | "">("");
@@ -299,9 +301,21 @@ export function App() {
       }
     }
 
+    function dismissHelpOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setExecutionIdHelpOpen(false);
+        setScenarioHelpOpen(false);
+        setExecutionIdHelpDismissed(true);
+        setScenarioHelpDismissed(true);
+      }
+    }
+
     document.addEventListener("pointerdown", dismissHelpOutside);
-    return () =>
+    document.addEventListener("keydown", dismissHelpOnEscape);
+    return () => {
       document.removeEventListener("pointerdown", dismissHelpOutside);
+      document.removeEventListener("keydown", dismissHelpOnEscape);
+    };
   }, [executionIdHelpOpen, scenarioHelpOpen]);
 
   useEffect(() => {
@@ -645,6 +659,9 @@ export function App() {
                       ref={executionIdHelpRef}
                       className="field-help"
                       data-open={executionIdHelpOpen}
+                      data-dismissed={executionIdHelpDismissed}
+                      onPointerEnter={() => setExecutionIdHelpDismissed(false)}
+                      onFocus={() => setExecutionIdHelpDismissed(false)}
                     >
                       <button
                         type="button"
@@ -652,21 +669,16 @@ export function App() {
                         aria-label="About Execution ID"
                         aria-controls="execution-id-help-description"
                         aria-describedby="execution-id-help-description"
-                        onClick={(event) => {
+                        onClick={() => {
                           if (executionIdHelpOpen) {
                             setExecutionIdHelpOpen(false);
-                            event.currentTarget.blur();
+                            setExecutionIdHelpDismissed(true);
                             return;
                           }
 
                           setScenarioHelpOpen(false);
+                          setExecutionIdHelpDismissed(false);
                           setExecutionIdHelpOpen(true);
-                        }}
-                        onKeyDown={(event) => {
-                          if (event.key === "Escape") {
-                            setExecutionIdHelpOpen(false);
-                            event.currentTarget.blur();
-                          }
                         }}
                       >
                         ?
@@ -750,6 +762,9 @@ export function App() {
                     ref={scenarioHelpRef}
                     className="field-help"
                     data-open={scenarioHelpOpen}
+                    data-dismissed={scenarioHelpDismissed}
+                    onPointerEnter={() => setScenarioHelpDismissed(false)}
+                    onFocus={() => setScenarioHelpDismissed(false)}
                   >
                     <button
                       type="button"
@@ -757,21 +772,16 @@ export function App() {
                       aria-label="About Scenario"
                       aria-controls="scenario-help-description"
                       aria-describedby="scenario-help-description"
-                      onClick={(event) => {
+                      onClick={() => {
                         if (scenarioHelpOpen) {
                           setScenarioHelpOpen(false);
-                          event.currentTarget.blur();
+                          setScenarioHelpDismissed(true);
                           return;
                         }
 
                         setExecutionIdHelpOpen(false);
+                        setScenarioHelpDismissed(false);
                         setScenarioHelpOpen(true);
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key === "Escape") {
-                          setScenarioHelpOpen(false);
-                          event.currentTarget.blur();
-                        }
                       }}
                     >
                       ?
