@@ -216,6 +216,36 @@ def test_invalid_evidence_has_no_verification_output(observation_file, capsysbin
     assert b"Traceback" not in captured.err
 
 
+@pytest.mark.parametrize("object_name", [None, "telemetry"], ids=["root", "nested"])
+@pytest.mark.parametrize(("field_name", "escaped_name"), [
+    ("field\x1b[31mname", b"'field\\x1b[31mname'"),
+    ("field\rname", b"'field\\rname'"),
+    ("field\nname", b"'field\\nname'"),
+    ("field\x00\t\b\x07\x7f\x9bname", b"'field\\x00\\t\\x08\\x07\\x7f\\x9bname'"),
+    ("field\\nname", b"'field\\\\nname'"),
+    ("extra", b"'extra'"),
+], ids=["ansi", "carriage-return", "newline", "other-controls", "literal-backslash", "ordinary"])
+def test_unexpected_field_diagnostics_escape_names(
+    observation_file, capsysbinary, object_name, field_name, escaped_name,
+):
+    document = _observation()
+    target = document if object_name is None else document[object_name]
+    target[field_name] = None
+    observation_file.write_bytes(_json_bytes(document))
+
+    assert _run(_args(observation_file)) == 2
+    captured = capsysbinary.readouterr()
+    assert captured.out == b""
+    assert b"Traceback" not in captured.err
+    assert b"unexpected internal error" not in captured.err
+    assert all(32 <= byte < 127 for byte in captured.err[:-1])
+    path = b"observation evidence" if object_name is None else b"telemetry"
+    assert captured.err == (
+        b"orbirig: error: invalid observation evidence: " + path
+        + b" has invalid fields (unexpected fields: " + escaped_name + b")\n"
+    )
+
+
 @pytest.mark.parametrize(("timestamp", "expected"), [
     ("2026-10-21T10:00:00Z", "2026-10-21T10:00:00Z"),
     ("2026-10-21T10:00:00+00:00", "2026-10-21T10:00:00Z"),

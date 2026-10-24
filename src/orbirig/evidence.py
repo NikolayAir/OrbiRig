@@ -119,7 +119,7 @@ def _require_object(
 
         if unexpected_fields:
             details.append(
-                f"unexpected fields: {', '.join(unexpected_fields)}",
+                f"unexpected fields: {', '.join(map(repr, unexpected_fields))}",
             )
 
         raise ValueError(

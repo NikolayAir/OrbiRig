@@ -581,9 +581,9 @@ def test_duplicate_member_names_are_rejected(original, duplicate):
     ("mutation", "message"),
     [
         ("missing-root", "missing fields: outcome"),
-        ("unexpected-root", "unexpected fields: extra"),
+        ("unexpected-root", "unexpected fields: 'extra'"),
         ("missing-record", "missing fields: outcome"),
-        ("unexpected-boundary", "unexpected fields: extra"),
+        ("unexpected-boundary", "unexpected fields: 'extra'"),
     ],
 )
 def test_missing_and_unexpected_fields_are_rejected(mutation, message):

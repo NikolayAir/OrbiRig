@@ -289,7 +289,7 @@ def test_invalid_utf8_is_rejected_before_deserialisation(monkeypatch):
     ("mode", "cause_message"),
     [
         ("malformed", "invalid observation evidence JSON"),
-        ("structurally-invalid", "unexpected fields: scenario_id"),
+        ("structurally-invalid", "unexpected fields: 'scenario_id'"),
         ("stdout-contaminated", "invalid observation evidence JSON"),
     ],
 )

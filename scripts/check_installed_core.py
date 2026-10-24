@@ -122,6 +122,32 @@ def check_cli(distribution: importlib.metadata.Distribution) -> None:
     assert b"invalid choice" in run(invalid_scenario, 2).stderr
     file.write_bytes(b'{"evidence_format_version": 1, "evidence_format_version": 1}')
     assert b"duplicate JSON object member" in run(arguments, 2).stderr
+    for object_name in (None, "telemetry"):
+        for field_name, escaped_name in (
+            ("field\x1b[31mname", b"'field\\x1b[31mname'"),
+            ("field\rname", b"'field\\rname'"),
+            ("field\nname", b"'field\\nname'"),
+            ("field\x00\t\b\x07\x7f\x9bname", b"'field\\x00\\t\\x08\\x07\\x7f\\x9bname'"),
+            ("field\\nname", b"'field\\\\nname'"),
+            ("extra", b"'extra'"),
+        ):
+            invalid_observation = observation.copy()
+            if object_name is None:
+                invalid_observation[field_name] = None
+            else:
+                invalid_observation[object_name] = {**observation[object_name], field_name: None}
+            file.write_text(json.dumps(invalid_observation), encoding="utf-8")
+            result = run(arguments, 2)
+            path = b"observation evidence" if object_name is None else b"telemetry"
+            diagnostic = (
+                b"orbirig: error: invalid observation evidence: " + path
+                + b" has invalid fields (unexpected fields: " + escaped_name + b")"
+            )
+            assert all(
+                32 <= byte < 127
+                for byte in result.stderr.removesuffix(os.linesep.encode("ascii"))
+            ), result.stderr
+            assert result.stderr == diagnostic + os.linesep.encode("ascii"), result.stderr
     file.write_bytes(b"\xff")
     assert b"valid UTF-8" in run(arguments, 2).stderr
     file.unlink()
