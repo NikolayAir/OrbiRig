@@ -222,9 +222,15 @@ def test_invalid_evidence_has_no_verification_output(observation_file, capsysbin
     ("field\rname", b"'field\\rname'"),
     ("field\nname", b"'field\\nname'"),
     ("field\x00\t\b\x07\x7f\x9bname", b"'field\\x00\\t\\x08\\x07\\x7f\\x9bname'"),
+    # U+202E is RIGHT-TO-LEFT OVERRIDE.
+    ("field\u202ename", b"'field\\u202ename'"),
+    ("field'\"name", b"'field\\'\"name'"),
     ("field\\nname", b"'field\\\\nname'"),
     ("extra", b"'extra'"),
-], ids=["ansi", "carriage-return", "newline", "other-controls", "literal-backslash", "ordinary"])
+], ids=[
+    "ansi", "carriage-return", "newline", "other-controls", "unicode-formatting",
+    "both-quotes", "literal-backslash", "ordinary",
+])
 def test_unexpected_field_diagnostics_escape_names(
     observation_file, capsysbinary, object_name, field_name, escaped_name,
 ):

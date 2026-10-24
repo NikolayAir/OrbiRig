@@ -128,6 +128,9 @@ def check_cli(distribution: importlib.metadata.Distribution) -> None:
             ("field\rname", b"'field\\rname'"),
             ("field\nname", b"'field\\nname'"),
             ("field\x00\t\b\x07\x7f\x9bname", b"'field\\x00\\t\\x08\\x07\\x7f\\x9bname'"),
+            # U+202E is RIGHT-TO-LEFT OVERRIDE.
+            ("field\u202ename", b"'field\\u202ename'"),
+            ("field'\"name", b"'field\\'\"name'"),
             ("field\\nname", b"'field\\\\nname'"),
             ("extra", b"'extra'"),
         ):

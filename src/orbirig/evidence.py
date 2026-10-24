@@ -118,6 +118,7 @@ def _require_object(
             )
 
         if unexpected_fields:
+            # Quote untrusted names so control characters stay escaped in diagnostics.
             details.append(
                 f"unexpected fields: {', '.join(map(repr, unexpected_fields))}",
             )

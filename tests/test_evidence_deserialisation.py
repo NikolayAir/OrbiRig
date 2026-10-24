@@ -298,8 +298,14 @@ def test_invalid_nested_fields_are_rejected(
     ("field\rname", r"'field\rname'"),
     ("field\nname", r"'field\nname'"),
     ("field\x00\t\b\x07\x7f\x9bname", r"'field\x00\t\x08\x07\x7f\x9bname'"),
+    # U+202E is RIGHT-TO-LEFT OVERRIDE.
+    ("field\u202ename", r"'field\u202ename'"),
+    ("field'\"name", "'field\\'\"name'"),
     ("field\\nname", r"'field\\nname'"),
-], ids=["ansi", "carriage-return", "newline", "other-controls", "literal-backslash"])
+], ids=[
+    "ansi", "carriage-return", "newline", "other-controls", "unicode-formatting",
+    "both-quotes", "literal-backslash",
+])
 def test_unexpected_field_errors_escape_names(object_name, field_name, escaped_name):
     document = _document()
     target = document if object_name is None else document[object_name]
