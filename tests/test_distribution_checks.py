@@ -410,6 +410,7 @@ def sdist_files(wheel_files):
         "LICENSE": b"MIT licence",
         "scripts/verify_distributions.py": b"Build checker",
         "scripts/check_installed_core.py": b"Installed core checker",
+        "tests/fixtures/subprocess_observation_peer.py": b"Subprocess observation peer",
         "PKG-INFO": wheel_files[f"orbirig-{PROJECT['version']}.dist-info/METADATA"],
     })
     return files
@@ -426,18 +427,27 @@ def write_sdist(tmp_path, files):
     return path
 
 
-def test_sdist_checker_accepts_complete_build_inputs(sdist_files, tmp_path):
+def test_sdist_checker_accepts_required_files(sdist_files, tmp_path):
     CHECKS["check_sdist"](write_sdist(tmp_path, sdist_files), PROJECT)
 
 
-@pytest.mark.parametrize("missing", [
+@pytest.mark.parametrize("content", [None, b""], ids=["missing", "empty"])
+@pytest.mark.parametrize("name", [
     "src/orbirig/evidence.py", "src/orbirig/cli.py", "pyproject.toml", "LICENSE",
     "scripts/verify_distributions.py", "scripts/check_installed_core.py",
+    "tests/fixtures/subprocess_observation_peer.py",
 ])
-def test_sdist_checker_rejects_missing_build_inputs(sdist_files, tmp_path, missing):
-    del sdist_files[missing]
-    with pytest.raises(AssertionError, match="Missing"):
+def test_sdist_checker_rejects_missing_or_empty_required_files(
+    sdist_files, tmp_path, name, content,
+):
+    if content is None:
+        del sdist_files[name]
+    else:
+        sdist_files[name] = content
+    with pytest.raises(AssertionError, match="Missing or empty") as raised:
         CHECKS["check_sdist"](write_sdist(tmp_path, sdist_files), PROJECT)
+    # Package-file diagnostics omit the sdist's src/ prefix.
+    assert str(raised.value).endswith(f": {name.removeprefix('src/')}")
 
 
 def test_sdist_checker_rejects_bundled_frontend(sdist_files, tmp_path):
