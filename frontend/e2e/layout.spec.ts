@@ -279,6 +279,11 @@ for (const [field, helpId] of [
     await expect(tooltip).toBeHidden();
     await help.click();
     await expect(tooltip).toBeVisible();
+    // Move the pointer and focus away so the click alone keeps the help open.
+    await page.mouse.move(0, 0);
+    await input.focus();
+    await expect(input).toBeFocused();
+    await expect(tooltip).toBeVisible();
     await help.click();
     await expect(tooltip).toBeHidden();
 
@@ -317,10 +322,12 @@ for (const [field, helpId] of [
     await expect(tooltip).toBeVisible();
     await page.keyboard.press("Enter");
     await expect(tooltip).toBeHidden();
+    await expect(help).toBeFocused();
     await page.keyboard.press("Space");
     await expect(tooltip).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(tooltip).toBeHidden();
+    await expect(help).toBeFocused();
     await page.keyboard.press(tab);
     await expect(page.getByLabel(field, { exact: true })).toBeFocused();
     await page.keyboard.press(optionTab ? "Alt+Shift+Tab" : "Shift+Tab");
@@ -328,29 +335,32 @@ for (const [field, helpId] of [
     await expect(tooltip).toBeVisible();
   });
 
-  test(`${field} help toggles and reopens with touch`, async ({ browser, baseURL }) => {
-    const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 }, hasTouch: true });
-    try {
-      const page = await context.newPage();
-      await page.goto("/");
-      const help = page.getByRole("button", { name: `About ${field}`, exact: true });
-      const tooltip = page.locator(`#${helpId}`);
-      await help.tap();
-      await expect(tooltip).toBeVisible();
-      await help.tap();
-      await expect(tooltip).toBeHidden();
-      await help.tap();
-      await expect(tooltip).toBeVisible();
-      await page.keyboard.press("Escape");
-      await expect(tooltip).toBeHidden();
-      await help.tap();
-      await expect(tooltip).toBeVisible();
-      await page.getByLabel(field, { exact: true }).tap();
-      await expect(tooltip).toBeHidden();
-    } finally {
-      await context.close();
-    }
-  });
+  for (const isMobile of [false, true]) {
+    test(`${field} help toggles and reopens with touch${isMobile ? " in mobile emulation" : ""}`, async ({ browser, baseURL, browserName }) => {
+      test.skip(isMobile && browserName === "firefox", "Firefox does not support Playwright mobile emulation.");
+      const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 }, hasTouch: true, isMobile });
+      try {
+        const page = await context.newPage();
+        await page.goto("/");
+        const help = page.getByRole("button", { name: `About ${field}`, exact: true });
+        const tooltip = page.locator(`#${helpId}`);
+        await help.tap();
+        await expect(tooltip).toBeVisible();
+        await help.tap();
+        await expect(tooltip).toBeHidden();
+        await help.tap();
+        await expect(tooltip).toBeVisible();
+        await page.keyboard.press("Escape");
+        await expect(tooltip).toBeHidden();
+        await help.tap();
+        await expect(tooltip).toBeVisible();
+        await page.getByLabel(field, { exact: true }).tap();
+        await expect(tooltip).toBeHidden();
+      } finally {
+        await context.close();
+      }
+    });
+  }
 }
 
 for (const width of [1440, 390, 320]) {
