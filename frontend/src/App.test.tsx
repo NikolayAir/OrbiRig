@@ -889,7 +889,7 @@ describe("App", () => {
     expect(scrollIntoViewMock).toHaveBeenCalledTimes(1);
   });
 
-  it("does not delay feedback scrolling when verification completes while hidden", async () => {
+  it.each([200, 413])("preserves the active workflow and avoids delayed scrolling when verification returns HTTP %s while hidden", async (status) => {
     let resolveVerification!: (response: Response) => void;
     const pendingResponse = new Promise<Response>((resolve) => {
       resolveVerification = resolve;
@@ -904,26 +904,62 @@ describe("App", () => {
     );
 
     selectInspectionWorkflow();
+    selectVerifiedExecutionSequence();
+    fireEvent.change(screen.getByLabelText("Evidence JSON"), {
+      target: { value: "independent inspection evidence" },
+    });
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => verifiedExecutionSequence,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Inspect evidence" }));
 
+    const activeResult = await screen.findByRole("region", {
+      name: "Verified execution sequence",
+    });
+    await expectFeedbackScroll();
+
+    // The active workflow has already scrolled to its own result.
+    // Completing the hidden request or returning to it must not scroll again.
     await act(async () => {
       resolveVerification({
-        ok: true,
-        status: 200,
+        ok: status === 200,
+        status,
         json: async () => verifiedExecution,
       } as Response);
     });
 
-    expect(scrollIntoViewMock).not.toHaveBeenCalled();
+    expect(activeResult).toBeInTheDocument();
+    expect(within(activeResult).getByText("exec-b")).toBeInTheDocument();
+    expect(within(activeResult).getByLabelText("Sequence outcome: PASS")).toBeInTheDocument();
+    expect(screen.getByLabelText("Evidence JSON")).toHaveValue("independent inspection evidence");
+    expect(screen.getByRole("radio", { name: "Verified execution sequence" })).toBeChecked();
+    expect(screen.getByRole("button", { name: "Show Inspect evidence workflow" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(scrollIntoViewMock).toHaveBeenCalledTimes(1);
 
     selectVerificationWorkflow();
 
-    expect(
-      screen.getByRole("region", { name: "Verified execution" }),
-    ).toBeInTheDocument();
-    expect(scrollIntoViewMock).not.toHaveBeenCalled();
+    if (status === 200) {
+      expect(screen.getByRole("region", { name: "Verified execution" })).toBeInTheDocument();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    } else {
+      const alert = screen.getByRole("alert");
+      expect(within(alert).getByText("Request too large")).toBeVisible();
+      expect(alert).toHaveTextContent(
+        "The complete HTTP request body is limited to 4 MiB. Reduce the submitted data before trying again.",
+      );
+      expect(screen.queryByRole("region", { name: "Verified execution" })).not.toBeInTheDocument();
+    }
+    expect(screen.getByLabelText("Execution ID")).toHaveValue("exec-web-verify-001");
+    expect(screen.getByLabelText("Execution time (UTC)")).toHaveValue("2026-08-25T18:30:00Z");
+    expect(screen.getByLabelText("Scenario")).toHaveValue("nominal_to_safe_mode");
+    expect(screen.getByLabelText("Observation evidence JSON")).toHaveValue("raw observation evidence");
+    expect(scrollIntoViewMock).toHaveBeenCalledTimes(1);
   });
 
-  it("does not delay feedback scrolling when inspection completes while hidden", async () => {
+  it.each([200, 413])("preserves the active workflow and avoids delayed scrolling when inspection returns HTTP %s while hidden", async (status) => {
     let resolveInspection!: (response: Response) => void;
     const pendingResponse = new Promise<Response>((resolve) => {
       resolveInspection = resolve;
@@ -931,30 +967,70 @@ describe("App", () => {
 
     fetchMock.mockReturnValue(pendingResponse);
 
-    submitEvidence("valid evidence");
+    submitEvidence("pending sequence evidence", "verified-execution-sequence");
 
     expect(screen.getByRole("status")).toHaveTextContent(
       "Inspecting evidence…",
     );
 
     selectVerificationWorkflow();
+    const activeInputs = [
+      ["Execution ID", "exec-web-001"],
+      ["Execution time (UTC)", "2026-08-17T10:15:30Z"],
+      ["Scenario", "nominal_to_safe_mode"],
+      ["Observation evidence JSON", observationEvidenceDocument],
+    ] as const;
+    for (const [label, value] of activeInputs) {
+      fireEvent.change(screen.getByLabelText(label), { target: { value } });
+    }
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => verifiedExecution,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Verify observation" }));
 
+    const activeResult = await screen.findByRole("region", {
+      name: "Verified execution",
+    });
+    await expectFeedbackScroll();
+
+    // The active workflow has already scrolled to its own result.
+    // Completing the hidden request or returning to it must not scroll again.
     await act(async () => {
       resolveInspection({
-        ok: true,
-        status: 200,
-        json: async () => observation,
+        ok: status === 200,
+        status,
+        json: async () => verifiedExecutionSequence,
       } as Response);
     });
 
-    expect(scrollIntoViewMock).not.toHaveBeenCalled();
+    expect(activeResult).toBeInTheDocument();
+    expect(within(activeResult).getByText("exec-web-001")).toBeInTheDocument();
+    expect(within(activeResult).getByLabelText("Verification outcome: PASS")).toBeInTheDocument();
+    for (const [label, value] of activeInputs) {
+      expect(screen.getByLabelText(label)).toHaveValue(value);
+    }
+    expect(screen.getByRole("button", { name: "Show Verify observation workflow" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(scrollIntoViewMock).toHaveBeenCalledTimes(1);
 
     selectInspectionWorkflow();
 
-    expect(
-      screen.getByRole("heading", { name: "Observation details" }),
-    ).toBeInTheDocument();
-    expect(scrollIntoViewMock).not.toHaveBeenCalled();
+    if (status === 200) {
+      expect(screen.getByRole("region", { name: "Verified execution sequence" })).toBeInTheDocument();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    } else {
+      const alert = screen.getByRole("alert");
+      expect(within(alert).getByText("Request too large")).toBeVisible();
+      expect(alert).toHaveTextContent(
+        "The complete HTTP request body is limited to 4 MiB. Reduce the submitted data before trying again.",
+      );
+      expect(screen.queryByRole("region", { name: "Verified execution sequence" })).not.toBeInTheDocument();
+    }
+    expect(screen.getByLabelText("Evidence JSON")).toHaveValue("pending sequence evidence");
+    expect(screen.getByRole("radio", { name: "Verified execution sequence" })).toBeChecked();
+    expect(scrollIntoViewMock).toHaveBeenCalledTimes(1);
   });
 
   it("preserves inspection input and reconstructed state while switched away", async () => {
