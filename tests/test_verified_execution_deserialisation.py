@@ -220,9 +220,9 @@ def test_unsupported_schema_version_is_rejected():
     ("mutation", "message"),
     [
         ("missing-root", "missing fields: outcome"),
-        ("unexpected-root", "unexpected fields: extra"),
+        ("unexpected-root", "unexpected fields: 'extra'"),
         ("missing-execution", "missing fields: executed_at"),
-        ("unexpected-result", "unexpected fields: extra"),
+        ("unexpected-result", "unexpected fields: 'extra'"),
     ],
 )
 def test_missing_and_unexpected_fields_are_rejected(mutation, message):

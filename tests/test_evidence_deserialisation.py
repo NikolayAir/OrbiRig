@@ -248,7 +248,7 @@ def test_scenario_id_is_rejected_at_root_boundary():
 
     with pytest.raises(
         ValueError,
-        match="unexpected fields: scenario_id",
+        match="unexpected fields: 'scenario_id'",
     ):
         deserialize_execution_evidence(
             _serialized(document),
@@ -264,7 +264,7 @@ def test_scenario_id_is_rejected_at_root_boundary():
         ),
         (
             "unexpected-command-field",
-            "unexpected fields: unexpected",
+            "unexpected fields: 'unexpected'",
         ),
     ],
 )
@@ -286,6 +286,51 @@ def test_invalid_nested_fields_are_rejected(
         deserialize_execution_evidence(
             _serialized(document),
         )
+
+
+@pytest.mark.parametrize(
+    "object_name",
+    [None, "command", "pre_state", "acknowledgement", "post_state", "telemetry"],
+    ids=["root", "command", "pre-state", "acknowledgement", "post-state", "telemetry"],
+)
+@pytest.mark.parametrize(("field_name", "escaped_name"), [
+    ("field\x1b[31mname", r"'field\x1b[31mname'"),
+    ("field\rname", r"'field\rname'"),
+    ("field\nname", r"'field\nname'"),
+    ("field\x00\t\b\x07\x7f\x9bname", r"'field\x00\t\x08\x07\x7f\x9bname'"),
+    # U+202E is RIGHT-TO-LEFT OVERRIDE.
+    ("field\u202ename", r"'field\u202ename'"),
+    ("field'\"name", "'field\\'\"name'"),
+    ("field\\nname", r"'field\\nname'"),
+], ids=[
+    "ansi", "carriage-return", "newline", "other-controls", "unicode-formatting",
+    "both-quotes", "literal-backslash",
+])
+def test_unexpected_field_errors_escape_names(object_name, field_name, escaped_name):
+    document = _document()
+    target = document if object_name is None else document[object_name]
+    target[field_name] = None
+
+    with pytest.raises(ValueError) as raised:
+        deserialize_execution_evidence(_serialized(document))
+
+    message = str(raised.value)
+    assert all(32 <= ord(character) < 127 for character in message)
+    path = "observation evidence" if object_name is None else object_name
+    assert message == f"{path} has invalid fields (unexpected fields: {escaped_name})"
+
+
+def test_unexpected_field_errors_keep_names_distinct_and_sorted():
+    document = _document()
+    document.update({"zeta": None, "alpha, beta": None, "": None})
+
+    with pytest.raises(ValueError) as raised:
+        deserialize_execution_evidence(_serialized(document))
+
+    assert str(raised.value) == (
+        "observation evidence has invalid fields "
+        "(unexpected fields: '', 'alpha, beta', 'zeta')"
+    )
 
 
 @pytest.mark.parametrize(
