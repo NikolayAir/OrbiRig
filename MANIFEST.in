@@ -1,2 +1,3 @@
 include scripts/verify_distributions.py
 include scripts/check_installed_core.py
+include tests/fixtures/subprocess_observation_peer.py
