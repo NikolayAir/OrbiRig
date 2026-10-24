@@ -539,6 +539,86 @@ for (const example of [
   });
 }
 
+test("verification reports HTTP 413 for an oversized wrapped request and allows correction", async ({ page }) => {
+  const limit = 4 * 1024 * 1024;
+  const document = evidenceFile("rejected.json").replace(/\r\n?/g, "\n");
+  // Evidence alone fits; the encoded JSON wrapper pushes the request over the limit.
+  const evidence = document + " ".repeat(limit - Buffer.byteLength(document, "utf8"));
+  const submittedText = await fillVerification(page, "nominal_to_nominal_rejection", evidence);
+  expect(Buffer.byteLength(submittedText, "utf8")).toBe(limit);
+  const responsePromise = page.waitForResponse("**/api/verify/observation");
+  await page.getByRole("button", { name: "Verify observation", exact: true }).click();
+  const response = await responsePromise;
+
+  expect(response.status()).toBe(413);
+  expect(Buffer.byteLength(response.request().postData()!, "utf8")).toBeGreaterThan(limit);
+  expect(response.request().postDataJSON()).toEqual({
+    execution_id: "browser-execution",
+    executed_at: "2026-08-17T08:00:00Z",
+    scenario_id: "nominal_to_nominal_rejection",
+    observation_evidence: submittedText,
+  });
+  await expect(page.getByRole("alert").locator("strong")).toHaveText("Request too large");
+  await expect(page.getByRole("alert").locator("span")).toHaveText(
+    "The complete HTTP request body is limited to 4 MiB. Reduce the submitted data before trying again.",
+  );
+  await expect(page.getByLabel("Execution ID", { exact: true })).toHaveValue("browser-execution");
+  await expect(page.getByLabel("Execution time (UTC)", { exact: true })).toHaveValue("2026-08-17T08:00:00Z");
+  await expect(page.getByLabel("Scenario", { exact: true })).toHaveValue("nominal_to_nominal_rejection");
+  await expect(page.getByLabel("Observation evidence JSON", { exact: true })).toHaveValue(submittedText);
+  await expect(page.getByRole("button", { name: "Show Verify observation workflow" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByLabel(/^Verification (outcome|check):/)).toHaveCount(0);
+
+  await page.getByLabel("Observation evidence JSON", { exact: true }).fill(document);
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  const retryPromise = page.waitForResponse("**/api/verify/observation");
+  await page.getByRole("button", { name: "Verify observation", exact: true }).click();
+  expect((await retryPromise).status()).toBe(200);
+  await expectOutcome(page.getByRole("region", { name: "Verified execution", exact: true }), "Verification outcome", "PASS");
+  await expect(page.getByRole("alert")).toHaveCount(0);
+});
+
+for (const inspection of [
+  { type: "Observation", endpoint: "observation", fixture: "accepted.json", result: "Observation details" },
+  { type: "Verified execution", endpoint: "verified-execution", fixture: "failed-execution.json", result: "Verified execution" },
+  { type: "Verified execution sequence", endpoint: "verified-execution-sequence", fixture: "discontinuous-sequence.json", result: "Verified execution sequence" },
+]) {
+  test(`${inspection.endpoint} inspection reports HTTP 413 and allows correction`, async ({ page }) => {
+    const limit = 4 * 1024 * 1024;
+    const document = evidenceFile(inspection.fixture).replace(/\r\n?/g, "\n");
+    const evidence = document + " ".repeat(limit + 1 - Buffer.byteLength(document, "utf8"));
+    await page.getByRole("button", { name: "Show Inspect evidence workflow", exact: true }).click();
+    await page.getByRole("radio", { name: inspection.type, exact: true }).check();
+    const submittedText = await fillEvidence(page.getByLabel("Evidence JSON", { exact: true }), evidence);
+    const endpoint = `**/api/inspect/${inspection.endpoint}`;
+    const responsePromise = page.waitForResponse(endpoint);
+    await page.getByRole("button", { name: "Inspect evidence", exact: true }).click();
+    const response = await responsePromise;
+
+    expect(response.status()).toBe(413);
+    expect(response.request().postData()).toBe(submittedText);
+    expect(Buffer.byteLength(submittedText, "utf8")).toBe(limit + 1);
+    expect(response.request().headers()["content-type"]).toBe("text/plain; charset=utf-8");
+    await expect(page.getByRole("alert").locator("strong")).toHaveText("Request too large");
+    await expect(page.getByRole("alert").locator("span")).toHaveText(
+      "The complete HTTP request body is limited to 4 MiB. Reduce the submitted data before trying again.",
+    );
+    await expect(page.getByLabel("Evidence JSON", { exact: true })).toHaveValue(submittedText);
+    await expect(page.getByRole("radio", { name: inspection.type, exact: true })).toBeChecked();
+    await expect(page.getByRole("button", { name: "Show Inspect evidence workflow" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("region", { name: inspection.result, exact: true })).toHaveCount(0);
+    await expect(page.getByLabel(/^(Verification (outcome|check)|Sequence outcome|Continuity outcome):/)).toHaveCount(0);
+
+    await page.getByLabel("Evidence JSON", { exact: true }).fill(document);
+    await expect(page.getByRole("alert")).toHaveCount(0);
+    const retryPromise = page.waitForResponse(endpoint);
+    await page.getByRole("button", { name: "Inspect evidence", exact: true }).click();
+    expect((await retryPromise).status()).toBe(200);
+    await expect(page.getByRole("region", { name: inspection.result, exact: true })).toBeVisible();
+    await expect(page.getByRole("alert")).toHaveCount(0);
+  });
+}
+
 // JSON.parse would keep only the last value for a repeated key. Read this fixture
 // as text; .txt avoids editor warnings about the intentionally repeated key.
 const duplicateKeyEvidence = evidenceFile("duplicate-keys.json.txt").replace(/\r\n?/g, "\n");

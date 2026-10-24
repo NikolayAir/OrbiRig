@@ -1678,6 +1678,34 @@ describe("App", () => {
     await expectFeedbackScroll();
   });
 
+  it("reports HTTP 413 and preserves the verification inputs and selection", async () => {
+    const evidence = ' \n{"recorded": "é", "recorded": "unchanged"}\n ';
+    const json = vi.fn().mockRejectedValue(new SyntaxError("Not JSON"));
+    fetchMock.mockResolvedValue({ ok: false, status: 413, json });
+
+    submitVerification({ evidence, scenario: "safe_to_nominal_mode" });
+
+    const alert = await screen.findByRole("alert");
+    expect(within(alert).getByText("Request too large")).toBeVisible();
+    expect(alert).toHaveTextContent(
+      "The complete HTTP request body is limited to 4 MiB. Reduce the submitted data before trying again.",
+    );
+    expect(json).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Execution ID")).toHaveValue("exec-web-verify-001");
+    expect(screen.getByLabelText("Execution time (UTC)")).toHaveValue("2026-08-25T18:30:00Z");
+    expect(screen.getByLabelText("Scenario")).toHaveValue("safe_to_nominal_mode");
+    expect(screen.getByLabelText("Observation evidence JSON")).toHaveValue(evidence);
+    expect(screen.getByRole("button", { name: "Show Verify observation workflow" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Verify observation" })).toBeEnabled();
+    expect(screen.queryByRole("region", { name: "Verified execution" })).not.toBeInTheDocument();
+    await expectFeedbackScroll();
+
+    fireEvent.change(screen.getByLabelText("Observation evidence JSON"), {
+      target: { value: "reduced evidence" },
+    });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   it("keeps unexpected server failure separate from validation", async () => {
     fetchMock.mockResolvedValue({ ok: false, status: 500 });
 
@@ -2355,8 +2383,42 @@ describe("App", () => {
     );
   });
 
-  it("shows a transport failure distinctly", async () => {
-    fetchMock.mockRejectedValue(new TypeError("network failure"));
+  it.each([
+    ["observation", "Observation"],
+    ["verified-execution", "Verified execution"],
+    ["verified-execution-sequence", "Verified execution sequence"],
+  ] as const)("reports HTTP 413 and preserves %s inspection inputs and selection", async (type, label) => {
+    const evidence = ' \n{"recorded": "é", "recorded": "unchanged"}\n ';
+    const json = vi.fn().mockRejectedValue(new SyntaxError("Not JSON"));
+    fetchMock.mockResolvedValue({ ok: false, status: 413, json });
+
+    submitEvidence(evidence, type);
+
+    const alert = await screen.findByRole("alert");
+    expect(within(alert).getByText("Request too large")).toBeVisible();
+    expect(alert).toHaveTextContent(
+      "The complete HTTP request body is limited to 4 MiB. Reduce the submitted data before trying again.",
+    );
+    expect(json).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Evidence JSON")).toHaveValue(evidence);
+    expect(screen.getByRole("radio", { name: label })).toBeChecked();
+    expect(screen.getByRole("button", { name: "Show Inspect evidence workflow" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Inspect evidence" })).toBeEnabled();
+    expect(screen.queryByRole("region", { name: /^(Observation details|Verified execution|Verified execution sequence)$/ })).not.toBeInTheDocument();
+    await expectFeedbackScroll();
+
+    fireEvent.change(screen.getByLabelText("Evidence JSON"), {
+      target: { value: "reduced evidence" },
+    });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it.each(["network", "server"])("shows an inspection %s failure distinctly", async (failure) => {
+    if (failure === "network") {
+      fetchMock.mockRejectedValue(new TypeError("network failure"));
+    } else {
+      fetchMock.mockResolvedValue({ ok: false, status: 500 });
+    }
 
     submitEvidence("evidence", "verified-execution");
 
