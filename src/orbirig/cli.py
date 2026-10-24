@@ -1,10 +1,8 @@
 """Command-line verification of recorded observation evidence."""
 
 import argparse
-import re
 import sys
 import traceback
-from datetime import datetime
 from pathlib import Path
 
 from orbirig.evidence import (
@@ -16,27 +14,10 @@ from orbirig.models import (
     InvalidExecutionMetadataError,
     ScenarioCommandMismatchError,
     ScenarioId,
+    parse_utc_timestamp,
     validate_execution_metadata,
 )
 from orbirig.verification import build_verified_execution_record
-
-_UTC_TIMESTAMP = re.compile(
-    r"[0-9]{4}-[0-9]{2}-[0-9]{2}T(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]"
-    r"(?:\.[0-9]{1,6})?(?:Z|\+00:00)",
-)
-
-
-def _parse_timestamp(value: str) -> datetime:
-    """Parse the CLI's explicit UTC timestamp format without losing precision."""
-    if not _UTC_TIMESTAMP.fullmatch(value):
-        raise argparse.ArgumentTypeError(
-            "must use YYYY-MM-DDTHH:MM:SS[.fraction](Z|+00:00) "
-            "with 1–6 fractional digits when present",
-        )
-    try:
-        return datetime.fromisoformat(value)
-    except ValueError:
-        raise argparse.ArgumentTypeError("must be a valid UTC date and time") from None
 
 
 def _write_stdout(payload: bytes) -> None:
@@ -75,7 +56,7 @@ def _parser() -> argparse.ArgumentParser:
     )
     verify.add_argument("--execution-id", required=True, metavar="ID")
     verify.add_argument(
-        "--executed-at", required=True, type=_parse_timestamp, metavar="UTC_TIMESTAMP",
+        "--executed-at", required=True, metavar="UTC_TIMESTAMP",
         help="recorded execution time: YYYY-MM-DDTHH:MM:SS[.fraction](Z|+00:00)",
     )
     return parser
@@ -97,9 +78,14 @@ def _output_error(error: OSError) -> int:
 
 def _verify_observation(args: argparse.Namespace) -> int:
     try:
+        executed_at = parse_utc_timestamp(args.executed_at)
+    except InvalidExecutionMetadataError as exc:
+        return _error(2, f"invalid --executed-at: {exc}")
+
+    try:
         validate_execution_metadata(
             execution_id=args.execution_id,
-            executed_at=args.executed_at,
+            executed_at=executed_at,
         )
     except InvalidExecutionMetadataError as exc:
         return _error(2, f"invalid execution metadata: {exc}")
@@ -122,7 +108,7 @@ def _verify_observation(args: argparse.Namespace) -> int:
     try:
         record = build_verified_execution_record(
             execution_id=args.execution_id,
-            executed_at=args.executed_at,
+            executed_at=executed_at,
             scenario_id=ScenarioId(args.scenario),
             observation=observation,
         )

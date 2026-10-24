@@ -11,6 +11,7 @@ from typing import cast
 
 import pytest
 
+from orbirig import evidence
 from orbirig.evidence import (
     deserialize_verified_execution_evidence,
     serialize_verified_execution_evidence,
@@ -335,14 +336,52 @@ def test_unicode_execution_id_is_preserved(ensure_ascii):
     assert record.outcome is ExecutionOutcome.PASS
 
 
+@pytest.mark.parametrize(("timestamp", "expected"), [
+    ("2026-08-15 12:00:00+0000", EXECUTED_AT),
+    ("20260815T120000-00:00", EXECUTED_AT),
+    ("2026-W33-6T12:00:00+00:00:00", EXECUTED_AT),
+    ("2026-08-15T12:00:00+00:00:00.0000000", EXECUTED_AT),
+    ("2026-08-15T12:00:00.000001Z", EXECUTED_AT.replace(microsecond=1)),
+    ("2026-08-15T12:00:00,1234560Z", EXECUTED_AT.replace(microsecond=123456)),
+    ("2026-08-15T12:00:00.999999Z", EXECUTED_AT.replace(microsecond=999999)),
+    ("2026-W33-120000.5Z", datetime(2026, 8, 10, 12, 0, 0, 500000, tzinfo=UTC)),
+    ("2026-W33-230000,1234560Z", datetime(2026, 8, 10, 23, 0, 0, 123456, tzinfo=UTC)),
+])
+def test_lossless_timestamp_forms_preserve_the_recorded_time(timestamp, expected):
+    document = _valid_document()
+    cast(dict[str, object], document["execution"])["executed_at"] = timestamp
+
+    record = deserialize_verified_execution_evidence(_serialized(document))
+
+    assert record.executed_at == expected
+    assert record.outcome is ExecutionOutcome.PASS
+    assert json.loads(serialize_verified_execution_evidence(record))["execution"][
+        "executed_at"
+    ] == expected.isoformat().replace("+00:00", "Z")
+
+
 @pytest.mark.parametrize(
     "timestamp",
     [
         "not-a-timestamp",
         "2026-08-15T12:00:00",
         "2026-08-15T14:00:00+02:00",
+        "2026-08-15T12:00:00.1234567Z",
+        "2026-08-15T12:00:00,0000001+00:00",
+        "20260815T120000.9999999Z",
+        "2026-08-15T12:00:00.123456000000000001Z",
+        "2026-08-15T12:00:00+00:00:00.5",
+        "2026-08-15T12:00:00-00:00:00.5",
+        "2026-08-15T12:00:00+00:00:00.0000001",
+        "2026-08-15T12:00:00+00:00:01",
+        "2026-08-15T12:00:00+00:01",
+        "2026-08-15T24:00:00Z",
+        "2026-08-15T12.5Z",
+        "2026-08-15T12:00,5Z",
+        "2026-W33-240000Z",
+        "2026-W33-2400.0000000Z",
+        "2026-W33-120000.1234567Z",
     ],
-    ids=["malformed", "naive", "non-utc"],
 )
 def test_invalid_or_non_utc_timestamps_are_rejected(timestamp):
     document = _valid_document()
@@ -350,6 +389,20 @@ def test_invalid_or_non_utc_timestamps_are_rejected(timestamp):
 
     with pytest.raises(ValueError, match="execution.executed_at"):
         deserialize_verified_execution_evidence(_serialized(document))
+
+
+def test_unexpected_timestamp_parser_error_is_not_reclassified(monkeypatch):
+    failure = ValueError("unexpected timestamp parser failure")
+
+    def fail_unexpectedly(_value):
+        raise failure
+
+    monkeypatch.setattr(evidence, "parse_utc_timestamp", fail_unexpectedly)
+
+    with pytest.raises(ValueError) as raised:
+        deserialize_verified_execution_evidence(_serialized(_valid_document()))
+
+    assert raised.value is failure
 
 
 def test_command_incompatible_with_persisted_scenario_is_rejected():

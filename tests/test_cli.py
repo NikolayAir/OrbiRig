@@ -216,28 +216,45 @@ def test_invalid_evidence_has_no_verification_output(observation_file, capsysbin
     assert b"Traceback" not in captured.err
 
 
-@pytest.mark.parametrize("timestamp", [
-    "2026-10-21T10:00:00Z", "2026-10-21T10:00:00+00:00",
-    "2026-10-21T10:00:00.1Z", "2026-10-21T10:00:00.123456+00:00",
+@pytest.mark.parametrize(("timestamp", "expected"), [
+    ("2026-10-21T10:00:00Z", "2026-10-21T10:00:00Z"),
+    ("2026-10-21T10:00:00+00:00", "2026-10-21T10:00:00Z"),
+    ("2026-10-21T10:00:00.1Z", "2026-10-21T10:00:00.100000Z"),
+    ("2026-10-21T10:00:00.123456+00:00", "2026-10-21T10:00:00.123456Z"),
+    ("2026-10-21T10:00:00-00:00", "2026-10-21T10:00:00Z"),
+    ("2026-10-21 10:00:00Z", "2026-10-21T10:00:00Z"),
+    ("20261021T100000Z", "2026-10-21T10:00:00Z"),
+    ("2026-10-21T10:00Z", "2026-10-21T10:00:00Z"),
+    ("2026-10-21T10:00:00,1Z", "2026-10-21T10:00:00.100000Z"),
+    ("2026-10-21T10:00:00+00:00:00", "2026-10-21T10:00:00Z"),
+    ("2026-W33-6T12:00:00.000001+0000", "2026-08-15T12:00:00.000001Z"),
+    ("2026-08-15T12:00:00,1234560Z", "2026-08-15T12:00:00.123456Z"),
+    ("2026-08-15T12:00:00.999999Z", "2026-08-15T12:00:00.999999Z"),
+    ("2026-08-15T12:00:00+00:00:00.0000000", "2026-08-15T12:00:00Z"),
+    ("2026-W33-120000.5Z", "2026-08-10T12:00:00.500000Z"),
+    ("2026-W33-230000,1234560Z", "2026-08-10T23:00:00.123456Z"),
 ])
-def test_valid_timestamp_is_serialised_canonically(observation_file, capsysbinary, timestamp):
+def test_valid_timestamp_is_serialised_canonically(
+    observation_file, capsysbinary, timestamp, expected,
+):
     assert _run(_args(observation_file, executed_at=timestamp)) == 0
-    evidence = json.loads(capsysbinary.readouterr().out)
-    expected = {
-        "2026-10-21T10:00:00.1Z": "2026-10-21T10:00:00.100000Z",
-        "2026-10-21T10:00:00.123456+00:00": "2026-10-21T10:00:00.123456Z",
-    }.get(timestamp, "2026-10-21T10:00:00Z")
+    captured = capsysbinary.readouterr()
+    assert captured.err == b""
+    evidence = json.loads(captured.out)
     assert evidence["execution"]["executed_at"] == expected
 
 
 @pytest.mark.parametrize("timestamp", [
     "", "not-a-timestamp", "2026-10-21", "2026-10-21T10:00:00",
-    "2026-10-21T10:00:00+02:00", "2026-10-21T10:00:00-00:00",
-    "2026-10-21 10:00:00Z", "20261021T100000Z", "2026-10-21T10:00Z",
+    "2026-10-21T10:00:00+02:00",
     "2026-10-21T10:00:00.Z", "2026-10-21T10:00:00.1234567Z",
-    "2026-10-21T10:00:00,1Z", "2026-10-21T10:00:00z",
-    "2026-10-21T10:00:00+00:00:00", "2026-10-21T10:00:00Z\n",
+    "2026-10-21T10:00:00,0000001+00:00", "2026-10-21T10:00:00z",
+    "2026-10-21T10:00:00+00:00:00.5", "2026-10-21T10:00:00-00:00:00.5",
+    "2026-10-21T10:00:00+00:00:00.0000001", "2026-10-21T10:00:00+00:00:01",
+    "2026-10-21T10:00:00Z\n", "2026-10-21T10.5Z", "2026-10-21T10:00,5Z",
     "2026-02-30T10:00:00Z", "2026-10-21T24:00:00Z", "2026-10-21T10:00:60Z",
+    "2026-W33-240000Z", "2026-W33-2400.0000000Z",
+    "2026-W33-120000.1234567Z",
 ])
 def test_invalid_timestamp_is_an_argument_error(observation_file, capsysbinary, timestamp):
     assert _run(_args(observation_file, executed_at=timestamp)) == 2
@@ -417,7 +434,8 @@ def test_output_errors_return_three_without_a_traceback(
 
 
 @pytest.mark.parametrize("function", [
-    "build_verified_execution_record", "serialize_verified_execution_evidence",
+    "parse_utc_timestamp", "build_verified_execution_record",
+    "serialize_verified_execution_evidence",
 ])
 def test_internal_value_error_is_not_invalid_evidence_or_verification_fail(
     observation_file, monkeypatch, capsysbinary, function,

@@ -1,5 +1,6 @@
 """Value models for command-to-telemetry consistency verification."""
 
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import StrEnum
@@ -39,6 +40,58 @@ class InvalidExecutionMetadataError(ValueError):
 
 class ScenarioCommandMismatchError(ValueError):
     """Raised when an observation command does not match its scenario."""
+
+
+# Retain calendar/week dates, basic/extended times and single-character separators.
+# Calendar validity is checked by datetime after the lossless UTC checks below.
+# In YYYY-Www-HHMMSS, "-HH..." belongs to the time. A "-D" weekday
+# suffix is recognised only before a separator other than an ASCII digit.
+_UTC_TIMESTAMP = re.compile(
+    r"(?P<local>(?:[0-9]{4}-[0-9]{2}-[0-9]{2}|[0-9]{8}|"
+    r"[0-9]{4}-W[0-9]{2}(?:-[1-7](?![0-9]))?|[0-9]{4}W[0-9]{2}[1-7]?)."
+    r"(?P<clock>(?:[01][0-9]|2[0-3])"
+    r"(?::[0-5][0-9](?::[0-5][0-9])?|[0-5][0-9](?:[0-5][0-9])?)?)"
+    r"(?:[.,](?P<fraction>[0-9]+))?)"
+    r"(?:Z|[+-]00(?::00(?::00)?|00(?:00)?)?(?:[.,]0+)?)",
+    re.DOTALL,
+)
+
+
+def parse_utc_timestamp(value: str) -> datetime:
+    """Parse supported UTC text without rounding or discarding time values."""
+
+    match = _UTC_TIMESTAMP.fullmatch(value)
+    if match is None:
+        raise InvalidExecutionMetadataError(
+            "timestamp must be ISO 8601 with a zero UTC offset and hours 00–23",
+        )
+
+    local = match["local"]
+    fraction = match["fraction"]
+    if fraction is not None:
+        # Seconds are present in HHMMSS and HH:MM:SS.
+        if len(match["clock"]) in (6, 8):
+            if fraction[6:].strip("0"):
+                raise InvalidExecutionMetadataError(
+                    "fractional seconds may have more than six decimal places "
+                    "only if the extra digits are zero",
+                )
+            local = value[:match.start("fraction")] + fraction[:6]
+        elif fraction.strip("0"):
+            raise InvalidExecutionMetadataError(
+                "non-zero fractions of hours or minutes are unsupported",
+            )
+        else:
+            local = value[:match.start("fraction") - 1]
+
+    # The textual offset is already exactly zero, including any fractional part.
+    # Normalising it avoids Python-version differences in offset parsing.
+    try:
+        return datetime.fromisoformat(local + "Z")
+    except ValueError as exc:
+        raise InvalidExecutionMetadataError(
+            "timestamp must be a valid UTC date and time",
+        ) from exc
 
 
 def validate_execution_metadata(

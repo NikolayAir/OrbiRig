@@ -286,6 +286,71 @@ def test_non_utc_execution_timestamp_has_stable_error_category() -> None:
     _assert_error(response, "invalid_execution_metadata")
 
 
+@pytest.mark.parametrize(("timestamp", "expected"), [
+    ("2026-08-15 12:00:00-0000", "2026-08-15T12:00:00Z"),
+    ("2026W336T120000+00:00:00.0000000", "2026-08-15T12:00:00Z"),
+    ("2026-08-15T12:00:00.000001Z", "2026-08-15T12:00:00.000001Z"),
+    ("2026-08-15T12:00:00,1234560Z", "2026-08-15T12:00:00.123456Z"),
+    ("2026-08-15T12:00:00.999999Z", "2026-08-15T12:00:00.999999Z"),
+    ("2026-W33-120000.5Z", "2026-08-10T12:00:00.500000Z"),
+    ("2026-W33-230000,1234560Z", "2026-08-10T23:00:00.123456Z"),
+])
+def test_lossless_execution_timestamp_forms_preserve_time(timestamp, expected):
+    response = _post(_verification_request(executed_at=timestamp))
+
+    assert response.status_code == 200
+    assert response.json()["execution"]["executed_at"] == expected
+    assert response.json()["outcome"] == "PASS"
+
+
+@pytest.mark.parametrize("timestamp", [
+    "2026-08-15T12:00:00.1234567Z",
+    "2026-08-15T12:00:00,0000001+00:00",
+    "2026-08-15T12:00:00+00:00:00.5",
+    "2026-08-15T12:00:00-00:00:00.5",
+    "2026-08-15T12:00:00+00:00:00.0000001",
+    "2026-08-15T12:00:00+00:00:01",
+    "2026-08-15T24:00:00Z",
+    "2026-08-15T12.5Z",
+    "2026-08-15T12:00,5Z",
+    "2026-W33-240000Z",
+    "2026-W33-2400.0000000Z",
+    "2026-W33-120000.1234567Z",
+])
+def test_unsupported_timestamp_is_invalid_metadata_without_verification(timestamp):
+    response = _post(_verification_request(executed_at=timestamp))
+
+    _assert_error(response, "invalid_execution_metadata")
+    assert set(response.json()) == {"detail"}
+
+
+@pytest.mark.parametrize(("timestamp", "message"), [
+    (
+        "2026-08-15T12:00:00.1234567Z",
+        (
+            "fractional seconds may have more than six decimal places "
+            "only if the extra digits are zero"
+        ),
+    ),
+    (
+        "2026-08-15T12:00:00+00:00:00.5",
+        "timestamp must be ISO 8601 with a zero UTC offset and hours 00–23",
+    ),
+    (
+        "2026-08-15T12.5Z",
+        "non-zero fractions of hours or minutes are unsupported",
+    ),
+    ("2026-02-30T12:00:00Z", "timestamp must be a valid UTC date and time"),
+])
+def test_invalid_timestamp_reports_the_controlled_reason(timestamp, message):
+    response = _post(_verification_request(executed_at=timestamp))
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "detail": {"code": "invalid_execution_metadata", "message": message},
+    }
+
+
 def test_scenario_command_mismatch_has_stable_error_category() -> None:
     response = _post(
         _verification_request(scenario_id="safe_to_nominal_mode"),
@@ -349,13 +414,16 @@ def test_unexpected_outer_parser_error_remains_a_server_error(
     assert response.status_code == 500
 
 
-def test_unexpected_internal_error_remains_a_server_error(monkeypatch) -> None:
-    def fail_unexpectedly(**_kwargs):
+@pytest.mark.parametrize("function", [
+    "parse_utc_timestamp", "build_verified_execution_record",
+])
+def test_unexpected_internal_error_remains_a_server_error(monkeypatch, function) -> None:
+    def fail_unexpectedly(*_args, **_kwargs):
         raise ValueError("unexpected verification failure")
 
     monkeypatch.setattr(
         web,
-        "build_verified_execution_record",
+        function,
         fail_unexpectedly,
     )
 
