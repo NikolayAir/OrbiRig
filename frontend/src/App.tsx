@@ -104,6 +104,7 @@ type InspectionState =
       sequence: VerifiedExecutionSequencePresentation;
     }
   | { kind: "invalid"; evidenceType: EvidenceType }
+  | { kind: "request-too-large" }
   | { kind: "transport-failure" };
 
 type VerificationState =
@@ -111,6 +112,7 @@ type VerificationState =
   | { kind: "loading" }
   | { kind: "completed"; record: VerifiedExecutionPresentation }
   | { kind: "validation-failure"; code: VerificationErrorCode }
+  | { kind: "request-too-large" }
   | { kind: "network-failure" }
   | { kind: "server-failure" };
 
@@ -437,6 +439,11 @@ export function App() {
       return;
     }
 
+    if (response.status === 413) {
+      setVerification({ kind: "request-too-large" });
+      return;
+    }
+
     if (response.status === 422) {
       try {
         const code = verificationErrorCode(await response.json());
@@ -488,6 +495,11 @@ export function App() {
         },
         body: evidence,
       });
+
+      if (response.status === 413) {
+        setInspection({ kind: "request-too-large" });
+        return;
+      }
 
       if (response.status === 422) {
         setInspection({ kind: "invalid", evidenceType });
@@ -871,6 +883,8 @@ export function App() {
               <p role="status">Verifying observation…</p>
             )}
 
+            {verification.kind === "request-too-large" && <EvidenceRequestSizeError />}
+
             {verification.kind === "validation-failure" && (
               <p role="alert">
                 <strong className="feedback-label">Input error</strong>
@@ -1015,6 +1029,8 @@ export function App() {
               <p role="status">Inspecting evidence…</p>
             )}
 
+            {inspection.kind === "request-too-large" && <EvidenceRequestSizeError />}
+
             {inspection.kind === "invalid" && (
               <p role="alert">
                 <strong className="feedback-label">Invalid evidence</strong>
@@ -1044,6 +1060,18 @@ export function App() {
         </section>
       )}
     </main>
+  );
+}
+
+function EvidenceRequestSizeError() {
+  return (
+    <p role="alert">
+      <strong className="feedback-label">Request too large</strong>
+      <span>
+        The complete HTTP request body is limited to 4 MiB. Reduce the submitted data
+        before trying again.
+      </span>
+    </p>
   );
 }
 

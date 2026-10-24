@@ -282,6 +282,8 @@ The read-only evidence-inspection workflow submits its textarea value unchanged 
 
 Observation verification and all three evidence-inspection endpoints limit the complete HTTP request body to **4 MiB (4,194,304 bytes), inclusive**. For verification, this includes the JSON wrapper and the embedded evidence string as encoded in the request; inspection counts the submitted UTF-8 bytes. The backend checks the size while reading, regardless of `Content-Length`, and stops with HTTP **413** when the limit is exceeded. Content-type checks run first and return HTTP **415** for unsupported types. This limit does not apply to the Python evidence APIs.
 
+The web interface reports HTTP 413 with a specific size-limit message asking users to reduce the submitted data before trying again. Entered values and workflow selections are preserved.
+
 To serve the built interface through FastAPI, build the frontend before starting the application:
 
 ```bash
@@ -427,6 +429,10 @@ API responses and `ReferenceSpacecraft`. The tests check that:
   its expected value, actual value and its own `PASS` or `FAIL` result.
 - Malformed JSON and duplicate keys inside an object produce input errors,
   without verification results.
+- Oversized requests show the 4 MiB limit in verification and all three inspection
+  types, preserve entered values and selections, and allow resubmission after the
+  data is reduced. Verification includes a case where the evidence alone fits but
+  the encoded JSON request exceeds the limit.
 - Observation inspection shows reported values without a verification outcome.
   Verified-execution inspection accepts a canonically consistent `FAIL`,
   including an execution ID containing non-ASCII text. Record and sequence
