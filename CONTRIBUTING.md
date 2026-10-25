@@ -2,11 +2,11 @@
 
 [README](README.md) · [Verification concepts](docs/verification.md) · [Web setup and deployment configuration](docs/web-interface.md)
 
-The verification harness is the product. Keep the Python core usable without the web application, and choose checks for the behaviour and contracts a change affects. The commands below run from a repository checkout.
+Keep the Python verification core usable without the web application. The commands below run from a repository checkout; each section states which directory to use.
 
 ## Python environment
 
-OrbiRig supports Python **3.12–3.15**. Python 3.12 is the minimum supported version; [`.python-version`](.python-version) selects **3.15** for local development without pinning a patch release. The [Render Blueprint](docs/web-interface.md#render-deployment-configuration) declares its runtime separately.
+OrbiRig supports Python **3.12–3.15**. [`.python-version`](.python-version) selects **3.15** for local development without pinning a patch release. The [Render Blueprint](docs/web-interface.md#render-deployment-configuration) declares its runtime separately.
 
 Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then prepare the complete Python development environment from the repository root:
 
@@ -35,7 +35,7 @@ uv run --no-sync --python 3.12 python -m pytest -q
 
 ## Frontend environment
 
-Use Node.js 22.12 or later within the 22.x series, selected by [`.node-version`](.node-version). Install the locked frontend dependencies:
+Use Node.js 22.12 or later within the 22.x series. [`.node-version`](.node-version) selects that series. Install the locked frontend dependencies from the repository root:
 
 ```bash
 cd frontend
@@ -57,7 +57,7 @@ uv run --no-sync python -m ruff check .
 uv run --no-sync python -m pyright
 ```
 
-pytest covers reference behaviour, deliberate observation mismatches, rejection, errors, command atomicity, determinism, evidence reconstruction, untrusted JSON, adapters and integration. It measures branch coverage across the complete `orbirig` package and reports missing lines and branches; there is no minimum coverage threshold.
+pytest covers reference behaviour, deliberate observation mismatches, rejection, errors and command atomicity. It also checks determinism, evidence reconstruction, untrusted JSON, adapters and integration. Branch coverage spans the complete `orbirig` package and reports missing lines and branches. There is no minimum coverage threshold.
 
 Behave describes the three supported reference workflows in stakeholder-readable scenarios. Use pytest for detailed negative cases instead of duplicating them in Behave.
 
@@ -69,9 +69,9 @@ Pyright checks the package, pytest tests, Behave steps and distribution scripts 
 uv run --no-sync python scripts/verify_distributions.py
 ```
 
-This builds a wheel and source distribution (sdist), checks metadata and required files, then builds another wheel from the sdist. It installs each wheel without extras or dependencies in its own temporary environment outside the checkout and checks the installed version and import origins.
+The script builds a wheel and source distribution (sdist), checks metadata and required files, then builds another wheel from the sdist. Each wheel is installed without extras or dependencies in its own temporary environment outside the checkout. The checks confirm the installed version and that imports come from the installed package.
 
-The installed-package checks execute a reference scenario with explicit expected results, then check passing and deliberately inconsistent observations and evidence reconstruction. They invoke the real installed `orbirig` command to check `PASS`, `FAIL`, canonical output, malformed input, invalid UTF-8, unsupported scenarios, file errors, help and a closed output pipe. Temporary environments and distributions are removed after the check.
+The installed-package checks execute a reference scenario with explicit expected results. They also verify passing and deliberately inconsistent observations and reconstruct saved evidence. The real installed `orbirig` command is checked for `PASS`, `FAIL` and canonical output. Error cases cover malformed input, invalid UTF-8, unsupported scenarios, file errors and a closed output pipe; help is checked too. Temporary environments and distributions are removed afterwards.
 
 Python distributions include the core and optional web adapter module; the sdist also includes distribution-check scripts. Built React assets under `src/orbirig/static` are excluded. CI runs the distribution check after the frontend build so accidentally bundled assets are detected. The complete browser interface requires the [checkout-based frontend build](docs/web-interface.md#serve-a-production-build-locally).
 
@@ -147,11 +147,13 @@ The [Checks workflow](.github/workflows/ci.yml) selects this matrix:
 
 Totals include three Ubuntu browser jobs and the final `CI passed` job. Python jobs have a ten-minute timeout, browser jobs 30 minutes and `CI passed` one minute. Browser invocations also have Playwright's separate five-minute timeout.
 
-Every Python environment uses uv 0.13.4 with `uv sync --locked --no-editable` and the exact interpreter path selected by `actions/setup-python`, overriding the local `.python-version`. The `Python 3.12` job selects `test`, `dev` and `web`; compatibility jobs select `test` and `web`; browser jobs select only `web`. Subsequent commands use `uv run --no-sync`.
+Python test and browser jobs use uv 0.13.4 and install Python dependencies with `uv sync --locked --no-editable`. uv receives the exact interpreter path from `actions/setup-python`, overriding the local `.python-version`. The `Python 3.12` job selects `test`, `dev` and `web`; compatibility jobs select `test` and `web`; browser jobs select only `web`. Subsequent commands use `uv run --no-sync`.
 
-Every Python test job checks dependency consistency and imports, then runs the complete pytest suite and Behave scenarios. The Ubuntu `Python 3.12` job also runs Ruff, Pyright, branch coverage, frontend type checking and tests, a production build, isolated distribution checks and a check that FastAPI serves the built page and favicon. Other Python jobs use `--no-cov` to avoid duplicate coverage reports.
+Every Python test job checks dependency consistency and package imports, then runs the complete pytest suite and Behave scenarios. Compatibility jobs use `--no-cov` to avoid duplicate coverage reports.
 
-`Chromium / Ubuntu`, `Firefox / Ubuntu` and `WebKit / Ubuntu` each install Python 3.12, Node.js 22 and the selected Playwright browser with system dependencies, type-check the frontend and browser tests, then run that engine's full E2E suite with one worker. Chromium uses the headless shell. These jobs run for every listed trigger, independently of the Python compatibility matrix; one failure does not cancel the others. Available failure diagnostics are uploaded as `<browser>-failure-diagnostics` and retained for seven days.
+The Ubuntu `Python 3.12` job also runs Ruff, Pyright and branch coverage. It type-checks, tests and builds the frontend, checks isolated distributions and verifies that FastAPI serves the built page and favicon.
+
+`Chromium / Ubuntu`, `Firefox / Ubuntu` and `WebKit / Ubuntu` each install Python 3.12, Node.js 22 and the selected browser with system dependencies. They type-check the frontend and browser tests, then run that engine's full E2E suite with one worker. Chromium uses the headless shell. These jobs run for every listed trigger, independently of the Python compatibility matrix. One failure does not cancel the others. Available failure diagnostics are uploaded as `<browser>-failure-diagnostics` and retained for seven days.
 
 `CI passed` waits for the Python 3.12 job, compatibility matrix and browser matrix. Every selected job must succeed; failures, cancellations and skipped jobs make the gate fail. This includes all four Ubuntu Python versions on pushes to `main`.
 

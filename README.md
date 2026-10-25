@@ -34,13 +34,13 @@ uv run --no-sync orbirig verify-observation docs/examples/nominal-to-safe.json \
   --executed-at 2026-10-21T10:00:00Z
 ```
 
-The bundled file contains the same kind of accepted transition as the browser example. The command prints a verified execution record as JSON, including four passing checks and `"outcome": "PASS"`, and exits with code `0`.
+The command prints a verified execution record as JSON with four passing checks and `"outcome": "PASS"`. It exits with code `0`.
 
 See the [CLI guide](docs/cli.md) for a failing example, saving output and exit codes, or the [Python guide](docs/python.md) to execute a repeatable reference example and check sequences.
 
 ## How verification works
 
-A **scenario** defines the expected behaviour and is selected explicitly. OrbiRig never guesses it from the recorded result.
+Choose a **scenario** to state the expected behaviour before verification. OrbiRig never infers it from the recorded result.
 
 ```mermaid
 flowchart TD
@@ -57,11 +57,13 @@ Each check, called an **invariant**, compares an expected value with an observed
 | --- | --- |
 | `PASS` | Every check meets its expectation. A rejected command can pass when rejection is expected. |
 | `FAIL` | The observation is valid input, but at least one check does not meet its expectation. |
-| Input error | The data cannot be used for verification, for example because its JSON is invalid or its command does not match the selected scenario. No verification result is produced. |
+| Input error | The data cannot be verified. Examples include invalid JSON or a command that does not match the selected scenario. No verification result is produced. |
 
-For an ordered sequence of records, OrbiRig also checks **continuity**: the mode after one command must match the mode before the next. Records stay in the supplied order. Loading saved verified evidence recomputes the checks and rejects results that disagree with them; a consistent `FAIL` record remains valid evidence.
+For an ordered sequence of records, OrbiRig also checks **continuity**: the mode after one command must match the mode before the next. Records stay in the supplied order.
 
-The included `ReferenceSpacecraft` provides repeatable test behaviour for three supported scenarios. It is a simplified test double, separate from the verifier that decides whether expectations were met. See [verification concepts](docs/verification.md) for the scenarios and collection, verification and evidence-loading boundaries.
+Loading saved verified evidence recomputes the checks and rejects results that disagree with them. A consistent `FAIL` record remains valid evidence.
+
+The included `ReferenceSpacecraft` is a simplified substitute for a spacecraft, used to produce repeatable test observations. Separate verification rules decide whether those observations meet expectations. See [verification concepts](docs/verification.md) for the three supported scenarios and how collection, verification and saved evidence fit together.
 
 ## Documentation
 
@@ -76,7 +78,7 @@ The included `ReferenceSpacecraft` provides repeatable test behaviour for three 
 
 ## Scope
 
-OrbiRig focuses on simplified operating-mode verification. The Python API can collect one command result per invocation of a separate target program. Remote target execution over HTTP, built-in evidence storage, replay and report generation are not implemented. The project does not claim operational suitability or compliance with a space-industry standard.
+The Python API can collect one command result per invocation of a separate target program. Remote target execution over HTTP, built-in evidence storage, replay and report generation are not implemented. The project does not claim operational suitability or compliance with a space-industry standard.
 
 ## Releases and support
 

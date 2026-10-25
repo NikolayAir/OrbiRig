@@ -14,9 +14,9 @@ The evidence form must be known when choosing a reader. Package versions and the
 
 ## Shared JSON rules
 
-Readers reject malformed JSON, duplicate object member names at any nesting level, unsupported versions, missing or unexpected fields, incorrect primitive types and unsupported enum values. Version fields must be JSON integers, not booleans. Modes are exactly `NOMINAL` or `SAFE`; the only command type is `SET_OPERATING_MODE`.
+Readers reject malformed JSON and repeated field names within any object, including nested objects. They also reject unsupported versions, missing or extra fields, incorrect JSON types and unsupported enum values. Version fields must be JSON integers, not booleans. Modes are exactly `NOMINAL` or `SAFE`; the only command type is `SET_OPERATING_MODE`.
 
-The serializers write deterministic JSON with two-space indentation, a stable field and array order, and one final LF newline. The same input models produce the same JSON text. JSON object field order is not required on input; result-array order is part of the verified contract.
+Serializers return JSON text with two-space indentation, a stable field and array order, and one final LF newline. The same input models produce the same text. Reading JSON does not require object fields in a particular order, but result arrays must follow the order defined below. See [saving and reopening evidence](python.md#reopen-saved-verified-evidence) to write the text to UTF-8 files.
 
 ## Observation evidence
 
@@ -38,7 +38,7 @@ The complete observation v1 shape is illustrated by [nominal-to-safe.json](examp
 
 `accepted` is a JSON boolean. The meaning of each reported value is explained in [verification concepts](verification.md#what-an-observation-records).
 
-`serialize_execution_evidence(...)` writes this form. `deserialize_execution_evidence(...)` returns a `CommandExecutionObservation`. There is no scenario, execution metadata, invariant result or outcome in an observation document. Successfully reading it does not establish verification success.
+`serialize_execution_evidence(...)` returns JSON in this form. `deserialize_execution_evidence(...)` returns a `CommandExecutionObservation`. There is no scenario, execution metadata, invariant result or outcome in an observation document. Successfully reading it does not establish verification success.
 
 ## Verified execution evidence
 
@@ -52,9 +52,20 @@ The top-level object contains exactly:
 | `invariant_results` | Ordered checks, each with `invariant_id`, `passed`, `expected` and `actual` |
 | `outcome` | `PASS` or `FAIL`, derived from all checks |
 
-Scenario strings are listed in the [scenario table](verification.md#supported-scenarios). `passed` is a boolean; `expected` and `actual` are booleans for acknowledgement checks and mode strings for state and telemetry checks.
+Scenario strings are listed in the [scenario table](verification.md#supported-scenarios). Each result's `passed` field is a boolean. Its `expected` and `actual` values are booleans for acknowledgement checks and mode strings for state and telemetry checks.
 
-`serialize_verified_execution_evidence(...)` writes a record. `deserialize_verified_execution_evidence(...)` validates metadata and reconstructs the observation, then calls the canonical Python verifier with the saved scenario. The stored invariant identifiers, order, values, pass flags and outcome must match the recomputed record exactly. A consistent `FAIL` record is valid; a stored `PASS` that contradicts the checks is invalid.
+The checks appear in this order, using these `invariant_id` values:
+
+| Position | Accepted transition | Expected rejection |
+| --- | --- | --- |
+| 1 | `pre_state_matches_expected` | `pre_state_matches_expected` |
+| 2 | `acknowledgement_is_accepted` | `acknowledgement_is_rejected` |
+| 3 | `post_state_matches_requested_mode` | `post_state_matches_pre_state` |
+| 4 | `telemetry_matches_post_state` | `telemetry_matches_post_state` |
+
+Their expected behaviour is defined in [verification concepts](verification.md#supported-scenarios).
+
+`serialize_verified_execution_evidence(...)` returns a record's JSON representation. `deserialize_verified_execution_evidence(...)` validates metadata, reconstructs the observation and calls the canonical Python verifier with the saved scenario. The stored invariant identifiers, order, values, pass flags and outcome must match the recomputed record exactly. A consistent `FAIL` record is valid; a stored `PASS` that contradicts the checks is invalid.
 
 The [CLI example](cli.md#verify-the-bundled-example) produces a complete record without requiring hand-written derived results.
 
@@ -62,7 +73,7 @@ The [CLI example](cli.md#verify-the-bundled-example) produces a complete record 
 
 `execution_id` must be a string containing at least one non-whitespace character. Unicode surrogate code points (U+D800–U+DFFF) are rejected because they cannot be encoded as valid UTF-8 text. Other valid Unicode characters, including emoji, are preserved without replacement or normalisation.
 
-Paired surrogate escapes in JSON, such as `\ud83d\ude80`, decode to the valid character `🚀` and are accepted. Decoded IDs containing unpaired surrogates are rejected, including in older version `1` evidence. The validation applies to new records, saved records and nested sequence members.
+Paired surrogate escapes in JSON, such as `\ud83d\ude80`, decode to the valid character `🚀` and are accepted. Decoded IDs containing unpaired surrogates are rejected. The validation applies to new records, saved records and nested sequence members.
 
 ### UTC execution timestamps
 
@@ -74,17 +85,19 @@ Fractional seconds must be exactly representable in microseconds. Digits after t
 
 The following lossless input forms are also accepted:
 
-- Compact calendar dates, ISO week dates, a single character such as a space instead of `T`, compact times, omitted minutes or seconds, and a decimal comma.
+- Compact calendar dates and ISO week dates.
+- A single character, such as a space, instead of the `T` separator.
+- Compact times, omitted minutes or seconds, and a decimal comma.
 - Zero offsets with either sign, with hours alone or with minutes and optional seconds, with or without colons. Fractional offset digits must all be zero.
 - Fractions after hours or minutes only when all their digits are zero.
 
-Canonical output uses `Z` and at most six fractional digits. Precision-losing timestamps, non-zero offsets and unsupported forms are rejected consistently across supported Python versions, including when reading older version `1` evidence.
+Canonical output uses `Z` and at most six fractional digits. Timestamps that would lose precision, non-zero offsets and unsupported forms are rejected across supported Python versions.
 
 ## Verified sequence evidence
 
 The top-level object contains exactly `schema_version`, `records`, `continuity_results` and `outcome`.
 
-`records` is an ordered array of at least two complete verified-execution documents, each with its own `schema_version`. `continuity_results` has one result for every adjacent pair, in the same order. Each result contains exactly:
+`records` is an ordered array of at least two complete verified-execution documents. Each has its own `schema_version`. `continuity_results` has one result for every adjacent pair, in the same order. Each result contains exactly:
 
 - `previous_execution_id` and `next_execution_id`;
 - `expected_operating_mode` (the previous post-state mode) and `observed_operating_mode` (the next pre-state mode);
@@ -92,6 +105,6 @@ The top-level object contains exactly `schema_version`, `records`, `continuity_r
 
 The sequence outcome is `PASS` only when every record and every continuity result passes. Supplied order is preserved; duplicate execution IDs and equal or non-monotonic timestamps remain valid.
 
-`serialize_verified_execution_sequence_evidence(...)` writes this form. `deserialize_verified_execution_sequence_evidence(...)` reconstructs each record through the verified-execution reader, recomputes continuity in saved order and derives the aggregate outcome. Stored boundaries and outcome must match exactly. A consistent `FAIL` sequence is valid evidence.
+`serialize_verified_execution_sequence_evidence(...)` returns JSON in this form. `deserialize_verified_execution_sequence_evidence(...)` reconstructs each record through the verified-execution reader. It then recomputes continuity in saved order and derives the aggregate outcome. Stored boundaries and outcome must match exactly. A consistent `FAIL` sequence is valid evidence.
 
 See [Python sequence verification](python.md#verify-an-ordered-sequence) for a complete example.

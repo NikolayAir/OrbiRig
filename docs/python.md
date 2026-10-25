@@ -35,11 +35,11 @@ record = build_verified_execution_record(
 print(serialize_verified_execution_evidence(record), end="")
 ```
 
-This example produces `PASS` with four passing checks. Loading the observation validates its format; `build_verified_execution_record(...)` performs verification against the supplied `ScenarioId`. The scenario is never recovered or inferred from the observation.
+Loading the observation validates its format. `build_verified_execution_record(...)` verifies it against the supplied `ScenarioId`. This example produces `PASS` with four passing checks.
 
 ## Execute a reference example
 
-`ReferenceSpacecraft` supplies repeatable behaviour for exercising the harness. This example executes a command against that test double, collects its observation and independently verifies it:
+This example executes a command against `ReferenceSpacecraft`, the simplified test double, then collects and independently verifies the observation:
 
 ```python
 from datetime import datetime, timezone
@@ -59,7 +59,7 @@ record = execute_verified_reference_workflow(
 print(serialize_verified_execution_evidence(record), end="")
 ```
 
-A new `ReferenceSpacecraft` starts in `NOMINAL`. Reuse the same instance when subsequent commands should operate on the state left by earlier commands. The reference test double supplies observations; the separate verifier supplies expectations.
+A new `ReferenceSpacecraft` starts in `NOMINAL`. Reuse the same instance when subsequent commands should operate on the state left by earlier commands.
 
 ## Verify an ordered sequence
 
@@ -92,7 +92,7 @@ sequence = verify_execution_sequence([first, second])
 print(serialize_verified_execution_sequence_evidence(sequence), end="")
 ```
 
-The sequence verifier accepts at least two records and checks them in the supplied order. It does not sort by execution ID or timestamp, re-run commands or re-evaluate member scenario checks. A sequence can fail even when every member passes; see [continuity](verification.md#continuity-across-executions).
+The sequence verifier accepts at least two records and checks them in the supplied order. It does not sort by execution ID or timestamp, re-run commands or re-evaluate each record's scenario checks. A sequence can fail even when every record passes; see [continuity](verification.md#continuity-across-executions).
 
 ## Collect from a separate program
 
@@ -124,13 +124,34 @@ The protocol uses a separate process, not a shell or HTTP connection:
 2. The program must exit with code `0` within the timeout and write exactly one [observation-evidence v1](evidence-formats.md#observation-evidence) document to stdout. Its recorded command must match the submitted command. Diagnostic text belongs on stderr.
 3. OrbiRig validates the observation, then verifies it against the explicitly chosen scenario. Completed verification can produce `PASS` or `FAIL`.
 
-Launch failures, timeouts, non-zero exits, invalid UTF-8, invalid evidence and returned-command mismatches raise `ObservationCollectionError` from `orbirig.subprocess_collection`. These errors produce no verified record and do not establish whether the external program changed its target's state.
+`ObservationCollectionError` from `orbirig.subprocess_collection` covers launch failures, timeouts and non-zero exits. It also covers invalid UTF-8, invalid evidence and returned-command mismatches. These errors produce no verified record and do not establish whether the external target changed state.
 
 For collection without verification, `collect_subprocess_observation(...)` takes `argv`, `command` and `timeout` and returns a `CommandExecutionObservation`. The caller must supply a separate scenario when subsequently verifying it.
 
 ## Reopen saved verified evidence
 
-Save a record or sequence using its serializer, or save the [CLI output](cli.md#verify-the-bundled-example), then load it with the matching reader:
+Serializers return JSON text; saving that text to a file is a separate step. To save the sequence and its first record, add this code to the [sequence example](#verify-an-ordered-sequence):
+
+```python
+from pathlib import Path
+
+from orbirig.evidence import serialize_verified_execution_evidence
+
+Path("verified-execution.json").write_text(
+    serialize_verified_execution_evidence(first),
+    encoding="utf-8",
+    newline="\n",
+)
+Path("verified-sequence.json").write_text(
+    serialize_verified_execution_sequence_evidence(sequence),
+    encoding="utf-8",
+    newline="\n",
+)
+```
+
+This writes UTF-8 files with LF line endings. The [CLI example](cli.md#verify-the-bundled-example) also shows how to save a verified execution record.
+
+Run this separate example to load the two files with the matching readers:
 
 ```python
 from pathlib import Path

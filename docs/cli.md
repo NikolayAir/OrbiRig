@@ -14,7 +14,7 @@ uv sync --locked
 
 uv creates `.venv` and installs the core package and console command. Run it with `uv run --no-sync orbirig`; no web dependencies, Node.js or browser are required. The [development guide](../CONTRIBUTING.md#python-environment) explains interpreter selection and optional dependencies.
 
-For a built wheel, install it in an activated Python environment with `python -m pip install /path/to/orbirig-<version>-py3-none-any.whl`, then invoke `orbirig` directly.
+If you have a built wheel, install it in an activated Python environment with `python -m pip install /path/to/orbirig-VERSION-py3-none-any.whl`. Replace the path with your wheel's filename, then invoke `orbirig` directly.
 
 ## Verify the bundled example
 
@@ -27,7 +27,7 @@ uv run --no-sync orbirig verify-observation docs/examples/nominal-to-safe.json \
   --executed-at 2026-10-21T10:00:00Z
 ```
 
-The [example observation](examples/nominal-to-safe.json) records an accepted change from `NOMINAL` to `SAFE`, with matching telemetry. This command exits with code `0` and writes the complete verified-execution JSON to standard output (stdout), including `schema_version: 1`, the supplied metadata, the observation, four passing invariant results and `outcome: "PASS"`. Standard error (stderr) is empty.
+The [example observation](examples/nominal-to-safe.json) records an accepted change from `NOMINAL` to `SAFE`, with matching telemetry. The command exits with code `0` and writes a complete verified execution record to standard output (stdout). The record contains `schema_version: 1`, the supplied metadata, the observation, four passing checks and `outcome: "PASS"`. Standard error (stderr) is empty.
 
 To save the result, use shell redirection:
 
@@ -51,7 +51,7 @@ uv run --no-sync orbirig verify-observation bad-telemetry.json \
   --executed-at 2026-10-21T10:00:00Z
 ```
 
-This exits with code `1` and still writes a complete, valid evidence record. Its outcome is `FAIL`; the `telemetry_matches_post_state` check contains expected `"SAFE"`, actual `"NOMINAL"` and `passed: false`. Stderr remains empty. This is a completed verification with an unmet expectation, rather than invalid input.
+The command exits with code `1` and writes a complete, valid evidence record with outcome `FAIL`. The `telemetry_matches_post_state` check contains expected `"SAFE"`, actual `"NOMINAL"` and `passed: false`. Stderr remains empty. The input is valid, but the recorded telemetry does not match the post-state.
 
 ## Arguments
 
@@ -64,11 +64,13 @@ This exits with code `1` and still writes a complete, valid evidence record. Its
 | `--execution-id` | A non-blank ID, preserved exactly; Unicode surrogate code points are rejected. |
 | `--executed-at` | The recorded execution's UTC time, for example `2026-10-21T10:00:00Z`. |
 
-An expected rejection can produce `PASS`. A command incompatible with the selected scenario is an input error. See the [metadata rules](evidence-formats.md#execution-ids) for ID validation and all accepted timestamp forms.
+A command incompatible with the selected scenario is an input error. See the rules for [execution IDs](evidence-formats.md#execution-ids) and [UTC timestamps](evidence-formats.md#utc-execution-timestamps) for metadata validation.
 
 `orbirig --help` and `orbirig verify-observation --help` exit with code `0` and write help to stdout without reading a file. Argument names cannot be abbreviated.
 
 ## Exit codes and output
+
+Exit codes `0` and `1` describe verification outcomes. An expected command rejection can produce `PASS`.
 
 | Exit code | Meaning | stdout | stderr |
 | --- | --- | --- | --- |
@@ -78,6 +80,6 @@ An expected rejection can produce `PASS`. A command incompatible with the select
 | `3` | File I/O or output write error | Empty for read errors; may be partial for write errors | Diagnostic |
 | `4` | Unexpected internal error | Empty before output starts | Diagnostic and traceback |
 
-The reader rejects malformed JSON, duplicate object members at any depth, invalid UTF-8 and a UTF-8 byte-order mark (BOM), as well as unsupported evidence structures and values.
+The reader applies the [shared JSON rules](evidence-formats.md#shared-json-rules), including rejection of repeated field names within nested objects. Files must use UTF-8 without a byte-order mark (BOM).
 
 Completed verification writes only the canonical JSON bytes to stdout: UTF-8, two-space indentation, LF line endings and one final newline on every operating system. Fixed inputs, including execution metadata, produce identical bytes. Input and read errors produce no verification evidence.

@@ -2,11 +2,11 @@
 
 [README](../README.md) · [Python workflows](python.md) · [Evidence formats](evidence-formats.md)
 
-OrbiRig checks whether a recorded command result meets an explicitly selected expectation. It separates collecting an observation, verifying it and loading saved evidence. This separation keeps a valid record of unexpected behaviour useful without treating an input or collection error as a verification result.
+Verification asks whether recorded behaviour meets a selected scenario's expectations. Collecting an observation, verifying it and loading saved evidence are separate steps.
 
 ## What an observation records
 
-An **operating mode** describes how the simplified spacecraft is operating: `NOMINAL` represents normal operation and `SAFE` represents a protective mode. The model records mode values rather than the physical behaviour of a spacecraft.
+OrbiRig models two **operating modes**: `NOMINAL` for normal operation and `SAFE` for a protective mode. It records these mode values without simulating a spacecraft's physical behaviour.
 
 One **observation** contains:
 
@@ -16,7 +16,7 @@ One **observation** contains:
 - The **post-state**: the mode after command handling.
 - The **telemetry**: the separately reported operating mode.
 
-These are reported values, not assumptions about what must have happened. The verifier compares them with the chosen scenario's rules. It does not infer the expected scenario from the command, acknowledgement, states or telemetry.
+The verifier compares these reported values with the rules of a separately chosen scenario. It never infers the expected scenario from those values.
 
 ## Supported scenarios
 
@@ -30,7 +30,14 @@ A `ScenarioId` selects the expected behaviour. CLI arguments and JSON use these 
 
 Python enum members use the corresponding uppercase names, for example `ScenarioId.NOMINAL_TO_SAFE_MODE`. All three scenarios use `SET_OPERATING_MODE`. A command incompatible with the selected scenario raises `ScenarioCommandMismatchError`; it does not produce `FAIL` evidence.
 
-For an accepted transition, four **invariants** (verification checks) evaluate the expected starting mode, accepted acknowledgement, requested ending mode and whether telemetry matches the observed ending mode. For the rejection scenario, the checks require the expected `NOMINAL` starting mode, rejected acknowledgement, preservation of the observed starting mode and telemetry matching the ending mode.
+Each scenario evaluates four **invariants** (verification checks):
+
+| Check | Accepted transition | Expected rejection |
+| --- | --- | --- |
+| Pre-state | Matches the scenario's expected starting mode | Must be `NOMINAL` |
+| Acknowledgement | Accepted | Rejected |
+| Post-state | Matches the commanded target mode | Matches the observed pre-state |
+| Telemetry | Matches the observed post-state | Matches the observed post-state |
 
 Each invariant retains its identifier, expected value, actual value and whether it passed. All four must pass for the execution outcome to be `PASS`. Expected command rejection can therefore pass verification. A valid observation with incorrect behaviour produces `FAIL`.
 
@@ -39,7 +46,7 @@ Each invariant retains its identifier, expected value, actual value and whether 
 ```mermaid
 flowchart TD
     accTitle: Observation collection and independent verification
-    accDescr: A selected scenario supplies a command for reference or subprocess collection and separately supplies verification expectations. Loaded observation JSON is validated before joining the same verification path. The resulting checks, observation and supplied execution metadata form an exportable verified record.
+    accDescr: The selected scenario supplies both a command and separate verification expectations. Observations come from the reference test double, a target subprocess or validated JSON. Verification combines its checks with the observation and supplied execution metadata to form a verified record.
     scenario["Explicitly selected scenario"] --> command["Required command"]
     command --> collection("Collect from reference test double<br/>or one target subprocess")
     collection --> observation["Observation"]
@@ -54,11 +61,11 @@ flowchart TD
 
 The Python core owns expectations, verification and evidence formats. FastAPI adapts HTTP requests and responses; React displays the results. The browser and CLI verify recorded observations without executing commands.
 
-`ReferenceSpacecraft` is a deterministic **test double**: a small substitute for a spacecraft, used to exercise the harness as its reference system under test (SUT). It starts in `NOMINAL`. Its repeatable behaviour is separate from the verification rules; it is not the source of the expected results. Tests also submit deliberately inconsistent observations directly to the verifier.
+`ReferenceSpacecraft` is a deterministic **test double**, a small substitute for a spacecraft. It acts as the reference system under test (SUT) and starts in `NOMINAL`. The verifier defines expectations independently of this test double. Tests also submit deliberately inconsistent observations directly to the verifier.
 
-In `ReferenceSpacecraft`, command rejection and command-handling errors leave the state unchanged. This property does not establish what happened in an external target after a collection or verification error.
+In `ReferenceSpacecraft`, command rejection and command-handling errors leave the state unchanged. A collection or verification error does not tell you whether an external target changed state.
 
-Subprocess collection sends one command and requires one usable observation in return. Launch failures, timeouts, non-zero exits, invalid UTF-8, invalid evidence and a returned command that differs from the submitted command raise `ObservationCollectionError`. No verified execution record or invariant results are created from these errors. A successfully collected observation can then produce either `PASS` or `FAIL`. See the [subprocess protocol](python.md#collect-from-a-separate-program).
+Subprocess collection requires one usable observation for the submitted command. If collection fails, it raises `ObservationCollectionError` without creating invariant results or a verified record. A successfully collected observation can then produce either `PASS` or `FAIL`. See the [subprocess protocol and collection errors](python.md#collect-from-a-separate-program).
 
 ## Continuity across executions
 
@@ -68,13 +75,13 @@ An execution can pass on its own yet fail to fit the executions around it. For e
 
 The supplied record order is authoritative. The verifier never sorts by timestamp, execution ID or scenario. Duplicate execution IDs and equal or non-monotonic timestamps are allowed. A sequence passes only when every member record and every continuity boundary passes.
 
-Sequence verification uses the supplied member results without re-evaluating their scenario invariants. It does not execute commands or change a target's state. Loading saved sequence evidence, described below, also reconstructs each member through the canonical verifier.
+The Python sequence verifier uses each member's existing invariant results. It does not re-evaluate those checks, execute commands or change a target's state. Loading saved sequence evidence also recomputes each member's checks, as described below.
 
 ## Loading saved evidence
 
 **Deserialisation** means reading JSON back into Python models. Observation deserialisation checks the supported structure, types and values. It does not choose a scenario or decide whether the behaviour passes verification.
 
-Saved verified results are treated as claims to check. A verified-execution reader recomputes the invariant results and outcome from the saved scenario and observation. A sequence reader also reconstructs each member, recomputes continuity in saved order and derives the overall outcome. Stored results must match those recomputed results exactly; inconsistent values are rejected rather than repaired.
+Saved verified results are treated as claims to check. A verified-execution reader recomputes the invariant results and outcome from the saved scenario and observation. A sequence reader also reconstructs each member, recomputes continuity in saved order and derives the overall outcome. Stored results must match the recomputed results exactly. Inconsistent values are rejected rather than repaired.
 
 These recomputed results are **canonical**: they come from the shared Python verification rules. A saved, canonically consistent `FAIL` remains valid evidence. Evidence validity and verification success answer different questions.
 
