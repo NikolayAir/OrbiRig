@@ -2,9 +2,9 @@
 
 ## Supported versions
 
-Security support is focused on the current `main` branch and, when releases are
-available, the latest released version. Earlier releases may not receive
-security updates.
+Security support focuses on the current `main` branch and the
+[latest released version](https://github.com/NikolayAir/OrbiRig/releases/latest).
+Earlier releases may not receive security updates.
 
 ## Reporting a vulnerability
 
