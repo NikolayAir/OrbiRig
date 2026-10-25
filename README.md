@@ -40,30 +40,54 @@ See the [CLI guide](docs/cli.md) for a failing example, saving output and exit c
 
 ## How verification works
 
-Choose a **scenario** to state the expected behaviour before verification. OrbiRig never infers it from the recorded result.
+Choose a **scenario** to state the expected behaviour before verification. Supply a recorded **observation**, or use the Python API to execute a command and collect one. OrbiRig never chooses the scenario from the recorded result.
 
 ```mermaid
 flowchart TD
-    accTitle: Verifying a recorded command result
-    accDescr: A recorded observation and an explicitly selected scenario feed independent Python verification, producing a record with the observation, checks and PASS or FAIL outcome.
-    observation["Recorded observation<br/>command result"] --> verifier("Python verification")
-    scenario["Selected scenario<br/>expected behaviour"] --> verifier
-    verifier --> record["Verified execution record<br/>checks + PASS or FAIL"]
+    accTitle: From an observation to verified evidence
+    accDescr: Observation JSON is validated and loaded, or the Python API collects the result of a command supplied by the selected scenario. The observation and the scenario's separate expectations feed Python verification. Valid, compatible input produces a record with four checks and a PASS or FAIL outcome, which can be exported as versioned JSON. Invalid or incompatible input produces an error without a verified record.
+    saved["Observation JSON"] --> load("Validate and load JSON")
+    scenario["Selected scenario"] -->|Command| collect("Collect via Python API<br/>reference or subprocess")
+    collect --> observation
+    load --> observation["Observation<br/>command + reported values"]
+    scenario -->|Expectations| verifier("Verify in Python<br/>four invariant checks")
+    observation --> verifier
+    load -->|Invalid data| error["Input error<br/>no verified record"]
+    verifier -->|Command mismatch| error
+    verifier --> record["Verified execution record<br/>observation + checks<br/>PASS or FAIL"]
+    record -->|Export| evidence["Versioned JSON evidence"]
 ```
 
-Each check, called an **invariant**, compares an expected value with an observed value. Verification outcomes and input errors have different meanings:
+Rounded boxes show actions; square-cornered boxes show data or results. Collection errors also stop the workflow without a verified record.
+
+The **Python core** owns validation, scenario rules, verification and evidence formats. The browser and CLI use this core to check recorded data without executing commands.
+
+The Python API can collect an observation from the included `ReferenceSpacecraft` or a separate target program, invoked as a subprocess. `ReferenceSpacecraft` is a simplified, deterministic **test double** used to produce repeatable observations; separate verification rules decide whether those observations meet expectations.
+
+Each verification check, called an **invariant**, retains the expected value, observed value and whether they match:
+
+| Check | What it establishes |
+| --- | --- |
+| Pre-state | The starting mode matches the selected scenario. |
+| Acknowledgement | The reported acceptance or rejection matches the scenario. |
+| Post-state | The mode matches the scenario's target, or the pre-state when rejection is expected. |
+| Telemetry | The reported mode matches the observed post-state. |
+
+Supply an execution ID and UTC timestamp to identify the verified record. It retains the selected scenario, observation, all four checks and overall outcome. Verification outcomes and errors have different meanings:
 
 | Status | Meaning |
 | --- | --- |
 | `PASS` | Every check meets its expectation. A rejected command can pass when rejection is expected. |
 | `FAIL` | The observation is valid input, but at least one check does not meet its expectation. |
 | Input error | The data cannot be verified. Examples include invalid JSON or a command that does not match the selected scenario. No verification result is produced. |
+| Collection error | No usable observation was collected, for example because the target subprocess timed out. No verification result is produced. |
 
-For an ordered sequence of records, OrbiRig also checks **continuity**: the mode after one command must match the mode before the next. Records stay in the supplied order.
+Two further workflows build on these records:
 
-Loading saved verified evidence recomputes the checks and rejects results that disagree with them. A consistent `FAIL` record remains valid evidence.
+- **Check a sequence.** For two or more records, OrbiRig checks **continuity**: the mode after one command must match the mode before the next. Records stay in the supplied order. The sequence passes only when every record and every continuity check passes.
+- **Reopen saved evidence.** Loading verified execution or sequence JSON validates its format and recomputes the checks and outcome, including continuity for a sequence. Stored results must agree exactly; inconsistent evidence is rejected. A consistent `FAIL` remains valid evidence.
 
-The included `ReferenceSpacecraft` is a simplified substitute for a spacecraft, used to produce repeatable test observations. Separate verification rules decide whether those observations meet expectations. See [verification concepts](docs/verification.md) for the three supported scenarios and how collection, verification and saved evidence fit together.
+See [verification concepts](docs/verification.md) for the three supported scenarios, collection boundaries and detailed workflows, or the [evidence format reference](docs/evidence-formats.md) for JSON contracts.
 
 ## Documentation
 
