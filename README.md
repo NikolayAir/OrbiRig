@@ -14,6 +14,14 @@ The web interface verifies observations against selected scenarios and provides 
 
 ![OrbiRig web interface showing the observation-verification workflow](docs/images/orbirig-web-verification.png)
 
+## Try OrbiRig
+
+Open the [web interface](https://orbirig-evidence-inspector.onrender.com/), choose **Verify observation**, select **Load example**, then **Verify observation**. The default example checks a recorded transition from `NOMINAL` to `SAFE` and produces `PASS`.
+
+To explore saved records, choose **Inspect evidence**, select an evidence type, load its example and choose **Inspect evidence**.
+
+For local use, follow the [CLI example](#verify-a-saved-observation-from-the-command-line), [web setup](#verify-observations-and-inspect-evidence-in-the-web-interface) or [Python example](#execute-and-verify-a-reference-workflow). See [Local setup](#local-setup) for the development environment.
+
 ## Key capabilities
 
 * execute three deterministic reference operating-mode scenarios and collect the command, pre-state, acknowledgement, post-state, and telemetry;
@@ -220,8 +228,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from orbirig.evidence import deserialize_execution_evidence
-from orbirig.execution import build_verified_execution_record
 from orbirig.models import ScenarioId
+from orbirig.verification import build_verified_execution_record
 
 observation = deserialize_execution_evidence(
     Path("observation.json").read_text(encoding="utf-8"),
@@ -243,18 +251,24 @@ The explicit `ScenarioId` supplied to `build_verified_execution_record(...)` sel
 from datetime import datetime, timezone
 
 from orbirig.execution import execute_verified_subprocess_workflow
+from orbirig.models import ScenarioId
 
 record = execute_verified_subprocess_workflow(
     argv=["/path/to/observation-peer"],
     timeout=5.0,
     execution_id="external-001",
     executed_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+    scenario_id=ScenarioId.NOMINAL_TO_SAFE_MODE,
 )
 ```
 
-The target receives `{"command_type":"SET_OPERATING_MODE","target_mode":"SAFE"}` followed by one newline for the default scenario. It must exit successfully and write exactly one valid observation-evidence version `1` document to stdout. A successfully collected observation then follows the same canonical verification path as directly loaded or reference-workflow observations, so its result may be either `PASS` or `FAIL`.
+The target receives `{"command_type":"SET_OPERATING_MODE","target_mode":"SAFE"}` followed by one newline for the selected `NOMINAL_TO_SAFE_MODE` scenario. It must exit successfully and write exactly one valid observation-evidence version `1` document to stdout. A successfully collected observation then follows the same canonical verification path as directly loaded or reference-workflow observations, so its result may be either `PASS` or `FAIL`.
 
 ### Verify observations and inspect evidence in the web interface
+
+**Load example** fills the verification form with sample execution metadata and an observation for the selected scenario, using `NOMINAL_TO_SAFE_MODE` when none is selected. In inspection, it fills the JSON input with an example of the selected evidence type. The interface asks for confirmation before replacing edited inputs; cancelling preserves them.
+
+The **How it works** guidance provides separate browser and command-line instructions. Browser guidance covers both **Verify observation** and **Inspect evidence**; command-line guidance explains local CLI use and its exit codes.
 
 Install [uv](https://docs.astral.sh/uv/getting-started/installation/) and Node.js 22.12 or later in the 22.x series (selected by `.node-version`), then install the locked web and frontend dependencies from the repository root:
 
@@ -401,8 +415,11 @@ for the FastAPI subprocess started by Playwright.
 
 Run a single engine with `uv run --no-sync npm run test:e2e -- --project=firefox` (or `chromium`
 or `webkit`). These projects use Playwright's browser builds and desktop device
-profiles. They do not establish compatibility with installed Chrome, Edge,
-Firefox or Safari applications, physical devices, touch input or iOS Safari.
+profiles. Selected help controls are also checked with emulated touch. Mobile
+emulation runs in Chromium and WebKit; the corresponding Firefox cases are
+skipped because Playwright does not support mobile emulation in Firefox.
+These checks do not establish compatibility with installed Chrome, Edge,
+Firefox or Safari applications, physical touch devices or iOS Safari.
 The E2E suite uses Vite's development server; it does not test the deployed site.
 
 The test runner starts its own FastAPI server at `127.0.0.1:18000` and Vite at
@@ -441,6 +458,12 @@ API responses and `ReferenceSpacecraft`. The tests check that:
   record passes. The ending mode of one record does not match the starting mode
   of the next. Records stay in the supplied order, which differs from both
   timestamp and execution-ID sorting.
+- Contextual help closes with Escape while the pointer remains over its button,
+  preserves keyboard focus and can be reopened deliberately. Help controls are
+  also checked with emulated touch.
+- Loading an example asks before replacing edited inputs, and cancelling keeps
+  those inputs. Browser and CLI guidance can be opened and navigated by keyboard,
+  including at narrow viewport sizes and with enlarged text.
 
 Both verification and inspection tests check that the submitted text matches
 the textarea value exactly. Inputs with duplicate keys use both LF and CRLF line
@@ -516,6 +539,8 @@ The `macos-latest` runner does not establish compatibility with older macOS vers
 ## Releases
 
 Versioned release notes are available in [GitHub Releases](https://github.com/NikolayAir/OrbiRig/releases).
+
+The README on `main` describes current development behaviour. Use the README at a release's tag for instructions matching that version.
 
 ## Current scope
 
