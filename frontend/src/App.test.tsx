@@ -767,8 +767,8 @@ describe("App", () => {
     expect(guidance.getByText(/OrbiRig can verify/)).toHaveTextContent(
       "OrbiRig can verify a saved observation from a terminal, without opening the web interface. It uses the same Python verification core. The command runs locally on your computer and does not execute spacecraft commands or collect observations.",
     );
-    expect(guidance.getByText(/Save the observation JSON/)).toHaveTextContent(
-      "Save the observation JSON to a UTF-8 file named observation.json. You can copy a built-in example from the browser. From an OrbiRig checkout, run uv sync --locked if needed, then:",
+    expect(guidance.getByText(/For this command/)).toHaveTextContent(
+      "For this command, select NOMINAL to SAFE in Verify observation, choose Load example, and save the observation JSON to a UTF-8 file named observation.json. From an OrbiRig checkout, run uv sync --locked if needed, then:",
     );
     expect(command).toHaveAttribute("tabindex", "0");
     expect(command.querySelector("code")?.textContent).toBe([

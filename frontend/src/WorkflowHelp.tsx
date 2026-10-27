@@ -401,9 +401,11 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: BrowserWorkfl
                 spacecraft commands or collect observations.
               </p>
               <p>
-                Save the observation JSON to a UTF-8 file named <code>observation.json</code>.
-                You can copy a built-in example from the browser. From an OrbiRig
-                checkout, run <code>uv sync --locked</code> if needed, then:
+                For this command, select <strong>NOMINAL to SAFE</strong> in{" "}
+                <strong>Verify observation</strong>, choose <strong>Load example</strong>,
+                and save the observation JSON to a UTF-8 file named{" "}
+                <code>observation.json</code>. From an OrbiRig checkout, run{" "}
+                <code>uv sync --locked</code> if needed, then:
               </p>
               <pre
                 className="workflow-help-command"
