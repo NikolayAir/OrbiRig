@@ -430,7 +430,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: BrowserWorkfl
                 errors <span className="keep-together">return <code>4</code></span>.
               </p>
               <p>
-                <a href="https://github.com/NikolayAir/OrbiRig#verify-a-saved-observation-from-the-command-line">
+                <a href="https://github.com/NikolayAir/OrbiRig/blob/main/docs/cli.md">
                   CLI setup and full instructions
                 </a>
               </p>

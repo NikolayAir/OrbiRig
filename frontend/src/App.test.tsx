@@ -782,7 +782,7 @@ describe("App", () => {
     );
     expect(guidance.getByRole("link", { name: "CLI setup and full instructions" })).toHaveAttribute(
       "href",
-      "https://github.com/NikolayAir/OrbiRig#verify-a-saved-observation-from-the-command-line",
+      "https://github.com/NikolayAir/OrbiRig/blob/main/docs/cli.md",
     );
     expect(fetchMock).not.toHaveBeenCalled();
   });
