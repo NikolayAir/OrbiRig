@@ -114,6 +114,7 @@ Fixtures and expected results are written independently of API responses and `Re
 - Observation inspection without a verification outcome, valid saved `FAIL` records with non-ASCII execution IDs, and rejection of contradictory saved outcomes in records and sequences.
 - A sequence failing continuity while every record passes, with supplied order differing from timestamp and execution-ID sorting.
 - Contextual help closing with Escape while hovered, retaining focus and reopening deliberately; selected controls also use emulated touch.
+- Focus and completion announcements after submitting either workflow, including repeated submissions, valid saved `FAIL` evidence, input errors and delayed responses after moving to another control, workflow or help.
 - Confirmation before replacing edited inputs with examples, cancellation preserving inputs, and keyboard navigation of browser and CLI guidance at narrow widths and with enlarged text.
 
 Verification and inspection tests require request text to match the textarea value exactly. Duplicate-key inputs cover LF and CRLF endings. A browser may normalise CRLF to LF when filling the textarea; tests allow that input-boundary conversion, then require exact request preservation without parsing, re-serialisation or further normalisation.

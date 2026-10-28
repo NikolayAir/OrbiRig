@@ -932,6 +932,8 @@ describe("App", () => {
 
     expect(activeResult).toBeInTheDocument();
     expect(within(activeResult).getByText("exec-b")).toBeInTheDocument();
+    expect(within(activeResult).getByRole("heading", { name: "Verified execution sequence" })).toHaveFocus();
+    expect(screen.getByRole("status")).toHaveTextContent("Inspection completed. Valid verified execution sequence evidence. Sequence outcome: PASS.");
     expect(within(activeResult).getByLabelText("Sequence outcome: PASS")).toBeInTheDocument();
     expect(screen.getByLabelText("Evidence JSON")).toHaveValue("independent inspection evidence");
     expect(screen.getByRole("radio", { name: "Verified execution sequence" })).toBeChecked();
@@ -1007,6 +1009,8 @@ describe("App", () => {
 
     expect(activeResult).toBeInTheDocument();
     expect(within(activeResult).getByText("exec-web-001")).toBeInTheDocument();
+    expect(within(activeResult).getByRole("heading", { name: "Verified execution" })).toHaveFocus();
+    expect(screen.getByRole("status")).toHaveTextContent("Verification completed. Outcome: PASS.");
     expect(within(activeResult).getByLabelText("Verification outcome: PASS")).toBeInTheDocument();
     for (const [label, value] of activeInputs) {
       expect(screen.getByLabelText(label)).toHaveValue(value);
@@ -1653,6 +1657,44 @@ describe("App", () => {
       "(prefers-reduced-motion: reduce)",
     );
   });
+
+  it.each(["verification", "inspection"] as const)("does not reclaim focus after the window loses focus during %s", async (workflow) => {
+    let resolve!: (response: unknown) => void;
+    fetchMock.mockReturnValue(new Promise((done) => { resolve = done; }));
+    if (workflow === "verification") submitVerification();
+    else submitEvidence("pending observation");
+    const status = screen.getByRole("status");
+    const focusedBefore = document.activeElement;
+    expect(status).not.toBeEmptyDOMElement();
+    fireEvent(window, new Event("blur"));
+
+    await act(async () => resolve({
+      ok: true, status: 200,
+      json: async () => workflow === "verification" ? verifiedExecution : observation,
+    }));
+
+    expect(screen.getByRole("status")).toBe(status);
+    expect(status).toBeEmptyDOMElement();
+    expect(document.activeElement).toBe(focusedBefore);
+    expect(scrollIntoViewMock).not.toHaveBeenCalled();
+  });
+
+  for (const workflow of ["verification", "inspection"] as const) {
+    it.each([422, 413, 500, "network", "malformed"])(`focuses ${workflow} request errors without announcing a completed result (%s)`, async (failure) => {
+      if (failure === "network") fetchMock.mockRejectedValue(new TypeError("Network failure"));
+      else fetchMock.mockResolvedValue({
+        ok: failure === "malformed", status: failure === "malformed" ? 200 : failure,
+        json: async () => failure === 422 ? { detail: { code: "invalid_observation_evidence" } } : {},
+      });
+      if (workflow === "verification") submitVerification();
+      else submitEvidence("observation");
+
+      const alert = await screen.findByRole("alert");
+      await waitFor(() => expect(alert).toHaveFocus());
+      expect(screen.getByRole("status")).toBeEmptyDOMElement();
+      await expectFeedbackScroll();
+    });
+  }
 
   it.each(["verification", "inspection"])("keeps the example action disabled while %s is pending", (workflow) => {
     fetchMock.mockReturnValue(new Promise(() => {}));

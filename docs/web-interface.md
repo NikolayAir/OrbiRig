@@ -10,7 +10,7 @@ The [hosted interface](https://orbirig-evidence-inspector.onrender.com/) verifie
 2. Enter an execution ID, UTC execution time and observation JSON, or choose **Load example**.
 3. Choose **Verify observation** to see the recorded values, each check's expected and actual values, and the overall `PASS` or `FAIL`.
 
-**Load example** supplies sample execution metadata and an observation for the selected scenario. It uses `NOMINAL_TO_SAFE_MODE` if none is selected. Choose **Verify observation** to run the checks after loading the example.
+**Load example** supplies sample execution metadata and an observation for the selected scenario. It uses **NOMINAL to SAFE** if none is selected. Choose **Verify observation** to run the checks after loading the example.
 
 An expected command rejection can pass. Invalid input, including a command incompatible with the selected scenario, produces an error rather than a completed `FAIL` result. See [supported scenarios](verification.md#supported-scenarios) and [execution metadata](evidence-formats.md#execution-ids).
 
@@ -27,6 +27,8 @@ Choose **Inspect evidence**, select its type and paste saved JSON or choose **Lo
 Inspection is read-only: it does not edit or repair evidence. A saved `FAIL` is accepted when its checks and outcome match the recomputed results.
 
 In either workflow, loading an example asks before replacing edited inputs. Cancelling keeps those inputs.
+
+Completed results and request errors receive keyboard focus and are brought into view. A short status message announces completed verification or inspection. If you move to another control, workflow or the help dialog while a request is pending, its response does not move focus or scroll the page.
 
 **How it works** provides browser and command-line instructions. Browser guidance covers both workflows; command-line guidance explains local CLI use and exit codes.
 
