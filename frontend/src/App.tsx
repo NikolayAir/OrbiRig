@@ -1,4 +1,4 @@
-import { Fragment, type SubmitEvent, useEffect, useRef, useState } from "react";
+import { Fragment, type KeyboardEvent as ReactKeyboardEvent, type SubmitEvent, useEffect, useRef, useState } from "react";
 
 import { WorkflowHelp } from "./WorkflowHelp";
 import { LoadExampleButton } from "./LoadExampleButton";
@@ -760,6 +760,7 @@ export function App() {
           <form
             className="verification-form"
             noValidate
+            onKeyDown={preventRepeatedRequestAction}
             onSubmit={verifyObservation}
           >
             <fieldset
@@ -1076,7 +1077,7 @@ export function App() {
             />
           </div>
 
-          <form className="inspection-form" onSubmit={inspectEvidence}>
+          <form className="inspection-form" onKeyDown={preventRepeatedRequestAction} onSubmit={inspectEvidence}>
             <fieldset
               className="evidence-types"
               disabled={inspection.kind === "loading"}
@@ -1222,6 +1223,12 @@ function EvidenceRequestSizeError() {
       </span>
     </p>
   );
+}
+
+function preventRepeatedRequestAction(event: ReactKeyboardEvent<HTMLFormElement>) {
+  if (event.key === "Enter" && event.repeat && event.target instanceof HTMLButtonElement) {
+    event.preventDefault();
+  }
 }
 
 function wouldReplaceEditedValue(current: string, baseline: string, next: string): boolean {
