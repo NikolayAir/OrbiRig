@@ -819,6 +819,13 @@ textarea[aria-invalid="true"] {
   padding: 0.8rem 1.25rem;
 }
 
+.form-actions .primary-action:focus,
+.form-actions [name="cancel-request"]:focus {
+  box-shadow: var(--focus-ring);
+  outline: 1px solid var(--focus-edge);
+  outline-offset: 4px;
+}
+
 .form-actions .primary-action:hover:not(:disabled) {
   background: #195989;
 }

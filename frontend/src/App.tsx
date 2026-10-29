@@ -94,6 +94,7 @@ type VerifiedExecutionSequencePresentation = {
 type InspectionState =
   | { kind: "idle" }
   | { kind: "loading" }
+  | { kind: "cancelled" }
   | { kind: "valid-observation"; observation: ObservationPresentation }
   | {
       kind: "valid-verified-execution";
@@ -110,6 +111,7 @@ type InspectionState =
 type VerificationState =
   | { kind: "idle" }
   | { kind: "loading" }
+  | { kind: "cancelled" }
   | { kind: "completed"; record: VerifiedExecutionPresentation }
   | { kind: "validation-failure"; code: VerificationErrorCode }
   | { kind: "request-too-large" }
@@ -167,6 +169,8 @@ const REQUIRED_VERIFICATION_MESSAGES: Record<
 };
 
 const DEFAULT_VERIFICATION_SCENARIO: ScenarioId = "nominal_to_safe_mode";
+const VERIFICATION_CANCELLED = "Verification request cancelled. Your inputs are kept.";
+const INSPECTION_CANCELLED = "Inspection request cancelled. Your inputs are kept.";
 
 const VERIFICATION_EXAMPLES: Record<
   ScenarioId,
@@ -252,6 +256,12 @@ export function App() {
   const executedAtInputRef = useRef<HTMLInputElement>(null);
   const scenarioInputRef = useRef<HTMLSelectElement>(null);
   const observationEvidenceInputRef = useRef<HTMLTextAreaElement>(null);
+  const verificationSubmitRef = useRef<HTMLButtonElement>(null);
+  const inspectionSubmitRef = useRef<HTMLButtonElement>(null);
+  const verificationCancelRef = useRef<HTMLButtonElement>(null);
+  const inspectionCancelRef = useRef<HTMLButtonElement>(null);
+  const verificationRequestRef = useRef<AbortController | null>(null);
+  const inspectionRequestRef = useRef<AbortController | null>(null);
   const verificationFeedbackRef = useRef<HTMLDivElement>(null);
   const inspectionFeedbackRef = useRef<HTMLDivElement>(null);
   const verificationFeedbackPendingRef = useRef(false);
@@ -322,8 +332,8 @@ export function App() {
   useEffect(() => {
     // Once the user moves on, a late response must not reclaim their place.
     function cancelPendingFeedback(event: Event) {
-      // A second press on the pending submit button is still the same action.
-      if (event.target instanceof Element && event.target.closest('button[type="submit"]:disabled')) {
+      // The pending action and its cancellation control belong to this request.
+      if (event.target instanceof Element && event.target.closest('button[type="submit"]:disabled, button[name="cancel-request"]')) {
         return;
       }
       verificationFeedbackPendingRef.current = false;
@@ -343,7 +353,20 @@ export function App() {
     };
   }, []);
 
+  useEffect(() => () => {
+    const verificationRequest = verificationRequestRef.current;
+    const inspectionRequest = inspectionRequestRef.current;
+    verificationRequestRef.current = null;
+    inspectionRequestRef.current = null;
+    verificationRequest?.abort();
+    inspectionRequest?.abort();
+  }, []);
+
   useEffect(() => {
+    if (verification.kind === "loading" && verificationFeedbackPendingRef.current && activeWorkflow === "verification") {
+      verificationCancelRef.current?.focus();
+      return;
+    }
     const isTerminal =
       verification.kind !== "idle" && verification.kind !== "loading";
 
@@ -356,6 +379,11 @@ export function App() {
       activeWorkflow === "verification" &&
       verificationFeedbackRef.current !== null
     ) {
+      if (verification.kind === "cancelled") {
+        verificationSubmitRef.current?.focus();
+        setFeedbackAnnouncement(VERIFICATION_CANCELLED);
+        return;
+      }
       revealFeedback(verificationFeedbackRef.current);
       setFeedbackAnnouncement(verification.kind === "completed"
         ? `Verification completed. Outcome: ${verification.record.outcome}.`
@@ -364,6 +392,10 @@ export function App() {
   }, [activeWorkflow, verification]);
 
   useEffect(() => {
+    if (inspection.kind === "loading" && inspectionFeedbackPendingRef.current && activeWorkflow === "inspection") {
+      inspectionCancelRef.current?.focus();
+      return;
+    }
     const isTerminal =
       inspection.kind !== "idle" && inspection.kind !== "loading";
 
@@ -376,6 +408,11 @@ export function App() {
       activeWorkflow === "inspection" &&
       inspectionFeedbackRef.current !== null
     ) {
+      if (inspection.kind === "cancelled") {
+        inspectionSubmitRef.current?.focus();
+        setFeedbackAnnouncement(INSPECTION_CANCELLED);
+        return;
+      }
       revealFeedback(inspectionFeedbackRef.current);
       setFeedbackAnnouncement(inspectionAnnouncement(inspection));
     }
@@ -416,6 +453,24 @@ export function App() {
     inspectionExampleBaselineRef.current = INSPECTION_EXAMPLES[evidenceType];
     setEvidence(INSPECTION_EXAMPLES[evidenceType]);
     setInspection({ kind: "idle" });
+  }
+
+  function cancelVerification() {
+    const request = verificationRequestRef.current;
+    if (request === null) return;
+    verificationRequestRef.current = null;
+    request.abort();
+    verificationFeedbackPendingRef.current = true;
+    setVerification({ kind: "cancelled" });
+  }
+
+  function cancelInspection() {
+    const request = inspectionRequestRef.current;
+    if (request === null) return;
+    inspectionRequestRef.current = null;
+    request.abort();
+    inspectionFeedbackPendingRef.current = true;
+    setInspection({ kind: "cancelled" });
   }
 
   async function verifyObservation(event: SubmitEvent<HTMLFormElement>) {
@@ -463,11 +518,24 @@ export function App() {
     setFeedbackAnnouncement("Verifying observation…");
     setVerification({ kind: "loading" });
 
+    const request = new AbortController();
+    const previousRequest = verificationRequestRef.current;
+    verificationRequestRef.current = request;
+    previousRequest?.abort();
+
+    function finish(state: VerificationState) {
+      // A cancelled request may still resolve while a later one is in progress.
+      if (verificationRequestRef.current !== request) return;
+      verificationRequestRef.current = null;
+      setVerification(state);
+    }
+
     let response: Response;
 
     try {
       response = await fetch("/api/verify/observation", {
         method: "POST",
+        signal: request.signal,
         headers: {
           "Content-Type": "application/json",
         },
@@ -479,12 +547,14 @@ export function App() {
         }),
       });
     } catch {
-      setVerification({ kind: "network-failure" });
+      finish({ kind: "network-failure" });
       return;
     }
 
+    if (verificationRequestRef.current !== request) return;
+
     if (response.status === 413) {
-      setVerification({ kind: "request-too-large" });
+      finish({ kind: "request-too-large" });
       return;
     }
 
@@ -493,19 +563,19 @@ export function App() {
         const code = verificationErrorCode(await response.json());
 
         if (code !== null) {
-          setVerification({ kind: "validation-failure", code });
+          finish({ kind: "validation-failure", code });
           return;
         }
       } catch {
         // An invalid error response is an unexpected server failure.
       }
 
-      setVerification({ kind: "server-failure" });
+      finish({ kind: "server-failure" });
       return;
     }
 
     if (!response.ok) {
-      setVerification({ kind: "server-failure" });
+      finish({ kind: "server-failure" });
       return;
     }
 
@@ -513,16 +583,16 @@ export function App() {
       const payload: unknown = await response.json();
 
       if (!isVerifiedExecutionPresentation(payload)) {
-        setVerification({ kind: "server-failure" });
+        finish({ kind: "server-failure" });
         return;
       }
 
-      setVerification({
+      finish({
         kind: "completed",
         record: payload,
       });
     } catch {
-      setVerification({ kind: "server-failure" });
+      finish({ kind: "server-failure" });
     }
   }
 
@@ -532,27 +602,41 @@ export function App() {
     setFeedbackAnnouncement("Inspecting evidence…");
     setInspection({ kind: "loading" });
 
+    const request = new AbortController();
+    const previousRequest = inspectionRequestRef.current;
+    inspectionRequestRef.current = request;
+    previousRequest?.abort();
+
+    function finish(state: InspectionState) {
+      if (inspectionRequestRef.current !== request) return;
+      inspectionRequestRef.current = null;
+      setInspection(state);
+    }
+
     try {
       const response = await fetch(INSPECTION_ENDPOINTS[evidenceType], {
         method: "POST",
+        signal: request.signal,
         headers: {
           "Content-Type": "text/plain; charset=utf-8",
         },
         body: evidence,
       });
 
+      if (inspectionRequestRef.current !== request) return;
+
       if (response.status === 413) {
-        setInspection({ kind: "request-too-large" });
+        finish({ kind: "request-too-large" });
         return;
       }
 
       if (response.status === 422) {
-        setInspection({ kind: "invalid", evidenceType });
+        finish({ kind: "invalid", evidenceType });
         return;
       }
 
       if (!response.ok) {
-        setInspection({ kind: "transport-failure" });
+        finish({ kind: "transport-failure" });
         return;
       }
 
@@ -560,11 +644,11 @@ export function App() {
 
       if (evidenceType === "observation") {
         if (!isObservationPresentation(payload)) {
-          setInspection({ kind: "transport-failure" });
+          finish({ kind: "transport-failure" });
           return;
         }
 
-        setInspection({
+        finish({
           kind: "valid-observation",
           observation: payload,
         });
@@ -573,11 +657,11 @@ export function App() {
 
       if (evidenceType === "verified-execution") {
         if (!isVerifiedExecutionPresentation(payload)) {
-          setInspection({ kind: "transport-failure" });
+          finish({ kind: "transport-failure" });
           return;
         }
 
-        setInspection({
+        finish({
           kind: "valid-verified-execution",
           record: payload,
         });
@@ -585,16 +669,16 @@ export function App() {
       }
 
       if (!isVerifiedExecutionSequencePresentation(payload)) {
-        setInspection({ kind: "transport-failure" });
+        finish({ kind: "transport-failure" });
         return;
       }
 
-      setInspection({
+      finish({
         kind: "valid-verified-execution-sequence",
         sequence: payload,
       });
     } catch {
-      setInspection({ kind: "transport-failure" });
+      finish({ kind: "transport-failure" });
     }
   }
 
@@ -913,12 +997,18 @@ export function App() {
 
               <div className="form-actions">
                 <button
+                  ref={verificationSubmitRef}
                   type="submit"
                   className="primary-action"
                   disabled={verification.kind === "loading"}
                 >
                   Verify observation
                 </button>
+                {verification.kind === "loading" && (
+                  <button ref={verificationCancelRef} type="button" name="cancel-request" className="secondary-action" onClick={cancelVerification}>
+                    Cancel request
+                  </button>
+                )}
               </div>
             </div>
           </form>
@@ -926,6 +1016,10 @@ export function App() {
           <div className="workflow-feedback" ref={verificationFeedbackRef}>
             {verification.kind === "loading" && (
               <p className="feedback-progress">Verifying observation…</p>
+            )}
+
+            {verification.kind === "cancelled" && (
+              <p className="feedback-progress">{VERIFICATION_CANCELLED}</p>
             )}
 
             {verification.kind === "request-too-large" && <EvidenceRequestSizeError />}
@@ -1059,12 +1153,18 @@ export function App() {
               </div>
               <div className="form-actions">
                 <button
+                  ref={inspectionSubmitRef}
                   type="submit"
                   className="primary-action"
                   disabled={inspection.kind === "loading"}
                 >
                   Inspect evidence
                 </button>
+                {inspection.kind === "loading" && (
+                  <button ref={inspectionCancelRef} type="button" name="cancel-request" className="secondary-action" onClick={cancelInspection}>
+                    Cancel request
+                  </button>
+                )}
               </div>
             </div>
           </form>
@@ -1072,6 +1172,10 @@ export function App() {
           <div className="workflow-feedback" ref={inspectionFeedbackRef}>
             {inspection.kind === "loading" && (
               <p className="feedback-progress">Inspecting evidence…</p>
+            )}
+
+            {inspection.kind === "cancelled" && (
+              <p className="feedback-progress">{INSPECTION_CANCELLED}</p>
             )}
 
             {inspection.kind === "request-too-large" && <EvidenceRequestSizeError />}
