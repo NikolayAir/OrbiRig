@@ -31,6 +31,8 @@ uv sync --locked --python 3.12 --extra test --extra dev --extra web
 uv run --no-sync --python 3.12 python -m pytest -q
 ```
 
+An existing `.venv` can keep an older patch of its interpreter. To switch patches, use an exact version such as `--python 3.15.2` with the sync command above, keeping the required extras selected. `.python-version` can remain `3.15`.
+
 [`uv.lock`](uv.lock) records resolved dependencies across the supported Python range and platform conditions. `--locked` rejects an out-of-date lock instead of changing it. The lock does not pin Python patch releases or make installed binaries and behaviour identical across platforms. Isolated build dependencies, including the `setuptools>=68` build requirement, are resolved separately. See [uv's locking and syncing rules](https://docs.astral.sh/uv/concepts/projects/sync/).
 
 ## Frontend environment
@@ -148,6 +150,8 @@ The [Checks workflow](.github/workflows/ci.yml) selects this matrix:
 | Push to `main` | Python 3.12–3.15 on Ubuntu | 8 |
 
 Totals include three Ubuntu browser jobs and the final `CI passed` job. Python jobs have a ten-minute timeout, browser jobs 30 minutes and `CI passed` one minute. Browser invocations also have Playwright's separate five-minute timeout.
+
+Python setup uses `check-latest: true` to select the latest available patch in each chosen series. A newer patch is downloaded when the runner's cached version is older.
 
 Python test and browser jobs use uv 0.13.4 and install Python dependencies with `uv sync --locked --no-editable`. uv receives the exact interpreter path from `actions/setup-python`, overriding the local `.python-version`. The `Python 3.12` job selects `test`, `dev` and `web`; compatibility jobs select `test` and `web`; browser jobs select only `web`. Subsequent commands use `uv run --no-sync`.
 

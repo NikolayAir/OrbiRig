@@ -11,4 +11,4 @@ services:
     autoDeployTrigger: checksPass
     envVars:
       - key: PYTHON_VERSION
-        value: "3.12.15"
+        value: "3.12.16"

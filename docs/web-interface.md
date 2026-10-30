@@ -115,7 +115,7 @@ Content-type checks run before body-size checks. The server enforces the size li
 
 ## Render deployment configuration
 
-[`render.yaml`](../render.yaml) declares a Python web service built from `main`, with a pip install of `.[web]`, `npm ci` and a frontend build. It sets `PYTHON_VERSION=3.12.15`, uses `/` for its health check and declares `autoDeployTrigger: checksPass`.
+[`render.yaml`](../render.yaml) declares a Python web service built from `main`, with a pip install of `.[web]`, `npm ci` and a frontend build. It sets `PYTHON_VERSION=3.12.16`, uses `/` for its health check and declares `autoDeployTrigger: checksPass`.
 
 Check the service's applied settings and deployed commit separately from this declaration. The Blueprint does not use `uv.lock`, so the deployed Python dependencies are not fully locked by that file.
 
