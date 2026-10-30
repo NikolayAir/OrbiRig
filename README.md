@@ -46,11 +46,11 @@ Choose a **scenario** to state the expected behaviour before verification. Provi
 flowchart TD
     accTitle: Verification overview
     accDescr: An explicitly selected scenario and a recorded observation are separate inputs to Python validation and verification. Valid, compatible input produces a record with four checks and a PASS or FAIL outcome, ready for JSON export. Invalid or incompatible input produces an error without a verified record.
-    scenario["Selected<br/>scenario"] --> verifier("Validate input<br/>verify in Python")
-    observation["Recorded<br/>observation"] --> verifier
+    scenario["Selected<br/>scenario"] -->|Expectations| verifier("Validate input<br/>verify in Python")
+    observation["Recorded<br/>observation"] -->|Reported values| verifier
     verifier --> record["Verified record<br/>four checks<br/>PASS or FAIL"]
     verifier --> error["Input error<br/>no record"]
-    record --> evidence["Versioned<br/>JSON evidence"]
+    record -->|Export| evidence["Versioned<br/>JSON evidence"]
 ```
 
 Rounded boxes show actions; square-cornered boxes show data or results. Invalid input and collection errors produce no verified record. See the [architecture guide](docs/architecture.md#verification-flow) for the detailed collection, validation and error paths.
