@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "orbirig"
-version = "0.8.0"
-description = "Space Mission Verification Harness"
+version = "0.9.0"
+description = "Verification harness for simplified spacecraft command results"
 requires-python = ">=3.12,<3.16"
 dependencies = []
 
