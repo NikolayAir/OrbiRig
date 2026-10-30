@@ -316,7 +316,7 @@ for (const viewport of [
         await expect(readme).toBeFocused();
         await expect(readme).toBeInViewport();
         await expect(readme).toHaveCSS("outline-style", "solid");
-        await expect(readme).toHaveAttribute("href", "https://github.com/NikolayAir/OrbiRig#verify-a-saved-observation-from-the-command-line");
+        await expect(readme).toHaveAttribute("href", "https://github.com/NikolayAir/OrbiRig/blob/main/docs/cli.md");
       }
       expect(await firstParagraph.evaluate((element) => getComputedStyle(element).userSelect)).not.toBe("none");
       expect(await help.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
