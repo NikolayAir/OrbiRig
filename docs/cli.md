@@ -2,7 +2,7 @@
 
 [README](../README.md) · [Verification concepts](verification.md) · [Evidence formats](evidence-formats.md)
 
-The `orbirig` command verifies one saved observation against an explicitly selected scenario. It reads a local file and writes a verified execution record as JSON. It does not execute spacecraft commands or collect fresh observations.
+The `orbirig` command checks a recorded command result from a local JSON file against a scenario you select. It writes a verified execution record as JSON, with the expected and observed values for each check and an overall `PASS` or `FAIL` outcome. It does not execute commands or collect new observations.
 
 ## Install
 
@@ -27,7 +27,7 @@ uv run --no-sync orbirig verify-observation docs/examples/nominal-to-safe.json \
   --executed-at 2026-10-21T10:00:00Z
 ```
 
-The [example observation](examples/nominal-to-safe.json) records an accepted change from `NOMINAL` to `SAFE`, with matching telemetry. The command exits with code `0` and writes a complete verified execution record to standard output (stdout). The record contains `schema_version: 1`, the supplied metadata, the observation, four passing checks and `outcome: "PASS"`. Standard error (stderr) is empty.
+The [example observation](examples/nominal-to-safe.json) records an accepted change from `NOMINAL` to `SAFE`, with matching telemetry. The command exits with code `0` and writes a complete verified execution record to standard output (stdout). The record contains `schema_version: 1`, the execution ID and UTC timestamp you provided, the selected scenario, the observation, four passing checks and `outcome: "PASS"`. Standard error (stderr) is empty.
 
 To save the result, use shell redirection:
 
@@ -74,12 +74,12 @@ Exit codes `0` and `1` describe verification outcomes. An expected command rejec
 
 | Exit code | Meaning | stdout | stderr |
 | --- | --- | --- | --- |
-| `0` | Completed verification `PASS` | Canonical verified-execution JSON | Empty |
-| `1` | Completed verification `FAIL` | Canonical verified-execution JSON | Empty |
+| `0` | Completed verification `PASS` | Verified-execution JSON | Empty |
+| `1` | Completed verification `FAIL` | Verified-execution JSON | Empty |
 | `2` | Invalid arguments, metadata, evidence or scenario/command mismatch | Empty | Diagnostic |
 | `3` | File I/O or output write error | Empty for read errors; may be partial for write errors | Diagnostic |
 | `4` | Unexpected internal error | Empty before output starts | Diagnostic and traceback |
 
 The reader applies the [shared JSON rules](evidence-formats.md#shared-json-rules), including rejection of repeated field names within nested objects. Files must use UTF-8 without a byte-order mark (BOM).
 
-Completed verification writes only the canonical JSON bytes to stdout: UTF-8, two-space indentation, LF line endings and one final newline on every operating system. Fixed inputs, including execution metadata, produce identical bytes. Input and read errors produce no verification evidence.
+Completed verification writes only the verified-execution JSON bytes to stdout: UTF-8, two-space indentation, LF line endings and one final newline on every operating system. Fixed inputs, including execution metadata, produce identical bytes. Input and read errors produce no verification evidence.

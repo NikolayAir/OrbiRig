@@ -2,7 +2,7 @@
 
 [README](../README.md) · [Verification concepts](verification.md) · [Python workflows](python.md)
 
-Evidence is the JSON representation of recorded observations and verification results. All readers in `orbirig.evidence` treat submitted JSON as untrusted. The three supported forms have separate version contracts:
+Evidence JSON records reported observations and verification results. An observation document contains the command and reported values; a verified record also includes the selected scenario, execution details, checks and outcome. All readers in `orbirig.evidence` validate submitted JSON as untrusted input. The three supported forms are versioned separately:
 
 | Evidence form | Version field | Current version | Python model |
 | --- | --- | --- | --- |
@@ -103,7 +103,7 @@ The top-level object contains exactly `schema_version`, `records`, `continuity_r
 - `expected_operating_mode` (the previous post-state mode) and `observed_operating_mode` (the next pre-state mode);
 - `passed`, a boolean stating whether those modes match.
 
-The sequence outcome is `PASS` only when every record and every continuity result passes. Supplied order is preserved; duplicate execution IDs and equal or non-monotonic timestamps remain valid.
+The sequence outcome is `PASS` only when every record and every continuity result passes. Records remain in the order they appear in the JSON. Execution IDs and timestamps may repeat, and timestamps do not have to increase.
 
 `serialize_verified_execution_sequence_evidence(...)` returns JSON in this form. `deserialize_verified_execution_sequence_evidence(...)` reconstructs each record through the verified-execution reader. It then recomputes continuity in saved order and derives the aggregate outcome. Stored boundaries and outcome must match exactly. A consistent `FAIL` sequence is valid evidence.
 

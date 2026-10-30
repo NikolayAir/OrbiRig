@@ -2,7 +2,7 @@
 
 [README](../README.md) · [Verification concepts](verification.md) · [Evidence formats](evidence-formats.md)
 
-The Python core collects and verifies observations, checks sequence continuity and reads or writes JSON evidence. It works without FastAPI, React, Node.js or a browser.
+The Python API checks recorded command results against an explicit scenario and returns the expected and observed values for each check. It also collects observations, checks sequence continuity and reads or writes JSON evidence. The core works without FastAPI, React, Node.js or a browser.
 
 Use Python 3.12–3.15. Install the core from the repository root with `uv sync --locked`. Save an example below as a Python script and run it with `uv run --no-sync python your_script.py`. File paths in the examples are relative to the repository root.
 
@@ -35,7 +35,7 @@ record = build_verified_execution_record(
 print(serialize_verified_execution_evidence(record), end="")
 ```
 
-Loading the observation validates its format. `build_verified_execution_record(...)` verifies it against the supplied `ScenarioId`. This example produces `PASS` with four passing checks.
+Loading the observation validates its format. `build_verified_execution_record(...)` verifies it against the `ScenarioId` you provide. This example produces `PASS` with four passing checks.
 
 ## Execute a reference example
 
@@ -92,7 +92,7 @@ sequence = verify_execution_sequence([first, second])
 print(serialize_verified_execution_sequence_evidence(sequence), end="")
 ```
 
-The sequence verifier accepts at least two records and checks them in the supplied order. It does not sort by execution ID or timestamp, re-run commands or re-evaluate each record's scenario checks. A sequence can fail even when every record passes; see [continuity](verification.md#continuity-across-executions).
+The sequence verifier accepts at least two records and checks them in the order you provide them. It does not sort by execution ID or timestamp, re-run commands or re-evaluate each record's scenario checks. A sequence can fail even when every record passes; see [continuity](verification.md#continuity-across-executions).
 
 ## Collect from a separate program
 
@@ -126,11 +126,11 @@ The protocol uses a separate process, not a shell or HTTP connection:
 
 `ObservationCollectionError` from `orbirig.subprocess_collection` covers launch failures, timeouts and non-zero exits. It also covers invalid UTF-8, invalid evidence and returned-command mismatches. These errors produce no verified record and do not establish whether the external target changed state.
 
-For collection without verification, `collect_subprocess_observation(...)` takes `argv`, `command` and `timeout` and returns a `CommandExecutionObservation`. The caller must supply a separate scenario when subsequently verifying it.
+For collection without verification, `collect_subprocess_observation(...)` takes `argv`, `command` and `timeout` and returns a `CommandExecutionObservation`. To verify this observation later, choose the expected scenario separately and pass it to the verifier.
 
 ## Reopen saved verified evidence
 
-Serializers return JSON text; saving that text to a file is a separate step. To save the sequence and its first record, add this code to the [sequence example](#verify-an-ordered-sequence):
+The serialisation functions return JSON text; your script writes that text to a file. To save the sequence and its first record, add this code to the [sequence example](#verify-an-ordered-sequence):
 
 ```python
 from pathlib import Path

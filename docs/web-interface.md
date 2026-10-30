@@ -2,7 +2,7 @@
 
 [README](../README.md) · [Verification concepts](verification.md) · [Development checks](../CONTRIBUTING.md)
 
-The [hosted interface](https://orbirig-evidence-inspector.onrender.com/) verifies recorded observations and inspects saved JSON evidence. Both workflows use the Python core on the server. They do not execute spacecraft commands or contact an external target.
+Use the [hosted interface](https://orbirig-evidence-inspector.onrender.com/) to check a recorded command result against a scenario you select, or to reopen and inspect saved JSON evidence. The Python core performs the checks on the server; the browser displays the results and errors. These actions do not execute commands or contact an external target.
 
 ## Verify an observation
 
@@ -10,7 +10,7 @@ The [hosted interface](https://orbirig-evidence-inspector.onrender.com/) verifie
 2. Enter an execution ID, UTC execution time and observation JSON, or choose **Load example**.
 3. Choose **Verify observation** to see the recorded values, each check's expected and actual values, and the overall `PASS` or `FAIL`.
 
-**Load example** supplies sample execution metadata and an observation for the selected scenario. It uses **NOMINAL to SAFE** if none is selected. Choose **Verify observation** to run the checks after loading the example.
+**Load example** fills in a sample execution ID, UTC time and observation JSON for the selected scenario. It uses **NOMINAL to SAFE** if none is selected. Choose **Verify observation** to run the checks after loading the example.
 
 An expected command rejection can pass. Invalid input, including a command incompatible with the selected scenario, produces an error rather than a completed `FAIL` result. See [supported scenarios](verification.md#supported-scenarios) and [execution metadata](evidence-formats.md#execution-ids).
 
@@ -26,7 +26,7 @@ Choose **Inspect evidence**, select its type and paste saved JSON or choose **Lo
 
 Inspection is read-only: it does not edit or repair evidence. A saved `FAIL` is accepted when its checks and outcome match the recomputed results.
 
-In either workflow, loading an example asks before replacing edited inputs. Cancelling keeps those inputs.
+If loading an example would replace your edits, the interface asks for confirmation. Choosing **Cancel** in that dialog keeps your current inputs.
 
 Completed results and request errors receive keyboard focus and are brought into view. A short status message announces completed verification or inspection. If you move to another control, workflow or the help dialog while a request is pending, its response does not move focus or scroll the page.
 

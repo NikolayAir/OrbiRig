@@ -1,8 +1,8 @@
 # Contributing and development
 
-[README](README.md) · [Verification concepts](docs/verification.md) · [Web setup and deployment configuration](docs/web-interface.md)
+[README](README.md) · [Architecture](docs/architecture.md) · [Verification concepts](docs/verification.md) · [Web setup and deployment configuration](docs/web-interface.md)
 
-Keep the Python verification core usable without the web application. The commands below run from a repository checkout; each section states which directory to use.
+Use this guide to set up the Python core and web interface, run automated checks and build Python distributions. Keep the verification core usable without the web application. The commands below run from a repository checkout; each section states which directory to use.
 
 ## Python environment
 
@@ -115,7 +115,7 @@ Fixtures and expected results are written independently of API responses and `Re
 - A sequence failing continuity while every record passes, with supplied order differing from timestamp and execution-ID sorting.
 - Contextual help closing with Escape while hovered, retaining focus and reopening deliberately; selected controls also use emulated touch.
 - Focus and completion announcements after submitting either workflow, including repeated submissions, valid saved `FAIL` evidence, input errors and delayed responses after moving to another control, workflow or help.
-- Cancellation aborting the browser request, preserving inputs and the selected evidence type, restoring focus and allowing a new submission. Held Enter presses must not activate a newly focused request button. Component tests also check late responses and JSON parsing after cancellation, independent requests in each workflow and cleanup on unmount.
+- Cancellation aborting the browser request, preserving inputs and the selected evidence type, restoring focus and allowing a new submission. Held Enter presses must not activate a newly focused request button. Component tests also check late responses and JSON parsing after cancellation, independent requests in each workflow and aborting pending requests when the application unmounts.
 - Confirmation before replacing edited inputs with examples, cancellation preserving inputs, and keyboard navigation of browser and CLI guidance at narrow widths and with enlarged text.
 
 Verification and inspection tests require request text to match the textarea value exactly. Duplicate-key inputs cover LF and CRLF endings. A browser may normalise CRLF to LF when filling the textarea; tests allow that input-boundary conversion, then require exact request preservation without parsing, re-serialisation or further normalisation.
