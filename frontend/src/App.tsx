@@ -245,6 +245,7 @@ export function App() {
   const [inspection, setInspection] = useState<InspectionState>({
     kind: "idle",
   });
+  const [feedbackAnnouncement, setFeedbackAnnouncement] = useState("");
   const executionIdHelpRef = useRef<HTMLSpanElement>(null);
   const scenarioHelpRef = useRef<HTMLSpanElement>(null);
   const executionIdInputRef = useRef<HTMLInputElement>(null);
@@ -253,8 +254,8 @@ export function App() {
   const observationEvidenceInputRef = useRef<HTMLTextAreaElement>(null);
   const verificationFeedbackRef = useRef<HTMLDivElement>(null);
   const inspectionFeedbackRef = useRef<HTMLDivElement>(null);
-  const verificationScrollPendingRef = useRef(false);
-  const inspectionScrollPendingRef = useRef(false);
+  const verificationFeedbackPendingRef = useRef(false);
+  const inspectionFeedbackPendingRef = useRef(false);
   const verificationExampleBaselineRef = useRef({
     executionId: "", executedAt: "", observationEvidence: "",
   });
@@ -319,38 +320,66 @@ export function App() {
   }, [executionIdHelpOpen, scenarioHelpOpen]);
 
   useEffect(() => {
+    // Once the user moves on, a late response must not reclaim their place.
+    function cancelPendingFeedback(event: Event) {
+      // A second press on the pending submit button is still the same action.
+      if (event.target instanceof Element && event.target.closest('button[type="submit"]:disabled')) {
+        return;
+      }
+      verificationFeedbackPendingRef.current = false;
+      inspectionFeedbackPendingRef.current = false;
+      setFeedbackAnnouncement("");
+    }
+
+    document.addEventListener("focusin", cancelPendingFeedback);
+    document.addEventListener("pointerdown", cancelPendingFeedback);
+    document.addEventListener("click", cancelPendingFeedback, true);
+    window.addEventListener("blur", cancelPendingFeedback);
+    return () => {
+      document.removeEventListener("focusin", cancelPendingFeedback);
+      document.removeEventListener("pointerdown", cancelPendingFeedback);
+      document.removeEventListener("click", cancelPendingFeedback, true);
+      window.removeEventListener("blur", cancelPendingFeedback);
+    };
+  }, []);
+
+  useEffect(() => {
     const isTerminal =
       verification.kind !== "idle" && verification.kind !== "loading";
 
-    if (!verificationScrollPendingRef.current || !isTerminal) {
+    if (!verificationFeedbackPendingRef.current || !isTerminal) {
       return;
     }
 
-    verificationScrollPendingRef.current = false;
+    verificationFeedbackPendingRef.current = false;
     if (
       activeWorkflow === "verification" &&
       verificationFeedbackRef.current !== null
     ) {
-      scrollFeedbackIntoView(verificationFeedbackRef.current);
+      revealFeedback(verificationFeedbackRef.current);
+      setFeedbackAnnouncement(verification.kind === "completed"
+        ? `Verification completed. Outcome: ${verification.record.outcome}.`
+        : "");
     }
-  }, [activeWorkflow, verification.kind]);
+  }, [activeWorkflow, verification]);
 
   useEffect(() => {
     const isTerminal =
       inspection.kind !== "idle" && inspection.kind !== "loading";
 
-    if (!inspectionScrollPendingRef.current || !isTerminal) {
+    if (!inspectionFeedbackPendingRef.current || !isTerminal) {
       return;
     }
 
-    inspectionScrollPendingRef.current = false;
+    inspectionFeedbackPendingRef.current = false;
     if (
       activeWorkflow === "inspection" &&
       inspectionFeedbackRef.current !== null
     ) {
-      scrollFeedbackIntoView(inspectionFeedbackRef.current);
+      revealFeedback(inspectionFeedbackRef.current);
+      setFeedbackAnnouncement(inspectionAnnouncement(inspection));
     }
-  }, [activeWorkflow, inspection.kind]);
+  }, [activeWorkflow, inspection]);
 
   function selectEvidenceType(selectedType: EvidenceType) {
     setEvidenceType(selectedType);
@@ -430,7 +459,8 @@ export function App() {
     }
 
     setVerificationRequiredErrors({});
-    verificationScrollPendingRef.current = true;
+    verificationFeedbackPendingRef.current = true;
+    setFeedbackAnnouncement("Verifying observation…");
     setVerification({ kind: "loading" });
 
     let response: Response;
@@ -498,7 +528,8 @@ export function App() {
 
   async function inspectEvidence(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
-    inspectionScrollPendingRef.current = true;
+    inspectionFeedbackPendingRef.current = true;
+    setFeedbackAnnouncement("Inspecting evidence…");
     setInspection({ kind: "loading" });
 
     try {
@@ -582,6 +613,10 @@ export function App() {
       </header>
 
       <WorkflowHelp activeWorkflow={activeWorkflow} />
+
+      <p className="visually-hidden" role="status" aria-atomic="true">
+        {feedbackAnnouncement}
+      </p>
 
       <p className="workflow-selector-label" id="workflow-selector-label">
         Choose a workflow
@@ -890,27 +925,27 @@ export function App() {
 
           <div className="workflow-feedback" ref={verificationFeedbackRef}>
             {verification.kind === "loading" && (
-              <p role="status">Verifying observation…</p>
+              <p className="feedback-progress">Verifying observation…</p>
             )}
 
             {verification.kind === "request-too-large" && <EvidenceRequestSizeError />}
 
             {verification.kind === "validation-failure" && (
-              <p role="alert">
+              <p role="alert" tabIndex={-1}>
                 <strong className="feedback-label">Input error</strong>
                 <span>{VERIFICATION_ERROR_MESSAGES[verification.code]}</span>
               </p>
             )}
 
             {verification.kind === "network-failure" && (
-              <p role="alert">
+              <p role="alert" tabIndex={-1}>
                 <strong className="feedback-label">Verification unavailable</strong>
                 <span>The verification request could not reach the server. Try again.</span>
               </p>
             )}
 
             {verification.kind === "server-failure" && (
-              <p role="alert">
+              <p role="alert" tabIndex={-1}>
                 <strong className="feedback-label">Verification unavailable</strong>
                 <span>The server could not complete verification. Try again.</span>
               </p>
@@ -1036,20 +1071,20 @@ export function App() {
 
           <div className="workflow-feedback" ref={inspectionFeedbackRef}>
             {inspection.kind === "loading" && (
-              <p role="status">Inspecting evidence…</p>
+              <p className="feedback-progress">Inspecting evidence…</p>
             )}
 
             {inspection.kind === "request-too-large" && <EvidenceRequestSizeError />}
 
             {inspection.kind === "invalid" && (
-              <p role="alert">
+              <p role="alert" tabIndex={-1}>
                 <strong className="feedback-label">Invalid evidence</strong>
                 <span>{invalidEvidenceMessage(inspection.evidenceType)}</span>
               </p>
             )}
 
             {inspection.kind === "transport-failure" && (
-              <p role="alert">
+              <p role="alert" tabIndex={-1}>
                 <strong className="feedback-label">Inspection unavailable</strong>
                 <span>The inspection request could not be completed. Try again.</span>
               </p>
@@ -1075,7 +1110,7 @@ export function App() {
 
 function EvidenceRequestSizeError() {
   return (
-    <p role="alert">
+    <p role="alert" tabIndex={-1}>
       <strong className="feedback-label">Request too large</strong>
       <span>
         The complete HTTP request body is limited to 4 MiB. Reduce the submitted data
@@ -1261,7 +1296,7 @@ function ObservationDetails({
       <div className="result-heading">
         <div>
           <p className="result-context">Valid observation evidence</p>
-          <h2 id="reconstructed-observation">Observation details</h2>
+          <h2 id="reconstructed-observation" tabIndex={-1}>Observation details</h2>
         </div>
       </div>
       <p className="result-description">
@@ -1384,7 +1419,7 @@ function VerifiedExecutionDetails({
           <p className="result-context">
             {inspected ? "Valid saved evidence" : "Verification result"}
           </p>
-          <h2 id={headingId}>Verified execution</h2>
+          <h2 id={headingId} tabIndex={-1}>Verified execution</h2>
         </div>
         <OutcomeBadge outcome={record.outcome} />
       </div>
@@ -1408,7 +1443,7 @@ function VerifiedExecutionSequenceDetails({
       <div className="result-heading">
         <div>
           <p className="result-context">Valid saved evidence</p>
-          <h2 id="verified-execution-sequence">Verified execution sequence</h2>
+          <h2 id="verified-execution-sequence" tabIndex={-1}>Verified execution sequence</h2>
         </div>
         <OutcomeBadge outcome={sequence.outcome} label="Sequence outcome" />
       </div>
@@ -1512,7 +1547,22 @@ function formatInvariantValue(value: boolean | string): string {
   return value;
 }
 
-function scrollFeedbackIntoView(feedback: HTMLDivElement) {
+function inspectionAnnouncement(inspection: InspectionState): string {
+  switch (inspection.kind) {
+    case "valid-observation":
+      return "Inspection completed. Valid observation evidence. No scenario verification was performed.";
+    case "valid-verified-execution":
+      return `Inspection completed. Valid verified execution evidence. Verification outcome: ${inspection.record.outcome}.`;
+    case "valid-verified-execution-sequence":
+      return `Inspection completed. Valid verified execution sequence evidence. Sequence outcome: ${inspection.sequence.outcome}.`;
+    default:
+      // Request errors already have their own alert.
+      return "";
+  }
+}
+
+function revealFeedback(feedback: HTMLDivElement) {
+  feedback.querySelector<HTMLElement>("h2, [role='alert']")?.focus({ preventScroll: true });
   const prefersReducedMotion =
     typeof window.matchMedia === "function" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;

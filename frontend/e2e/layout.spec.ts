@@ -216,6 +216,7 @@ for (const viewport of [
     await page.keyboard.press("Enter");
     const result = page.getByRole("region", { name: "Verified execution sequence", exact: true });
     await expect(result.getByLabel("Sequence outcome: FAIL", { exact: true })).toBeInViewport();
+    await expect(result.getByRole("heading", { name: "Verified execution sequence", exact: true })).toBeFocused();
     await observation.check();
     await expect(result).toHaveCount(0);
     await expect(editor).toHaveValue(sequence);
@@ -249,6 +250,7 @@ for (const viewport of [
     await page.keyboard.press("Enter");
     const result = page.getByRole("region", { name: "Verified execution", exact: true });
     await expect(result.getByLabel("Verification outcome: PASS", { exact: true })).toBeInViewport();
+    await expect(result.getByRole("heading", { name: "Verified execution", exact: true })).toBeFocused();
   });
 }
 
