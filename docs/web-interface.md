@@ -30,6 +30,8 @@ In either workflow, loading an example asks before replacing edited inputs. Canc
 
 Completed results and request errors receive keyboard focus and are brought into view. A short status message announces completed verification or inspection. If you move to another control, workflow or the help dialog while a request is pending, its response does not move focus or scroll the page.
 
+While either request is pending, **Cancel request** stops waiting in the browser and keeps the current inputs and selection. Focus returns to the submission button so you can edit or retry. Cancellation produces no verification outcome. The server may already have completed the check; late responses from cancelled requests are ignored, including after a retry.
+
 **How it works** provides browser and command-line instructions. Browser guidance covers both workflows; command-line guidance explains local CLI use and exit codes.
 
 ## Run locally
