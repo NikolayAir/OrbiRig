@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { App } from "./App";
-import { failedTelemetryExecution, verifiedExecution } from "./test/appFixtures";
+import { VerifiedExecutionDetails } from "./EvidenceDetails";
+import { failedTelemetryExecution, incompleteInvariantResults, verifiedExecution } from "./test/appFixtures";
 import {
   setupAppTests,
   expectFeedbackScroll,
@@ -390,12 +391,29 @@ describe("App verification", () => {
     expect(screen.getByRole("button", { name: "Verify observation" })).toBeEnabled();
   });
 
-  it("renders an inherited-property invariant ID with the generic title", async () => {
+  it.each(incompleteInvariantResults)("rejects a verification response with $description", async ({ results }) => {
     fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({
+      json: async () => ({ ...verifiedExecution, invariant_results: results }),
+    });
+
+    submitVerification({ evidence: "keep this observation" });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The server could not complete verification. Try again.",
+    );
+    expect(screen.queryByRole("region", { name: "Verified execution" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Observation evidence JSON")).toHaveValue("keep this observation");
+    expect(screen.getByRole("button", { name: "Verify observation" })).toBeEnabled();
+  });
+
+  it("renders an inherited-property invariant ID with the generic title", () => {
+    // Keep the renderer defensive even when it is given a record without API validation.
+    render(
+      <VerifiedExecutionDetails record={{
         ...verifiedExecution,
+        outcome: "PASS",
         invariant_results: [
           {
             ...verifiedExecution.invariant_results[0],
@@ -403,17 +421,16 @@ describe("App verification", () => {
           },
           ...verifiedExecution.invariant_results.slice(1),
         ],
-      }),
-    });
+      }} />,
+    );
 
-    submitVerification();
-
-    const record = await screen.findByRole("region", {
+    const record = screen.getByRole("region", {
       name: "Verified execution",
     });
     expect(
       within(record).getByRole("heading", { name: "Verification check" }),
     ).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

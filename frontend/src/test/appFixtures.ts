@@ -292,6 +292,45 @@ export const failedTelemetryExecution = {
   outcome: "FAIL",
 };
 
+// Each set has 4 distinct IDs but does not cover all 4 required kinds of check.
+export const incompleteInvariantResults = [
+  {
+    description: "2 acknowledgement checks and no telemetry check",
+    results: [
+      verifiedExecution.invariant_results[0],
+      verifiedExecution.invariant_results[1],
+      {
+        invariant_id: "acknowledgement_is_rejected",
+        expected: false,
+        actual: false,
+        passed: true,
+      },
+      verifiedExecution.invariant_results[2],
+    ],
+  },
+  {
+    description: "2 post-state checks and no pre-state check",
+    results: [
+      verifiedExecution.invariant_results[1],
+      verifiedExecution.invariant_results[2],
+      {
+        invariant_id: "post_state_matches_pre_state",
+        expected: "NOMINAL",
+        actual: "NOMINAL",
+        passed: true,
+      },
+      verifiedExecution.invariant_results[3],
+    ],
+  },
+  {
+    description: "an unsupported check ID",
+    results: [
+      { ...verifiedExecution.invariant_results[0], invariant_id: "__proto__" },
+      ...verifiedExecution.invariant_results.slice(1),
+    ],
+  },
+];
+
 export const verifiedExecutionSequence = {
   records: [
     {

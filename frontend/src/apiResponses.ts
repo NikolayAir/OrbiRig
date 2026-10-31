@@ -49,6 +49,15 @@ export type VerifiedExecutionSequencePresentation = {
   outcome: PresentationOutcome;
 };
 
+// Each verified execution needs pre-state, acknowledgement, post-state and telemetry checks.
+// Acceptance and rejection scenarios use different IDs for the middle 2 checks.
+const REQUIRED_CHECK_ID_GROUPS = [
+  ["pre_state_matches_expected"],
+  ["acknowledgement_is_accepted", "acknowledgement_is_rejected"],
+  ["post_state_matches_requested_mode", "post_state_matches_pre_state"],
+  ["telemetry_matches_post_state"],
+] as const;
+
 const VERIFICATION_ERROR_CODES = [
   "invalid_request",
   "invalid_scenario",
@@ -113,8 +122,8 @@ export function isVerifiedExecutionPresentation(
     return false;
   }
 
-  return (
-    results.every(
+  if (
+    !results.every(
       (result) =>
         isObject(result) &&
         typeof result.invariant_id === "string" &&
@@ -123,10 +132,16 @@ export function isVerifiedExecutionPresentation(
         (typeof result.actual === "boolean" ||
           typeof result.actual === "string") &&
         typeof result.passed === "boolean",
-    ) &&
-    // Compare ID values: separate check objects can carry the same ID.
-    // Such repeats can hide missing checks even when there are 4 entries.
-    new Set(results.map(result => result.invariant_id)).size === results.length
+    )
+  ) {
+    return false;
+  }
+
+  // There are exactly 4 entries, so each required kind must appear once.
+  // Distinct IDs alone could still mean 2 acknowledgement checks and no telemetry.
+  const ids = new Set(results.map(result => result.invariant_id));
+  return REQUIRED_CHECK_ID_GROUPS.every(
+    checkIds => checkIds.some(id => ids.has(id)),
   );
 }
 

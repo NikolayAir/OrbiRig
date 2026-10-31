@@ -5,6 +5,7 @@ import {
   observation,
   observationEvidenceDocument,
   failedTelemetryExecution,
+  incompleteInvariantResults,
   verifiedExecution,
   verifiedExecutionSequence,
 } from "./test/appFixtures";
@@ -373,6 +374,23 @@ describe("App inspection", () => {
     expect(screen.getByRole("button", { name: "Inspect evidence" })).toBeEnabled();
   });
 
+  it.each(incompleteInvariantResults)("rejects an inspected execution with $description", async ({ results }) => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ ...verifiedExecution, invariant_results: results }),
+    });
+
+    submitEvidence("keep this saved record", "verified-execution");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The inspection request could not be completed. Try again.",
+    );
+    expect(screen.queryByRole("region", { name: "Verified execution" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Valid saved evidence")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Evidence JSON")).toHaveValue("keep this saved record");
+  });
+
   it("rejects a verified-execution inspection with an unsupported outcome", async () => {
     fetchMock.mockResolvedValue({
       ok: true,
@@ -580,6 +598,12 @@ describe("App inspection", () => {
             ...verifiedExecutionSequence.records[0].invariant_results[0],
           })),
         },
+        ...verifiedExecutionSequence.records.slice(1),
+      ],
+    }],
+    ["a member without a telemetry check", {
+      records: [
+        { ...verifiedExecutionSequence.records[0], invariant_results: incompleteInvariantResults[0].results },
         ...verifiedExecutionSequence.records.slice(1),
       ],
     }],

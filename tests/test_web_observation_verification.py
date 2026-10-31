@@ -178,10 +178,15 @@ def test_excessively_nested_outer_request_is_invalid_request() -> None:
     _assert_error(response, "invalid_request")
 
 
-def test_duplicate_outer_member_is_invalid_request() -> None:
+@pytest.mark.parametrize(
+    "duplicate_name",
+    ["execution_id", r"execution_\u0069d"],
+    ids=["literal-name", "escaped-name"],
+)
+def test_duplicate_outer_member_is_invalid_request(duplicate_name) -> None:
     serialized = json.dumps(_verification_request(), indent=2).replace(
         '  "execution_id": "exec-web-verify-001",',
-        '  "execution_id": "first",\n  "execution_id": "second",',
+        f'  "execution_id": "first",\n  "{duplicate_name}": "second",',
         1,
     )
 
@@ -359,10 +364,16 @@ def test_scenario_command_mismatch_has_stable_error_category() -> None:
     _assert_error(response, "scenario_command_mismatch")
 
 
-def test_duplicate_inner_member_reaches_strict_evidence_boundary() -> None:
+@pytest.mark.parametrize(
+    "duplicate_name",
+    ["accepted", r"\u0061ccepted"],
+    ids=["literal-name", "escaped-name"],
+)
+def test_duplicate_inner_member_reaches_strict_evidence_boundary(duplicate_name) -> None:
+    # The outer request must preserve the inner escape sequence until evidence parsing.
     serialized = json.dumps(_observation_document(), indent=2).replace(
         '    "accepted": true',
-        '    "accepted": true,\n    "accepted": true',
+        f'    "accepted": true,\n    "{duplicate_name}": true',
         1,
     )
 

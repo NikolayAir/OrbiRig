@@ -213,11 +213,18 @@ def test_missing_root_field_is_rejected():
         )
 
 
-def test_duplicate_root_field_is_rejected():
+@pytest.mark.parametrize(
+    "duplicate_name",
+    ["evidence_format_version", r"evidence_format_\u0076ersion"],
+    ids=["literal-name", "escaped-name"],
+)
+def test_duplicate_root_field_is_rejected(duplicate_name):
+    # Unicode escapes can spell the same key differently in the JSON text.
+    # Duplicate detection must compare the decoded names.
     serialized = _serialized(_document()).replace(
         '"evidence_format_version": 1',
         '"evidence_format_version": 1, '
-        '"evidence_format_version": 1',
+        f'"{duplicate_name}": 1',
         1,
     )
 
@@ -228,10 +235,15 @@ def test_duplicate_root_field_is_rejected():
         deserialize_execution_evidence(serialized)
 
 
-def test_duplicate_nested_field_is_rejected():
+@pytest.mark.parametrize(
+    "duplicate_name",
+    ["accepted", r"\u0061ccepted"],
+    ids=["literal-name", "escaped-name"],
+)
+def test_duplicate_nested_field_is_rejected(duplicate_name):
     serialized = _serialized(_document()).replace(
         '"accepted": true',
-        '"accepted": true, "accepted": false',
+        f'"accepted": true, "{duplicate_name}": false',
         1,
     )
 
