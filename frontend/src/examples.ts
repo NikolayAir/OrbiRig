@@ -1,3 +1,5 @@
+import type { EvidenceType, ScenarioId } from "./workflowTypes";
+
 export const NOMINAL_TO_SAFE_EXAMPLE_OBSERVATION_DOCUMENT = {
   evidence_format_version: 1,
   command: {
@@ -187,4 +189,59 @@ export const EXAMPLE_VERIFIED_EXECUTION_SEQUENCE_DOCUMENT = {
     },
   ],
   outcome: "PASS",
+};
+
+export const VERIFICATION_EXAMPLES: Record<
+  ScenarioId,
+  {
+    executionId: string;
+    executedAt: string;
+    observationEvidence: string;
+  }
+> = {
+  nominal_to_safe_mode: {
+    executionId: "example-execution-001",
+    executedAt: "2026-08-26T08:30:00Z",
+    observationEvidence: JSON.stringify(
+      NOMINAL_TO_SAFE_EXAMPLE_OBSERVATION_DOCUMENT,
+      null,
+      2,
+    ),
+  },
+  nominal_to_nominal_rejection: {
+    executionId: "example-execution-002",
+    executedAt: "2026-08-26T08:35:00Z",
+    observationEvidence: JSON.stringify(
+      NOMINAL_TO_NOMINAL_REJECTION_EXAMPLE_OBSERVATION_DOCUMENT,
+      null,
+      2,
+    ),
+  },
+  safe_to_nominal_mode: {
+    executionId: "example-execution-003",
+    executedAt: "2026-08-26T08:40:00Z",
+    observationEvidence: JSON.stringify(
+      SAFE_TO_NOMINAL_EXAMPLE_OBSERVATION_DOCUMENT,
+      null,
+      2,
+    ),
+  },
+};
+
+export const INSPECTION_EXAMPLES: Record<EvidenceType, string> = {
+  observation: JSON.stringify(
+    NOMINAL_TO_SAFE_EXAMPLE_OBSERVATION_DOCUMENT,
+    null,
+    2,
+  ),
+  "verified-execution": JSON.stringify(
+    EXAMPLE_VERIFIED_EXECUTION_DOCUMENT,
+    null,
+    2,
+  ),
+  "verified-execution-sequence": JSON.stringify(
+    EXAMPLE_VERIFIED_EXECUTION_SEQUENCE_DOCUMENT,
+    null,
+    2,
+  ),
 };

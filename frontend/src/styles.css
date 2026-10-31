@@ -1152,13 +1152,6 @@ dd {
   margin: 1.5rem 0 0.75rem;
 }
 
-.invariant-results > li {
-  display: grid;
-  grid-template-columns:
-    minmax(15rem, 2.2fr) repeat(2, minmax(5rem, 1fr))
-    minmax(4.5rem, 0.75fr);
-}
-
 .invariant-results {
   border-top: 1px solid var(--line);
   gap: 0;
@@ -1170,6 +1163,9 @@ dd {
 .invariant-results > li {
   border-bottom: 1px solid var(--line);
   display: grid;
+  grid-template-columns:
+    minmax(15rem, 2.2fr) repeat(2, minmax(5rem, 1fr))
+    minmax(4.5rem, 0.75fr);
   gap: 1.25rem;
   padding: 1rem;
 }

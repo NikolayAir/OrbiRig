@@ -89,6 +89,8 @@ npm run build
 
 Vitest and React Testing Library check interface behaviour. Type checking and the production build also check browser tests, startup helpers and Playwright configuration. Browser tests run separately from `npm test`.
 
+The `App.*.test.tsx` files group verification, inspection, guidance, examples, completion feedback and cancellation checks. They all render the real application, sharing [test setup and interaction helpers](frontend/src/test/appTestSupport.tsx). Their [hand-written expected values](frontend/src/test/appFixtures.ts) stay independent of application examples and server responses. See [browser modules](docs/architecture.md#browser-modules) to locate the corresponding implementation.
+
 ## Browser tests
 
 Playwright exercises the interface in Chromium, Firefox and WebKit against a real FastAPI backend. If the complete development environment is already installed, skip the sync command below. Otherwise, it installs a browser-test environment with only the `web` extra. From the repository root:

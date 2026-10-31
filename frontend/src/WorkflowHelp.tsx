@@ -1,7 +1,8 @@
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 
+import type { Workflow } from "./workflowTypes";
+
 type HelpSection = "browser" | "cli";
-type BrowserWorkflow = "verification" | "inspection";
 
 function scrollFocusedControlIntoView(dialog: HTMLDialogElement, element: HTMLElement) {
   const focused = element.getBoundingClientRect();
@@ -19,7 +20,7 @@ function scrollFocusedControlIntoView(dialog: HTMLDialogElement, element: HTMLEl
   }
 }
 
-export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: BrowserWorkflow }) {
+export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const browserTabRef = useRef<HTMLButtonElement>(null);
@@ -31,7 +32,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: BrowserWorkfl
   const inspectionTabRef = useRef<HTMLButtonElement>(null);
   const [help, setHelp] = useState<{
     section: HelpSection;
-    browserWorkflow: BrowserWorkflow;
+    browserWorkflow: Workflow;
     scrollToWorkflow: boolean;
     trigger: HTMLButtonElement;
   } | null>(null);
@@ -101,14 +102,14 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: BrowserWorkfl
       : { ...current, section, scrollToWorkflow: false });
   }
 
-  function selectBrowserWorkflow(browserWorkflow: BrowserWorkflow) {
+  function selectBrowserWorkflow(browserWorkflow: Workflow) {
     setHelp((current) => current === null || current.browserWorkflow === browserWorkflow
       ? current
       : { ...current, browserWorkflow, scrollToWorkflow: true });
   }
 
-  function navigateBrowserTabs(event: KeyboardEvent<HTMLButtonElement>, current: BrowserWorkflow) {
-    let next: BrowserWorkflow;
+  function navigateBrowserTabs(event: KeyboardEvent<HTMLButtonElement>, current: Workflow) {
+    let next: Workflow;
     switch (event.key) {
       case "ArrowLeft":
       case "ArrowRight":

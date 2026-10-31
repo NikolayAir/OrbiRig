@@ -57,3 +57,16 @@ A valid observation can produce `FAIL`; an expected command rejection can produc
 [`ReferenceSpacecraft`](../src/orbirig/reference_sut.py) is a simplified, deterministic test double used to produce repeatable observations. The verifier defines expectations independently of this test double.
 
 Loading saved verified evidence recomputes its checks and outcome rather than trusting the stored results. Sequence loading also reconstructs each record and checks continuity in the saved order. The saved checks and outcome must match the recalculated results, including for `FAIL` evidence. See [loading saved evidence](verification.md#loading-saved-evidence) and the [JSON formats and validation rules](evidence-formats.md).
+
+### Browser modules
+
+[`App.tsx`](../frontend/src/App.tsx) owns navigation and form inputs. It also keeps both request hooks mounted while only the selected panel is displayed. Switching between verification and inspection therefore retains inputs, results and pending requests.
+
+| Module | Responsibility |
+| --- | --- |
+| [Verification panel](../frontend/src/VerificationPanel.tsx) and [inspection panel](../frontend/src/InspectionPanel.tsx) | Render inputs, actions and feedback using the state supplied by `App`. |
+| [API client](../frontend/src/apiClient.ts) and [response checks](../frontend/src/apiResponses.ts) | Send the original evidence text, handle HTTP responses and check that display fields have the expected types. Python supplies the verification results. |
+| [Request tracking](../frontend/src/useCancellableRequest.ts) | Track verification and inspection separately. Abort browser requests on cancellation or when React removes the application from the page, and ignore late responses after cancellation or retry, including after JSON parsing. |
+| [Completion feedback](../frontend/src/useWorkflowFeedback.ts) | Coordinate announcements, focus and scrolling, giving up automatic focus when the user moves elsewhere. |
+| [Evidence details](../frontend/src/EvidenceDetails.tsx) | Display observations, verification checks and sequences in their supplied order. |
+| [Field help](../frontend/src/FieldHelp.tsx) and [help state](../frontend/src/useVerificationFieldHelp.ts) | Share the field-tooltip markup and manage deliberate opening, dismissal and a single pinned tooltip. |
