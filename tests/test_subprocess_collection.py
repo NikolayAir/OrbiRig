@@ -90,6 +90,28 @@ def test_exact_compact_command_document_is_sent_for_each_target_mode(
     assert observation.command == command
 
 
+@pytest.mark.parametrize("scenario_id", [
+    "nominal_to_safe_mode",
+    "nominal_to_nominal_rejection",
+    "safe_to_nominal_mode",
+])
+def test_subprocess_workflow_rejects_string_scenario_before_collection(monkeypatch, scenario_id):
+    def unexpected_operation(*args, **kwargs):
+        raise AssertionError("an invalid scenario argument must not collect an observation or build a record")
+
+    monkeypatch.setattr(execution_module, "collect_subprocess_observation", unexpected_operation)
+    monkeypatch.setattr(execution_module, "build_verified_execution_record", unexpected_operation)
+
+    with pytest.raises(TypeError, match="scenario_id must be a ScenarioId member"):
+        execute_verified_subprocess_workflow(
+            argv=_argv("pass"),
+            timeout=2.0,
+            execution_id="invalid-scenario-type",
+            executed_at=EXECUTED_AT,
+            scenario_id=scenario_id,
+        )
+
+
 def test_successful_external_collection_reconstructs_observation():
     observation = _collect("pass")
 

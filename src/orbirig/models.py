@@ -146,6 +146,11 @@ def command_for_scenario(
 ) -> SetOperatingModeCommand:
     """Return the command required by a supported verification scenario."""
 
+    # ScenarioId members compare equal to their strings. Check the type before
+    # choosing a command so a plain string cannot reach command execution.
+    if not isinstance(scenario_id, ScenarioId):
+        raise TypeError("scenario_id must be a ScenarioId member")
+
     if scenario_id is ScenarioId.NOMINAL_TO_SAFE_MODE:
         return SET_SAFE_MODE_COMMAND
 

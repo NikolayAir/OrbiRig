@@ -106,6 +106,34 @@ def test_verified_reference_workflow_builds_passing_record():
     assert all(result.passed for result in record.invariant_results)
 
 
+@pytest.mark.parametrize("scenario_id", [
+    "nominal_to_safe_mode",
+    "nominal_to_nominal_rejection",
+    "safe_to_nominal_mode",
+])
+def test_reference_workflow_rejects_string_scenario_before_command_execution(monkeypatch, scenario_id):
+    spacecraft = ReferenceSpacecraft()
+    spacecraft.handle_command(SetOperatingModeCommand(target_mode=OperatingMode.SAFE))
+    initial_state = spacecraft.read_state()
+    initial_telemetry = spacecraft.read_telemetry()
+
+    def unexpected_command(command):
+        raise AssertionError("an invalid scenario argument must not execute a command")
+
+    monkeypatch.setattr(spacecraft, "handle_command", unexpected_command)
+
+    with pytest.raises(TypeError, match="scenario_id must be a ScenarioId member"):
+        execute_verified_reference_workflow(
+            spacecraft=spacecraft,
+            execution_id=EXECUTION_ID,
+            executed_at=EXECUTED_AT,
+            scenario_id=scenario_id,
+        )
+
+    assert spacecraft.read_state() == initial_state
+    assert spacecraft.read_telemetry() == initial_telemetry
+
+
 def test_acknowledgement_error_does_not_build_a_verified_record(monkeypatch):
     error = RuntimeError("injected acknowledgement error")
     builder_called = False

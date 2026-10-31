@@ -6,6 +6,8 @@ The Python API checks recorded command results against an explicit scenario and 
 
 Use Python 3.12–3.15. Install the core from the repository root with `uv sync --locked`. Save an example below as a Python script and run it with `uv run --no-sync python your_script.py`. File paths in the examples are relative to the repository root.
 
+For `scenario_id`, pass a `ScenarioId` member such as `ScenarioId.NOMINAL_TO_SAFE_MODE`. Convert a string explicitly first, for example with `ScenarioId("nominal_to_safe_mode")`. Passing a raw string raises `TypeError` before a command is executed or a subprocess is started.
+
 ## Verify an existing observation
 
 Load the [bundled observation](examples/nominal-to-safe.json) and explicitly choose the expected scenario:
