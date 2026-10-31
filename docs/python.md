@@ -137,6 +137,8 @@ OrbiRig starts 1 process for each submitted command, without interpreting `argv`
 
 `ObservationCollectionError` from `orbirig.subprocess_collection` covers launch failures, timeouts and non-zero exits. It also covers invalid UTF-8, invalid evidence and returned-command mismatches. These errors produce no verified record and do not establish whether the external target changed state.
 
+The program runs with the caller's permissions; collection does not sandbox it. The timeout is not an output-size limit: stdout and stderr are captured in memory without a size limit. The HTTP API's 4 MiB request limit does not apply to subprocess output.
+
 For collection without verification, `collect_subprocess_observation(...)` takes `argv`, `command` and `timeout` and returns a `CommandExecutionObservation`. To verify this observation later, choose the expected scenario separately and pass it to the verifier.
 
 ## Reopen saved verified evidence

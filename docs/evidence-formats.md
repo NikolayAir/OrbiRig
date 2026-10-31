@@ -12,6 +12,12 @@ Evidence JSON records reported observations and verification results. An observa
 
 The evidence form must be known when choosing a reader. Package versions and these format/schema versions are independent; changing one does not imply changing the others.
 
+## What validation establishes
+
+Recomputing checks confirms whether the saved results agree with the saved scenario and observation. It does not prove that the observation describes an actual command execution. OrbiRig does not sign evidence or confirm who provided the observations, execution IDs or timestamps.
+
+If someone changes an observation and replaces its checks with matching results, the document can still be valid. Establishing where the data came from and whether it was changed requires safeguards outside these JSON checks.
+
 ## Shared JSON rules
 
 Readers reject malformed JSON and repeated field names within any object, including nested objects. They also reject unsupported versions, missing or extra fields, incorrect JSON types and unsupported enum values. Version fields must be JSON integers, not booleans. Modes are exactly `NOMINAL` or `SAFE`; the only command type is `SET_OPERATING_MODE`.

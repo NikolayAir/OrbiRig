@@ -61,6 +61,16 @@ uv run --no-sync python -m pyright
 
 pytest checks reference behaviour and deliberate observation mismatches, including that rejected commands and command-handling errors leave the reference state unchanged. It also checks repeatability, saved evidence, untrusted JSON and integration through the CLI, HTTP API and subprocess collector. Branch coverage spans the complete `orbirig` package and reports missing lines and branches. There is no minimum coverage threshold.
 
+To inspect the assertions behind the main verification claims, start here:
+
+| Property | Tests to inspect |
+| --- | --- |
+| Scenario expectations detect deliberately incorrect observations | [Invariant checks](tests/test_verification.py) and [verified records](tests/test_verified_execution.py) |
+| Saved checks are recomputed; consistent `FAIL` remains valid | [Record reading](tests/test_verified_execution_deserialisation.py) and [sequence evidence](tests/test_sequence_evidence.py) |
+| Continuity uses the provided order, including repeated IDs or times | [Sequence verification](tests/test_sequence_verification.py) |
+| Collection errors produce no verified record | [Subprocess collection](tests/test_subprocess_collection.py) |
+| HTTP requests preserve evidence text and reject oversized bodies | [Observation verification](tests/test_web_observation_verification.py) and [request limits](tests/test_web_request_body_limit.py) |
+
 Behave describes the 3 supported command scenarios in Given/When/Then steps: the starting mode, command and expected result. Use pytest for detailed negative cases instead of duplicating them in Behave.
 
 Pyright checks the package, pytest tests, Behave steps and distribution scripts in standard mode against Python 3.12 language and typing rules, regardless of the development interpreter. CI supplies Node.js 22 for its underlying type checker.

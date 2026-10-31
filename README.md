@@ -104,6 +104,8 @@ You can also check records together or reopen saved evidence:
 - **Check a sequence.** For 2 or more records, the Python API checks **continuity**: the mode after one command must match the mode before the next. The records stay in the order you provide them. The sequence passes only when every record and every continuity check passes.
 - **Reopen saved evidence.** Loading verified execution or sequence JSON validates its format and recomputes the checks and outcome, including continuity for a sequence. The saved checks and outcome must match these results exactly, including for `FAIL` records. Contradictory saved results are rejected.
 
+These checks assess the reported data. They do not prove that a command was executed or identify who produced the JSON. See [what evidence validation establishes](docs/evidence-formats.md#what-validation-establishes).
+
 See [verification concepts](docs/verification.md) for the 3 supported scenarios, observation collection and sequence checks, or the [evidence format reference](docs/evidence-formats.md) for JSON fields and validation rules.
 
 ## Documentation
