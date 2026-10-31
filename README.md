@@ -1,10 +1,16 @@
 # OrbiRig
 
-OrbiRig is a non-operational Python verification harness for simplified spacecraft mode changes. It checks recorded command results against explicitly selected expectations. Observations and check results can be exported as versioned JSON evidence.
+OrbiRig is a software tool for checking recorded command results against the expected behaviour of a scenario you select. It supports 3 scenarios and shows the expected and reported values for each check, with an overall `PASS` or `FAIL`.
 
-For example, a command may request a change from `NOMINAL` (normal operation) to `SAFE` (a protective mode). OrbiRig checks the mode before and after the command, its acknowledgement (whether it was accepted or rejected), and telemetry (the reported mode). These modes form a simplified model; the harness does not control a real spacecraft.
+The scenarios use a simplified spacecraft model with 2 operating modes: `NOMINAL` (normal operation) and `SAFE` (a protective mode). OrbiRig checks the mode before and after a command, its acknowledgement (whether it was accepted or rejected), and telemetry (the separately reported mode). This is a non-operational verification harness; it does not control a real spacecraft.
 
-Use the [web interface](https://orbirig-evidence-inspector.onrender.com/), command-line tool or Python API. The Python core works independently of the web application.
+Choose how to use it:
+
+| Interface | What you can do |
+| --- | --- |
+| [Browser](https://orbirig-evidence-inspector.onrender.com/) | Verify an observation or inspect saved observations, verified executions and sequences. |
+| [Command line](docs/cli.md) | Verify an observation file and save the result as JSON. |
+| [Python API](docs/python.md) | Also execute reference examples, collect observations from a separate program and verify sequences. |
 
 ## Quick start
 
@@ -14,9 +20,11 @@ Use the [web interface](https://orbirig-evidence-inspector.onrender.com/), comma
 2. Choose **Load example**, then **Verify observation**.
 3. Inspect the expected and observed values. The default example records an accepted change from `NOMINAL` to `SAFE` and produces `PASS`.
 
-To explore saved records, choose **Inspect evidence**, select an evidence type, load its example and choose **Inspect evidence**. These browser actions check recorded data; they do not execute commands.
+To explore saved records, choose **Inspect evidence**, select an evidence type, load its example and choose **Inspect evidence**.
 
-![OrbiRig web interface showing the observation-verification workflow](docs/images/orbirig-web-verification.png)
+![Verification result showing 3 passing checks and a failed telemetry check: expected SAFE, actual NOMINAL](docs/images/orbirig-web-verification.png)
+
+The result above uses an observation with telemetry that does not match the recorded post-state: the post-state is `SAFE`, but telemetry reports `NOMINAL`. OrbiRig shows the mismatch and returns `FAIL`.
 
 See the [web-interface guide](docs/web-interface.md) to run it locally or use the HTTP endpoints.
 
@@ -34,35 +42,44 @@ uv run --no-sync orbirig verify-observation docs/examples/nominal-to-safe.json \
   --executed-at 2026-10-21T10:00:00Z
 ```
 
-The command prints a verified execution record as JSON with four passing checks and `"outcome": "PASS"`. It exits with code `0`.
+The command prints a verified execution record as JSON with 4 passing checks and `"outcome": "PASS"`. It exits with code `0`.
 
 See the [CLI guide](docs/cli.md) for a failing example, saving output and exit codes, or the [Python guide](docs/python.md) to execute a repeatable reference example and check sequences.
 
 ## How verification works
 
-Choose a **scenario** to state the expected behaviour before verification. Supply a recorded **observation**, or use the Python API to execute a command and collect one. OrbiRig never chooses the scenario from the recorded result.
+Choose a **scenario** to state the expected behaviour before verification. An **observation** records the command and its reported result. **Evidence** is an observation or verified result represented as JSON, a text format for structured data. OrbiRig never chooses the scenario from the observation.
 
 ```mermaid
+---
+config:
+  layout: dagre
+  look: classic
+  flowchart:
+    diagramPadding: 16
+    wrappingWidth: 280
+---
 flowchart TD
-    accTitle: From an observation to verified evidence
-    accDescr: Observation JSON is validated and loaded, or the Python API collects the result of a command supplied by the selected scenario. The observation and the scenario's separate expectations feed Python verification. Valid, compatible input produces a record with four checks and a PASS or FAIL outcome, which can be exported as versioned JSON. Invalid or incompatible input produces an error without a verified record.
-    saved["Observation JSON"] --> load("Validate and load JSON")
-    scenario["Selected scenario"] -->|Command| collect("Collect via Python API<br/>reference or subprocess")
-    collect --> observation
-    load --> observation["Observation<br/>command + reported values"]
-    scenario -->|Expectations| verifier("Verify in Python<br/>four invariant checks")
-    observation --> verifier
-    load -->|Invalid data| error["Input error<br/>no verified record"]
+    accTitle: Verification overview
+    accDescr: Recorded observations are validated before Python compares their reported values with expectations from an independently selected scenario. Valid, compatible input produces a verified record with 4 checks and a PASS or FAIL outcome, ready for JSON export. Invalid input or a command that does not match the selected scenario produces an input error without a record.
+    observation["<b>Observation</b><br/>command + reported values"] --> validate("Validate observation")
+    validate --> verifier
+    scenario["Selected scenario"] --->|Expectations| verifier("Run 4 checks in the Python core")
+    validate -->|Invalid data| error["<b>Input error</b><br/>no verified record"]
     verifier -->|Command mismatch| error
-    verifier --> record["Verified execution record<br/>observation + checks<br/>PASS or FAIL"]
+    verifier --> record["<b>Verified execution record</b><br/>scenario + observation + checks<br/>PASS or FAIL"]
     record -->|Export| evidence["Versioned JSON evidence"]
+    classDef action fill:#3b82f633
+    class validate,verifier action
 ```
 
-Rounded boxes show actions; square-cornered boxes show data or results. Collection errors also stop the workflow without a verified record.
+Rounded boxes show actions; square-cornered boxes show data or results. See the [architecture guide](docs/architecture.md#verification-flow) for the detailed collection, validation and error paths.
 
-The **Python core** owns validation, scenario rules, verification and evidence formats. The browser and CLI use this core to check recorded data without executing commands.
+The **Python core** validates inputs, defines scenario expectations, performs verification and reads or writes evidence. The React/TypeScript browser interface and CLI use this same core, so each interface applies the same verification rules. The core also works without the web application.
 
-The Python API can collect an observation from the included `ReferenceSpacecraft` or a separate target program, invoked as a subprocess. `ReferenceSpacecraft` is a simplified, deterministic **test double** used to produce repeatable observations; separate verification rules decide whether those observations meet expectations.
+The Python API can execute a command and collect an observation from the included `ReferenceSpacecraft` or a separate program, invoked as a subprocess. `ReferenceSpacecraft` is a simplified, deterministic **test double** used to produce repeatable observations. Scenario expectations are defined separately, so its reported behaviour does not determine what counts as correct.
+
+[Tests](CONTRIBUTING.md#python-checks) include deliberately incorrect observations and [browser-to-Python checks](CONTRIBUTING.md#browser-tests) with independently defined expected results.
 
 Each verification check, called an **invariant**, retains the expected value, observed value and whether they match:
 
@@ -70,39 +87,38 @@ Each verification check, called an **invariant**, retains the expected value, ob
 | --- | --- |
 | Pre-state | The starting mode matches the selected scenario. |
 | Acknowledgement | The reported acceptance or rejection matches the scenario. |
-| Post-state | The mode matches the scenario's target, or the pre-state when rejection is expected. |
+| Post-state | The mode after the command matches the scenario's target, or the starting mode when rejection is expected. |
 | Telemetry | The reported mode matches the observed post-state. |
 
-Supply an execution ID and UTC timestamp to identify the verified record. It retains the selected scenario, observation, all four checks and overall outcome. Verification outcomes and errors have different meanings:
+Provide an execution ID and a UTC timestamp for the recorded execution. The verified record retains the selected scenario, observation, all 4 checks and overall outcome. Verification outcomes and errors have different meanings:
 
 | Status | Meaning |
 | --- | --- |
 | `PASS` | Every check meets its expectation. A rejected command can pass when rejection is expected. |
-| `FAIL` | The observation is valid input, but at least one check does not meet its expectation. |
+| `FAIL` | The observation is valid input, but at least 1 check does not meet its expectation. |
 | Input error | The data cannot be verified. Examples include invalid JSON or a command that does not match the selected scenario. No verification result is produced. |
 | Collection error | No usable observation was collected, for example because the target subprocess timed out. No verification result is produced. |
 
-Two further workflows build on these records:
+You can also check records together or reopen saved evidence:
 
-- **Check a sequence.** For two or more records, OrbiRig checks **continuity**: the mode after one command must match the mode before the next. Records stay in the supplied order. The sequence passes only when every record and every continuity check passes.
-- **Reopen saved evidence.** Loading verified execution or sequence JSON validates its format and recomputes the checks and outcome, including continuity for a sequence. Stored results must agree exactly; inconsistent evidence is rejected. A consistent `FAIL` remains valid evidence.
+- **Check a sequence.** For 2 or more records, the Python API checks **continuity**: the mode after one command must match the mode before the next. The records stay in the order you provide them. The sequence passes only when every record and every continuity check passes.
+- **Reopen saved evidence.** Loading verified execution or sequence JSON validates its format and recomputes the checks and outcome, including continuity for a sequence. The saved checks and outcome must match these results exactly, including for `FAIL` records. Contradictory saved results are rejected.
 
-See [verification concepts](docs/verification.md) for the three supported scenarios, collection boundaries and detailed workflows, or the [evidence format reference](docs/evidence-formats.md) for JSON contracts.
+These checks assess the reported data. They do not prove that a command was executed or identify who produced the JSON. See [what evidence validation establishes](docs/evidence-formats.md#what-validation-establishes).
+
+See [verification concepts](docs/verification.md) for the 3 supported scenarios, observation collection and sequence checks, or the [evidence format reference](docs/evidence-formats.md) for JSON fields and validation rules.
 
 ## Documentation
 
 | I want to… | Guide |
 | --- | --- |
 | Understand the scenarios, results and sequence checks | [Verification concepts](docs/verification.md) |
+| Follow the detailed verification flow and component responsibilities | [Architecture](docs/architecture.md) |
 | Verify a saved observation in a terminal | [Command-line use](docs/cli.md) |
-| Use the Python API or collect from a separate program | [Python workflows](docs/python.md) |
+| Use the Python API or collect from a separate program | [Using the Python API](docs/python.md) |
 | Use or run the browser interface and HTTP endpoints | [Web interface](docs/web-interface.md) |
 | Check JSON formats, execution IDs and timestamps | [Evidence format reference](docs/evidence-formats.md) |
 | Set up development and run tests | [Contributing and development](CONTRIBUTING.md) |
-
-## Scope
-
-The Python API can collect one command result per invocation of a separate target program. Remote target execution over HTTP, built-in evidence storage, replay and report generation are not implemented. The project does not claim operational suitability or compliance with a space-industry standard.
 
 ## Releases and support
 

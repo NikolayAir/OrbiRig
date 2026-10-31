@@ -158,10 +158,12 @@ def check_cli(distribution: importlib.metadata.Distribution) -> None:
     help_result = run([str(command), "verify-observation", "--help"], 0)
     assert b"usage: orbirig verify-observation" in help_result.stdout
 
-    # The reader is closed before launch, so this cannot race with the child.
     file.write_text(json.dumps(observation), encoding="utf-8")
     for invocation in (arguments, [str(command), "--help"], [str(command), "verify-observation", "--help"]):
         reader, writer = os.pipe()
+        # Close the pipe's read end before starting the child process.
+        # With no reader, sending output must fail. Closing it before launch
+        # removes any dependency on process timing (a race condition).
         os.close(reader)
         with os.fdopen(writer, "wb") as output:
             broken_pipe = subprocess.run(

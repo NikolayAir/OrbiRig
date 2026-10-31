@@ -433,7 +433,8 @@ def test_sdist_checker_accepts_required_files(sdist_files, tmp_path):
 
 @pytest.mark.parametrize("content", [None, b""], ids=["missing", "empty"])
 @pytest.mark.parametrize("name", [
-    "src/orbirig/evidence.py", "src/orbirig/cli.py", "pyproject.toml", "LICENSE",
+    "src/orbirig/evidence.py", "src/orbirig/_strict_json.py", "src/orbirig/cli.py",
+    "pyproject.toml", "LICENSE",
     "scripts/verify_distributions.py", "scripts/check_installed_core.py",
     "tests/fixtures/subprocess_observation_peer.py",
 ])

@@ -7,7 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from orbirig import web
-from orbirig.evidence import _load_strict_json, _StrictJSONError
+from orbirig._strict_json import _load_strict_json, _StrictJSONError
 
 
 @pytest.fixture(params=[

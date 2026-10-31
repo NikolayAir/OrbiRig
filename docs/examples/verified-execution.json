@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "execution": {
+    "execution_id": "example-001",
+    "scenario_id": "nominal_to_safe_mode",
+    "executed_at": "2026-10-21T10:00:00Z"
+  },
+  "observation": {
+    "command": {
+      "command_type": "SET_OPERATING_MODE",
+      "target_mode": "SAFE"
+    },
+    "pre_state": {
+      "operating_mode": "NOMINAL"
+    },
+    "acknowledgement": {
+      "accepted": true
+    },
+    "post_state": {
+      "operating_mode": "SAFE"
+    },
+    "telemetry": {
+      "operating_mode": "SAFE"
+    }
+  },
+  "invariant_results": [
+    {
+      "invariant_id": "pre_state_matches_expected",
+      "passed": true,
+      "expected": "NOMINAL",
+      "actual": "NOMINAL"
+    },
+    {
+      "invariant_id": "acknowledgement_is_accepted",
+      "passed": true,
+      "expected": true,
+      "actual": true
+    },
+    {
+      "invariant_id": "post_state_matches_requested_mode",
+      "passed": true,
+      "expected": "SAFE",
+      "actual": "SAFE"
+    },
+    {
+      "invariant_id": "telemetry_matches_post_state",
+      "passed": true,
+      "expected": "SAFE",
+      "actual": "SAFE"
+    }
+  ],
+  "outcome": "PASS"
+}

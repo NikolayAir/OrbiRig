@@ -3,6 +3,7 @@
 import json
 from datetime import datetime
 
+from orbirig._strict_json import _load_strict_json
 from orbirig.models import (
     Acknowledgement,
     CommandExecutionObservation,
@@ -46,52 +47,6 @@ _ACKNOWLEDGEMENT_INVARIANT_IDS = frozenset(
 )
 
 
-class _StrictJSONError(ValueError):
-    """Report one controlled failure while decoding strict JSON input."""
-
-
-def _parse_json_integer(serialized: str) -> int:
-    """Convert a JSON integer, reporting digit-limit failures as decoding errors."""
-
-    try:
-        return int(serialized)
-    except ValueError as exc:
-        raise _StrictJSONError("JSON integer exceeds the conversion limit") from exc
-
-
-def _reject_duplicate_object_members(
-    pairs: list[tuple[str, object]],
-) -> dict[str, object]:
-    """Construct one JSON object while rejecting duplicate member names."""
-
-    document = {}
-
-    for name, value in pairs:
-        if name in document:
-            raise _StrictJSONError("duplicate JSON object member name")
-
-        document[name] = value
-
-    return document
-
-
-def _load_strict_json(
-    serialized: str | bytes,
-    *,
-    invalid_json_message: str,
-) -> object:
-    """Decode JSON, rejecting duplicate members, overlong integers and excessive nesting."""
-
-    try:
-        return json.loads(
-            serialized,
-            parse_int=_parse_json_integer,
-            object_pairs_hook=_reject_duplicate_object_members,
-        )
-    except (json.JSONDecodeError, RecursionError) as exc:
-        raise _StrictJSONError(invalid_json_message) from exc
-
-
 def _require_object(
     value: object,
     *,
@@ -101,7 +56,8 @@ def _require_object(
     """Validate one JSON object against its exact expected fields."""
 
     if not isinstance(value, dict):
-        # Invalid evidence follows the readers' ValueError contract.
+        # All evidence readers report invalid input with ValueError.
+        # Keep that error type here, even when the JSON value has the wrong type.
         raise ValueError(f"{path} must be a JSON object")  # noqa: TRY004
 
     actual_fields = set(value)
@@ -237,7 +193,7 @@ def _parse_execution_outcome(
     *,
     path: str,
 ) -> ExecutionOutcome:
-    """Parse one supported derived execution outcome."""
+    """Read a saved PASS or FAIL outcome."""
 
     serialized_outcome = _require_string(value, path=path)
 
@@ -291,7 +247,8 @@ def _parse_observation_document(
         path=_nested_path(command_path, "command_type"),
     )
 
-    # Keep the v1 wire contract closed if CommandType gains new members later.
+    # Evidence format v1 accepts only SET_OPERATING_MODE.
+    # Adding another CommandType must not automatically make v1 accept it.
     if command_type != CommandType.SET_OPERATING_MODE.value:
         raise ValueError(
             f"{_nested_path(command_path, 'command_type')} "
@@ -471,7 +428,7 @@ def _parse_verified_execution_document(
     *,
     path: str,
 ) -> VerifiedExecutionRecord:
-    """Reconstruct one canonically consistent verified record object."""
+    """Recompute a saved record's checks and outcome and reject mismatches."""
 
     root = _require_object(
         document,
@@ -539,15 +496,17 @@ def _parse_verified_execution_document(
         observation=observation,
     )
 
+    # Compare the full ordered checks, not just the outcome. Matching FAIL evidence is valid.
     if persisted_results != canonical_record.invariant_results:
         raise ValueError(
-            f"{invariant_results_path} do not match canonical "
-            "verification results",
+            f"{invariant_results_path} do not match the checks recomputed "
+            "from the saved scenario and observation",
         )
 
     if persisted_outcome is not canonical_record.outcome:
         raise ValueError(
-            f"{outcome_path} does not match canonical verification result",
+            f"{outcome_path} does not match the outcome recomputed "
+            "from the saved scenario and observation",
         )
 
     return canonical_record
@@ -556,7 +515,7 @@ def _parse_verified_execution_document(
 def deserialize_verified_execution_evidence(
     serialized: str,
 ) -> VerifiedExecutionRecord:
-    """Reconstruct canonically consistent verified-execution evidence."""
+    """Load a verified record, recompute its checks and outcome and reject mismatches."""
 
     document = _load_strict_json(
         serialized,
@@ -718,7 +677,7 @@ def _parse_continuity_results(
 def deserialize_verified_execution_sequence_evidence(
     serialized: str,
 ) -> VerifiedExecutionSequence:
-    """Reconstruct canonically consistent verified-sequence evidence."""
+    """Load a sequence and recheck its records, continuity checks and overall outcome."""
 
     document = _load_strict_json(
         serialized,
@@ -766,16 +725,20 @@ def deserialize_verified_execution_sequence_evidence(
         root["outcome"],
         path="outcome",
     )
+    # Compare each record's ending mode with the next record's starting mode
+    # in the saved order (sequence continuity). Do not sort by ID or time.
     canonical_sequence = verify_execution_sequence(records)
 
     if persisted_results != canonical_sequence.continuity_results:
         raise ValueError(
-            "continuity_results do not match canonical sequence results",
+            "continuity_results do not match the continuity checks "
+            "recomputed from the saved records",
         )
 
     if persisted_outcome is not canonical_sequence.outcome:
         raise ValueError(
-            "outcome does not match canonical sequence result",
+            "outcome does not match the sequence outcome "
+            "recomputed from the saved records",
         )
 
     return canonical_sequence

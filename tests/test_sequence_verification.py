@@ -214,7 +214,7 @@ def test_multiple_discontinuities_are_preserved():
 def test_fewer_than_two_records_are_rejected(records):
     with pytest.raises(
         ValueError,
-        match="requires at least two records",
+        match="requires at least 2 records",
     ):
         verify_execution_sequence(records)
 
@@ -222,7 +222,7 @@ def test_fewer_than_two_records_are_rejected(records):
 def test_sequence_model_rejects_fewer_than_two_records():
     with pytest.raises(
         ValueError,
-        match="requires at least two records",
+        match="requires at least 2 records",
     ):
         VerifiedExecutionSequence(
             records=(_nominal_to_safe("only"),),
@@ -233,7 +233,7 @@ def test_sequence_model_rejects_fewer_than_two_records():
 def test_sequence_model_rejects_incorrect_continuity_result_count():
     with pytest.raises(
         ValueError,
-        match="one continuity result per adjacent record pair",
+        match="1 continuity result per adjacent record pair",
     ):
         VerifiedExecutionSequence(
             records=(

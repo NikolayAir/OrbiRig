@@ -1,4 +1,4 @@
-"""Behave steps for supported operating-mode verification workflows."""
+"""Behave steps for the supported operating-mode command scenarios."""
 
 from datetime import UTC, datetime
 
@@ -10,6 +10,7 @@ from orbirig.reference_sut import ReferenceSpacecraft
 
 EXECUTED_AT = datetime(2026, 8, 8, tzinfo=UTC)
 
+# Choose expectations from the declared Given/When intent, not the observed spacecraft state.
 SCENARIO_BY_INTENT = {
     (
         OperatingMode.NOMINAL,

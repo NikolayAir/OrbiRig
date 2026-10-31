@@ -11,4 +11,5 @@ services:
     autoDeployTrigger: checksPass
     envVars:
       - key: PYTHON_VERSION
-        value: "3.12.15"
+        # Pin deployment separately from the development default in .python-version.
+        value: "3.12.16"

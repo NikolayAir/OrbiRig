@@ -12,6 +12,7 @@ export default defineConfig(({ mode }) => ({
   },
   server: {
     proxy: {
+      // Browser tests must reach their own backend rather than an unrelated development server.
       "/api": mode === "e2e" ? E2E_BACKEND_URL : "http://127.0.0.1:8000",
     },
   },

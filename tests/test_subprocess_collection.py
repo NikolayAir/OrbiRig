@@ -47,6 +47,34 @@ def _collect(mode: str, *, timeout: float = 2.0):
     )
 
 
+@pytest.mark.parametrize("argv", [[], ()], ids=["empty-list", "empty-tuple"])
+def test_empty_argv_is_rejected_before_launch(monkeypatch, argv):
+    def unexpected_launch(*args, **kwargs):
+        raise AssertionError("an empty argv must not start a process")
+
+    monkeypatch.setattr(collection_module.subprocess, "run", unexpected_launch)
+
+    with pytest.raises(ValueError, match="argv must include the program to run"):
+        collect_subprocess_observation(argv=argv, command=SAFE_COMMAND, timeout=2.0)
+
+
+def test_verified_subprocess_workflow_rejects_empty_argv_without_launch_or_record(monkeypatch):
+    def unexpected_operation(*args, **kwargs):
+        raise AssertionError("an empty argv must not start a process or build a record")
+
+    # Invalid program arguments must stop collection, without producing PASS or FAIL evidence.
+    monkeypatch.setattr(collection_module.subprocess, "run", unexpected_operation)
+    monkeypatch.setattr(execution_module, "build_verified_execution_record", unexpected_operation)
+
+    with pytest.raises(ValueError, match="argv must include the program to run"):
+        execute_verified_subprocess_workflow(
+            argv=[],
+            timeout=2.0,
+            execution_id="empty-argv",
+            executed_at=EXECUTED_AT,
+        )
+
+
 @pytest.mark.parametrize("target_mode", tuple(OperatingMode))
 def test_exact_compact_command_document_is_sent_for_each_target_mode(
     target_mode,
@@ -60,6 +88,28 @@ def test_exact_compact_command_document_is_sent_for_each_target_mode(
     )
 
     assert observation.command == command
+
+
+@pytest.mark.parametrize("scenario_id", [
+    "nominal_to_safe_mode",
+    "nominal_to_nominal_rejection",
+    "safe_to_nominal_mode",
+])
+def test_subprocess_workflow_rejects_string_scenario_before_collection(monkeypatch, scenario_id):
+    def unexpected_operation(*args, **kwargs):
+        raise AssertionError("an invalid scenario argument must not collect an observation or build a record")
+
+    monkeypatch.setattr(execution_module, "collect_subprocess_observation", unexpected_operation)
+    monkeypatch.setattr(execution_module, "build_verified_execution_record", unexpected_operation)
+
+    with pytest.raises(TypeError, match="scenario_id must be a ScenarioId member"):
+        execute_verified_subprocess_workflow(
+            argv=_argv("pass"),
+            timeout=2.0,
+            execution_id="invalid-scenario-type",
+            executed_at=EXECUTED_AT,
+            scenario_id=scenario_id,
+        )
 
 
 def test_successful_external_collection_reconstructs_observation():

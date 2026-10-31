@@ -1,16 +1,18 @@
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 
-type HelpSection = "browser" | "cli";
-type BrowserWorkflow = "verification" | "inspection";
+import type { Workflow } from "./workflowTypes";
 
-function revealFocusedControl(dialog: HTMLDialogElement, element: HTMLElement) {
+type HelpSection = "browser" | "cli";
+
+function scrollFocusedControlIntoView(dialog: HTMLDialogElement, element: HTMLElement) {
   const focused = element.getBoundingClientRect();
   const style = getComputedStyle(element);
   const outline = Math.max(0, parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset));
   const viewportTop = dialog.getBoundingClientRect().top + dialog.clientTop;
   const top = viewportTop + outline;
   const bottom = viewportTop + dialog.clientHeight - outline;
-  // Keep the focus outline visible, including engines with integral scroll offsets.
+  // Some browsers scroll only by whole pixels.
+  // Round the distance outwards so the entire focus outline stays visible.
   if (focused.top < top) {
     dialog.scrollTop += Math.floor(focused.top - top);
   } else if (focused.bottom > bottom) {
@@ -18,7 +20,7 @@ function revealFocusedControl(dialog: HTMLDialogElement, element: HTMLElement) {
   }
 }
 
-export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: BrowserWorkflow }) {
+export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const browserTabRef = useRef<HTMLButtonElement>(null);
@@ -30,7 +32,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: BrowserWorkfl
   const inspectionTabRef = useRef<HTMLButtonElement>(null);
   const [help, setHelp] = useState<{
     section: HelpSection;
-    browserWorkflow: BrowserWorkflow;
+    browserWorkflow: Workflow;
     scrollToWorkflow: boolean;
     trigger: HTMLButtonElement;
   } | null>(null);
@@ -52,7 +54,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: BrowserWorkfl
           if (help.scrollToWorkflow && tabs !== null) {
             dialogRef.current.scrollTop = tabs.offsetTop;
           } else if (document.activeElement instanceof HTMLElement && headerRef.current?.contains(document.activeElement)) {
-            revealFocusedControl(dialogRef.current, document.activeElement);
+            scrollFocusedControlIntoView(dialogRef.current, document.activeElement);
           }
         } else {
           dialogRef.current.scrollTop = 0;
@@ -80,6 +82,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: BrowserWorkfl
     };
 
     measureAvailableSpace();
+    // Header wrapping and enlarged text can change the available space without a window resize.
     const observer = new ResizeObserver(measureAvailableSpace);
     observer.observe(dialog);
     observer.observe(header);
@@ -87,7 +90,9 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: BrowserWorkfl
   }, [help]);
 
   function openHelp(section: HelpSection, trigger: HTMLButtonElement) {
-    // A distinct request also reopens the same guide before the close event arrives.
+    // Create a new state object even when reopening the same guide.
+    // This reruns the code that calls showModal() (useEffect), even if the previous
+    // close event has not been delivered yet.
     setHelp({ section, trigger, browserWorkflow: activeWorkflow, scrollToWorkflow: false });
   }
 
@@ -97,14 +102,14 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: BrowserWorkfl
       : { ...current, section, scrollToWorkflow: false });
   }
 
-  function selectBrowserWorkflow(browserWorkflow: BrowserWorkflow) {
+  function selectBrowserWorkflow(browserWorkflow: Workflow) {
     setHelp((current) => current === null || current.browserWorkflow === browserWorkflow
       ? current
       : { ...current, browserWorkflow, scrollToWorkflow: true });
   }
 
-  function navigateBrowserTabs(event: KeyboardEvent<HTMLButtonElement>, current: BrowserWorkflow) {
-    let next: BrowserWorkflow;
+  function navigateBrowserTabs(event: KeyboardEvent<HTMLButtonElement>, current: Workflow) {
+    let next: Workflow;
     switch (event.key) {
       case "ArrowLeft":
       case "ArrowRight":
@@ -182,6 +187,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: BrowserWorkfl
             return;
           }
 
+          // Backdrop clicks also target the dialog; close only when the click is outside its bounds.
           const bounds = event.currentTarget.getBoundingClientRect();
           if (
             event.clientX < bounds.left || event.clientX > bounds.right ||
@@ -196,7 +202,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: BrowserWorkfl
           className="workflow-help-header"
           onFocus={(event) => {
             if (scrollWholeDialog && dialogRef.current !== null) {
-              revealFocusedControl(dialogRef.current, event.target);
+              scrollFocusedControlIntoView(dialogRef.current, event.target);
             }
           }}
         >
@@ -358,26 +364,27 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: BrowserWorkfl
               >
                 <ol>
                   <li>
-                    Select the type of saved record: observation, verified execution, or
+                    Select the evidence type: observation, verified execution, or
                     verified-execution sequence.
                   </li>
                   <li>
                     Paste its JSON or choose <strong>Load example</strong>.
                   </li>
                   <li>
-                    Choose <strong>Inspect evidence</strong> to explore its contents in a
-                    structured view.
+                    Choose <strong>Inspect evidence</strong> to see the recorded values
+                    and any saved verification results.
                   </li>
                 </ol>
                 <p>
-                  Inspecting an observation checks whether the record is valid. To check
-                  it against a scenario, use <strong>Verify observation</strong>.
+                  Inspecting an observation checks its JSON structure and supported values.
+                  To compare the reported result with a scenario, use <strong>Verify observation</strong>.
                 </p>
                 <p>
-                  For saved verified executions and sequences, OrbiRig independently
-                  recalculates verification results and checks their consistency. Evidence
-                  with a correctly derived <strong>FAIL</strong> outcome is still valid and
-                  can be inspected.
+                  For saved verified executions and sequences, OrbiRig recalculates each
+                  record's checks and outcome from its scenario and observation, then compares
+                  them with the stored results. For sequences, it also checks continuity in
+                  the saved order. A record with a <strong>FAIL</strong> outcome can still be
+                  inspected when these results match.
                 </p>
               </div>
             </>
@@ -420,7 +427,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: BrowserWorkfl
               </pre>
               <p>
                 The execution ID and timestamp above are examples. For recorded
-                executions, use the corresponding recorded metadata.
+                executions, use the ID and UTC time recorded for that execution.
               </p>
               <p>
                 The command prints JSON evidence in the terminal for both <strong>PASS</strong> and <strong>FAIL</strong> results.

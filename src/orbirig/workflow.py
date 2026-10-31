@@ -1,4 +1,4 @@
-"""Reference command workflow for observation collection."""
+"""Execute reference commands and collect their reported results."""
 
 from orbirig.models import (
     CommandExecutionObservation,
@@ -12,7 +12,7 @@ def execute_reference_workflow(
     spacecraft: ReferenceSpacecraft,
     command: SetOperatingModeCommand,
 ) -> CommandExecutionObservation:
-    """Execute one command and collect its resulting observations."""
+    """Execute 1 reference command and collect 1 observation."""
 
     pre_state = spacecraft.read_state()
     acknowledgement = spacecraft.handle_command(command)

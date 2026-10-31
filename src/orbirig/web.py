@@ -1,4 +1,4 @@
-"""HTTP boundary for OrbiRig evidence inspection and verification."""
+"""HTTP handlers for OrbiRig evidence inspection and verification."""
 
 from http import HTTPStatus
 from pathlib import Path
@@ -7,9 +7,8 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from orbirig._strict_json import _load_strict_json, _StrictJSONError
 from orbirig.evidence import (
-    _load_strict_json,
-    _StrictJSONError,
     deserialize_execution_evidence,
     deserialize_verified_execution_evidence,
     deserialize_verified_execution_sequence_evidence,
@@ -29,6 +28,10 @@ from orbirig.verification import build_verified_execution_record
 
 app = FastAPI()
 _STATIC_DIRECTORY = Path(__file__).with_name("static")
+# Limit the request data held in memory before JSON parsing.
+# 4 MiB means 4 * 1024 * 1024 bytes for the complete HTTP body.
+# For verification, include the fields around the observation too.
+# Count encoded bytes: a UTF-8 character may use more than 1 byte.
 _MAX_EVIDENCE_REQUEST_BYTES = 4 * 1024 * 1024
 _VERIFICATION_REQUEST_FIELDS = frozenset(
     (
@@ -74,6 +77,7 @@ def _invariant_value_presentation(value: InvariantValue) -> bool | str:
 def _verified_execution_presentation(
     record: VerifiedExecutionRecord,
 ) -> dict[str, object]:
+    # HTTP display data has a different shape from versioned evidence in evidence.py.
     return {
         "execution": {
             "execution_id": record.execution_id,
@@ -181,6 +185,7 @@ async def _decode_verification_request(
         )
 
     try:
+        # The request wrapper must reject duplicate fields as well as the embedded evidence.
         document = _load_strict_json(
             await _read_evidence_body(request),
             invalid_json_message="verification request JSON is invalid",
@@ -307,7 +312,7 @@ async def verify_observation_evidence(
 async def inspect_verified_execution_evidence(
     request: Request,
 ) -> dict[str, object]:
-    """Present a verified execution reconstructed by the strict evidence boundary."""
+    """Present a verified execution validated and rechecked by the evidence reader."""
 
     serialized = await _decode_text_plain_evidence(request)
 
@@ -326,7 +331,7 @@ async def inspect_verified_execution_evidence(
 async def inspect_verified_execution_sequence_evidence(
     request: Request,
 ) -> dict[str, object]:
-    """Present a sequence reconstructed by the strict evidence boundary."""
+    """Present a sequence validated and rechecked by the evidence reader."""
 
     serialized = await _decode_text_plain_evidence(request)
 
@@ -341,21 +346,28 @@ async def inspect_verified_execution_sequence_evidence(
     return _verified_execution_sequence_presentation(sequence)
 
 
-if _STATIC_DIRECTORY.is_dir():
+# An interrupted frontend build can leave static/ incomplete. Keep the API
+# available and register frontend routes only when the page and assets exist.
+if (
+    (_STATIC_DIRECTORY / "index.html").is_file()
+    and (_STATIC_DIRECTORY / "assets").is_dir()
+):
     app.mount(
         "/assets",
         StaticFiles(directory=_STATIC_DIRECTORY / "assets"),
         name="frontend-assets",
     )
 
-    @app.get("/favicon.png", include_in_schema=False)
-    async def serve_favicon() -> FileResponse:
-        """Serve the built frontend favicon."""
+    # The icon is optional; a missing icon must not prevent the page from loading.
+    if (_STATIC_DIRECTORY / "favicon.png").is_file():
+        @app.get("/favicon.png", include_in_schema=False)
+        async def serve_favicon() -> FileResponse:
+            """Serve the built frontend favicon."""
 
-        return FileResponse(
-            _STATIC_DIRECTORY / "favicon.png",
-            media_type="image/png",
-        )
+            return FileResponse(
+                _STATIC_DIRECTORY / "favicon.png",
+                media_type="image/png",
+            )
 
     @app.get("/", include_in_schema=False)
     async def serve_frontend() -> FileResponse:

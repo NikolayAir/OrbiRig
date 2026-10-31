@@ -1,4 +1,4 @@
-"""Value models for command-to-telemetry consistency verification."""
+"""Models for scenarios, observations and verification results."""
 
 import re
 from dataclasses import dataclass, field
@@ -7,14 +7,14 @@ from enum import StrEnum
 
 
 class OperatingMode(StrEnum):
-    """Operating modes used by the initial verification model."""
+    """Operating modes supported by the simplified spacecraft model."""
 
     NOMINAL = "NOMINAL"
     SAFE = "SAFE"
 
 
 class CommandType(StrEnum):
-    """Command types used by the initial verification model."""
+    """Command types supported by the simplified spacecraft model."""
 
     SET_OPERATING_MODE = "SET_OPERATING_MODE"
 
@@ -35,15 +35,17 @@ class ExecutionOutcome(StrEnum):
 
 
 class InvalidExecutionMetadataError(ValueError):
-    """Raised when verified-execution metadata is invalid."""
+    """Raised when an execution ID or UTC execution timestamp is invalid."""
 
 
 class ScenarioCommandMismatchError(ValueError):
     """Raised when an observation command does not match its scenario."""
 
 
-# Retain calendar/week dates, basic/extended times and single-character separators.
-# Calendar validity is checked by datetime after the lossless UTC checks below.
+# Recognise calendar dates, ISO week dates and times such as HHMMSS or HH:MM:SS.
+# A single character separates the date and time. datetime checks whether the date is valid.
+# Check the written UTC offset and fractional digits before parsing, so the
+# accepted timestamp retains exactly the same UTC time.
 # In YYYY-Www-HHMMSS, "-HH..." belongs to the time. A "-D" weekday
 # suffix is recognised only before a separator other than an ASCII digit.
 _UTC_TIMESTAMP = re.compile(
@@ -73,7 +75,7 @@ def parse_utc_timestamp(value: str) -> datetime:
         if len(match["clock"]) in (6, 8):
             if fraction[6:].strip("0"):
                 raise InvalidExecutionMetadataError(
-                    "fractional seconds may have more than six decimal places "
+                    "fractional seconds may have more than 6 decimal places "
                     "only if the extra digits are zero",
                 )
             local = value[:match.start("fraction")] + fraction[:6]
@@ -99,7 +101,7 @@ def validate_execution_metadata(
     execution_id: str,
     executed_at: datetime,
 ) -> None:
-    """Validate metadata required by one verified execution."""
+    """Validate the execution ID and UTC execution timestamp."""
 
     if not execution_id.strip():
         raise InvalidExecutionMetadataError(
@@ -144,9 +146,15 @@ def command_for_scenario(
 ) -> SetOperatingModeCommand:
     """Return the command required by a supported verification scenario."""
 
+    # ScenarioId members compare equal to their strings. Check the type before
+    # choosing a command so a plain string cannot reach command execution.
+    if not isinstance(scenario_id, ScenarioId):
+        raise TypeError("scenario_id must be a ScenarioId member")
+
     if scenario_id is ScenarioId.NOMINAL_TO_SAFE_MODE:
         return SET_SAFE_MODE_COMMAND
 
+    # Both request NOMINAL, but their expected starting modes and acknowledgements differ.
     if scenario_id in (
         ScenarioId.NOMINAL_TO_NOMINAL_REJECTION,
         ScenarioId.SAFE_TO_NOMINAL_MODE,
@@ -189,7 +197,7 @@ class CommandExecutionObservation:
 
 
 class InvariantId(StrEnum):
-    """Stable identifiers for command-to-telemetry consistency checks."""
+    """Stable identifiers for scenario verification checks."""
 
     PRE_STATE_MATCHES_EXPECTED = "pre_state_matches_expected"
     ACKNOWLEDGEMENT_IS_ACCEPTED = "acknowledgement_is_accepted"
@@ -226,7 +234,7 @@ class VerifiedExecutionRecord:
     outcome: ExecutionOutcome = field(init=False)
 
     def __post_init__(self) -> None:
-        """Validate inputs and derive scenario metadata and outcome."""
+        """Validate execution details and command compatibility, then derive the outcome."""
 
         validate_execution_metadata(
             execution_id=self.execution_id,
@@ -260,7 +268,7 @@ class VerifiedExecutionRecord:
 
 @dataclass(frozen=True, slots=True)
 class ContinuityBoundaryResult:
-    """Operating-mode continuity result for two adjacent executions."""
+    """Operating-mode continuity result for 2 adjacent executions."""
 
     previous_execution_id: str
     next_execution_id: str
@@ -294,12 +302,12 @@ class VerifiedExecutionSequence:
 
         if len(records) < 2:
             raise ValueError(
-                "verified execution sequence requires at least two records",
+                "verified execution sequence requires at least 2 records",
             )
 
         if len(continuity_results) != len(records) - 1:
             raise ValueError(
-                "verified execution sequence requires one continuity "
+                "verified execution sequence requires 1 continuity "
                 "result per adjacent record pair",
             )
 

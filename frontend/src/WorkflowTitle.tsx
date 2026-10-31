@@ -11,6 +11,7 @@ type Props = {
 export function WorkflowTitle({ headingId, helpId, title, description, onHelpOpen }: Props) {
   const helpRef = useRef<HTMLSpanElement>(null);
   const [open, setOpen] = useState(false);
+  // CSS hover/focus can still apply after Escape; dismissal takes precedence until a new interaction.
   const [dismissed, setDismissed] = useState(false);
   const [above, setAbove] = useState(false);
 
@@ -42,6 +43,7 @@ export function WorkflowTitle({ headingId, helpId, title, description, onHelpOpe
     const tooltip = helpRef.current?.querySelector<HTMLElement>('[role="tooltip"]');
     if (heading && tooltip) {
       const bounds = heading.getBoundingClientRect();
+      // Match the tooltip's 0.4rem gap in styles.css when choosing above or below.
       const gap = 0.4 * (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16);
       const requiredSpace = tooltip.getBoundingClientRect().height + gap;
       setAbove(bounds.bottom + requiredSpace > window.innerHeight && bounds.top >= requiredSpace);

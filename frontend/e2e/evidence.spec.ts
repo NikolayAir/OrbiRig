@@ -89,13 +89,13 @@ test("page identity loads the product mark alongside its name", async ({ page })
 
 test("keyboard workflow selection stays separate from help and preserves edited input", async ({ page, browserName }) => {
   const help = page.getByRole("region", { name: "How it works" });
-  const chooser = page.getByRole("group", { name: "Choose a workflow" });
+  const chooser = page.getByRole("group", { name: "Choose what to do" });
   await expect(help.getByRole("button")).toHaveCount(2);
   await expect(chooser.getByRole("button")).toHaveCount(2);
 
   await page.getByLabel("Execution ID", { exact: true }).fill("keyboard-review");
-  const verify = chooser.getByRole("button", { name: "Show Verify observation workflow" });
-  const inspect = chooser.getByRole("button", { name: "Show Inspect evidence workflow" });
+  const verify = chooser.getByRole("button", { name: "Show Verify observation" });
+  const inspect = chooser.getByRole("button", { name: "Show Inspect evidence" });
   // WebKit on macOS follows native Option-Tab navigation for non-text controls.
   const optionTab = browserName === "webkit" && process.platform === "darwin";
   await verify.focus();
@@ -131,7 +131,7 @@ for (const viewport of [
       const otherTrigger = page.getByRole("button", { name: otherGuide, exact: true });
       const help = page.getByRole("dialog", { name: "How it works" });
       const activePanel = help.getByRole("tabpanel", { name: /^(In the browser|From the command line)$/ });
-      const chooser = page.getByRole("group", { name: "Choose a workflow" });
+      const chooser = page.getByRole("group", { name: "Choose what to do" });
       const chooserTop = await chooser.evaluate((element) => element.getBoundingClientRect().top + window.scrollY);
 
       await expect(page.getByRole("heading", { name: "How it works", level: 2 })).toBeVisible();
@@ -211,7 +211,8 @@ for (const viewport of [
       expect(textBounds.x).toBeGreaterThan(bounds.x);
       expect(textBounds.x + textBounds.width).toBeLessThan(bounds.x + bounds.width);
 
-      // Native Tab order can include the dialog itself and browser chrome.
+      // Tab can move focus to the dialog itself or to the browser's address bar
+      // and other controls outside the page (browser chrome).
       for (const key of ["Tab", "Shift+Tab"]) {
         await page.keyboard.press(key);
         expect(await help.evaluate((element) =>
@@ -406,7 +407,7 @@ test.describe("Touch browser instructions", () => {
     }
     await help.getByRole("button", { name: "Close", exact: true }).tap();
     await expect(page.getByLabel("Execution ID", { exact: true })).toHaveValue("touch-preserved");
-    await expect(page.getByRole("button", { name: "Show Verify observation workflow" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: "Show Verify observation" })).toHaveAttribute("aria-pressed", "true");
   });
 });
 
@@ -428,7 +429,7 @@ for (const guide of ["In the browser", "From the command line"] as const) {
       await help.getByRole("tab", { name: "In the browser", exact: true }).click();
       await expect(help.getByRole("tab", { name: other, selected: true })).toBeVisible();
       await close.click();
-      await expect(page.getByRole("button", { name: `Show ${workflow} workflow` })).toHaveAttribute("aria-pressed", "true");
+      await expect(page.getByRole("button", { name: `Show ${workflow}` })).toHaveAttribute("aria-pressed", "true");
     }
     await browseInstructions("Verify observation");
 
@@ -438,7 +439,7 @@ for (const guide of ["In the browser", "From the command line"] as const) {
     await browseInstructions("Verify observation");
     await expect(verification).toBeVisible();
 
-    await page.getByRole("button", { name: "Show Inspect evidence workflow" }).click();
+    await page.getByRole("button", { name: "Show Inspect evidence" }).click();
     await fillEvidence(page.getByLabel("Evidence JSON", { exact: true }), evidence);
     await browseInstructions("Inspect evidence");
     await page.getByRole("button", { name: "Inspect evidence", exact: true }).click();
@@ -448,14 +449,14 @@ for (const guide of ["In the browser", "From the command line"] as const) {
     await browseInstructions("Inspect evidence");
     await expect(inspection).toBeVisible();
 
-    await page.getByRole("button", { name: "Show Verify observation workflow" }).click();
+    await page.getByRole("button", { name: "Show Verify observation" }).click();
     await expect(page.getByLabel("Execution ID", { exact: true })).toHaveValue("browser-execution");
     await expect(page.getByLabel("Execution time (UTC)", { exact: true })).toHaveValue("2026-08-17T08:00:00Z");
     await expect(page.getByLabel("Scenario", { exact: true })).toHaveValue("nominal_to_safe_mode");
     await expect(page.getByLabel("Observation evidence JSON", { exact: true })).toHaveValue(submittedText);
     await expectOutcome(verification, "Verification outcome", "PASS");
 
-    await page.getByRole("button", { name: "Show Inspect evidence workflow" }).click();
+    await page.getByRole("button", { name: "Show Inspect evidence" }).click();
     await expect(page.getByLabel("Evidence JSON", { exact: true })).toHaveValue(submittedText);
     await expect(field(inspection, "Acknowledgement")).toHaveText("Accepted");
   });
@@ -566,7 +567,7 @@ test("verification reports HTTP 413 for an oversized wrapped request and allows 
   await expect(page.getByLabel("Execution time (UTC)", { exact: true })).toHaveValue("2026-08-17T08:00:00Z");
   await expect(page.getByLabel("Scenario", { exact: true })).toHaveValue("nominal_to_nominal_rejection");
   await expect(page.getByLabel("Observation evidence JSON", { exact: true })).toHaveValue(submittedText);
-  await expect(page.getByRole("button", { name: "Show Verify observation workflow" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "Show Verify observation" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByLabel(/^Verification (outcome|check):/)).toHaveCount(0);
 
   await page.getByLabel("Observation evidence JSON", { exact: true }).fill(document);
@@ -587,7 +588,7 @@ for (const inspection of [
     const limit = 4 * 1024 * 1024;
     const document = evidenceFile(inspection.fixture).replace(/\r\n?/g, "\n");
     const evidence = document + " ".repeat(limit + 1 - Buffer.byteLength(document, "utf8"));
-    await page.getByRole("button", { name: "Show Inspect evidence workflow", exact: true }).click();
+    await page.getByRole("button", { name: "Show Inspect evidence", exact: true }).click();
     await page.getByRole("radio", { name: inspection.type, exact: true }).check();
     const submittedText = await fillEvidence(page.getByLabel("Evidence JSON", { exact: true }), evidence);
     const endpoint = `**/api/inspect/${inspection.endpoint}`;
@@ -605,7 +606,7 @@ for (const inspection of [
     );
     await expect(page.getByLabel("Evidence JSON", { exact: true })).toHaveValue(submittedText);
     await expect(page.getByRole("radio", { name: inspection.type, exact: true })).toBeChecked();
-    await expect(page.getByRole("button", { name: "Show Inspect evidence workflow" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: "Show Inspect evidence" })).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByRole("region", { name: inspection.result, exact: true })).toHaveCount(0);
     await expect(page.getByLabel(/^(Verification (outcome|check)|Sequence outcome|Continuity outcome):/)).toHaveCount(0);
 
@@ -644,7 +645,7 @@ for (const invalid of [
   });
 
   test(`inspection reports an input error for ${invalid.name} and preserves the submitted text`, async ({ page }) => {
-    await page.getByRole("button", { name: "Show Inspect evidence workflow", exact: true }).click();
+    await page.getByRole("button", { name: "Show Inspect evidence", exact: true }).click();
     const submittedText = await fillEvidence(page.getByLabel("Evidence JSON", { exact: true }), invalid.text);
     const responsePromise = page.waitForResponse("**/api/inspect/observation");
     await page.getByRole("button", { name: "Inspect evidence", exact: true }).click();
@@ -661,7 +662,7 @@ for (const invalid of [
 }
 
 test("sequence keeps input order and reports a mode mismatch even though every record passes", async ({ page }) => {
-  await page.getByRole("button", { name: "Show Inspect evidence workflow", exact: true }).click();
+  await page.getByRole("button", { name: "Show Inspect evidence", exact: true }).click();
   await page.getByRole("radio", { name: "Verified execution sequence", exact: true }).check();
   const submittedText = await fillEvidence(
     page.getByLabel("Evidence JSON", { exact: true }), evidenceFile("discontinuous-sequence.json"),
@@ -713,7 +714,7 @@ test("sequence keeps input order and reports a mode mismatch even though every r
 });
 
 test("observation inspection shows reported behaviour without claiming verification", async ({ page }) => {
-  await page.getByRole("button", { name: "Show Inspect evidence workflow", exact: true }).click();
+  await page.getByRole("button", { name: "Show Inspect evidence", exact: true }).click();
   const submittedText = await fillEvidence(
     page.getByLabel("Evidence JSON", { exact: true }), evidenceFile("incorrect-behaviour.json"),
   );
@@ -742,7 +743,7 @@ test("observation inspection shows reported behaviour without claiming verificat
 });
 
 test("verified execution inspection accepts canonical FAIL evidence", async ({ page }) => {
-  await page.getByRole("button", { name: "Show Inspect evidence workflow", exact: true }).click();
+  await page.getByRole("button", { name: "Show Inspect evidence", exact: true }).click();
   await page.getByRole("radio", { name: "Verified execution", exact: true }).check();
   const submittedText = await fillEvidence(
     page.getByLabel("Evidence JSON", { exact: true }), evidenceFile("failed-execution.json"),
@@ -779,7 +780,7 @@ for (const invalid of [
   },
 ]) {
   test(`${invalid.endpoint} inspection rejects a stored outcome that contradicts the evidence`, async ({ page }) => {
-    await page.getByRole("button", { name: "Show Inspect evidence workflow", exact: true }).click();
+    await page.getByRole("button", { name: "Show Inspect evidence", exact: true }).click();
     await page.getByRole("radio", { name: invalid.type, exact: true }).check();
     const originalEvidence = evidenceFile(invalid.fixture);
     // Change only the fixture's final top-level outcome; the underlying evidence still implies FAIL.

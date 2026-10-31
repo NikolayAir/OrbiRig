@@ -63,6 +63,7 @@ def main() -> int:
     command = _read_command()
 
     if mode == "timeout":
+        # Valid JSON is not enough: collection must also require the process to exit in time.
         _write_json(_observation_document(command))
         sys.stdout.buffer.flush()
         time.sleep(60)

@@ -11,7 +11,7 @@ async function prepare(page: Page, workflow: Workflow) {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
   if (workflow === "inspection") {
-    await page.getByRole("button", { name: "Show Inspect evidence workflow" }).click();
+    await page.getByRole("button", { name: "Show Inspect evidence" }).click();
   }
   await page.getByRole("button", { name: "Load example", exact: true }).click();
 }
@@ -100,10 +100,10 @@ for (const workflow of ["verification", "inspection"] as const) {
       await submit(page, workflow);
       const other = workflow === "verification" ? "inspection" : "verification";
       if (destination === "other workflow" || destination === "workflow round trip") {
-        await page.getByRole("button", { name: `Show ${actionName(other)} workflow` }).focus();
+        await page.getByRole("button", { name: `Show ${actionName(other)}` }).focus();
         await page.keyboard.press("Enter");
         if (destination === "workflow round trip") {
-          await page.getByRole("button", { name: `Show ${actionName(workflow)} workflow` }).focus();
+          await page.getByRole("button", { name: `Show ${actionName(workflow)}` }).focus();
           await page.keyboard.press("Enter");
         }
       } else if (destination === "field help") {
@@ -128,7 +128,7 @@ for (const workflow of ["verification", "inspection"] as const) {
       await expect(page.locator('[role="status"]')).toBeEmpty();
       if (destination === "open help") await page.keyboard.press("Escape");
       if (destination === "other workflow") {
-        await page.getByRole("button", { name: `Show ${actionName(workflow)} workflow` }).focus();
+        await page.getByRole("button", { name: `Show ${actionName(workflow)}` }).focus();
         await page.keyboard.press("Enter");
       }
       await expect(page.locator(".workflow-feedback h2").first()).toBeVisible();

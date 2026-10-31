@@ -517,7 +517,7 @@ def test_fewer_than_two_member_records_are_rejected(record_count):
     document["records"] = cast(list[dict[str, object]], document["records"])[:record_count]
     document["continuity_results"] = []
 
-    with pytest.raises(ValueError, match="requires at least two records"):
+    with pytest.raises(ValueError, match="requires at least 2 records"):
         deserialize_verified_execution_sequence_evidence(_serialized(document))
 
 
@@ -682,7 +682,7 @@ def test_noncanonical_continuity_result_count_is_rejected(mutation):
 
     with pytest.raises(
         ValueError,
-        match="continuity_results do not match canonical",
+        match="continuity_results do not match the continuity checks recomputed",
     ):
         deserialize_verified_execution_sequence_evidence(_serialized(document))
 
@@ -693,7 +693,7 @@ def test_continuity_result_order_mismatch_is_rejected():
 
     with pytest.raises(
         ValueError,
-        match="continuity_results do not match canonical",
+        match="continuity_results do not match the continuity checks recomputed",
     ):
         deserialize_verified_execution_sequence_evidence(_serialized(document))
 
@@ -744,7 +744,7 @@ def test_aggregate_sequence_outcome_mismatch_is_rejected():
 
     with pytest.raises(
         ValueError,
-        match="outcome does not match canonical sequence result",
+        match="outcome does not match the sequence outcome recomputed from the saved records",
     ):
         deserialize_verified_execution_sequence_evidence(_serialized(document))
 
@@ -758,7 +758,7 @@ def test_self_consistent_boundary_still_must_match_canonical_sequence():
 
     with pytest.raises(
         ValueError,
-        match="continuity_results do not match canonical",
+        match="continuity_results do not match the continuity checks recomputed",
     ):
         deserialize_verified_execution_sequence_evidence(_serialized(document))
 
@@ -773,7 +773,7 @@ def test_self_consistent_member_results_still_must_match_canonical_record():
 
     with pytest.raises(
         ValueError,
-        match="invariant_results do not match canonical",
+        match="invariant_results do not match the checks recomputed",
     ):
         deserialize_verified_execution_sequence_evidence(_serialized(document))
 

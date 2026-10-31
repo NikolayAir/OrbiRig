@@ -1,18 +1,24 @@
 :root {
+  /* Keep backgrounds pale so buttons and result colours stand out. */
   --ink: #213547;
   --heading: #153e56;
   --muted: #536779;
   --canvas: #ecf2f7;
   --surface: #fff;
   --soft: #f5f9fc;
-  --line: #cfdeeb;
-  --accent: #1e659b;
+  --line: #cfdeeb; /* Light section borders; text inputs use a darker border. */
+  --accent: #1e659b; /* Shared blue for actions and selected navigation. */
   --accent-strong: #174d78;
   --focus: #00f3ff;
   --focus-edge: #007c91;
+  /*
+   * The inner 2px shadow uses the surface colour to separate the control border
+   * from the outer cyan ring. The 4px shadow leaves a visible 2px cyan band.
+   */
   --focus-ring: 0 0 0 2px var(--surface), 0 0 0 4px var(--focus);
   --positive: #1c624b;
   --positive-soft: #edf7f2;
+  /* FAIL results and request errors share colours; their text explains the difference. */
   --negative: #963f2d;
   --negative-soft: #fff4f0;
   color: var(--ink);
@@ -31,7 +37,7 @@ main {
   box-sizing: border-box;
   margin: 0 auto;
   max-width: 80rem;
-  overflow-wrap: anywhere;
+  overflow-wrap: anywhere; /* Long IDs and JSON values must not widen the page. */
   padding: 2rem 2rem 4rem;
 }
 
@@ -161,6 +167,7 @@ h2 {
   background: rgb(23 43 58 / 48%);
 }
 
+/* Apply the flex layout only while open so a closed native dialog stays hidden. */
 .workflow-help-dialog[open] {
   display: flex;
   flex-direction: column;
@@ -241,15 +248,20 @@ h2 {
   box-shadow: var(--focus-ring), inset 0 -3px 0 var(--accent);
 }
 
+/* Let the content shrink and scroll while the dialog header remains available. */
 .workflow-help-content {
   line-height: 1.65;
   min-height: 0;
   overflow: auto;
   overflow-wrap: anywhere;
-  overscroll-behavior: contain;
+  overscroll-behavior: contain; /* Stop wheel scrolling from continuing into the page behind the dialog. */
   padding: 1.5rem 1.75rem 1.75rem;
 }
 
+/*
+ * When the header leaves too little room for text, let the whole dialog scroll.
+ * This keeps the help text and Close button reachable in short windows or with enlarged text.
+ */
 .workflow-help-dialog[open][data-scroll-whole="true"] {
   display: block;
   overflow: auto;
@@ -437,6 +449,7 @@ button {
   z-index: 1;
 }
 
+/* Combine the focus ring and selection underline; both use box-shadow. */
 .workflow-choice[aria-pressed="true"]:focus-visible {
   box-shadow: var(--focus-ring), inset 0 -3px 0 var(--accent);
 }
@@ -467,6 +480,7 @@ button {
   padding: clamp(1.25rem, 3vw, 1.75rem);
 }
 
+/* The switcher supplies the top corners; join the form panel directly beneath it. */
 .workflow-panel {
   border-top: 0;
   border-radius: 0 0 0.75rem 0.75rem;
@@ -506,7 +520,10 @@ button {
 }
 
 .workflow-title .field-help-button {
-  /* Keep the hover bridge behind the button's complete hit area. */
+  /*
+   * The tooltip extends an invisible area across the gap to its button.
+   * Keep that area behind the button so it cannot block clicks.
+   */
   position: relative;
   z-index: 2;
 }
@@ -532,7 +549,10 @@ button {
 .example-action > button {
   max-width: 100%;
   overflow-wrap: anywhere;
-  /* Keep the hover bridge behind the button's complete hit area. */
+  /*
+   * The tooltip extends an invisible area across the gap to its button.
+   * Keep that area behind the button so it cannot block clicks.
+   */
   position: relative;
   z-index: 2;
 }
@@ -687,6 +707,7 @@ label {
   visibility: visible;
 }
 
+/* Escape must hide the tooltip even while its trigger still matches :hover or :focus-within. */
 .field-help[data-dismissed="true"] [role="tooltip"] {
   opacity: 0;
   visibility: hidden;
@@ -697,6 +718,10 @@ label {
   pointer-events: auto;
 }
 
+/*
+ * Cover the gap between button and tooltip with an invisible area (hover bridge).
+ * This keeps the tooltip open while the pointer crosses the gap.
+ */
 .workflow-title [role="tooltip"]::before,
 .example-action [role="tooltip"]::before {
   bottom: 100%;
@@ -742,7 +767,7 @@ textarea {
   display: block;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.875rem;
-  font-variant-ligatures: none;
+  font-variant-ligatures: none; /* Show JSON punctuation as separate glyphs. */
   line-height: 1.65;
   min-height: 18rem;
   overflow-wrap: anywhere;
@@ -770,6 +795,10 @@ textarea:focus-visible {
   outline-offset: 4px;
 }
 
+/*
+ * Keep the outline visible when JavaScript moves focus to a result or error
+ * (programmatic focus), even when :focus-visible does not apply.
+ */
 .workflow-feedback [tabindex="-1"]:focus {
   outline: 2px solid var(--focus-edge);
   outline-offset: 4px;
@@ -810,6 +839,7 @@ textarea[aria-invalid="true"] {
   padding-top: 1.25rem;
 }
 
+/* Solid blue gives submission more emphasis than the pale secondary actions. */
 .form-actions .primary-action {
   background: var(--accent);
   box-shadow: 0 1px 1px rgb(23 43 58 / 14%);
@@ -819,6 +849,7 @@ textarea[aria-invalid="true"] {
   padding: 0.8rem 1.25rem;
 }
 
+/* Focus moves between Submit and Cancel in code, including after pointer submission. */
 .form-actions .primary-action:focus,
 .form-actions [name="cancel-request"]:focus {
   box-shadow: var(--focus-ring);
@@ -1121,13 +1152,6 @@ dd {
   margin: 1.5rem 0 0.75rem;
 }
 
-.invariant-results > li {
-  display: grid;
-  grid-template-columns:
-    minmax(15rem, 2.2fr) repeat(2, minmax(5rem, 1fr))
-    minmax(4.5rem, 0.75fr);
-}
-
 .invariant-results {
   border-top: 1px solid var(--line);
   gap: 0;
@@ -1139,10 +1163,14 @@ dd {
 .invariant-results > li {
   border-bottom: 1px solid var(--line);
   display: grid;
+  grid-template-columns:
+    minmax(15rem, 2.2fr) repeat(2, minmax(5rem, 1fr))
+    minmax(4.5rem, 0.75fr);
   gap: 1.25rem;
   padding: 1rem;
 }
 
+/* Tint the whole failed check for scanning; the result badge also names the outcome. */
 .invariant-results > li[data-outcome="FAIL"] {
   background: var(--negative-soft);
   box-shadow: inset 3px 0 0 var(--negative);
@@ -1170,6 +1198,10 @@ dd {
 }
 
 .invariant-values {
+  /*
+   * Keep the <dl> element that groups labels with their values.
+   * Let the groups share the check row's columns without changing that HTML structure.
+   */
   display: contents;
 }
 
@@ -1249,6 +1281,7 @@ dd {
   overflow-wrap: anywhere;
 }
 
+/* Keep progress/completion announcements available to assistive technology without taking layout space. */
 .visually-hidden {
   clip: rect(0, 0, 0, 0);
   height: 1px;
@@ -1277,6 +1310,11 @@ dd {
   line-height: 1.5;
 }
 
+/*
+ * Show controls beside the JSON editor only in wide windows.
+ * Give JSON 2 shares of the width and controls 1, so nested JSON has more room.
+ * The 0 minimum in minmax(0, ...) lets columns shrink even when their content is long.
+ */
 @media (min-width: 75rem) {
   .verification-form,
   .inspection-form {
@@ -1311,6 +1349,7 @@ dd {
   }
 }
 
+/* Put each check's name above its values before the desktop row becomes cramped. */
 @media (max-width: 52rem) {
   .verified-execution-summary {
     grid-template-columns: 1fr;
@@ -1396,6 +1435,7 @@ dd {
   }
 
   .workflow-choice[aria-pressed="true"] {
+    /* Stacked choices use a left marker instead of the desktop underline. */
     box-shadow: inset 3px 0 0 var(--accent);
   }
 
@@ -1435,6 +1475,7 @@ dd {
   }
 }
 
+/* Stack labels above values so long IDs and mode names have the full width. */
 @media (max-width: 34rem) {
   .execution-summary-fields,
   .observation-fields {
@@ -1448,6 +1489,7 @@ dd {
   }
 }
 
+/* Keep Expected and Actual together; move the result badge onto its own row. */
 @media (max-width: 28rem) {
   .invariant-values {
     grid-template-columns: repeat(2, minmax(0, 1fr));
