@@ -43,14 +43,26 @@ See the [CLI guide](docs/cli.md) for a failing example, saving output and exit c
 Choose a **scenario** to state the expected behaviour before verification. Provide a recorded **observation**, or use the Python API to execute a command and collect one. OrbiRig never chooses the scenario from the recorded result.
 
 ```mermaid
+---
+config:
+  layout: dagre
+  look: classic
+  flowchart:
+    diagramPadding: 16
+    wrappingWidth: 280
+---
 flowchart TD
     accTitle: Verification overview
-    accDescr: An explicitly selected scenario and a recorded observation are separate inputs to Python validation and verification. Valid, compatible input produces a record with four checks and a PASS or FAIL outcome, ready for JSON export. Invalid or incompatible input produces an error without a verified record.
-    scenario["Selected<br/>scenario"] -->|Expectations| verifier("Validate input<br/>verify in Python")
-    observation["Recorded<br/>observation"] -->|Reported values| verifier
-    verifier --> record["Verified record<br/>four checks<br/>PASS or FAIL"]
-    verifier --> error["Input error<br/>no record"]
-    record -->|Export| evidence["Versioned<br/>JSON evidence"]
+    accDescr: Recorded observations are validated before Python compares their reported values with expectations from an independently selected scenario. Valid, compatible input produces a verified record with four checks and a PASS or FAIL outcome, ready for JSON export. Invalid input or a command that does not match the selected scenario produces an input error without a record.
+    observation["<b>Observation</b><br/>command + reported values"] --> validate("Validate observation")
+    validate --> verifier
+    scenario["Selected scenario"] --->|Expectations| verifier("Verify 4 invariants in Python")
+    validate -->|Invalid data| error["<b>Input error</b><br/>no verified record"]
+    verifier -->|Command mismatch| error
+    verifier --> record["<b>Verified execution record</b><br/>scenario + observation + checks<br/>PASS or FAIL"]
+    record -->|Export| evidence["Versioned JSON evidence"]
+    classDef action fill:#3b82f633
+    class validate,verifier action
 ```
 
 Rounded boxes show actions; square-cornered boxes show data or results. Invalid input and collection errors produce no verified record. See the [architecture guide](docs/architecture.md#verification-flow) for the detailed collection, validation and error paths.

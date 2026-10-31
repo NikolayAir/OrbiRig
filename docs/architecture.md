@@ -9,24 +9,36 @@ OrbiRig separates collecting a command's reported result, checking it against ex
 The [README diagram](../README.md#how-verification-works) gives a compact overview. The detailed diagram below shows how an observation is loaded from JSON or collected during command execution, then checked against a separately selected scenario. It also shows where input and collection errors prevent record creation.
 
 ```mermaid
+---
+config:
+  layout: dagre
+  look: classic
+  flowchart:
+    diagramPadding: 16
+    wrappingWidth: 280
+---
 flowchart TD
     accTitle: Observation collection and independent verification
     accDescr: Observation JSON is validated and loaded, or the Python API executes the command required by the selected scenario and collects an observation. Python checks the observation against the scenario's separate expectations. The execution ID and UTC timestamp identify the verified record, which contains four checks and a PASS or FAIL outcome and can be exported as versioned JSON. Invalid input, a command that does not match the scenario, or a collection error prevents record creation.
-    saved["Observation JSON"] --> load("Validate and load JSON")
-    scenario["Selected scenario"] -->|Command| collect("Collect via Python API<br/>reference or subprocess")
-    collect --> observation
-    load --> observation["Observation<br/>command + reported values"]
-    scenario -->|Expectations| verifier("Verify in Python<br/>four invariant checks")
+    saved["Observation JSON"] ---> load("Validate and load JSON")
+    scenario["Selected scenario"] -->|Command| collect("Collect observation via<br/>reference workflow or subprocess")
+    collect ---> observation
+    load --> observation["<b>Observation</b><br/>command + reported values"]
+    scenario -->|Expectations| verifier("Verify 4 invariants in Python")
     observation --> verifier
-    load -->|Invalid data| error["Input error<br/>no verified record"]
-    verifier -->|Command mismatch| error
-    collect -->|Collection failure| collectionError["Collection error<br/>no verified record"]
-    verifier --> record["Verified execution record<br/>scenario + observation + checks<br/>PASS or FAIL"]
-    metadata["Execution ID<br/>UTC timestamp"] --> record
+    verifier -->|Command mismatch| error["<b>Input error</b><br/>no verified record"]
+    load -->|Invalid data| error
+    collect -->|Collection failure| collectionError["<b>Collection error</b><br/>no verified record"]
+    metadata["Execution ID<br/>UTC timestamp"] --> record["<b>Verified execution record</b><br/>scenario + observation + checks<br/>PASS or FAIL"]
+    verifier --> record
     record -->|Export| evidence["Versioned JSON evidence"]
+    classDef action fill:#3b82f633
+    class load,collect,verifier action
 ```
 
 Rounded boxes show actions; square-cornered boxes show data or results. The caller selects the scenario independently of the recorded values and provides the execution ID and UTC timestamp. Invalid metadata also prevents record creation.
+
+The Python API builds reference observations directly from `ReferenceSpacecraft` state, acknowledgement and telemetry. For subprocesses, collection validates the returned JSON with the same reader used for saved observations; invalid output follows the collection-error path.
 
 A valid observation can produce `FAIL`; an expected command rejection can produce `PASS`. Invalid input, a command incompatible with the selected scenario or a collection failure produces no verified record. A collection or verification error does not establish whether an external target changed state. See [verification concepts](verification.md) for the checks and their meaning, and the [Python collection guide](python.md#collect-from-a-separate-program) for the subprocess boundary.
 
