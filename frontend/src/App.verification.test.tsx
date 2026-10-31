@@ -365,6 +365,31 @@ describe("App verification", () => {
     expect(screen.getByRole("button", { name: "Verify observation" })).toBeEnabled();
   });
 
+  it.each([
+    { description: "1 repeated check", indices: [0, 1, 2, 0] },
+    { description: "4 identical checks", indices: [0, 0, 0, 0] },
+  ])("rejects a successful verification response with $description", async ({ indices }) => {
+    // Keep 4 separate objects, as JSON parsing would, so the guard must compare
+    // their IDs rather than only counting entries or comparing the objects themselves.
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ...verifiedExecution,
+        invariant_results: indices.map(index => ({ ...verifiedExecution.invariant_results[index] })),
+      }),
+    });
+
+    submitVerification({ evidence: "keep this observation" });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The server could not complete verification. Try again.",
+    );
+    expect(screen.queryByRole("region", { name: "Verified execution" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Observation evidence JSON")).toHaveValue("keep this observation");
+    expect(screen.getByRole("button", { name: "Verify observation" })).toBeEnabled();
+  });
+
   it("renders an inherited-property invariant ID with the generic title", async () => {
     fetchMock.mockResolvedValue({
       ok: true,

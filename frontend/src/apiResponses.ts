@@ -113,15 +113,20 @@ export function isVerifiedExecutionPresentation(
     return false;
   }
 
-  return results.every(
-    (result) =>
-      isObject(result) &&
-      typeof result.invariant_id === "string" &&
-      (typeof result.expected === "boolean" ||
-        typeof result.expected === "string") &&
-      (typeof result.actual === "boolean" ||
-        typeof result.actual === "string") &&
-      typeof result.passed === "boolean",
+  return (
+    results.every(
+      (result) =>
+        isObject(result) &&
+        typeof result.invariant_id === "string" &&
+        (typeof result.expected === "boolean" ||
+          typeof result.expected === "string") &&
+        (typeof result.actual === "boolean" ||
+          typeof result.actual === "string") &&
+        typeof result.passed === "boolean",
+    ) &&
+    // Compare ID values: separate check objects can carry the same ID.
+    // Such repeats can hide missing checks even when there are 4 entries.
+    new Set(results.map(result => result.invariant_id)).size === results.length
   );
 }
 
@@ -165,13 +170,19 @@ export function isVerifiedExecutionSequencePresentation(
     return false;
   }
 
+  // The count check guarantees both record positions exist for each link.
+  // Match links by position: execution IDs and even complete continuity results
+  // may repeat when the corresponding records have the same IDs and modes.
+  const records = payload.records;
   return (
-    payload.records.every(isVerifiedExecutionPresentation) &&
+    records.every(isVerifiedExecutionPresentation) &&
     payload.continuity_results.every(
-      (result) =>
+      (result, index) =>
         isObject(result) &&
         typeof result.previous_execution_id === "string" &&
+        result.previous_execution_id === records[index].execution.execution_id &&
         typeof result.next_execution_id === "string" &&
+        result.next_execution_id === records[index + 1].execution.execution_id &&
         typeof result.expected_operating_mode === "string" &&
         typeof result.observed_operating_mode === "string" &&
         typeof result.passed === "boolean",

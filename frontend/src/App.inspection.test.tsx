@@ -348,6 +348,31 @@ describe("App inspection", () => {
     expect(screen.getByLabelText("Evidence JSON")).toHaveValue("keep this saved record");
   });
 
+  it.each([
+    { description: "1 repeated check", indices: [0, 1, 2, 0] },
+    { description: "4 identical checks", indices: [0, 0, 0, 0] },
+  ])("rejects an inspected execution with $description", async ({ indices }) => {
+    // Separate response objects can still describe the same check ID.
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ...verifiedExecution,
+        invariant_results: indices.map(index => ({ ...verifiedExecution.invariant_results[index] })),
+      }),
+    });
+
+    submitEvidence("keep this saved record", "verified-execution");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The inspection request could not be completed. Try again.",
+    );
+    expect(screen.queryByRole("region", { name: "Verified execution" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Valid saved evidence")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Evidence JSON")).toHaveValue("keep this saved record");
+    expect(screen.getByRole("button", { name: "Inspect evidence" })).toBeEnabled();
+  });
+
   it("rejects a verified-execution inspection with an unsupported outcome", async () => {
     fetchMock.mockResolvedValue({
       ok: true,
@@ -547,8 +572,19 @@ describe("App inspection", () => {
     ["a missing continuity check", { continuity_results: verifiedExecutionSequence.continuity_results.slice(0, 1) }],
     ["an extra continuity check", { continuity_results: [...verifiedExecutionSequence.continuity_results, verifiedExecutionSequence.continuity_results[0]] }],
     ["an incomplete member", { records: [verifiedExecution, { ...verifiedExecution, invariant_results: [] }], continuity_results: verifiedExecutionSequence.continuity_results.slice(0, 1) }],
+    ["a member with repeated checks", {
+      records: [
+        {
+          ...verifiedExecutionSequence.records[0],
+          invariant_results: Array.from({ length: 4 }, () => ({
+            ...verifiedExecutionSequence.records[0].invariant_results[0],
+          })),
+        },
+        ...verifiedExecutionSequence.records.slice(1),
+      ],
+    }],
   ])("rejects a successful sequence response with %s", async (_description, changes) => {
-    // Missing checks are a broken server response, not invalid submitted evidence.
+    // A malformed server response must not label the submitted evidence as invalid.
     fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
@@ -563,6 +599,97 @@ describe("App inspection", () => {
     expect(screen.queryByRole("region", { name: "Verified execution sequence" })).not.toBeInTheDocument();
     expect(screen.queryByText("Valid saved evidence")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Evidence JSON")).toHaveValue("keep this sequence");
+  });
+
+  it.each([
+    {
+      description: "a repeated continuity result",
+      results: [
+        { ...verifiedExecutionSequence.continuity_results[0] },
+        { ...verifiedExecutionSequence.continuity_results[0] },
+      ],
+    },
+    {
+      description: "continuity results in the wrong order",
+      results: [...verifiedExecutionSequence.continuity_results].reverse(),
+    },
+    {
+      description: "a wrong previous execution ID",
+      results: [
+        { ...verifiedExecutionSequence.continuity_results[0], previous_execution_id: "another-execution" },
+        verifiedExecutionSequence.continuity_results[1],
+      ],
+    },
+    {
+      description: "a wrong next execution ID",
+      results: [
+        verifiedExecutionSequence.continuity_results[0],
+        { ...verifiedExecutionSequence.continuity_results[1], next_execution_id: "another-execution" },
+      ],
+    },
+  ])("rejects an inspected sequence with $description", async ({ results }) => {
+    // All entries are well-formed and the count is correct; only their record links are wrong.
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ ...verifiedExecutionSequence, continuity_results: results }),
+    });
+
+    submitEvidence("keep this sequence", "verified-execution-sequence");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The inspection request could not be completed. Try again.",
+    );
+    expect(screen.queryByRole("region", { name: "Verified execution sequence" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Valid saved evidence")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Evidence JSON")).toHaveValue("keep this sequence");
+    expect(screen.getByRole("button", { name: "Inspect evidence" })).toBeEnabled();
+  });
+
+  it.each([
+    { description: "different continuity values", sequence: verifiedExecutionSequence },
+    {
+      description: "identical continuity results",
+      sequence: {
+        // All 3 records reject a command that requests their current NOMINAL mode.
+        // The mode stays NOMINAL, so both continuity checks have the same values.
+        records: Array.from({ length: 3 }, () => verifiedExecutionSequence.records[2]),
+        continuity_results: Array.from({ length: 2 }, () => verifiedExecutionSequence.continuity_results[1]),
+        outcome: "PASS",
+      },
+    },
+  ])("accepts repeated execution IDs with $description", async ({ sequence: sequenceResponse }) => {
+    // The record positions determine which executions are connected.
+    // Matching IDs can legitimately repeat in more than 1 continuity result.
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ...sequenceResponse,
+        records: sequenceResponse.records.map(record => ({
+          ...record,
+          execution: { ...record.execution, execution_id: "repeated-id" },
+        })),
+        continuity_results: sequenceResponse.continuity_results.map(result => ({
+          ...result,
+          previous_execution_id: "repeated-id",
+          next_execution_id: "repeated-id",
+        })),
+      }),
+    });
+
+    submitEvidence("sequence with repeated IDs", "verified-execution-sequence");
+
+    const sequence = await screen.findByRole("region", { name: "Verified execution sequence" });
+    expect(within(sequence).getByText("Valid saved evidence")).toBeVisible();
+    expect(within(sequence).getAllByRole("article", { name: /Member/ })).toHaveLength(3);
+    const boundaries = within(sequence).getAllByRole("article", { name: /Continuity check/ });
+    expect(boundaries).toHaveLength(2);
+    for (const boundary of boundaries) {
+      expect(boundary).toHaveTextContent("Previous execution ID: repeated-id");
+      expect(boundary).toHaveTextContent("Next execution ID: repeated-id");
+    }
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("rejects a sequence inspection with an unsupported outcome", async () => {
