@@ -7,9 +7,8 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from orbirig._strict_json import _load_strict_json, _StrictJSONError
 from orbirig.evidence import (
-    _load_strict_json,
-    _StrictJSONError,
     deserialize_execution_evidence,
     deserialize_verified_execution_evidence,
     deserialize_verified_execution_sequence_evidence,

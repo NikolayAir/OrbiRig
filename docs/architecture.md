@@ -50,6 +50,7 @@ A valid observation can produce `FAIL`; an expected command rejection can produc
 | [Verification](../src/orbirig/verification.py) | Compare observations with explicit scenario expectations and check continuity between adjacent records without changing their order. |
 | [Command execution and observation collection](../src/orbirig/execution.py) | Select the scenario's command, collect its observation from [ReferenceSpacecraft](../src/orbirig/reference_sut.py) or a [separate program](../src/orbirig/subprocess_collection.py), then request verification. |
 | [Evidence JSON](../src/orbirig/evidence.py) | Validate JSON structures and values, serialise evidence and recompute the checks and outcomes when reopening saved verified records. |
+| [Strict JSON reader](../src/orbirig/_strict_json.py) | Read evidence documents and the HTTP request wrapper. Reject repeated field names, malformed JSON, excessive nesting and integers exceeding Python's configured digit limit. |
 | [Command line](../src/orbirig/cli.py) and [HTTP API](../src/orbirig/web.py) | Read input, call the Python core and return results or errors. These interfaces check recorded data without executing spacecraft commands. |
 | [Browser interface](../frontend/src/App.tsx) | Submit observations or saved evidence to the HTTP API and display results, request errors and cancellation status. |
 

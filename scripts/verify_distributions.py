@@ -23,6 +23,7 @@ PACKAGE_FILES = frozenset(
     f"orbirig/{name}.py"
     for name in (
         "__init__",
+        "_strict_json",
         "cli",
         "evidence",
         "execution",
