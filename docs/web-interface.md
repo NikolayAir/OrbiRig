@@ -12,7 +12,7 @@ Use the [hosted interface](https://orbirig-evidence-inspector.onrender.com/) to 
 
 **Load example** fills in a sample execution ID, UTC time and observation JSON for the selected scenario. It uses **NOMINAL to SAFE** if none is selected. Choose **Verify observation** to run the checks after loading the example.
 
-An expected command rejection can pass. Invalid input, including a command incompatible with the selected scenario, produces an error rather than a completed `FAIL` result. See [supported scenarios](verification.md#supported-scenarios) and [execution metadata](evidence-formats.md#execution-ids).
+An expected command rejection can pass. Invalid input, including a command incompatible with the selected scenario, produces an error rather than a completed `FAIL` result. See [supported scenarios](verification.md#supported-scenarios) and the rules for [execution IDs and timestamps](evidence-formats.md#execution-ids).
 
 ## Inspect evidence
 
@@ -21,18 +21,18 @@ Choose **Inspect evidence**, select its type and paste saved JSON or choose **Lo
 | Type | What inspection shows and checks |
 | --- | --- |
 | Observation | Reported command, states, acknowledgement and telemetry. Loading validates the observation format; it does not produce a verification outcome. |
-| Verified execution | Execution metadata, selected scenario, observation, checks and outcome. Python recomputes the results and rejects stored mismatches. |
+| Verified execution | Execution ID and time, selected scenario, observation, checks and outcome. Python recomputes the results and rejects stored mismatches. |
 | Verified execution sequence | Overall outcome, ordered member records and continuity checks. Python reconstructs members and recomputes continuity in saved order. |
 
 Inspection is read-only: it does not edit or repair evidence. A saved `FAIL` is accepted when its checks and outcome match the recomputed results.
 
 If loading an example would replace your edits, the interface asks for confirmation. Choosing **Cancel** in that dialog keeps your current inputs.
 
-Completed results and request errors receive keyboard focus and are brought into view. A short status message announces completed verification or inspection. If you move to another control, workflow or the help dialog while a request is pending, its response does not move focus or scroll the page.
+Completed results and request errors receive keyboard focus and are brought into view. A short status message announces completed verification or inspection. If you move to another control, switch between verification and inspection or open the help dialog while a request is pending, its response does not move focus or scroll the page.
 
 While either request is pending, **Cancel request** stops waiting in the browser and keeps the current inputs and selection. Focus returns to the submission button so you can edit or retry. Cancellation produces no verification outcome. The server may already have completed the check; late responses from cancelled requests are ignored, including after a retry.
 
-**How it works** provides browser and command-line instructions. Browser guidance covers both workflows; command-line guidance explains local CLI use and exit codes.
+**How it works** provides browser and command-line instructions. Browser guidance covers verification and inspection; command-line guidance explains local CLI use and exit codes.
 
 ## Run locally
 
@@ -60,7 +60,7 @@ cd frontend
 npm run dev
 ```
 
-Open the URL printed by Vite, normally <http://localhost:5173>. Vite forwards `/api` requests to FastAPI at `127.0.0.1:8000`. To try the initial workflow, choose **Load example**, then **Verify observation**.
+Open the URL printed by Vite, normally <http://localhost:5173>. Vite forwards `/api` requests to FastAPI at `127.0.0.1:8000`. To verify the example observation, choose **Load example**, then **Verify observation**.
 
 For the full development environment, checks and browser-test setup, see [CONTRIBUTING.md](../CONTRIBUTING.md).
 
@@ -81,22 +81,42 @@ The build uses [Vite 8's default browser targets](https://v8.vite.dev/guide/buil
 
 ## HTTP API
 
-All four endpoints use `POST`:
+All 4 endpoints use `POST`:
 
 | Endpoint | Request content type | Body |
 | --- | --- | --- |
-| `/api/verify/observation` | `application/json` | An object containing exactly the four string fields `execution_id`, `executed_at`, `scenario_id` and `observation_evidence` |
+| `/api/verify/observation` | `application/json` | An object containing exactly the 4 string fields `execution_id`, `executed_at`, `scenario_id` and `observation_evidence` |
 | `/api/inspect/observation` | `text/plain; charset=utf-8` | Raw observation-evidence JSON text |
 | `/api/inspect/verified-execution` | `text/plain; charset=utf-8` | Raw verified-execution JSON text |
 | `/api/inspect/verified-execution-sequence` | `text/plain; charset=utf-8` | Raw verified-sequence JSON text |
 
 For verification, `scenario_id` is one of the [scenario string values](verification.md#supported-scenarios). `observation_evidence` contains JSON as a string, not a nested object. FastAPI passes this string unchanged to `deserialize_execution_evidence(...)`, then delegates verification to `build_verified_execution_record(...)`.
 
-For inspection, FastAPI decodes the submitted text and passes it to the matching strict evidence reader. In both workflows the frontend submits the textarea value without parsing and re-serialising it, preserving duplicate keys for server-side rejection. The browser displays Python's results rather than defining its own verification rules.
+For inspection, FastAPI decodes the submitted text and passes it to the matching evidence reader for validation. For both verification and inspection, the frontend submits the textarea value without parsing and re-serialising it, preserving duplicate keys for server-side rejection. The browser displays Python's results rather than defining its own verification rules.
+
+### Send an example request
+
+With FastAPI running locally, run this command from the repository root:
+
+```bash
+curl --header 'Content-Type: application/json' \
+  --data-binary @docs/examples/verify-observation-request.json \
+  http://127.0.0.1:8000/api/verify/observation
+```
+
+The [request file](examples/verify-observation-request.json) contains all 4 fields, with the observation encoded as a JSON string. The response is HTTP `200` with 4 passing checks and `"outcome": "PASS"`; see the [complete response](examples/verify-observation-response.json).
+
+Inspection sends the evidence text directly, without a JSON wrapper:
+
+```bash
+curl --header 'Content-Type: text/plain; charset=utf-8' \
+  --data-binary @docs/examples/verified-execution.json \
+  http://127.0.0.1:8000/api/inspect/verified-execution
+```
 
 ### Responses
 
-Successful responses contain JSON for presentation. This has a different structure from the versioned evidence formats produced by the Python serializers or CLI.
+Successful responses contain data for display and are not saved evidence documents. To create versioned evidence that can be reopened by the evidence readers, use the CLI or the Python serialisation functions.
 
 | HTTP status | Meaning |
 | --- | --- |
@@ -106,6 +126,19 @@ Successful responses contain JSON for presentation. This has a different structu
 | `415` | The request content type is unsupported. |
 | `422` | A verification request or submitted evidence is invalid. |
 | `500` | An unexpected server error, separate from verification `FAIL`. |
+
+For HTTP `422` verification errors, `detail` contains a `code` and `message`. For example, selecting `safe_to_nominal_mode` for the example command, which requests `SAFE`, returns:
+
+```json
+{
+  "detail": {
+    "code": "scenario_command_mismatch",
+    "message": "observation command does not match the selected scenario"
+  }
+}
+```
+
+Invalid inspection evidence returns a string in `detail`, such as `"verified execution evidence is invalid"`.
 
 ### Request size limit
 

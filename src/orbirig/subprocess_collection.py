@@ -1,4 +1,4 @@
-"""Observation collection through one subprocess boundary."""
+"""Run a separate program to collect 1 command observation."""
 
 import json
 import subprocess
@@ -21,7 +21,7 @@ def collect_subprocess_observation(
     command: SetOperatingModeCommand,
     timeout: float,
 ) -> CommandExecutionObservation:
-    """Run one target process and reconstruct its observation evidence."""
+    """Run a target program and validate its returned observation JSON."""
 
     command_document = (
         json.dumps(

@@ -8,8 +8,9 @@ Earlier releases may not receive security updates.
 
 ## Reporting a vulnerability
 
-Please use GitHub's private vulnerability reporting for this repository rather
-than opening a public issue.
+Use [Report a vulnerability](https://github.com/NikolayAir/OrbiRig/security/advisories/new)
+to send a private report. You can also find it under **Security → Report a vulnerability**
+in the repository. Please do not open a public issue for a suspected vulnerability.
 
 When applicable, include:
 

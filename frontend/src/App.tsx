@@ -153,7 +153,7 @@ const VERIFICATION_ERROR_MESSAGES: Record<VerificationErrorCode, string> = {
   invalid_request: "The verification request is invalid.",
   invalid_scenario: "Select a supported scenario.",
   invalid_observation_evidence: "The observation evidence is invalid.",
-  invalid_execution_metadata: "The execution metadata is invalid.",
+  invalid_execution_metadata: "The execution ID or UTC execution time is invalid.",
   scenario_command_mismatch:
     "The observation command does not match the selected scenario.",
 };
@@ -703,7 +703,7 @@ export function App() {
       </p>
 
       <p className="workflow-selector-label" id="workflow-selector-label">
-        Choose a workflow
+        Choose what to do
       </p>
       <div
         className="workflow-switcher"
@@ -713,7 +713,7 @@ export function App() {
         <button
           type="button"
           className="workflow-choice"
-          aria-label="Show Verify observation workflow"
+          aria-label="Show Verify observation"
           aria-pressed={activeWorkflow === "verification"}
           onClick={() => setActiveWorkflow("verification")}
         >
@@ -723,7 +723,7 @@ export function App() {
         <button
           type="button"
           className="workflow-choice"
-          aria-label="Show Inspect evidence workflow"
+          aria-label="Show Inspect evidence"
           aria-pressed={activeWorkflow === "inspection"}
           onClick={() => setActiveWorkflow("inspection")}
         >
@@ -804,7 +804,8 @@ export function App() {
                         ?
                       </button>
                       <span id="execution-id-help-description" role="tooltip">
-                        A non-empty identifier recorded with the resulting evidence.
+                        A label you provide for this command execution, such as run-001.
+                        It is saved with the result.
                       </span>
                     </span>
                   </div>
@@ -907,8 +908,8 @@ export function App() {
                       ?
                     </button>
                     <span id="scenario-help-description" role="tooltip">
-                      Select the scenario to verify against. It is not inferred from
-                      the evidence.
+                      Choose the expected behaviour for this command execution.
+                      OrbiRig checks the observation against this scenario.
                     </span>
                   </span>
                 </div>
@@ -1067,7 +1068,7 @@ export function App() {
               headingId="evidence-inspection"
               helpId="inspection-help-description"
               title="Inspect evidence"
-              description="Select an evidence type and paste its JSON document to review it in a structured view."
+              description="Select an evidence type and paste its JSON to see the recorded values and any saved verification results."
             />
             <LoadExampleButton
               description="Replaces evidence JSON"
@@ -1110,7 +1111,7 @@ export function App() {
                 />
                 <span>
                   <span id="execution-type-label">Verified execution</span>
-                  <small id="execution-type-description">One execution with its scenario and checks.</small>
+                  <small id="execution-type-description">1 execution with its scenario and checks.</small>
                 </span>
               </label>
               <label>
@@ -1561,7 +1562,7 @@ function VerifiedExecutionSequenceDetails({
       <p className="result-description">
         {sequence.outcome === "PASS"
           ? "All execution and continuity checks passed."
-          : "One or more execution or continuity checks did not pass."}{" "}
+          : "1 or more execution or continuity checks did not pass."}{" "}
         Records are shown in the supplied order.
       </p>
 

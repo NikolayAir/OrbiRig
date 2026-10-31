@@ -1,0 +1,6 @@
+{
+  "execution_id": "example-001",
+  "executed_at": "2026-10-21T10:00:00Z",
+  "scenario_id": "nominal_to_safe_mode",
+  "observation_evidence": "{\n  \"evidence_format_version\": 1,\n  \"command\": {\n    \"command_type\": \"SET_OPERATING_MODE\",\n    \"target_mode\": \"SAFE\"\n  },\n  \"pre_state\": {\"operating_mode\": \"NOMINAL\"},\n  \"acknowledgement\": {\"accepted\": true},\n  \"post_state\": {\"operating_mode\": \"SAFE\"},\n  \"telemetry\": {\"operating_mode\": \"SAFE\"}\n}\n"
+}

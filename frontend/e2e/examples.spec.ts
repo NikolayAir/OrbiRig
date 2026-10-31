@@ -7,7 +7,7 @@ test("example tooltips leave touch taps at the button edge usable", async ({ bro
     await page.goto("/");
     for (const workflow of ["Verify observation", "Inspect evidence"]) {
       if (workflow === "Inspect evidence") {
-        await page.getByRole("button", { name: "Show Inspect evidence workflow" }).tap();
+        await page.getByRole("button", { name: "Show Inspect evidence" }).tap();
       }
       const trigger = page.getByRole("button", { name: "Load example", exact: true });
       const hint = page.locator(`[id="${await trigger.getAttribute("aria-describedby")}"]`);
@@ -29,7 +29,7 @@ for (const width of [1440, 320]) {
       await page.setViewportSize({ width, height: 800 });
       await page.goto("/");
       if (workflow === "Inspect evidence") {
-        await page.getByRole("button", { name: "Show Inspect evidence workflow" }).click();
+        await page.getByRole("button", { name: "Show Inspect evidence" }).click();
       }
       const input = page.getByLabel(workflow === "Verify observation" ? "Execution ID" : "Evidence JSON", { exact: true });
       const trigger = page.getByRole("button", { name: "Load example", exact: true });
@@ -85,7 +85,7 @@ for (const width of [1440, 768, 320]) {
       await page.setViewportSize({ width, height: 800 });
       await page.goto("/");
       if (workflow === "Inspect evidence") {
-        await page.getByRole("button", { name: "Show Inspect evidence workflow" }).click();
+        await page.getByRole("button", { name: "Show Inspect evidence" }).click();
       }
       const trigger = page.getByRole("button", { name: "Load example", exact: true });
       const hint = page.locator(`[id="${await trigger.getAttribute("aria-describedby")}"]`);

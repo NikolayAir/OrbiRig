@@ -1,4 +1,4 @@
-"""Behave steps for supported operating-mode verification workflows."""
+"""Behave steps for the supported operating-mode command scenarios."""
 
 from datetime import UTC, datetime
 

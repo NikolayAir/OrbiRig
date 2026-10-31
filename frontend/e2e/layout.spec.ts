@@ -123,7 +123,7 @@ for (const viewport of [
     await expectWithinWidth(result.locator("dd, code, .outcome-badge"), viewport.width);
     expect(await result.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
 
-    await page.getByRole("button", { name: "Show Inspect evidence workflow", exact: true }).click();
+    await page.getByRole("button", { name: "Show Inspect evidence", exact: true }).click();
     const types = (await page.getByRole("group", { name: "Evidence type", exact: true }).boundingBox())!;
     const inspectionEditor = page.getByLabel("Evidence JSON", { exact: true });
     const inspectionEditorBounds = (await inspectionEditor.boundingBox())!;
@@ -187,7 +187,7 @@ for (const viewport of [
     await page.setViewportSize(viewport);
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/");
-    await page.getByRole("button", { name: "Show Inspect evidence workflow", exact: true }).click();
+    await page.getByRole("button", { name: "Show Inspect evidence", exact: true }).click();
     await page.getByRole("button", { name: "Load example", exact: true }).click();
     const editor = page.getByLabel("Evidence JSON", { exact: true });
     const observationText = await editor.inputValue();
@@ -195,7 +195,7 @@ for (const viewport of [
     await expect(observation).toBeChecked();
     await observation.focus();
     for (const [name, description] of [
-      ["Verified execution", "One execution with its scenario and checks."],
+      ["Verified execution", "1 execution with its scenario and checks."],
       ["Verified execution sequence", "Ordered executions and continuity checks."],
     ]) {
       await page.keyboard.press("ArrowDown");
@@ -368,13 +368,13 @@ for (const [field, helpId] of [
 for (const width of [1440, 390, 320]) {
   for (const [title, helpId, description, outsideLabel, reminder] of [
     ["Verify observation", "verification-help-description", "Provide execution details, select a supported scenario, and submit observation evidence for verification.", "Execution ID", "Replaces current inputs"],
-    ["Inspect evidence", "inspection-help-description", "Select an evidence type and paste its JSON document to review it in a structured view.", "Evidence JSON", "Replaces evidence JSON"],
+    ["Inspect evidence", "inspection-help-description", "Select an evidence type and paste its JSON to see the recorded values and any saved verification results.", "Evidence JSON", "Replaces evidence JSON"],
   ]) {
     test(`${title} introduction supports hover, keyboard and touch at ${width}px`, async ({ browser, baseURL, browserName }) => {
       const context = await browser.newContext({ baseURL, viewport: { width, height: 800 }, hasTouch: true });
       const page = await context.newPage();
       await page.goto("/");
-      if (title === "Inspect evidence") await page.getByRole("button", { name: "Show Inspect evidence workflow" }).click();
+      if (title === "Inspect evidence") await page.getByRole("button", { name: "Show Inspect evidence" }).click();
       const help = page.getByRole("button", { name: `About ${title}`, exact: true });
       const tooltip = page.locator(`#${helpId}`);
       const heading = page.getByRole("heading", { name: title, exact: true });
@@ -460,7 +460,7 @@ for (const width of [1440, 390, 320]) {
         try {
           const page = await context.newPage();
           await page.goto("/");
-          if (title === "Inspect evidence") await page.getByRole("button", { name: "Show Inspect evidence workflow" }).tap();
+          if (title === "Inspect evidence") await page.getByRole("button", { name: "Show Inspect evidence" }).tap();
           const input = page.getByLabel(outsideLabel, { exact: true });
           await input.fill("preserved-through-edge-taps");
           const help = page.getByRole("button", { name: `About ${title}`, exact: true });
@@ -504,7 +504,7 @@ for (const font of ["", "monospace"]) {
     await page.getByRole("button", { name: "About Verify observation", exact: true }).focus();
     await expectWithinWidth(page.getByRole("tooltip"), 320);
     await page.keyboard.press("Escape");
-    await page.getByRole("button", { name: "Show Inspect evidence workflow", exact: true }).click();
+    await page.getByRole("button", { name: "Show Inspect evidence", exact: true }).click();
     await page.getByRole("button", { name: "About Inspect evidence", exact: true }).focus();
     await expectWithinWidth(page.getByRole("tooltip"), 320);
     await page.keyboard.press("Escape");

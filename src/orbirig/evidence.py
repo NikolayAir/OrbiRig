@@ -47,11 +47,11 @@ _ACKNOWLEDGEMENT_INVARIANT_IDS = frozenset(
 
 
 class _StrictJSONError(ValueError):
-    """Report one controlled failure while decoding strict JSON input."""
+    """Raised when JSON decoding rejects malformed or unsupported input."""
 
 
 def _parse_json_integer(serialized: str) -> int:
-    """Convert a JSON integer, reporting digit-limit failures as decoding errors."""
+    """Convert a JSON integer, reporting an exceeded digit limit as a decoding error."""
 
     try:
         return int(serialized)
@@ -237,7 +237,7 @@ def _parse_execution_outcome(
     *,
     path: str,
 ) -> ExecutionOutcome:
-    """Parse one supported derived execution outcome."""
+    """Read a saved PASS or FAIL outcome."""
 
     serialized_outcome = _require_string(value, path=path)
 
@@ -471,7 +471,7 @@ def _parse_verified_execution_document(
     *,
     path: str,
 ) -> VerifiedExecutionRecord:
-    """Reconstruct one canonically consistent verified record object."""
+    """Recompute a saved record's checks and outcome and reject mismatches."""
 
     root = _require_object(
         document,
@@ -541,13 +541,14 @@ def _parse_verified_execution_document(
 
     if persisted_results != canonical_record.invariant_results:
         raise ValueError(
-            f"{invariant_results_path} do not match canonical "
-            "verification results",
+            f"{invariant_results_path} do not match the checks recomputed "
+            "from the saved scenario and observation",
         )
 
     if persisted_outcome is not canonical_record.outcome:
         raise ValueError(
-            f"{outcome_path} does not match canonical verification result",
+            f"{outcome_path} does not match the outcome recomputed "
+            "from the saved scenario and observation",
         )
 
     return canonical_record
@@ -556,7 +557,7 @@ def _parse_verified_execution_document(
 def deserialize_verified_execution_evidence(
     serialized: str,
 ) -> VerifiedExecutionRecord:
-    """Reconstruct canonically consistent verified-execution evidence."""
+    """Load a verified record, recompute its checks and outcome and reject mismatches."""
 
     document = _load_strict_json(
         serialized,
@@ -718,7 +719,7 @@ def _parse_continuity_results(
 def deserialize_verified_execution_sequence_evidence(
     serialized: str,
 ) -> VerifiedExecutionSequence:
-    """Reconstruct canonically consistent verified-sequence evidence."""
+    """Load a sequence and recheck its records, continuity checks and overall outcome."""
 
     document = _load_strict_json(
         serialized,
@@ -770,12 +771,14 @@ def deserialize_verified_execution_sequence_evidence(
 
     if persisted_results != canonical_sequence.continuity_results:
         raise ValueError(
-            "continuity_results do not match canonical sequence results",
+            "continuity_results do not match the continuity checks "
+            "recomputed from the saved records",
         )
 
     if persisted_outcome is not canonical_sequence.outcome:
         raise ValueError(
-            "outcome does not match canonical sequence result",
+            "outcome does not match the sequence outcome "
+            "recomputed from the saved records",
         )
 
     return canonical_sequence

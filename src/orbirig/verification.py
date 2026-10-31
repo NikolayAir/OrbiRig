@@ -1,4 +1,4 @@
-"""Independent command-to-telemetry consistency verification."""
+"""Scenario verification and continuity checks for recorded command executions."""
 
 from collections.abc import Sequence
 from datetime import datetime
@@ -204,13 +204,13 @@ def build_verified_execution_record(
 def verify_execution_sequence(
     records: Sequence[VerifiedExecutionRecord],
 ) -> VerifiedExecutionSequence:
-    """Verify operating-mode continuity in authoritative input order."""
+    """Verify operating-mode continuity in the supplied record order."""
 
     ordered_records = tuple(records)
 
     if len(ordered_records) < 2:
         raise ValueError(
-            "verified execution sequence requires at least two records",
+            "verified execution sequence requires at least 2 records",
         )
 
     continuity_results = tuple(

@@ -358,26 +358,27 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: BrowserWorkfl
               >
                 <ol>
                   <li>
-                    Select the type of saved record: observation, verified execution, or
+                    Select the evidence type: observation, verified execution, or
                     verified-execution sequence.
                   </li>
                   <li>
                     Paste its JSON or choose <strong>Load example</strong>.
                   </li>
                   <li>
-                    Choose <strong>Inspect evidence</strong> to explore its contents in a
-                    structured view.
+                    Choose <strong>Inspect evidence</strong> to see the recorded values
+                    and any saved verification results.
                   </li>
                 </ol>
                 <p>
-                  Inspecting an observation checks whether the record is valid. To check
-                  it against a scenario, use <strong>Verify observation</strong>.
+                  Inspecting an observation checks its JSON structure and supported values.
+                  To compare the reported result with a scenario, use <strong>Verify observation</strong>.
                 </p>
                 <p>
-                  For saved verified executions and sequences, OrbiRig independently
-                  recalculates verification results and checks their consistency. Evidence
-                  with a correctly derived <strong>FAIL</strong> outcome is still valid and
-                  can be inspected.
+                  For saved verified executions and sequences, OrbiRig recalculates each
+                  record's checks and outcome from its scenario and observation, then compares
+                  them with the stored results. For sequences, it also checks continuity in
+                  the saved order. A record with a <strong>FAIL</strong> outcome can still be
+                  inspected when these results match.
                 </p>
               </div>
             </>
@@ -420,7 +421,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: BrowserWorkfl
               </pre>
               <p>
                 The execution ID and timestamp above are examples. For recorded
-                executions, use the corresponding recorded metadata.
+                executions, use the ID and UTC time recorded for that execution.
               </p>
               <p>
                 The command prints JSON evidence in the terminal for both <strong>PASS</strong> and <strong>FAIL</strong> results.

@@ -1,5 +1,9 @@
 Feature: Operating-mode command verification
 
+  The reference spacecraft uses 2 simplified operating modes:
+  NOMINAL represents normal operation, and SAFE represents a protective mode.
+  Each scenario checks the command response, reported mode and verification result.
+
   Scenario: Accept a transition from NOMINAL to SAFE
     Given the reference spacecraft is in NOMINAL mode
     When SAFE operating mode is requested

@@ -39,22 +39,28 @@ class _ArgumentParser(argparse.ArgumentParser):
 def _parser() -> argparse.ArgumentParser:
     parser = _ArgumentParser(
         prog="orbirig",
-        description="Verify recorded observation evidence against an explicit scenario.",
+        description="Check a recorded command result against a scenario you select.",
         allow_abbrev=False,
     )
     commands = parser.add_subparsers(dest="command", required=True)
     verify = commands.add_parser(
         "verify-observation",
-        help="verify one local observation JSON file",
+        help="verify 1 local observation JSON file",
         allow_abbrev=False,
     )
-    verify.add_argument("file", metavar="FILE", type=Path, help="UTF-8 observation evidence v1")
+    verify.add_argument(
+        "file", metavar="FILE", type=Path,
+        help="path to a UTF-8 observation JSON file (evidence format v1)",
+    )
     verify.add_argument(
         "--scenario", required=True,
         choices=tuple(scenario.value for scenario in ScenarioId),
-        help="explicit scenario expectation",
+        help="scenario defining the expected command behaviour",
     )
-    verify.add_argument("--execution-id", required=True, metavar="ID")
+    verify.add_argument(
+        "--execution-id", required=True, metavar="ID",
+        help="label for this command execution, saved with the result",
+    )
     verify.add_argument(
         "--executed-at", required=True, metavar="UTC_TIMESTAMP",
         help="recorded execution time: YYYY-MM-DDTHH:MM:SS[.fraction](Z|+00:00)",

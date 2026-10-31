@@ -16,7 +16,7 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 320, height: 600 
       await page.emulateMedia({ reducedMotion: "reduce" });
       await page.goto("/");
       if (example.workflow === "inspection") {
-        await page.getByRole("button", { name: "Show Inspect evidence workflow" }).click();
+        await page.getByRole("button", { name: "Show Inspect evidence" }).click();
         await page.getByRole("radio", { name: example.type, exact: true }).check();
       } else {
         await page.getByLabel("Execution ID", { exact: true }).fill("cancel-original");

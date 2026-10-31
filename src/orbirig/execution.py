@@ -1,4 +1,4 @@
-"""Verified execution construction and orchestration."""
+"""Command execution, observation collection and verification."""
 
 from collections.abc import Sequence
 from datetime import datetime
@@ -50,7 +50,7 @@ def execute_verified_subprocess_workflow(
     executed_at: datetime,
     scenario_id: ScenarioId = ScenarioId.NOMINAL_TO_SAFE_MODE,
 ) -> VerifiedExecutionRecord:
-    """Collect and canonically verify one subprocess observation."""
+    """Collect a subprocess observation and verify it against the selected scenario."""
 
     command = command_for_scenario(scenario_id)
     validate_execution_metadata(

@@ -1,4 +1,4 @@
-"""HTTP boundary for OrbiRig evidence inspection and verification."""
+"""HTTP handlers for OrbiRig evidence inspection and verification."""
 
 from http import HTTPStatus
 from pathlib import Path
@@ -307,7 +307,7 @@ async def verify_observation_evidence(
 async def inspect_verified_execution_evidence(
     request: Request,
 ) -> dict[str, object]:
-    """Present a verified execution reconstructed by the strict evidence boundary."""
+    """Present a verified execution validated and rechecked by the evidence reader."""
 
     serialized = await _decode_text_plain_evidence(request)
 
@@ -326,7 +326,7 @@ async def inspect_verified_execution_evidence(
 async def inspect_verified_execution_sequence_evidence(
     request: Request,
 ) -> dict[str, object]:
-    """Present a sequence reconstructed by the strict evidence boundary."""
+    """Present a sequence validated and rechecked by the evidence reader."""
 
     serialized = await _decode_text_plain_evidence(request)
 

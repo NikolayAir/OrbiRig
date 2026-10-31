@@ -328,7 +328,7 @@ def test_unsupported_timestamp_is_invalid_metadata_without_verification(timestam
     (
         "2026-08-15T12:00:00.1234567Z",
         (
-            "fractional seconds may have more than six decimal places "
+            "fractional seconds may have more than 6 decimal places "
             "only if the extra digits are zero"
         ),
     ),

@@ -441,7 +441,7 @@ def test_noncanonical_invariant_result_collections_are_rejected(mutation):
 
     with pytest.raises(
         ValueError,
-        match="invariant_results do not match canonical",
+        match="invariant_results do not match the checks recomputed",
     ):
         deserialize_verified_execution_evidence(_serialized(document))
 
@@ -466,7 +466,7 @@ def test_altered_invariant_result_values_are_rejected(mutation):
 
     with pytest.raises(
         ValueError,
-        match="invariant_results do not match canonical",
+        match="invariant_results do not match the checks recomputed",
     ):
         deserialize_verified_execution_evidence(_serialized(document))
 
@@ -477,6 +477,6 @@ def test_altered_aggregate_outcome_is_rejected():
 
     with pytest.raises(
         ValueError,
-        match="outcome does not match canonical",
+        match="outcome does not match the outcome recomputed",
     ):
         deserialize_verified_execution_evidence(_serialized(document))

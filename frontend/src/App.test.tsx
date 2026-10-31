@@ -392,13 +392,13 @@ function selectVerifiedExecution() {
 
 function selectInspectionWorkflow() {
   fireEvent.click(
-    screen.getByRole("button", { name: "Show Inspect evidence workflow" }),
+    screen.getByRole("button", { name: "Show Inspect evidence" }),
   );
 }
 
 function selectVerificationWorkflow() {
   fireEvent.click(
-    screen.getByRole("button", { name: "Show Verify observation workflow" }),
+    screen.getByRole("button", { name: "Show Verify observation" }),
   );
 }
 
@@ -489,7 +489,7 @@ describe("App", () => {
     render(<App />);
 
     expect(
-      screen.getByRole("group", { name: "Choose a workflow" }),
+      screen.getByRole("group", { name: "Choose what to do" }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
@@ -500,10 +500,10 @@ describe("App", () => {
     );
 
     const verificationChoice = screen.getByRole("button", {
-      name: "Show Verify observation workflow",
+      name: "Show Verify observation",
     });
     const inspectionChoice = screen.getByRole("button", {
-      name: "Show Inspect evidence workflow",
+      name: "Show Inspect evidence",
     });
 
     expect(verificationChoice).toHaveAttribute("aria-pressed", "true");
@@ -634,7 +634,7 @@ describe("App", () => {
     fireEvent.click(trigger);
     expect(help.getByRole("tab", { name: selectedName, selected: true })).toBeVisible();
     expect(screen.getByRole("button", {
-      name: `Show ${selectedName} workflow`,
+      name: `Show ${selectedName}`,
     })).toHaveAttribute("aria-pressed", "true");
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -746,17 +746,17 @@ describe("App", () => {
     expect(
       within(inspectionSteps).getAllByRole("listitem").map((step) => step.textContent?.replace(/\s+/g, " ").trim()),
     ).toEqual([
-      "Select the type of saved record: observation, verified execution, or verified-execution sequence.",
+      "Select the evidence type: observation, verified execution, or verified-execution sequence.",
       "Paste its JSON or choose Load example.",
-      "Choose Inspect evidence to explore its contents in a structured view.",
+      "Choose Inspect evidence to see the recorded values and any saved verification results.",
     ]);
     const observationInspection = guidance.getByText(/Inspecting an observation checks/);
     expect(observationInspection).toHaveTextContent(
-      "Inspecting an observation checks whether the record is valid. To check it against a scenario, use Verify observation.",
+      "Inspecting an observation checks its JSON structure and supported values. To compare the reported result with a scenario, use Verify observation.",
     );
     expect(observationInspection.querySelector("strong")).toHaveTextContent("Verify observation");
     expect(guidance.getByText(/For saved verified executions and sequences/)).toHaveTextContent(
-      "For saved verified executions and sequences, OrbiRig independently recalculates verification results and checks their consistency. Evidence with a correctly derived FAIL outcome is still valid and can be inspected.",
+      "For saved verified executions and sequences, OrbiRig recalculates each record's checks and outcome from its scenario and observation, then compares them with the stored results. For sequences, it also checks continuity in the saved order. A record with a FAIL outcome can still be inspected when these results match.",
     );
   });
 
@@ -785,7 +785,7 @@ describe("App", () => {
       "  --executed-at 2026-10-21T10:00:00Z",
     ].join("\n"));
     expect(guidance.getByText(/The execution ID and timestamp/)).toHaveTextContent(
-      "The execution ID and timestamp above are examples. For recorded executions, use the corresponding recorded metadata.",
+      "The execution ID and timestamp above are examples. For recorded executions, use the ID and UTC time recorded for that execution.",
     );
     expect(guidance.getByRole("link", { name: "CLI setup and full instructions" })).toHaveAttribute(
       "href",
@@ -820,7 +820,7 @@ describe("App", () => {
     expect(screen.queryByLabelText("Execution ID")).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", {
-        name: "Show Inspect evidence workflow",
+        name: "Show Inspect evidence",
       }),
     ).toHaveAttribute("aria-pressed", "true");
 
@@ -944,7 +944,7 @@ describe("App", () => {
     expect(within(activeResult).getByLabelText("Sequence outcome: PASS")).toBeInTheDocument();
     expect(screen.getByLabelText("Evidence JSON")).toHaveValue("independent inspection evidence");
     expect(screen.getByRole("radio", { name: "Verified execution sequence" })).toBeChecked();
-    expect(screen.getByRole("button", { name: "Show Inspect evidence workflow" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Show Inspect evidence" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(scrollIntoViewMock).toHaveBeenCalledTimes(1);
 
@@ -1022,7 +1022,7 @@ describe("App", () => {
     for (const [label, value] of activeInputs) {
       expect(screen.getByLabelText(label)).toHaveValue(value);
     }
-    expect(screen.getByRole("button", { name: "Show Verify observation workflow" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Show Verify observation" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(scrollIntoViewMock).toHaveBeenCalledTimes(1);
 
@@ -1096,7 +1096,7 @@ describe("App", () => {
 
   it.each([
     ["Verify observation", "Provide execution details, select a supported scenario, and submit observation evidence for verification."],
-    ["Inspect evidence", "Select an evidence type and paste its JSON document to review it in a structured view."],
+    ["Inspect evidence", "Select an evidence type and paste its JSON to see the recorded values and any saved verification results."],
   ])("moves the %s introduction into accessible contextual help", (title, text) => {
     render(<App />);
     if (title === "Inspect evidence") selectInspectionWorkflow();
@@ -1171,7 +1171,7 @@ describe("App", () => {
 
     const help = screen.getByRole("button", { name: "About Scenario" });
     const description = screen.getByText(
-      "Select the scenario to verify against. It is not inferred from the evidence.",
+      "Choose the expected behaviour for this command execution. OrbiRig checks the observation against this scenario.",
     );
     const scenario = screen.getByLabelText("Scenario");
     const helpContainer = help.parentElement;
@@ -1185,7 +1185,7 @@ describe("App", () => {
       "scenario-help-description",
     );
     expect(description).toHaveTextContent(
-      "It is not inferred from the evidence.",
+      "OrbiRig checks the observation against this scenario.",
     );
 
     help.focus();
@@ -1214,7 +1214,7 @@ describe("App", () => {
 
     const help = screen.getByRole("button", { name: "About Execution ID" });
     const description = screen.getByText(
-      "A non-empty identifier recorded with the resulting evidence.",
+      "A label you provide for this command execution, such as run-001. It is saved with the result.",
     );
     const executionId = screen.getByLabelText("Execution ID");
     const helpContainer = help.parentElement;
@@ -1954,7 +1954,7 @@ describe("App", () => {
   it.each([
     ["invalid_scenario", "Select a supported scenario."],
     ["invalid_observation_evidence", "The observation evidence is invalid."],
-    ["invalid_execution_metadata", "The execution metadata is invalid."],
+    ["invalid_execution_metadata", "The execution ID or UTC execution time is invalid."],
     [
       "scenario_command_mismatch",
       "The observation command does not match the selected scenario.",
@@ -2002,7 +2002,7 @@ describe("App", () => {
     expect(screen.getByLabelText("Execution time (UTC)")).toHaveValue("2026-08-25T18:30:00Z");
     expect(screen.getByLabelText("Scenario")).toHaveValue("safe_to_nominal_mode");
     expect(screen.getByLabelText("Observation evidence JSON")).toHaveValue(evidence);
-    expect(screen.getByRole("button", { name: "Show Verify observation workflow" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Show Verify observation" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "Verify observation" })).toBeEnabled();
     expect(screen.queryByRole("region", { name: "Verified execution" })).not.toBeInTheDocument();
     await expectFeedbackScroll();
@@ -2083,7 +2083,7 @@ describe("App", () => {
     expect(verifiedExecutionOption).not.toBeChecked();
     expect(sequenceOption).not.toBeChecked();
     expect(observationOption).toHaveAccessibleDescription("Recorded behaviour without verification results.");
-    expect(verifiedExecutionOption).toHaveAccessibleDescription("One execution with its scenario and checks.");
+    expect(verifiedExecutionOption).toHaveAccessibleDescription("1 execution with its scenario and checks.");
     expect(sequenceOption).toHaveAccessibleDescription("Ordered executions and continuity checks.");
     expect(screen.getByRole("button", { name: "Load example" })).toHaveAccessibleDescription("Replaces evidence JSON");
     expect(screen.getByLabelText("Evidence JSON")).toHaveAccessibleDescription("Paste the complete document for the selected evidence type.");
@@ -2551,7 +2551,7 @@ describe("App", () => {
       within(sequence).getByLabelText("Sequence outcome: FAIL"),
     ).toBeInTheDocument();
     expect(within(sequence).getByText("Valid saved evidence")).toBeVisible();
-    expect(within(sequence).getByText("One or more execution or continuity checks did not pass. Records are shown in the supplied order.")).toBeVisible();
+    expect(within(sequence).getByText("1 or more execution or continuity checks did not pass. Records are shown in the supplied order.")).toBeVisible();
 
     const boundary = within(sequence).getByRole("article", {
       name: "Continuity check 1",
@@ -2712,7 +2712,7 @@ describe("App", () => {
     expect(json).not.toHaveBeenCalled();
     expect(screen.getByLabelText("Evidence JSON")).toHaveValue(evidence);
     expect(screen.getByRole("radio", { name: label })).toBeChecked();
-    expect(screen.getByRole("button", { name: "Show Inspect evidence workflow" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Show Inspect evidence" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "Inspect evidence" })).toBeEnabled();
     expect(screen.queryByRole("region", { name: /^(Observation details|Verified execution|Verified execution sequence)$/ })).not.toBeInTheDocument();
     await expectFeedbackScroll();

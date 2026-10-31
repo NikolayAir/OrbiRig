@@ -1,4 +1,4 @@
-# Python workflows
+# Using the Python API
 
 [README](../README.md) · [Verification concepts](verification.md) · [Evidence formats](evidence-formats.md)
 
@@ -35,7 +35,7 @@ record = build_verified_execution_record(
 print(serialize_verified_execution_evidence(record), end="")
 ```
 
-Loading the observation validates its format. `build_verified_execution_record(...)` verifies it against the `ScenarioId` you provide. This example produces `PASS` with four passing checks.
+Loading the observation validates its format. `build_verified_execution_record(...)` verifies it against the `ScenarioId` you provide. This example produces `PASS` with 4 passing checks.
 
 ## Execute a reference example
 
@@ -59,11 +59,11 @@ record = execute_verified_reference_workflow(
 print(serialize_verified_execution_evidence(record), end="")
 ```
 
-A new `ReferenceSpacecraft` starts in `NOMINAL`. Reuse the same instance when subsequent commands should operate on the state left by earlier commands.
+This produces `PASS` with 4 passing checks: the starting mode, acknowledgement, ending mode and telemetry all meet the scenario's expectations. A new `ReferenceSpacecraft` starts in `NOMINAL`. Reuse the same instance when subsequent commands should operate on the state left by earlier commands.
 
 ## Verify an ordered sequence
 
-This example changes to `SAFE` and back to `NOMINAL` on the same reference instance. Both records and the continuity boundary pass:
+This example changes to `SAFE` and back to `NOMINAL` on the same reference instance. Both records pass, and the ending mode of the first matches the starting mode of the second:
 
 ```python
 from datetime import datetime, timezone
@@ -92,36 +92,42 @@ sequence = verify_execution_sequence([first, second])
 print(serialize_verified_execution_sequence_evidence(sequence), end="")
 ```
 
-The sequence verifier accepts at least two records and checks them in the order you provide them. It does not sort by execution ID or timestamp, re-run commands or re-evaluate each record's scenario checks. A sequence can fail even when every record passes; see [continuity](verification.md#continuity-across-executions).
+The output contains 2 verified records, 1 passing continuity check and an overall `PASS`. The sequence verifier accepts at least 2 records and checks them in the order you provide them. It does not sort by execution ID or timestamp, re-run commands or re-evaluate each record's scenario checks. A sequence can fail even when every record passes; see [continuity](verification.md#continuity-across-executions).
 
 ## Collect from a separate program
 
-Replace `/path/to/observation-peer` below with an executable implementing the subprocess protocol. This call launches that program, sends one command, collects one observation and verifies it:
+The bundled [example program](examples/observation_peer.py) reads a command requesting `SAFE` and returns a fixed observation of an accepted change from `NOMINAL` to `SAFE`, with matching telemetry. It uses only Python's standard library. Run this example from the repository root to launch the program, send 1 command, collect its observation and verify it:
 
 ```python
+import sys
 from datetime import datetime, timezone
 
+from orbirig.evidence import serialize_verified_execution_evidence
 from orbirig.execution import execute_verified_subprocess_workflow
 from orbirig.models import ScenarioId
 
 record = execute_verified_subprocess_workflow(
-    argv=["/path/to/observation-peer"],
+    argv=[sys.executable, "docs/examples/observation_peer.py"],
     timeout=5.0,
     execution_id="external-001",
     executed_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
     scenario_id=ScenarioId.NOMINAL_TO_SAFE_MODE,
 )
+
+print(serialize_verified_execution_evidence(record), end="")
 ```
 
-The protocol uses a separate process, not a shell or HTTP connection:
+The result contains 4 passing checks and outcome `PASS`. To collect from your own program, replace `argv` with its executable and arguments.
 
-1. OrbiRig starts the `argv` program and sends one compact UTF-8 command JSON document on stdin, followed by one LF newline. For this scenario it sends:
+OrbiRig starts 1 process for each submitted command, without interpreting `argv` as a shell command. The command and observation are exchanged through stdin and stdout, not HTTP. The protocol is:
+
+1. OrbiRig starts the `argv` program and sends 1 compact UTF-8 command JSON document on stdin, followed by 1 LF newline. For this scenario it sends:
 
    ```json
    {"command_type":"SET_OPERATING_MODE","target_mode":"SAFE"}
    ```
 
-2. The program must exit with code `0` within the timeout and write exactly one [observation-evidence v1](evidence-formats.md#observation-evidence) document to stdout. Its recorded command must match the submitted command. Diagnostic text belongs on stderr.
+2. The program must exit with code `0` within the timeout and write exactly 1 [observation-evidence v1](evidence-formats.md#observation-evidence) document to stdout. Its recorded command must match the submitted command. Diagnostic text belongs on stderr.
 3. OrbiRig validates the observation, then verifies it against the explicitly chosen scenario. Completed verification can produce `PASS` or `FAIL`.
 
 `ObservationCollectionError` from `orbirig.subprocess_collection` covers launch failures, timeouts and non-zero exits. It also covers invalid UTF-8, invalid evidence and returned-command mismatches. These errors produce no verified record and do not establish whether the external target changed state.
@@ -151,7 +157,7 @@ Path("verified-sequence.json").write_text(
 
 This writes UTF-8 files with LF line endings. The [CLI example](cli.md#verify-the-bundled-example) also shows how to save a verified execution record.
 
-Run this separate example to load the two files with the matching readers:
+Run this separate example to load the 2 files with the matching readers:
 
 ```python
 from pathlib import Path
@@ -169,4 +175,4 @@ sequence = deserialize_verified_execution_sequence_evidence(
 )
 ```
 
-These readers recompute the relevant results and reject saved values that disagree. A consistent saved `FAIL` is accepted. See the [evidence reference](evidence-formats.md) for fields, versions, execution IDs and UTC timestamp rules.
+These readers recompute the checks and outcomes and reject saved values that disagree. This also allows saved `FAIL` results to be reopened when they match the recalculated results. See the [evidence reference](evidence-formats.md) for fields, versions, execution IDs and UTC timestamp rules.
