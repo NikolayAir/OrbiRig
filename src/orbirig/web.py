@@ -29,6 +29,10 @@ from orbirig.verification import build_verified_execution_record
 
 app = FastAPI()
 _STATIC_DIRECTORY = Path(__file__).with_name("static")
+# Limit the request data held in memory before JSON parsing.
+# 4 MiB means 4 * 1024 * 1024 bytes for the complete HTTP body.
+# For verification, include the fields around the observation too.
+# Count encoded bytes: a UTF-8 character may use more than 1 byte.
 _MAX_EVIDENCE_REQUEST_BYTES = 4 * 1024 * 1024
 _VERIFICATION_REQUEST_FIELDS = frozenset(
     (
@@ -74,6 +78,7 @@ def _invariant_value_presentation(value: InvariantValue) -> bool | str:
 def _verified_execution_presentation(
     record: VerifiedExecutionRecord,
 ) -> dict[str, object]:
+    # HTTP display data has a different shape from versioned evidence in evidence.py.
     return {
         "execution": {
             "execution_id": record.execution_id,
@@ -181,6 +186,7 @@ async def _decode_verification_request(
         )
 
     try:
+        # The request wrapper must reject duplicate fields as well as the embedded evidence.
         document = _load_strict_json(
             await _read_evidence_body(request),
             invalid_json_message="verification request JSON is invalid",
@@ -341,6 +347,7 @@ async def inspect_verified_execution_sequence_evidence(
     return _verified_execution_sequence_presentation(sequence)
 
 
+# Keep the API usable without a frontend build; register page routes only when the build directory exists.
 if _STATIC_DIRECTORY.is_dir():
     app.mount(
         "/assets",

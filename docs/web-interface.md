@@ -72,6 +72,7 @@ After installing dependencies, build the frontend before starting FastAPI:
 cd frontend
 npm run build
 cd ..
+# Start after the build so FastAPI registers the page and asset routes.
 uv run --no-sync python -m uvicorn orbirig.web:app
 ```
 
@@ -109,6 +110,7 @@ The [request file](examples/verify-observation-request.json) contains all 4 fiel
 Inspection sends the evidence text directly, without a JSON wrapper:
 
 ```bash
+# Send the file bytes unchanged, preserving whitespace and repeated JSON fields.
 curl --header 'Content-Type: text/plain; charset=utf-8' \
   --data-binary @docs/examples/verified-execution.json \
   http://127.0.0.1:8000/api/inspect/verified-execution

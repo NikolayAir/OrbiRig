@@ -14,6 +14,7 @@ export default defineConfig({
   testDir: "./e2e",
   testMatch: "**/*.spec.ts",
   forbidOnly: Boolean(process.env.CI),
+  // Limit concurrent browser memory use on local machines and CI runners.
   workers: 1,
   retries: 0,
   // Allow the full 3-browser suite while bounding setup and tests,

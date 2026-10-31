@@ -7,6 +7,8 @@ name = "orbirig"
 version = "0.9.0"
 description = "Verification harness for simplified spacecraft command results"
 requires-python = ">=3.12,<3.16"
+# The core uses only Python's standard library and needs no extra packages to run.
+# The web extra lists the optional packages needed for the HTTP server.
 dependencies = []
 
 [project.scripts]
@@ -36,6 +38,7 @@ where = ["src"]
 include = ["src", "tests", "features/steps", "scripts"]
 extraPaths = ["src"]
 typeCheckingMode = "standard"
+# Check syntax and standard-library use against the minimum supported Python, not the local default.
 pythonVersion = "3.12"
 
 [tool.ruff]

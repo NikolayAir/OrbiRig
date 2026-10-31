@@ -32,6 +32,7 @@ The [example observation](examples/nominal-to-safe.json) records an accepted cha
 To save the result, use shell redirection:
 
 ```bash
+# Redirect stdout only; diagnostics remain visible on stderr.
 uv run --no-sync orbirig verify-observation docs/examples/nominal-to-safe.json \
   --scenario nominal_to_safe_mode \
   --execution-id example-001 \

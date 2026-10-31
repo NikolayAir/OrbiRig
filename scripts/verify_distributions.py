@@ -224,6 +224,7 @@ def main() -> None:
         check_sdist(sdist, project)
         direct_files = check_wheel(wheel, project)
 
+        # A checkout build alone cannot reveal package files missing from the source archive.
         rebuilt = work / "from-sdist"
         build(sdist, rebuilt, "--wheel")
         rebuilt_wheel = only_artifact(rebuilt, "*.whl")
@@ -231,6 +232,9 @@ def main() -> None:
             "Wheel package contents differ when built from sdist"
         )
 
+        # Test the built package (wheel) in a fresh environment outside this checkout.
+        # Do not install web packages: the core must work from the installed wheel alone.
+        # This exposes missing package files or accidental dependencies on optional packages.
         for label, artifact in (("direct", wheel), ("from-sdist", rebuilt_wheel)):
             venv = work / f"{label}-venv"
             run("uv", "venv", "--no-config", "--python", sys.executable, str(venv))

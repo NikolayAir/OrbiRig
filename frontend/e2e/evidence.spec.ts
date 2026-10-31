@@ -211,7 +211,8 @@ for (const viewport of [
       expect(textBounds.x).toBeGreaterThan(bounds.x);
       expect(textBounds.x + textBounds.width).toBeLessThan(bounds.x + bounds.width);
 
-      // Native Tab order can include the dialog itself and browser chrome.
+      // Tab can move focus to the dialog itself or to the browser's address bar
+      // and other controls outside the page (browser chrome).
       for (const key of ["Tab", "Shift+Tab"]) {
         await page.keyboard.press(key);
         expect(await help.evaluate((element) =>

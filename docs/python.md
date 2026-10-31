@@ -32,6 +32,7 @@ record = build_verified_execution_record(
     observation=observation,
 )
 
+# The serialiser already includes the final newline.
 print(serialize_verified_execution_evidence(record), end="")
 ```
 
@@ -74,6 +75,7 @@ from orbirig.models import ScenarioId
 from orbirig.reference_sut import ReferenceSpacecraft
 from orbirig.verification import verify_execution_sequence
 
+# Reuse the instance so the second command sees the state left by the first.
 spacecraft = ReferenceSpacecraft()
 first = execute_verified_reference_workflow(
     spacecraft=spacecraft,
@@ -88,7 +90,7 @@ second = execute_verified_reference_workflow(
     scenario_id=ScenarioId.SAFE_TO_NOMINAL_MODE,
 )
 
-sequence = verify_execution_sequence([first, second])
+sequence = verify_execution_sequence([first, second])  # This order defines continuity.
 print(serialize_verified_execution_sequence_evidence(sequence), end="")
 ```
 
@@ -107,6 +109,7 @@ from orbirig.execution import execute_verified_subprocess_workflow
 from orbirig.models import ScenarioId
 
 record = execute_verified_subprocess_workflow(
+    # Use this script's Python interpreter, including its active environment.
     argv=[sys.executable, "docs/examples/observation_peer.py"],
     timeout=5.0,
     execution_id="external-001",
@@ -146,7 +149,7 @@ from orbirig.evidence import serialize_verified_execution_evidence
 Path("verified-execution.json").write_text(
     serialize_verified_execution_evidence(first),
     encoding="utf-8",
-    newline="\n",
+    newline="\n",  # Keep LF endings on Windows too.
 )
 Path("verified-sequence.json").write_text(
     serialize_verified_execution_sequence_evidence(sequence),

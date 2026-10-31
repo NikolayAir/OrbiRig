@@ -3,14 +3,15 @@ import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 type HelpSection = "browser" | "cli";
 type BrowserWorkflow = "verification" | "inspection";
 
-function revealFocusedControl(dialog: HTMLDialogElement, element: HTMLElement) {
+function scrollFocusedControlIntoView(dialog: HTMLDialogElement, element: HTMLElement) {
   const focused = element.getBoundingClientRect();
   const style = getComputedStyle(element);
   const outline = Math.max(0, parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset));
   const viewportTop = dialog.getBoundingClientRect().top + dialog.clientTop;
   const top = viewportTop + outline;
   const bottom = viewportTop + dialog.clientHeight - outline;
-  // Keep the focus outline visible, including engines with integral scroll offsets.
+  // Some browsers scroll only by whole pixels.
+  // Round the distance outwards so the entire focus outline stays visible.
   if (focused.top < top) {
     dialog.scrollTop += Math.floor(focused.top - top);
   } else if (focused.bottom > bottom) {
@@ -52,7 +53,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: BrowserWorkfl
           if (help.scrollToWorkflow && tabs !== null) {
             dialogRef.current.scrollTop = tabs.offsetTop;
           } else if (document.activeElement instanceof HTMLElement && headerRef.current?.contains(document.activeElement)) {
-            revealFocusedControl(dialogRef.current, document.activeElement);
+            scrollFocusedControlIntoView(dialogRef.current, document.activeElement);
           }
         } else {
           dialogRef.current.scrollTop = 0;
@@ -80,6 +81,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: BrowserWorkfl
     };
 
     measureAvailableSpace();
+    // Header wrapping and enlarged text can change the available space without a window resize.
     const observer = new ResizeObserver(measureAvailableSpace);
     observer.observe(dialog);
     observer.observe(header);
@@ -87,7 +89,9 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: BrowserWorkfl
   }, [help]);
 
   function openHelp(section: HelpSection, trigger: HTMLButtonElement) {
-    // A distinct request also reopens the same guide before the close event arrives.
+    // Create a new state object even when reopening the same guide.
+    // This reruns the code that calls showModal() (useEffect), even if the previous
+    // close event has not been delivered yet.
     setHelp({ section, trigger, browserWorkflow: activeWorkflow, scrollToWorkflow: false });
   }
 
@@ -182,6 +186,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: BrowserWorkfl
             return;
           }
 
+          // Backdrop clicks also target the dialog; close only when the click is outside its bounds.
           const bounds = event.currentTarget.getBoundingClientRect();
           if (
             event.clientX < bounds.left || event.clientX > bounds.right ||
@@ -196,7 +201,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: BrowserWorkfl
           className="workflow-help-header"
           onFocus={(event) => {
             if (scrollWholeDialog && dialogRef.current !== null) {
-              revealFocusedControl(dialogRef.current, event.target);
+              scrollFocusedControlIntoView(dialogRef.current, event.target);
             }
           }}
         >

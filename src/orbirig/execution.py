@@ -25,6 +25,7 @@ def execute_verified_reference_workflow(
     """Execute and independently verify one selected reference scenario."""
 
     command = command_for_scenario(scenario_id)
+    # Validate the execution ID and UTC time before the reference command can change state.
     validate_execution_metadata(
         execution_id=execution_id,
         executed_at=executed_at,
@@ -53,6 +54,7 @@ def execute_verified_subprocess_workflow(
     """Collect a subprocess observation and verify it against the selected scenario."""
 
     command = command_for_scenario(scenario_id)
+    # Validate the execution ID and UTC time before starting a program that may have side effects.
     validate_execution_metadata(
         execution_id=execution_id,
         executed_at=executed_at,

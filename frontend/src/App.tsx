@@ -260,6 +260,8 @@ export function App() {
   const inspectionSubmitRef = useRef<HTMLButtonElement>(null);
   const verificationCancelRef = useRef<HTMLButtonElement>(null);
   const inspectionCancelRef = useRef<HTMLButtonElement>(null);
+  // Track verification and inspection separately.
+  // Cancelling one must not cancel the other.
   const verificationRequestRef = useRef<AbortController | null>(null);
   const inspectionRequestRef = useRef<AbortController | null>(null);
   const verificationFeedbackRef = useRef<HTMLDivElement>(null);
@@ -384,7 +386,7 @@ export function App() {
         setFeedbackAnnouncement(VERIFICATION_CANCELLED);
         return;
       }
-      revealFeedback(verificationFeedbackRef.current);
+      focusAndScrollToFeedback(verificationFeedbackRef.current);
       setFeedbackAnnouncement(verification.kind === "completed"
         ? `Verification completed. Outcome: ${verification.record.outcome}.`
         : "");
@@ -413,7 +415,7 @@ export function App() {
         setFeedbackAnnouncement(INSPECTION_CANCELLED);
         return;
       }
-      revealFeedback(inspectionFeedbackRef.current);
+      focusAndScrollToFeedback(inspectionFeedbackRef.current);
       setFeedbackAnnouncement(inspectionAnnouncement(inspection));
     }
   }, [activeWorkflow, inspection]);
@@ -458,6 +460,7 @@ export function App() {
   function cancelVerification() {
     const request = verificationRequestRef.current;
     if (request === null) return;
+    // Clear the active request first; JSON parsing may finish even after cancellation.
     verificationRequestRef.current = null;
     request.abort();
     verificationFeedbackPendingRef.current = true;
@@ -539,6 +542,7 @@ export function App() {
         headers: {
           "Content-Type": "application/json",
         },
+        // Wrap the evidence text as a string; parsing it here would hide duplicate JSON fields.
         body: JSON.stringify({
           execution_id: executionId,
           executed_at: executedAt,
@@ -608,6 +612,7 @@ export function App() {
     previousRequest?.abort();
 
     function finish(state: InspectionState) {
+      // A retry may start while JSON is being read; only the current request may update the result.
       if (inspectionRequestRef.current !== request) return;
       inspectionRequestRef.current = null;
       setInspection(state);
@@ -620,7 +625,7 @@ export function App() {
         headers: {
           "Content-Type": "text/plain; charset=utf-8",
         },
-        body: evidence,
+        body: evidence, // Preserve the textarea text for Python's strict evidence reader.
       });
 
       if (inspectionRequestRef.current !== request) return;
@@ -1227,12 +1232,14 @@ function EvidenceRequestSizeError() {
 }
 
 function preventRepeatedRequestAction(event: ReactKeyboardEvent<HTMLFormElement>) {
+  // Held Enter must not activate Cancel or Submit just because focus moved to that button.
   if (event.key === "Enter" && event.repeat && event.target instanceof HTMLButtonElement) {
     event.preventDefault();
   }
 }
 
 function wouldReplaceEditedValue(current: string, baseline: string, next: string): boolean {
+  // Clearing a loaded example is still an edit; initial whitespace alone is not.
   return current !== baseline && current !== next && (baseline !== "" || current.trim() !== "");
 }
 
@@ -1673,7 +1680,10 @@ function inspectionAnnouncement(inspection: InspectionState): string {
   }
 }
 
-function revealFeedback(feedback: HTMLDivElement) {
+function focusAndScrollToFeedback(feedback: HTMLDivElement) {
+  // Move keyboard focus without causing the browser to scroll immediately.
+  // The scroll below chooses a smooth movement or an immediate jump according
+  // to the user's reduced-motion setting.
   feedback.querySelector<HTMLElement>("h2, [role='alert']")?.focus({ preventScroll: true });
   const prefersReducedMotion =
     typeof window.matchMedia === "function" &&

@@ -86,6 +86,8 @@ def _load_strict_json(
         return json.loads(
             serialized,
             parse_int=_parse_json_integer,
+            # The default JSON reader keeps only the last value when a field name repeats.
+            # Check every field first so repeated names are rejected instead.
             object_pairs_hook=_reject_duplicate_object_members,
         )
     except (json.JSONDecodeError, RecursionError) as exc:
@@ -101,7 +103,8 @@ def _require_object(
     """Validate one JSON object against its exact expected fields."""
 
     if not isinstance(value, dict):
-        # Invalid evidence follows the readers' ValueError contract.
+        # All evidence readers report invalid input with ValueError.
+        # Keep that error type here, even when the JSON value has the wrong type.
         raise ValueError(f"{path} must be a JSON object")  # noqa: TRY004
 
     actual_fields = set(value)
@@ -291,7 +294,8 @@ def _parse_observation_document(
         path=_nested_path(command_path, "command_type"),
     )
 
-    # Keep the v1 wire contract closed if CommandType gains new members later.
+    # Evidence format v1 accepts only SET_OPERATING_MODE.
+    # Adding another CommandType must not automatically make v1 accept it.
     if command_type != CommandType.SET_OPERATING_MODE.value:
         raise ValueError(
             f"{_nested_path(command_path, 'command_type')} "
@@ -539,6 +543,7 @@ def _parse_verified_execution_document(
         observation=observation,
     )
 
+    # Compare the full ordered checks, not just the outcome. Matching FAIL evidence is valid.
     if persisted_results != canonical_record.invariant_results:
         raise ValueError(
             f"{invariant_results_path} do not match the checks recomputed "
@@ -767,6 +772,8 @@ def deserialize_verified_execution_sequence_evidence(
         root["outcome"],
         path="outcome",
     )
+    # Compare each record's ending mode with the next record's starting mode
+    # in the saved order (sequence continuity). Do not sort by ID or time.
     canonical_sequence = verify_execution_sequence(records)
 
     if persisted_results != canonical_sequence.continuity_results:

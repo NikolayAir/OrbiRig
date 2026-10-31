@@ -15,6 +15,7 @@ def main() -> int:
         json.dumps(command, separators=(",", ":")) + "\n"
     ).encode("utf-8")
 
+    # Match the collector's compact format; this fixed example handles only the SAFE request.
     if sys.stdin.buffer.read() != command_bytes:
         print("expected the compact SET_OPERATING_MODE command targeting SAFE", file=sys.stderr)
         return 2

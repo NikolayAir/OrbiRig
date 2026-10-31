@@ -10,6 +10,7 @@ from orbirig.reference_sut import ReferenceSpacecraft
 
 EXECUTED_AT = datetime(2026, 8, 8, tzinfo=UTC)
 
+# Choose expectations from the declared Given/When intent, not the observed spacecraft state.
 SCENARIO_BY_INTENT = {
     (
         OperatingMode.NOMINAL,

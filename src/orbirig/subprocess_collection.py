@@ -52,6 +52,8 @@ def collect_subprocess_observation(
             "failed to launch observation subprocess",
         ) from exc
 
+    # A program can print valid-looking JSON and still fail afterwards.
+    # Require a successful exit before treating stdout as an observation.
     if completed.returncode != 0:
         raise ObservationCollectionError(
             f"observation subprocess exited with status {completed.returncode}",
@@ -73,6 +75,7 @@ def collect_subprocess_observation(
             "subprocess returned invalid observation evidence",
         ) from exc
 
+    # A matching command ties this reply to the request; scenario verification happens later.
     if observation.command != command:
         raise ObservationCollectionError(
             "subprocess observation command does not match submitted command",

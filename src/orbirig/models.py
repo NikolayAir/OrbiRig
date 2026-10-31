@@ -42,8 +42,10 @@ class ScenarioCommandMismatchError(ValueError):
     """Raised when an observation command does not match its scenario."""
 
 
-# Retain calendar/week dates, basic/extended times and single-character separators.
-# Calendar validity is checked by datetime after the lossless UTC checks below.
+# Recognise calendar dates, ISO week dates and times such as HHMMSS or HH:MM:SS.
+# A single character separates the date and time. datetime checks whether the date is valid.
+# Check the written UTC offset and fractional digits before parsing, so the
+# accepted timestamp retains exactly the same UTC time.
 # In YYYY-Www-HHMMSS, "-HH..." belongs to the time. A "-D" weekday
 # suffix is recognised only before a separator other than an ASCII digit.
 _UTC_TIMESTAMP = re.compile(
@@ -147,6 +149,7 @@ def command_for_scenario(
     if scenario_id is ScenarioId.NOMINAL_TO_SAFE_MODE:
         return SET_SAFE_MODE_COMMAND
 
+    # Both request NOMINAL, but their expected starting modes and acknowledgements differ.
     if scenario_id in (
         ScenarioId.NOMINAL_TO_NOMINAL_REJECTION,
         ScenarioId.SAFE_TO_NOMINAL_MODE,

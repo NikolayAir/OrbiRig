@@ -53,6 +53,7 @@ def _evaluate_accepted_transition_invariants(
         ),
         InvariantResult(
             invariant_id=InvariantId.TELEMETRY_MATCHES_POST_STATE,
+            # Telemetry must match the reported post-state, even when the post-state check fails.
             passed=telemetry.operating_mode is post_state.operating_mode,
             expected=post_state.operating_mode,
             actual=telemetry.operating_mode,
@@ -148,6 +149,7 @@ def _evaluate_observation_invariants(
 ) -> tuple[InvariantResult, ...]:
     """Evaluate observations against one selected reference scenario."""
 
+    # Run the checks for the selected scenario; do not infer the scenario from the observation.
     if scenario_id is ScenarioId.NOMINAL_TO_SAFE_MODE:
         return evaluate_nominal_to_safe_invariants(
             pre_state=observation.pre_state,
@@ -184,6 +186,7 @@ def build_verified_execution_record(
 ) -> VerifiedExecutionRecord:
     """Verify an observation against one explicitly selected scenario."""
 
+    # A different command is incompatible input, not a completed verification FAIL.
     if observation.command != command_for_scenario(scenario_id):
         raise ScenarioCommandMismatchError(
             "observation command does not match the selected scenario",
@@ -206,6 +209,8 @@ def verify_execution_sequence(
 ) -> VerifiedExecutionSequence:
     """Verify operating-mode continuity in the supplied record order."""
 
+    # Compare each record's ending mode with the next record's starting mode
+    # in the order provided (sequence continuity). Do not sort by ID or time.
     ordered_records = tuple(records)
 
     if len(ordered_records) < 2:
