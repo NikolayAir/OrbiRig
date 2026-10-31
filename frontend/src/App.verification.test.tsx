@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { App } from "./App";
-import { verifiedExecution } from "./test/appFixtures";
+import { failedTelemetryExecution, verifiedExecution } from "./test/appFixtures";
 import {
   setupAppTests,
   expectFeedbackScroll,
@@ -218,18 +218,7 @@ describe("App verification", () => {
     fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({
-        ...verifiedExecution,
-        invariant_results: [
-          {
-            invariant_id: "telemetry_matches_post_state",
-            expected: "SAFE",
-            actual: "NOMINAL",
-            passed: false,
-          },
-        ],
-        outcome: "FAIL",
-      }),
+      json: async () => failedTelemetryExecution,
     });
 
     submitVerification();
@@ -356,6 +345,26 @@ describe("App verification", () => {
     ).not.toBeInTheDocument();
   });
 
+  it.each([0, 1, 2, 3, 5])("rejects a successful response when the number of checks is %i", async (count) => {
+    // HTTP 200 and a PASS label cannot stand in for the complete set of checks.
+    const results = Array.from({ length: count }, (_, index) =>
+      verifiedExecution.invariant_results[index % 4]);
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ ...verifiedExecution, invariant_results: results }),
+    });
+
+    submitVerification({ evidence: "keep this observation" });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The server could not complete verification. Try again.",
+    );
+    expect(screen.queryByRole("region", { name: "Verified execution" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Observation evidence JSON")).toHaveValue("keep this observation");
+    expect(screen.getByRole("button", { name: "Verify observation" })).toBeEnabled();
+  });
+
   it("renders an inherited-property invariant ID with the generic title", async () => {
     fetchMock.mockResolvedValue({
       ok: true,
@@ -367,6 +376,7 @@ describe("App verification", () => {
             ...verifiedExecution.invariant_results[0],
             invariant_id: "__proto__",
           },
+          ...verifiedExecution.invariant_results.slice(1),
         ],
       }),
     });

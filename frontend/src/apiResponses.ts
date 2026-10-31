@@ -105,6 +105,9 @@ export function isVerifiedExecutionPresentation(
     typeof execution.scenario_id !== "string" ||
     !isObservationPresentation(observation) ||
     !Array.isArray(results) ||
+    // Every supported scenario returns 4 checks. Missing checks must not look
+    // like completed verification; Python still determines their results.
+    results.length !== 4 ||
     !isPresentationOutcome(outcome)
   ) {
     return false;
@@ -153,7 +156,10 @@ export function isVerifiedExecutionSequencePresentation(
   if (
     !isObject(payload) ||
     !Array.isArray(payload.records) ||
+    payload.records.length < 2 ||
     !Array.isArray(payload.continuity_results) ||
+    // Require a boundary for every adjacent pair before displaying the sequence.
+    payload.continuity_results.length !== payload.records.length - 1 ||
     !isPresentationOutcome(payload.outcome)
   ) {
     return false;

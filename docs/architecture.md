@@ -65,7 +65,7 @@ Loading saved verified evidence recomputes its checks and outcome rather than tr
 | Module | Responsibility |
 | --- | --- |
 | [Verification panel](../frontend/src/VerificationPanel.tsx) and [inspection panel](../frontend/src/InspectionPanel.tsx) | Render inputs, actions and feedback using the state supplied by `App`. |
-| [API client](../frontend/src/apiClient.ts) and [response checks](../frontend/src/apiResponses.ts) | Send the original evidence text, handle HTTP responses and check that display fields have the expected types. Python supplies the verification results. |
+| [API client](../frontend/src/apiClient.ts) and [response checks](../frontend/src/apiResponses.ts) | Send the original evidence text, handle HTTP responses and check display fields, 4 checks per execution, and 1 continuity result per adjacent pair in a sequence of at least 2 records. Incomplete responses produce a request error in the interface; Python supplies the verification results. |
 | [Request tracking](../frontend/src/useCancellableRequest.ts) | Track verification and inspection separately. Abort browser requests on cancellation or when React removes the application from the page, and ignore late responses after cancellation or retry, including after JSON parsing. |
 | [Completion feedback](../frontend/src/useWorkflowFeedback.ts) | Coordinate announcements, focus and scrolling, giving up automatic focus when the user moves elsewhere. |
 | [Evidence details](../frontend/src/EvidenceDetails.tsx) | Display observations, verification checks and sequences in their supplied order. |

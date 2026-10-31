@@ -4,6 +4,7 @@ import { App } from "./App";
 import {
   observation,
   observationEvidenceDocument,
+  failedTelemetryExecution,
   verifiedExecution,
   verifiedExecutionSequence,
 } from "./test/appFixtures";
@@ -248,7 +249,7 @@ describe("App inspection", () => {
 
     const result = within(screen.getByRole("region", { name: "Verified execution" }));
     const invariantItems = result.getAllByRole("listitem");
-    expect(invariantItems).toHaveLength(2);
+    expect(invariantItems).toHaveLength(4);
     expect(
       within(invariantItems[0]).getByRole("heading", {
         name: "Pre-state matches expected",
@@ -278,25 +279,16 @@ describe("App inspection", () => {
     expect(
       within(invariantItems[1]).getByLabelText("Verification check: PASS"),
     ).toBeInTheDocument();
-    expect(result.getAllByText("PASS")).toHaveLength(3);
+    expect(within(invariantItems[2]).getByRole("heading", { name: "Post-state matches requested mode" })).toBeVisible();
+    expect(within(invariantItems[3]).getByRole("heading", { name: "Telemetry matches post-state" })).toBeVisible();
+    expect(result.getAllByText("PASS")).toHaveLength(5);
   });
 
   it("renders a FAIL response as valid inspected evidence", async () => {
     fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({
-        ...verifiedExecution,
-        invariant_results: [
-          {
-            invariant_id: "telemetry_matches_post_state",
-            expected: "SAFE",
-            actual: "NOMINAL",
-            passed: false,
-          },
-        ],
-        outcome: "FAIL",
-      }),
+      json: async () => failedTelemetryExecution,
     });
 
     submitEvidence("canonical fail evidence", "verified-execution");
@@ -321,6 +313,7 @@ describe("App inspection", () => {
             ...verifiedExecution.invariant_results[0],
             expected: 42,
           },
+          ...verifiedExecution.invariant_results.slice(1),
         ],
       }),
     });
@@ -334,6 +327,25 @@ describe("App inspection", () => {
       screen.queryByRole("heading", { name: "Verified execution" }),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("exec-web-001")).not.toBeInTheDocument();
+  });
+
+  it.each([0, 3, 5])("rejects an inspected execution when the number of checks is %i", async (count) => {
+    const results = Array.from({ length: count }, (_, index) =>
+      verifiedExecution.invariant_results[index % 4]);
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ ...verifiedExecution, invariant_results: results }),
+    });
+
+    submitEvidence("keep this saved record", "verified-execution");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The inspection request could not be completed. Try again.",
+    );
+    expect(screen.queryByRole("region", { name: "Verified execution" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Valid saved evidence")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Evidence JSON")).toHaveValue("keep this saved record");
   });
 
   it("rejects a verified-execution inspection with an unsupported outcome", async () => {
@@ -513,6 +525,7 @@ describe("App inspection", () => {
             ...verifiedExecutionSequence.continuity_results[0],
             passed: "true",
           },
+          ...verifiedExecutionSequence.continuity_results.slice(1),
         ],
       }),
     });
@@ -526,6 +539,30 @@ describe("App inspection", () => {
       screen.queryByRole("region", { name: "Verified execution sequence" }),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("exec-b")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["no records", { records: [], continuity_results: [] }],
+    ["only 1 record", { records: [verifiedExecution], continuity_results: [] }],
+    ["a missing continuity check", { continuity_results: verifiedExecutionSequence.continuity_results.slice(0, 1) }],
+    ["an extra continuity check", { continuity_results: [...verifiedExecutionSequence.continuity_results, verifiedExecutionSequence.continuity_results[0]] }],
+    ["an incomplete member", { records: [verifiedExecution, { ...verifiedExecution, invariant_results: [] }], continuity_results: verifiedExecutionSequence.continuity_results.slice(0, 1) }],
+  ])("rejects a successful sequence response with %s", async (_description, changes) => {
+    // Missing checks are a broken server response, not invalid submitted evidence.
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ ...verifiedExecutionSequence, ...changes }),
+    });
+
+    submitEvidence("keep this sequence", "verified-execution-sequence");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The inspection request could not be completed. Try again.",
+    );
+    expect(screen.queryByRole("region", { name: "Verified execution sequence" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Valid saved evidence")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Evidence JSON")).toHaveValue("keep this sequence");
   });
 
   it("rejects a sequence inspection with an unsupported outcome", async () => {

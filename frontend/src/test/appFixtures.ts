@@ -264,6 +264,7 @@ export const expectedVerifiedExecutionSequenceInspectionExample = {
   outcome: "PASS",
 };
 
+// Use complete responses: a shortened mock can hide missing verification checks.
 export const verifiedExecution = {
   execution: {
     execution_id: "exec-web-001",
@@ -271,21 +272,24 @@ export const verifiedExecution = {
     scenario_id: "nominal_to_safe_mode",
   },
   observation,
+  invariant_results: expectedVerifiedExecutionInspectionExample.invariant_results,
+  outcome: "PASS",
+};
+
+// Change the observation and its check together, retaining a valid saved FAIL.
+export const failedTelemetryExecution = {
+  ...verifiedExecution,
+  observation: { ...observation, telemetry: { operating_mode: "NOMINAL" } },
   invariant_results: [
+    ...verifiedExecution.invariant_results.slice(0, 3),
     {
-      invariant_id: "pre_state_matches_expected",
-      expected: "NOMINAL",
+      invariant_id: "telemetry_matches_post_state",
+      expected: "SAFE",
       actual: "NOMINAL",
-      passed: true,
-    },
-    {
-      invariant_id: "acknowledgement_is_accepted",
-      expected: true,
-      actual: true,
-      passed: true,
+      passed: false,
     },
   ],
-  outcome: "PASS",
+  outcome: "FAIL",
 };
 
 export const verifiedExecutionSequence = {
@@ -305,6 +309,8 @@ export const verifiedExecutionSequence = {
         executed_at: "2026-08-17T10:00:00Z",
         scenario_id: "safe_to_nominal_mode",
       },
+      observation: expectedVerifiedExecutionSequenceInspectionExample.records[1].observation,
+      invariant_results: expectedVerifiedExecutionSequenceInspectionExample.records[1].invariant_results,
     },
     {
       ...verifiedExecution,
@@ -313,6 +319,39 @@ export const verifiedExecutionSequence = {
         executed_at: "2026-08-17T12:00:00Z",
         scenario_id: "nominal_to_nominal_rejection",
       },
+      observation: {
+        command: { command_type: "SET_OPERATING_MODE", target_mode: "NOMINAL" },
+        pre_state: { operating_mode: "NOMINAL" },
+        acknowledgement: { accepted: false },
+        post_state: { operating_mode: "NOMINAL" },
+        telemetry: { operating_mode: "NOMINAL" },
+      },
+      invariant_results: [
+        {
+          invariant_id: "pre_state_matches_expected",
+          expected: "NOMINAL",
+          actual: "NOMINAL",
+          passed: true,
+        },
+        {
+          invariant_id: "acknowledgement_is_rejected",
+          expected: false,
+          actual: false,
+          passed: true,
+        },
+        {
+          invariant_id: "post_state_matches_pre_state",
+          expected: "NOMINAL",
+          actual: "NOMINAL",
+          passed: true,
+        },
+        {
+          invariant_id: "telemetry_matches_post_state",
+          expected: "NOMINAL",
+          actual: "NOMINAL",
+          passed: true,
+        },
+      ],
     },
   ],
   continuity_results: [
