@@ -21,7 +21,13 @@ def collect_subprocess_observation(
     command: SetOperatingModeCommand,
     timeout: float,
 ) -> CommandExecutionObservation:
-    """Run a target program and validate its returned observation JSON."""
+    """Run a target program and validate its returned observation JSON.
+
+    An empty argv raises ValueError before starting a process.
+    """
+
+    if not argv:
+        raise ValueError("argv must include the program to run")
 
     command_document = (
         json.dumps(

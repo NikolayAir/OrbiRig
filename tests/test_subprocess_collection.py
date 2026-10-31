@@ -47,6 +47,34 @@ def _collect(mode: str, *, timeout: float = 2.0):
     )
 
 
+@pytest.mark.parametrize("argv", [[], ()], ids=["empty-list", "empty-tuple"])
+def test_empty_argv_is_rejected_before_launch(monkeypatch, argv):
+    def unexpected_launch(*args, **kwargs):
+        raise AssertionError("an empty argv must not start a process")
+
+    monkeypatch.setattr(collection_module.subprocess, "run", unexpected_launch)
+
+    with pytest.raises(ValueError, match="argv must include the program to run"):
+        collect_subprocess_observation(argv=argv, command=SAFE_COMMAND, timeout=2.0)
+
+
+def test_verified_subprocess_workflow_rejects_empty_argv_without_launch_or_record(monkeypatch):
+    def unexpected_operation(*args, **kwargs):
+        raise AssertionError("an empty argv must not start a process or build a record")
+
+    # Invalid program arguments must stop collection, without producing PASS or FAIL evidence.
+    monkeypatch.setattr(collection_module.subprocess, "run", unexpected_operation)
+    monkeypatch.setattr(execution_module, "build_verified_execution_record", unexpected_operation)
+
+    with pytest.raises(ValueError, match="argv must include the program to run"):
+        execute_verified_subprocess_workflow(
+            argv=[],
+            timeout=2.0,
+            execution_id="empty-argv",
+            executed_at=EXECUTED_AT,
+        )
+
+
 @pytest.mark.parametrize("target_mode", tuple(OperatingMode))
 def test_exact_compact_command_document_is_sent_for_each_target_mode(
     target_mode,

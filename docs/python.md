@@ -120,7 +120,7 @@ record = execute_verified_subprocess_workflow(
 print(serialize_verified_execution_evidence(record), end="")
 ```
 
-The result contains 4 passing checks and outcome `PASS`. To collect from your own program, replace `argv` with its executable and arguments.
+The result contains 4 passing checks and outcome `PASS`. To collect from your own program, pass a non-empty sequence in `argv`, with the program first and its arguments after it. An empty `argv` raises `ValueError` before a process starts.
 
 OrbiRig starts 1 process for each submitted command, without interpreting `argv` as a shell command. The command and observation are exchanged through stdin and stdout, not HTTP. The protocol is:
 

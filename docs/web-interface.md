@@ -78,6 +78,8 @@ uv run --no-sync python -m uvicorn orbirig.web:app
 
 Open <http://127.0.0.1:8000>. The build writes assets to the ignored `src/orbirig/static` directory. Python wheels and source distributions do not bundle those assets, so the complete interface requires this checkout-based build.
 
+FastAPI checks for `index.html` and the `assets` directory at startup. If either is missing, the API remains available and frontend URLs return `404`. A missing favicon returns `404` for `/favicon.png` without preventing the interface from loading. After rebuilding the frontend, restart FastAPI to serve the new files.
+
 The build uses [Vite 8's default browser targets](https://v8.vite.dev/guide/build#browser-compatibility): Chrome/Edge 111, Firefox 114 and Safari 16.4. These settings control generated code. Automated browser coverage and its limits are described in [Browser tests](../CONTRIBUTING.md#browser-tests).
 
 ## HTTP API

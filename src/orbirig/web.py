@@ -346,22 +346,28 @@ async def inspect_verified_execution_sequence_evidence(
     return _verified_execution_sequence_presentation(sequence)
 
 
-# Keep the API usable without a frontend build; register page routes only when the build directory exists.
-if _STATIC_DIRECTORY.is_dir():
+# An interrupted frontend build can leave static/ incomplete. Keep the API
+# available and register frontend routes only when the page and assets exist.
+if (
+    (_STATIC_DIRECTORY / "index.html").is_file()
+    and (_STATIC_DIRECTORY / "assets").is_dir()
+):
     app.mount(
         "/assets",
         StaticFiles(directory=_STATIC_DIRECTORY / "assets"),
         name="frontend-assets",
     )
 
-    @app.get("/favicon.png", include_in_schema=False)
-    async def serve_favicon() -> FileResponse:
-        """Serve the built frontend favicon."""
+    # The icon is optional; a missing icon must not prevent the page from loading.
+    if (_STATIC_DIRECTORY / "favicon.png").is_file():
+        @app.get("/favicon.png", include_in_schema=False)
+        async def serve_favicon() -> FileResponse:
+            """Serve the built frontend favicon."""
 
-        return FileResponse(
-            _STATIC_DIRECTORY / "favicon.png",
-            media_type="image/png",
-        )
+            return FileResponse(
+                _STATIC_DIRECTORY / "favicon.png",
+                media_type="image/png",
+            )
 
     @app.get("/", include_in_schema=False)
     async def serve_frontend() -> FileResponse:
