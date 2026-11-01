@@ -5,11 +5,17 @@ services:
     plan: free
     region: frankfurt
     branch: main
-    buildCommand: python -m pip install -e ".[web]" && cd frontend && npm ci && npm run build
-    startCommand: python -m uvicorn orbirig.web:app --host 0.0.0.0 --port $PORT
+    # Select Render's interpreter explicitly instead of the local .python-version.
+    buildCommand: >-
+      uv sync --locked --no-default-groups --extra web --python "$PYTHON_VERSION" --no-python-downloads
+      && cd frontend && npm ci && npm run build
+    startCommand: .venv/bin/python -m uvicorn orbirig.web:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /
     autoDeployTrigger: checksPass
     envVars:
       - key: PYTHON_VERSION
         # Pin deployment separately from the development default in .python-version.
         value: "3.12.16"
+      - key: UV_VERSION
+        # Match the uv version used in CI.
+        value: "0.13.4"

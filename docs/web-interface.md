@@ -160,8 +160,10 @@ Content-type checks run before body-size checks. The server enforces the size li
 
 ## Render deployment configuration
 
-[`render.yaml`](../render.yaml) declares a Python web service built from `main`, with a pip install of `.[web]`, `npm ci` and a frontend build. It sets `PYTHON_VERSION=3.12.16`, uses `/` for its health check and declares `autoDeployTrigger: checksPass`.
+[`render.yaml`](../render.yaml) declares a Python web service built from `main`, using uv `0.13.4`, `npm ci` and a frontend build. It sets `PYTHON_VERSION=3.12.16`, uses `/` for its health check and declares `autoDeployTrigger: checksPass`.
 
-Check the service's applied settings and deployed commit separately from this declaration. The Blueprint does not use `uv.lock`, so the deployed Python dependencies are not fully locked by that file.
+The Python installation uses `uv sync --locked` with only the `web` extra and no default dependency groups. A missing or out-of-date `uv.lock` fails the build rather than being updated. OrbiRig is installed in editable mode in `.venv`, so it can serve the assets subsequently built into `src/orbirig/static`. The start command runs `.venv/bin/python` directly, using the installed environment without resolving dependencies again.
 
-When applied, Render's [`PYTHON_VERSION` setting takes precedence](https://render.com/docs/python-version) over `.python-version`. Changing the local development default does not update the Blueprint's runtime setting.
+When applied, Render's [`PYTHON_VERSION` setting takes precedence](https://render.com/docs/python-version) over `.python-version`. The sync command explicitly selects that version and disables Python downloads by uv: Render must provide the declared interpreter. Changing the local development default does not change this runtime selection. Render provides uv when a root-level `uv.lock` is present; [`UV_VERSION`](https://render.com/docs/uv-version) pins its version.
+
+Check the service's applied settings and deployed commit separately from this declaration. The lock pins the selected Python application dependencies, with the [build-dependency and platform limitations](../CONTRIBUTING.md#python-environment) described in the development guide.
