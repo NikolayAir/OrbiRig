@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, useId, useLayoutEffect, useMemo, useRef } from "react";
 
 import type {
   ObservationPresentation,
@@ -186,11 +186,58 @@ export function VerifiedExecutionDetails({
   );
 }
 
+export type SequenceView = { page: number; failuresOnly: boolean };
+
 export function VerifiedExecutionSequenceDetails({
-  sequence,
+  sequence, view, onViewChange,
 }: {
   sequence: VerifiedExecutionSequencePresentation;
+  view: SequenceView;
+  onViewChange: (view: SequenceView) => void;
 }) {
+  const pageHeading = useRef<HTMLHeadingElement>(null);
+  const focusRequested = useRef(false);
+
+  const summary = useMemo(() => {
+    const allMembers = sequence.records.map((_, index) => index);
+    return {
+      allMembers,
+      failedMembers: sequence.records.filter(record => record.outcome === "FAIL").length,
+      failedContinuity: sequence.continuity_results.filter(result => !result.passed).length,
+      // Include both endpoints of a failed link, using positions rather than IDs.
+      // IDs can repeat, and filtering must never create new continuity links.
+      relevantMembers: allMembers.filter(index =>
+        sequence.records[index].outcome === "FAIL" ||
+        sequence.continuity_results[index]?.passed === false ||
+        sequence.continuity_results[index - 1]?.passed === false),
+    };
+  }, [sequence]);
+  const members = view.failuresOnly ? summary.relevantMembers : summary.allMembers;
+  const pageCount = Math.max(1, Math.ceil(members.length / SEQUENCE_PAGE_SIZE));
+  const page = Math.min(view.page, pageCount - 1);
+  const start = page * SEQUENCE_PAGE_SIZE;
+  const visibleMembers = members.slice(start, start + SEQUENCE_PAGE_SIZE);
+
+  useLayoutEffect(() => {
+    if (!focusRequested.current) return;
+    focusRequested.current = false;
+    const heading = pageHeading.current;
+    heading?.focus({ preventScroll: true });
+    // Let the browser finish the submit event and lay out the replacement page.
+    // Scrolling sooner can leave the focused heading above the viewport.
+    const frame = requestAnimationFrame(() => {
+      if (document.activeElement === heading && document.hasFocus()) {
+        heading?.scrollIntoView({ block: "start", behavior: "instant" });
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [view]);
+
+  function changePage(nextPage: number) {
+    focusRequested.current = true;
+    onViewChange({ page: nextPage, failuresOnly: view.failuresOnly });
+  }
+
   return (
     <section aria-labelledby="verified-execution-sequence">
       <div className="result-heading">
@@ -207,13 +254,43 @@ export function VerifiedExecutionSequenceDetails({
         Records are shown in the supplied order.
       </p>
 
-      <h3 className="sequence-flow-heading">Member records and continuity</h3>
+      <h3 className="sequence-flow-heading" tabIndex={-1} ref={pageHeading}>
+        Member records and continuity
+      </h3>
+      <p>
+        Sequence totals: {sequence.records.length.toLocaleString("en-GB")} members. Failed members:{" "}
+        {summary.failedMembers.toLocaleString("en-GB")}. Failed continuity checks:{" "}
+        {summary.failedContinuity.toLocaleString("en-GB")}.
+      </p>
+      <label className="sequence-failure-filter">
+        <input
+          type="checkbox"
+          checked={view.failuresOnly}
+          onChange={event => {
+            // Filtering updates the list without taking focus from the checkbox.
+            focusRequested.current = false;
+            onViewChange({ page: 0, failuresOnly: event.currentTarget.checked });
+          }}
+        />
+        Show failures and connected records only
+      </label>
+      <p className="sequence-page-description">
+        Original member numbers are retained. Each continuity check connects its member to the next
+        member in the full sequence, including across pages.
+      </p>
+      <p aria-live="polite" aria-atomic="true" className="sequence-page-status">
+        {members.length === 0
+          ? "No failed members or continuity checks."
+          : `Showing ${view.failuresOnly ? "matching members" : "members"} ${start + 1}–${start + visibleMembers.length} of ${members.length.toLocaleString("en-GB")}.`}
+      </p>
+      {pageCount > 1 && <SequencePagination page={page} pageCount={pageCount} onChange={changePage} />}
       <ol
         className="sequence-flow"
         aria-label="Sequence member records and continuity checks"
         role="list"
       >
-        {sequence.records.map((record, index) => {
+        {visibleMembers.map(index => {
+          const record = sequence.records[index];
           const headingId = `sequence-member-${index}`;
           const continuityResult = sequence.continuity_results[index];
 
@@ -243,7 +320,38 @@ export function VerifiedExecutionSequenceDetails({
           );
         })}
       </ol>
+      {pageCount > 1 && <SequencePagination page={page} pageCount={pageCount} onChange={changePage} />}
     </section>
+  );
+}
+
+const SEQUENCE_PAGE_SIZE = 25;
+
+function SequencePagination({ page, pageCount, onChange }: {
+  page: number;
+  pageCount: number;
+  onChange: (page: number) => void;
+}) {
+  const pageId = useId();
+  return (
+    <nav className="sequence-pagination" aria-label="Sequence pages">
+      <button type="button" className="secondary-action" disabled={page === 0} onClick={() => onChange(page - 1)}>
+        Previous page
+      </button>
+      <form key={`${page}-${pageCount}`} onSubmit={event => {
+        event.preventDefault();
+        const nextPage = Number(new FormData(event.currentTarget).get("page")) - 1;
+        if (Number.isInteger(nextPage) && nextPage >= 0 && nextPage < pageCount) onChange(nextPage);
+      }}>
+        <label htmlFor={pageId}>Page</label>
+        <input id={pageId} name="page" type="number" min={1} max={pageCount} required defaultValue={page + 1} />
+        <span>of {pageCount}</span>
+        <button type="submit" className="secondary-action">Go to page</button>
+      </form>
+      <button type="button" className="secondary-action" disabled={page === pageCount - 1} onClick={() => onChange(page + 1)}>
+        Next page
+      </button>
+    </nav>
   );
 }
 
@@ -269,6 +377,7 @@ function ContinuityBoundaryDetails({
           label="Continuity outcome"
         />
       </div>
+      <p>Members {ordinal} → {ordinal + 1}</p>
       <dl className="continuity-boundary-fields">
         <div>
           <dt>Connected executions</dt>

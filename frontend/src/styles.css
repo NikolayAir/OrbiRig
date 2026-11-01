@@ -1231,6 +1231,46 @@ dd {
   padding-left: 0;
 }
 
+.sequence-pagination {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.sequence-pagination form {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.sequence-pagination input {
+  width: 5.5rem;
+}
+
+.sequence-pagination button:disabled {
+  cursor: default;
+}
+
+.sequence-failure-filter {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Checkboxes keep their native size beside a label that can wrap on narrow screens. */
+.sequence-failure-filter input {
+  width: auto;
+  flex-shrink: 0;
+}
+
+.sequence-page-description,
+.sequence-page-status {
+  color: var(--muted);
+}
+
 .sequence-member,
 .continuity-boundary {
   border: 1px solid var(--line);
@@ -1256,6 +1296,7 @@ dd {
 .sequence-flow-heading {
   font-size: 1.0625rem;
   margin: 1.5rem 0 0.75rem;
+  scroll-margin-top: 1rem;
 }
 
 .continuity-boundary-fields {
