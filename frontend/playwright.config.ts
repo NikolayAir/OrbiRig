@@ -17,8 +17,8 @@ export default defineConfig({
   // Limit concurrent browser memory use on local machines and CI runners.
   workers: 1,
   retries: 0,
-  // Allow the full 3-browser suite while bounding setup and tests,
-  // including initial HTTP checks outside webServer timeouts.
+  // Bound local runs, including startup checks outside webServer timeouts.
+  // CI sets a longer limit on the command line for each browser's full suite.
   globalTimeout: 300_000,
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
