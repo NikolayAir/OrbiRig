@@ -2,6 +2,7 @@ import { type SubmitEvent, useRef, useState } from "react";
 import { WorkflowHelp } from "./WorkflowHelp";
 import { VerificationPanel } from "./VerificationPanel";
 import { InspectionPanel } from "./InspectionPanel";
+import type { SequenceView } from "./EvidenceDetails";
 import { INSPECTION_EXAMPLES, VERIFICATION_EXAMPLES } from "./examples";
 import { wouldReplaceEditedValue } from "./formHelpers";
 import { inspectEvidenceRequest, verifyObservationRequest } from "./apiClient";
@@ -35,6 +36,8 @@ export function App() {
   const [verificationRequiredErrors, setVerificationRequiredErrors] = useState<VerificationRequiredErrors>({});
   const [evidenceType, setEvidenceType] = useState<EvidenceType>("observation");
   const [evidence, setEvidence] = useState("");
+  // Keep sequence navigation when the inspection panel is temporarily unmounted.
+  const [sequenceView, setSequenceView] = useState<SequenceView>({ page: 0, failuresOnly: false });
   const verification = useCancellableRequest<VerificationState>({ kind: "idle" });
   const inspection = useCancellableRequest<InspectionState>({ kind: "idle" });
   const fieldHelp = useVerificationFieldHelp();
@@ -155,6 +158,7 @@ export function App() {
 
   async function inspectEvidence(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
+    setSequenceView({ page: 0, failuresOnly: false });
     feedback.inspectionTargets.pendingRef.current = true;
     feedback.setAnnouncement("Inspecting evidence…");
     await inspection.run({ kind: "loading" }, signal => inspectEvidenceRequest(evidenceType, evidence, signal));
@@ -236,6 +240,8 @@ export function App() {
           evidenceType={evidenceType}
           evidence={evidence}
           state={inspection.state}
+          sequenceView={sequenceView}
+          onSequenceViewChange={setSequenceView}
           feedback={feedback.inspectionTargets}
           requiresConfirmation={wouldReplaceEditedValue(evidence, inspectionExampleBaselineRef.current, INSPECTION_EXAMPLES[evidenceType])}
           onEvidenceTypeChange={selectEvidenceType}

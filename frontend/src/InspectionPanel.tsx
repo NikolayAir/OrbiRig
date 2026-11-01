@@ -9,6 +9,7 @@ import {
   ObservationDetails,
   VerifiedExecutionDetails,
   VerifiedExecutionSequenceDetails,
+  type SequenceView,
 } from "./EvidenceDetails";
 import { INSPECTION_CANCELLED, invalidEvidenceMessage } from "./workflowContent";
 import type { EvidenceType, InspectionState } from "./workflowTypes";
@@ -17,6 +18,8 @@ type Props = {
   evidenceType: EvidenceType;
   evidence: string;
   state: InspectionState;
+  sequenceView: SequenceView;
+  onSequenceViewChange: (view: SequenceView) => void;
   feedback: FeedbackTargets;
   requiresConfirmation: boolean;
   onEvidenceTypeChange: (type: EvidenceType) => void;
@@ -28,6 +31,7 @@ type Props = {
 
 export function InspectionPanel({
   evidenceType, evidence, state: inspection,
+  sequenceView, onSequenceViewChange,
   feedback,
   requiresConfirmation, onEvidenceTypeChange: selectEvidenceType, onEvidenceChange,
   onLoadExample: loadInspectionExample, onSubmit: inspectEvidence, onCancel: cancelInspection,
@@ -176,7 +180,9 @@ export function InspectionPanel({
       )}
 
       {inspection.kind === "valid-verified-execution-sequence" && (
-        <VerifiedExecutionSequenceDetails sequence={inspection.sequence} />
+        <VerifiedExecutionSequenceDetails
+          sequence={inspection.sequence} view={sequenceView} onViewChange={onSequenceViewChange}
+        />
       )}
     </div>
   </section>);

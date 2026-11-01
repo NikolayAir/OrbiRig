@@ -30,6 +30,8 @@ Choose **Inspect evidence**, select its type and paste saved JSON or choose **Lo
 
 Inspection is read-only: it does not edit or repair evidence. A saved `FAIL` is accepted when its checks and outcome match the recomputed results.
 
+Sequences show up to 25 member records per page, with their original member numbers. The sequence outcome and failure totals cover the complete document. **Show failures and connected records only** finds failed members and both members of each failed continuity check across the whole sequence. Continuity checks keep their original links, including links to the next page; filtering does not reconnect records. Page controls appear above and below the records, and changing the page brings the member heading into view.
+
 If loading an example would replace your edits, the interface asks for confirmation. Choosing **Cancel** in that dialog keeps your current inputs.
 
 Completed results and request errors receive keyboard focus and are brought into view. A short status message announces completed verification or inspection. If you move to another control, switch between verification and inspection or open the help dialog while a request is pending, its response does not move focus or scroll the page.
