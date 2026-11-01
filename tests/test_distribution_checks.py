@@ -411,6 +411,7 @@ def sdist_files(wheel_files):
         "scripts/verify_distributions.py": b"Build checker",
         "scripts/check_installed_core.py": b"Installed core checker",
         "tests/fixtures/subprocess_observation_peer.py": b"Subprocess observation peer",
+        "examples/stateful_target.py": b"Independent stateful target",
         "PKG-INFO": wheel_files[f"orbirig-{PROJECT['version']}.dist-info/METADATA"],
     })
     return files
@@ -437,6 +438,7 @@ def test_sdist_checker_accepts_required_files(sdist_files, tmp_path):
     "pyproject.toml", "LICENSE",
     "scripts/verify_distributions.py", "scripts/check_installed_core.py",
     "tests/fixtures/subprocess_observation_peer.py",
+    "examples/stateful_target.py",
 ])
 def test_sdist_checker_rejects_missing_or_empty_required_files(
     sdist_files, tmp_path, name, content,

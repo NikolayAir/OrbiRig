@@ -2,3 +2,5 @@ include scripts/verify_distributions.py
 include scripts/check_installed_core.py
 # Extracted source archives must also contain the program run by subprocess tests.
 include tests/fixtures/subprocess_observation_peer.py
+# Stateful integration tests also run the independent example target from the archive.
+include examples/stateful_target.py
