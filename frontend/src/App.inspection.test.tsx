@@ -459,25 +459,25 @@ describe("App inspection", () => {
     const sequenceItems = Array.from(
       sequenceFlow.children,
     ) as HTMLElement[];
-    expect(sequenceItems).toHaveLength(5);
+    expect(sequenceItems).toHaveLength(3);
     expect(
       within(sequenceItems[0]).getByRole("article", { name: "Member 1" }),
     ).toBeInTheDocument();
     expect(
-      within(sequenceItems[1]).getByRole("article", {
+      within(sequenceItems[0]).getByRole("article", {
         name: "Continuity check 1",
       }),
     ).toBeInTheDocument();
     expect(
-      within(sequenceItems[2]).getByRole("article", { name: "Member 2" }),
+      within(sequenceItems[1]).getByRole("article", { name: "Member 2" }),
     ).toBeInTheDocument();
     expect(
-      within(sequenceItems[3]).getByRole("article", {
+      within(sequenceItems[1]).getByRole("article", {
         name: "Continuity check 2",
       }),
     ).toBeInTheDocument();
     expect(
-      within(sequenceItems[4]).getByRole("article", { name: "Member 3" }),
+      within(sequenceItems[2]).getByRole("article", { name: "Member 3" }),
     ).toBeInTheDocument();
 
     const members = within(sequence).getAllByRole("article", {
@@ -487,6 +487,7 @@ describe("App inspection", () => {
     expect(within(members[0]).getByText("exec-b")).toBeInTheDocument();
     expect(within(members[1]).getByText("exec-a")).toBeInTheDocument();
     expect(within(members[2]).getByText("exec-c")).toBeInTheDocument();
+    fireEvent.click(within(members[0]).getByRole("button", { name: "Show details for member 1" }));
     expect(within(members[0]).getByText("SET_OPERATING_MODE")).toBeInTheDocument();
     expect(
       within(members[0]).getByText("pre_state_matches_expected"),
@@ -504,6 +505,7 @@ describe("App inspection", () => {
       name: /Continuity check/,
     });
     expect(boundaries).toHaveLength(2);
+    for (const boundary of boundaries) fireEvent.click(within(boundary).getByRole("button"));
     expect(boundaries[0]).toHaveTextContent("Previous execution ID: exec-b");
     expect(boundaries[0]).toHaveTextContent("Next execution ID: exec-a");
     expect(within(boundaries[0]).getAllByText("SAFE")).toHaveLength(2);
@@ -546,7 +548,7 @@ describe("App inspection", () => {
       within(sequence).getByLabelText("Sequence outcome: FAIL"),
     ).toBeInTheDocument();
     expect(within(sequence).getByText("Valid saved evidence")).toBeVisible();
-    expect(within(sequence).getByText("1 or more execution or continuity checks did not pass. Records are shown in the supplied order.")).toBeVisible();
+    expect(within(sequence).getByText("1 or more execution or continuity checks did not pass. Records stay in their original order.")).toBeVisible();
 
     const boundary = within(sequence).getByRole("article", {
       name: "Continuity check 1",
@@ -710,6 +712,7 @@ describe("App inspection", () => {
     const boundaries = within(sequence).getAllByRole("article", { name: /Continuity check/ });
     expect(boundaries).toHaveLength(2);
     for (const boundary of boundaries) {
+      fireEvent.click(within(boundary).getByRole("button"));
       expect(boundary).toHaveTextContent("Previous execution ID: repeated-id");
       expect(boundary).toHaveTextContent("Next execution ID: repeated-id");
     }

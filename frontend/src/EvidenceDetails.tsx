@@ -1,4 +1,6 @@
-import { Fragment, useId, useLayoutEffect, useMemo, useRef } from "react";
+import { type Dispatch, type SetStateAction, useId, useLayoutEffect, useMemo, useRef } from "react";
+
+import { SUPPORTED_SCENARIOS } from "./workflowContent";
 
 import type {
   ObservationPresentation,
@@ -186,14 +188,19 @@ export function VerifiedExecutionDetails({
   );
 }
 
-export type SequenceView = { page: number; failuresOnly: boolean };
+export type SequenceView = {
+  page: number;
+  failuresOnly: boolean;
+  expandedMembers: number[];
+  expandedContinuity: number[];
+};
 
 export function VerifiedExecutionSequenceDetails({
   sequence, view, onViewChange,
 }: {
   sequence: VerifiedExecutionSequencePresentation;
   view: SequenceView;
-  onViewChange: (view: SequenceView) => void;
+  onViewChange: Dispatch<SetStateAction<SequenceView>>;
 }) {
   const pageHeading = useRef<HTMLHeadingElement>(null);
   const focusRequested = useRef(false);
@@ -235,7 +242,18 @@ export function VerifiedExecutionSequenceDetails({
 
   function changePage(nextPage: number) {
     focusRequested.current = true;
-    onViewChange({ page: nextPage, failuresOnly: view.failuresOnly });
+    onViewChange(current => ({ ...current, page: nextPage, expandedMembers: [], expandedContinuity: [] }));
+  }
+
+  function toggleDetails(kind: "expandedMembers" | "expandedContinuity", index: number) {
+    // Use positions in the original sequence: IDs may repeat, and filtering
+    // changes which records are visible without changing their identities.
+    onViewChange(current => ({
+      ...current,
+      [kind]: current[kind].includes(index)
+        ? current[kind].filter(position => position !== index)
+        : [...current[kind], index],
+    }));
   }
 
   return (
@@ -251,7 +269,7 @@ export function VerifiedExecutionSequenceDetails({
         {sequence.outcome === "PASS"
           ? "All execution and continuity checks passed."
           : "1 or more execution or continuity checks did not pass."}{" "}
-        Records are shown in the supplied order.
+        Records stay in their original order.
       </p>
 
       <h3 className="sequence-flow-heading" tabIndex={-1} ref={pageHeading}>
@@ -269,14 +287,14 @@ export function VerifiedExecutionSequenceDetails({
           onChange={event => {
             // Filtering updates the list without taking focus from the checkbox.
             focusRequested.current = false;
-            onViewChange({ page: 0, failuresOnly: event.currentTarget.checked });
+            onViewChange({ page: 0, failuresOnly: event.currentTarget.checked, expandedMembers: [], expandedContinuity: [] });
           }}
         />
-        Show failures and connected records only
+        Show failures and related records
       </label>
       <p className="sequence-page-description">
-        Original member numbers are retained. Each continuity check connects its member to the next
-        member in the full sequence, including across pages.
+        The filter includes members marked FAIL and both members of each continuity check marked FAIL.
+        Original numbers and links are kept.
       </p>
       <p aria-live="polite" aria-atomic="true" className="sequence-page-status">
         {members.length === 0
@@ -293,30 +311,52 @@ export function VerifiedExecutionSequenceDetails({
           const record = sequence.records[index];
           const headingId = `sequence-member-${index}`;
           const continuityResult = sequence.continuity_results[index];
+          const expanded = view.expandedMembers.includes(index);
+          const detailsId = `sequence-member-details-${index}`;
+          const scenarioLabel = SUPPORTED_SCENARIOS.find(
+            scenario => scenario.value === record.execution.scenario_id,
+          )?.label ?? record.execution.scenario_id;
 
           return (
-            <Fragment key={`${record.execution.execution_id}-${index}`}>
-              <li>
-                <article
-                  className="sequence-member"
-                  aria-labelledby={headingId}
-                >
-                  <div className="sequence-member-heading">
-                    <h4 id={headingId}>Member {index + 1}</h4>
+            <li key={index}>
+              <article
+                className={`sequence-member${continuityResult ? " sequence-member-with-continuity" : ""}`}
+                aria-labelledby={headingId}
+                data-outcome={record.outcome}
+              >
+                <div className="sequence-member-heading">
+                  <h4 id={headingId}>Member {index + 1}</h4>
+                  <div className="sequence-summary-actions">
                     <OutcomeBadge outcome={record.outcome} />
+                    <button type="button" className="secondary-action sequence-details-toggle"
+                      aria-expanded={expanded} aria-controls={detailsId}
+                      aria-label={`${expanded ? "Hide" : "Show"} details for member ${index + 1}`}
+                      onClick={() => toggleDetails("expandedMembers", index)}>
+                      {expanded ? "Hide" : "Show"} details
+                    </button>
                   </div>
-                  <VerifiedExecutionFields record={record} nested />
-                </article>
-              </li>
+                </div>
+                {!expanded && (
+                  <dl className="sequence-member-identity">
+                    <div><dt>Execution ID</dt><dd>{record.execution.execution_id}</dd></div>
+                    <div><dt>Scenario</dt><dd>{scenarioLabel}</dd></div>
+                  </dl>
+                )}
+                {/* Keep the container so aria-controls still identifies it while closed.
+                    Create full details only when open, rather than hiding a large detail tree. */}
+                <div id={detailsId} hidden={!expanded} className="sequence-member-details">
+                  {expanded && <VerifiedExecutionFields record={record} nested />}
+                </div>
+              </article>
               {continuityResult !== undefined && (
-                <li>
-                  <ContinuityBoundaryDetails
-                    result={continuityResult}
-                    ordinal={index + 1}
-                  />
-                </li>
+                <ContinuityBoundaryDetails
+                  result={continuityResult}
+                  ordinal={index + 1}
+                  expanded={view.expandedContinuity.includes(index)}
+                  onToggle={() => toggleDetails("expandedContinuity", index)}
+                />
               )}
-            </Fragment>
+            </li>
           );
         })}
       </ol>
@@ -358,11 +398,16 @@ function SequencePagination({ page, pageCount, onChange }: {
 function ContinuityBoundaryDetails({
   result,
   ordinal,
+  expanded,
+  onToggle,
 }: {
   result: VerifiedExecutionSequencePresentation["continuity_results"][number];
   ordinal: number;
+  expanded: boolean;
+  onToggle: () => void;
 }) {
   const headingId = `continuity-boundary-${ordinal - 1}`;
+  const detailsId = `continuity-details-${ordinal - 1}`;
 
   return (
     <article
@@ -371,33 +416,44 @@ function ContinuityBoundaryDetails({
       data-outcome={result.passed ? "PASS" : "FAIL"}
     >
       <div className="continuity-boundary-heading">
-        <h4 id={headingId}>Continuity check {ordinal}</h4>
-        <OutcomeBadge
-          outcome={result.passed ? "PASS" : "FAIL"}
-          label="Continuity outcome"
-        />
+        <div>
+          <h4 id={headingId}>Continuity check {ordinal}</h4>
+          <p>Members {ordinal} → {ordinal + 1}</p>
+        </div>
+        <div className="sequence-summary-actions">
+          <OutcomeBadge outcome={result.passed ? "PASS" : "FAIL"} label="Continuity outcome" />
+          <button type="button" className="secondary-action sequence-details-toggle"
+            aria-expanded={expanded} aria-controls={detailsId}
+            aria-label={`${expanded ? "Hide" : "Show"} details for continuity check ${ordinal}, members ${ordinal} to ${ordinal + 1}`}
+            onClick={onToggle}>
+            {expanded ? "Hide" : "Show"} details
+          </button>
+        </div>
       </div>
-      <p>Members {ordinal} → {ordinal + 1}</p>
-      <dl className="continuity-boundary-fields">
-        <div>
-          <dt>Connected executions</dt>
-          <dd>
-            <span className="visually-hidden">Previous execution ID: </span>
-            {result.previous_execution_id}
-            <span aria-hidden="true"> → </span>
-            <span className="visually-hidden">Next execution ID: </span>
-            {result.next_execution_id}
-          </dd>
-        </div>
-        <div>
-          <dt>Expected operating mode</dt>
-          <dd>{result.expected_operating_mode}</dd>
-        </div>
-        <div>
-          <dt>Observed operating mode</dt>
-          <dd>{result.observed_operating_mode}</dd>
-        </div>
-      </dl>
+      <div id={detailsId} hidden={!expanded}>
+        {expanded && (
+          <dl className="continuity-boundary-fields">
+            <div>
+              <dt>Connected executions</dt>
+              <dd>
+                <span className="visually-hidden">Previous execution ID: </span>
+                {result.previous_execution_id}
+                <span aria-hidden="true"> → </span>
+                <span className="visually-hidden">Next execution ID: </span>
+                {result.next_execution_id}
+              </dd>
+            </div>
+            <div>
+              <dt>Expected operating mode</dt>
+              <dd>{result.expected_operating_mode}</dd>
+            </div>
+            <div>
+              <dt>Observed operating mode</dt>
+              <dd>{result.observed_operating_mode}</dd>
+            </div>
+          </dl>
+        )}
+      </div>
     </article>
   );
 }

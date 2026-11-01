@@ -47,7 +47,7 @@ function sequenceOf(count: number, failedTelemetry = false): VerifiedExecutionSe
 }
 
 function SequenceViewer({ sequence }: { sequence: VerifiedExecutionSequencePresentation }) {
-  const [view, setView] = useState<SequenceView>({ page: 0, failuresOnly: false });
+  const [view, setView] = useState<SequenceView>({ page: 0, failuresOnly: false, expandedMembers: [], expandedContinuity: [] });
   return <VerifiedExecutionSequenceDetails sequence={sequence} view={view} onViewChange={setView} />;
 }
 
@@ -60,12 +60,63 @@ function pageControl() {
 }
 
 describe("sequence inspection pages", () => {
+  it("starts with compact summaries and creates complete details only when requested", () => {
+    const { container } = render(<SequenceViewer sequence={sequenceOf(3)} />);
+    const first = within(screen.getByRole("article", { name: "Member 1" }));
+    const second = within(screen.getByRole("article", { name: "Member 2" }));
+    expect(first.getByText("repeated-id")).toBeVisible();
+    expect(first.getByText("NOMINAL to NOMINAL rejection")).toBeVisible();
+    expect(first.getByLabelText("Verification outcome: PASS")).toBeVisible();
+    expect(container.querySelectorAll(".verified-execution-fields, .continuity-boundary-fields")).toHaveLength(0);
+
+    const toggle = first.getByRole("button", { name: "Show details for member 1" });
+    const detailsId = toggle.getAttribute("aria-controls")!;
+    expect(document.getElementById(detailsId)).toHaveAttribute("hidden");
+    toggle.focus();
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(toggle).toHaveAccessibleName("Hide details for member 1");
+    expect(toggle).toHaveFocus();
+    expect(document.getElementById(detailsId)).not.toHaveAttribute("hidden");
+    expect(first.getByText("2026-08-17T10:00:00Z")).toBeVisible();
+    expect(first.getByText("SET_OPERATING_MODE")).toBeVisible();
+    expect(first.getByText("nominal_to_nominal_rejection")).toBeVisible();
+    expect(first.getAllByLabelText("Verification check: PASS")).toHaveLength(4);
+    expect(first.getByText("Telemetry operating mode")).toBeVisible();
+    expect(scrollIntoViewMock).not.toHaveBeenCalled();
+
+    // Neighbouring records with the same ID can stay open for comparison.
+    fireEvent.click(second.getByRole("button", { name: "Show details for member 2" }));
+    expect(container.querySelectorAll(".verified-execution-fields")).toHaveLength(2);
+    toggle.focus();
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(toggle).toHaveFocus();
+    expect(container.querySelectorAll(".verified-execution-fields")).toHaveLength(1);
+    expect(second.getByText("Telemetry operating mode")).toBeVisible();
+  });
+
+  it("keeps a member's FAIL visible while its reported values and checks are collapsed", () => {
+    render(<SequenceViewer sequence={sequenceOf(2, true)} />);
+    const member = within(screen.getByRole("article", { name: "Member 1" }));
+    expect(member.getByLabelText("Verification outcome: FAIL")).toBeVisible();
+    expect(member.queryByText("Verification checks")).not.toBeInTheDocument();
+    fireEvent.click(member.getByRole("button", { name: "Show details for member 1" }));
+    expect(member.getAllByLabelText("Verification check: PASS")).toHaveLength(3);
+    expect(member.getByLabelText("Verification check: FAIL")).toBeVisible();
+    const check = member.getByRole("heading", { name: "Telemetry matches post-state" }).closest("li")!;
+    expect(within(check).getByText("NOMINAL")).toBeVisible();
+    expect(within(check).getByText("SAFE")).toBeVisible();
+  });
+
   it.each([false, true])("bounds HTML for 3,900 records, including when every record fails (%s)", failed => {
     const html = renderToStaticMarkup(<SequenceViewer sequence={sequenceOf(3900, failed)} />);
-    // The original component produced 452,391 elements. Count all elements,
-    // not only visible records: hidden full-result trees must fail too.
-    expect((html.match(/<[a-z][^>]*>/g) ?? []).length).toBeLessThan(5000);
-    expect((html.match(/class="sequence-member"/g) ?? []).length).toBe(25);
+    // Count hidden elements too: hiding 25 complete detail trees with CSS
+    // would retain the old rendering cost even though the page looks compact.
+    expect((html.match(/<[a-z][^>]*>/g) ?? []).length).toBeLessThan(1400);
+    expect((html.match(/aria-labelledby="sequence-member-\d+"/g) ?? []).length).toBe(25);
+    expect(html).not.toContain('class="verified-execution-fields"');
+    expect(html).not.toContain('class="continuity-boundary-fields"');
     expect(html).toContain(`Sequence outcome: ${failed ? "FAIL" : "PASS"}`);
     expect(html).toContain(`Failed members: ${failed ? "3,900" : "0"}`);
   });
@@ -119,7 +170,7 @@ describe("sequence inspection pages", () => {
 
     expect(result()).toHaveTextContent("Failed members: 1. Failed continuity checks: 1.");
     expect(screen.queryByRole("article", { name: "Member 3900" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("checkbox", { name: "Show failures and connected records only" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Show failures and related records" }));
     const flow = within(result()).getByRole("list", { name: "Sequence member records and continuity checks" });
     expect(within(flow).getAllByRole("heading", { level: 4 }).map(h => h.textContent)).toEqual([
       "Member 25", "Continuity check 25", "Member 26", "Continuity check 26", "Member 3900",
@@ -128,6 +179,20 @@ describe("sequence inspection pages", () => {
     expect(within(within(flow).getByRole("article", { name: "Continuity check 25" })).getByLabelText("Continuity outcome: FAIL")).toBeInTheDocument();
     expect(within(within(flow).getByRole("article", { name: "Member 3900" })).getByLabelText("Verification outcome: FAIL")).toBeInTheDocument();
     expect(within(result()).getByLabelText("Sequence outcome: FAIL")).toBeInTheDocument();
+    const boundary = within(screen.getByRole("article", { name: "Continuity check 25" }));
+    expect(boundary.getByText("Members 25 → 26")).toBeVisible();
+    expect(boundary.queryByText("Expected operating mode")).not.toBeInTheDocument();
+    const toggle = boundary.getByRole("button", { name: "Show details for continuity check 25, members 25 to 26" });
+    toggle.focus();
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(toggle).toHaveFocus();
+    expect(boundary.getByText("Expected operating mode")).toBeVisible();
+    expect(boundary.getByText("SAFE")).toBeVisible();
+    expect(boundary.getByText("NOMINAL")).toBeVisible();
+    fireEvent.click(toggle);
+    expect(boundary.queryByText("Expected operating mode")).not.toBeInTheDocument();
+    expect(boundary.getByLabelText("Continuity outcome: FAIL")).toBeVisible();
     expect(sequence).toEqual(original);
     fireEvent.click(screen.getByRole("checkbox"));
     expect(screen.getByRole("article", { name: "Member 1" })).toBeInTheDocument();
@@ -161,7 +226,7 @@ describe("sequence inspection pages", () => {
   it("bounds the failure view too and supports direct page jumps in both navigators", () => {
     const { container } = render(<SequenceViewer sequence={sequenceOf(3900, true)} />);
     fireEvent.click(screen.getByRole("checkbox"));
-    expect(container.querySelectorAll("*").length).toBeLessThan(5000);
+    expect(container.querySelectorAll("*").length).toBeLessThan(1400);
     fireEvent.change(pageControl().getByRole("spinbutton", { name: "Page" }), { target: { value: "156" } });
     fireEvent.click(pageControl().getByRole("button", { name: "Go to page" }));
     expect(screen.getByRole("article", { name: "Member 3900" })).toBeInTheDocument();
@@ -231,13 +296,37 @@ describe("sequence inspection pages", () => {
     fireEvent.click(screen.getByRole("button", { name: "Inspect evidence" }));
     await screen.findByRole("region", { name: "Verified execution sequence" });
     fireEvent.click(pageControl().getByRole("button", { name: "Next page" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show details for member 26" }));
     selectVerificationWorkflow();
     selectInspectionWorkflow();
     expect(screen.getByRole("article", { name: "Member 26" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Hide details for member 26" })).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByLabelText("Evidence JSON")).toHaveValue("retained submitted input");
     expect(fetchMock).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole("button", { name: "Inspect evidence" }));
     await screen.findByRole("article", { name: "Member 1" });
     expect(pageControl().getByRole("spinbutton", { name: "Page" })).toHaveValue(1);
+    expect(screen.getByRole("button", { name: "Show details for member 1" })).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText("Telemetry operating mode")).not.toBeInTheDocument();
+  });
+
+  it("collapses member and continuity details after changing a page or filtering", () => {
+    const { container } = render(<SequenceViewer sequence={sequenceOf(26, true)} />);
+    function openFirstPair() {
+      fireEvent.click(screen.getByRole("button", { name: "Show details for member 1" }));
+      fireEvent.click(screen.getByRole("button", { name: "Show details for continuity check 1, members 1 to 2" }));
+    }
+    openFirstPair();
+    fireEvent.click(pageControl().getByRole("button", { name: "Next page" }));
+    expect(container.querySelectorAll(".verified-execution-fields, .continuity-boundary-fields")).toHaveLength(0);
+    fireEvent.click(pageControl().getByRole("button", { name: "Previous page" }));
+    expect(container.querySelectorAll(".verified-execution-fields, .continuity-boundary-fields")).toHaveLength(0);
+    openFirstPair();
+    const filter = screen.getByRole("checkbox");
+    filter.focus();
+    fireEvent.click(filter);
+    expect(filter).toHaveFocus();
+    expect(container.querySelectorAll(".verified-execution-fields, .continuity-boundary-fields")).toHaveLength(0);
+    expect(screen.getByRole("article", { name: "Member 1" })).toBeInTheDocument();
   });
 });

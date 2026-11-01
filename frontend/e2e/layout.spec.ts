@@ -169,6 +169,7 @@ for (const viewport of [
     await expect(inspected.getByText("Valid saved evidence", { exact: true })).toBeVisible();
     const boundary = inspected.getByRole("article", { name: "Continuity check 1", exact: true });
     await expect(boundary.getByLabel("Continuity outcome: FAIL", { exact: true })).toBeVisible();
+    await boundary.getByRole("button", { name: /Show details for continuity check 1/ }).click();
     await expect(boundary.getByText("SAFE", { exact: true })).toBeVisible();
     await expect(boundary.getByText("NOMINAL", { exact: true })).toBeVisible();
     await expectWithinWidth(inspected.locator("dd, code, .outcome-badge"), viewport.width);

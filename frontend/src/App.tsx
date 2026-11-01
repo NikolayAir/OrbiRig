@@ -36,8 +36,10 @@ export function App() {
   const [verificationRequiredErrors, setVerificationRequiredErrors] = useState<VerificationRequiredErrors>({});
   const [evidenceType, setEvidenceType] = useState<EvidenceType>("observation");
   const [evidence, setEvidence] = useState("");
-  // Keep sequence navigation when the inspection panel is temporarily unmounted.
-  const [sequenceView, setSequenceView] = useState<SequenceView>({ page: 0, failuresOnly: false });
+  // The panel is removed when verification is selected; keep its page and open details here.
+  const [sequenceView, setSequenceView] = useState<SequenceView>({
+    page: 0, failuresOnly: false, expandedMembers: [], expandedContinuity: [],
+  });
   const verification = useCancellableRequest<VerificationState>({ kind: "idle" });
   const inspection = useCancellableRequest<InspectionState>({ kind: "idle" });
   const fieldHelp = useVerificationFieldHelp();
@@ -158,7 +160,7 @@ export function App() {
 
   async function inspectEvidence(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSequenceView({ page: 0, failuresOnly: false });
+    setSequenceView({ page: 0, failuresOnly: false, expandedMembers: [], expandedContinuity: [] });
     feedback.inspectionTargets.pendingRef.current = true;
     feedback.setAnnouncement("Inspecting evidence…");
     await inspection.run({ kind: "loading" }, signal => inspectEvidenceRequest(evidenceType, evidence, signal));
