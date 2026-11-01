@@ -57,9 +57,11 @@ def _save_mode(state_file: Path, mode: str) -> None:
     # write or replacement must leave the previous state intact, not truncated.
     temporary: Path | None = None
     try:
+        # Keep the prefix short: the state filename may already be close to
+        # the file system's length limit, and tempfile adds a random suffix.
         with tempfile.NamedTemporaryFile(
             mode="w", encoding="utf-8", dir=state_file.parent,
-            prefix=f".{state_file.name}.", delete=False,
+            prefix=".orbirig-state-", delete=False,
         ) as stream:
             temporary = Path(stream.name)
             stream.write(json.dumps({"operating_mode": mode}) + "\n")

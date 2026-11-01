@@ -1,11 +1,14 @@
 """Real subprocess commands against an independent, file-backed test target."""
 
+import errno
 import json
 import runpy
 import subprocess
 import sys
 from datetime import UTC, datetime
+from io import BytesIO, StringIO
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -34,8 +37,8 @@ def state_file(tmp_path):
 
 
 def _argv(state_file: Path, *, stale: bool = False) -> list[str]:
-    # Isolated mode and disabled site packages ensure that the target cannot
-    # obtain its behaviour from an installed OrbiRig or another dependency.
+    # Run the real target without project import paths or installed site packages.
+    # It must handle commands using only Python's standard library.
     return [
         sys.executable, "-I", "-S", str(TARGET), "--state-file", str(state_file),
         *(["--stale-telemetry"] if stale else []),
@@ -177,6 +180,24 @@ def test_separate_state_files_do_not_share_state(state_file, tmp_path):
     assert json.loads(state_file.read_bytes()) == {"operating_mode": "SAFE"}
 
 
+def test_valid_long_state_filename_does_not_overflow_the_temporary_filename(tmp_path):
+    state_file = tmp_path / ("s" * 245 + ".json")
+    try:
+        state_file.write_bytes(b'{"operating_mode":"NOMINAL"}\n')
+    except OSError as exc:
+        if exc.errno == errno.ENAMETOOLONG or getattr(exc, "winerror", None) == 206:
+            pytest.skip("the file system does not support this state filename length")
+        raise
+
+    # The state filename itself is valid. Extending it with a temporary suffix
+    # must not make an otherwise supported command fail during persistence.
+    record = _execute(state_file, ScenarioId.NOMINAL_TO_SAFE_MODE, "long-state-filename")
+
+    assert record.outcome is ExecutionOutcome.PASS
+    assert json.loads(state_file.read_bytes()) == {"operating_mode": "SAFE"}
+    assert list(tmp_path.iterdir()) == [state_file]
+
+
 @pytest.mark.parametrize("command", [
     b"", b"{", b"[]", b"{}", SAFE_COMMAND + SAFE_COMMAND,
     b'{"command_type":"RESET","target_mode":"SAFE"}',
@@ -229,7 +250,7 @@ def test_missing_state_is_an_error_instead_of_implicit_initialisation(tmp_path):
 
 
 @pytest.mark.parametrize("stage", ["write", "replace"])
-def test_failed_state_commit_preserves_original_bytes_and_removes_temporary_file(state_file, monkeypatch, stage):
+def test_failed_state_commit_preserves_state_and_returns_no_observation(state_file, monkeypatch, stage):
     target = runpy.run_path(str(TARGET))
     before = state_file.read_bytes()
 
@@ -255,5 +276,20 @@ def test_failed_state_commit_preserves_original_bytes_and_removes_temporary_file
 
     with pytest.raises(OSError, match="simulated"):
         target["_save_mode"](state_file, "SAFE")
+
+    # Also call main: a failed state write must return code 2 and explain the
+    # error on stderr, without printing an observation on stdout.
+    stdout = SimpleNamespace(buffer=BytesIO())
+    stderr = StringIO()
+    with monkeypatch.context() as process:
+        process.setattr(sys, "argv", [str(TARGET), "--state-file", str(state_file)])
+        process.setattr(sys, "stdin", SimpleNamespace(buffer=BytesIO(SAFE_COMMAND)))
+        process.setattr(sys, "stdout", stdout)
+        process.setattr(sys, "stderr", stderr)
+        status = target["main"]()
+
+    assert status == 2
+    assert stdout.buffer.getvalue() == b""
+    assert "stateful target: simulated" in stderr.getvalue()
     assert state_file.read_bytes() == before
     assert list(state_file.parent.iterdir()) == [state_file]
