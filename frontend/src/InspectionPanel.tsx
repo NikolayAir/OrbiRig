@@ -1,4 +1,4 @@
-import type { SubmitEvent } from "react";
+import type { Dispatch, SetStateAction, SubmitEvent } from "react";
 import { WorkflowTitle } from "./WorkflowTitle";
 import { LoadExampleButton } from "./LoadExampleButton";
 import { EvidenceRequestSizeError, RequestError } from "./RequestFeedback";
@@ -19,7 +19,7 @@ type Props = {
   evidence: string;
   state: InspectionState;
   sequenceView: SequenceView;
-  onSequenceViewChange: (view: SequenceView) => void;
+  onSequenceViewChange: Dispatch<SetStateAction<SequenceView>>;
   feedback: FeedbackTargets;
   requiresConfirmation: boolean;
   onEvidenceTypeChange: (type: EvidenceType) => void;

@@ -690,6 +690,7 @@ test("sequence keeps input order and reports a mode mismatch even though every r
   ] as const;
   for (const [index, [id, timestamp, scenario, checks]] of members.entries()) {
     const member = flow.getByRole("article", { name: `Member ${index + 1}`, exact: true });
+    await member.getByRole("button", { name: `Show details for member ${index + 1}`, exact: true }).click();
     await expect(field(member, "Execution ID")).toHaveText(id);
     await expect(field(member, "Execution time (UTC)")).toHaveText(timestamp);
     await expect(field(member, "Scenario")).toHaveText(scenario);
@@ -703,6 +704,7 @@ test("sequence keeps input order and reports a mode mismatch even though every r
   ];
   for (const [index, [previous, next, expected, observed, outcome]] of boundaries.entries()) {
     const boundary = flow.getByRole("article", { name: `Continuity check ${index + 1}`, exact: true });
+    await boundary.getByRole("button", { name: /Show details for continuity check/ }).click();
     await expect(field(boundary, "Connected executions")).toHaveText(
       `Previous execution ID: ${previous} → Next execution ID: ${next}`,
     );
