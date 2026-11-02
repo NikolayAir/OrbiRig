@@ -13,6 +13,15 @@ const verificationChanged = "Inputs changed. Verify again to check the current v
 const inspectionChanged = "Inputs changed. Inspect again to check the current evidence.";
 const respond = (payload: unknown) => ({ ok: true, status: 200, json: async () => payload });
 
+describe("page footer", () => {
+  it("describes OrbiRig as non-operational and links to its source and documentation", () => {
+    render(<App />);
+    expect(screen.getByRole("contentinfo")).toHaveTextContent("non-operational verification harness");
+    expect(screen.getByRole("link", { name: "Source code" })).toHaveAttribute("href", "https://github.com/NikolayAir/OrbiRig");
+    expect(screen.getByRole("link", { name: "Documentation" })).toHaveAttribute("href", "https://github.com/NikolayAir/OrbiRig/tree/main/docs");
+  });
+});
+
 describe("request and edited-input states", () => {
   it.each(["verification", "inspection"] as const)("keeps a completed %s result when reloading identical example inputs, but never restores a result after editing", async (workflow) => {
     const inspection = workflow === "inspection";

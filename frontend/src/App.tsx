@@ -304,6 +304,14 @@ export function App() {
           onCancel={cancelInspection}
         />
       )}
+
+      <footer className="page-footer">
+        <p>OrbiRig is a non-operational verification harness that uses a simplified reference spacecraft.</p>
+        <p>
+          <a href="https://github.com/NikolayAir/OrbiRig">Source code</a>
+          <a href="https://github.com/NikolayAir/OrbiRig/tree/main/docs">Documentation</a>
+        </p>
+      </footer>
     </main>
   );
 }
