@@ -53,6 +53,10 @@ export function App() {
   const inspectionEvidenceInputRef = useRef<HTMLTextAreaElement>(null);
   const verificationExampleBaselineRef = useRef({ executionId: "", executedAt: "", observationEvidence: "" });
   const inspectionExampleBaselineRef = useRef("");
+  // A new request replaces the completed or edited state. Keep that history so
+  // edits after a cancelled or failed retry still prompt for a new check.
+  const verificationHadResultRef = useRef(false);
+  const inspectionHadResultRef = useRef(false);
   const verificationExample = VERIFICATION_EXAMPLES[scenarioId || DEFAULT_VERIFICATION_SCENARIO];
   const verificationNeedsConfirmation = (
     ["executionId", "executedAt", "observationEvidence"] as const
@@ -80,14 +84,16 @@ export function App() {
     clearVerificationResult();
   }
 
-  function clearVerificationResult() {
+  function clearVerificationResult(inputsChanged = true) {
+    const staleHistory = inputsChanged && verificationHadResultRef.current;
     verification.setState(current => current.kind === "dirty" ? current
-      : { kind: current.kind === "completed" ? "dirty" : "idle" });
+      : { kind: current.kind === "completed" || staleHistory ? "dirty" : "idle" });
   }
 
-  function clearInspectionResult() {
+  function clearInspectionResult(inputsChanged = true) {
+    const staleHistory = inputsChanged && inspectionHadResultRef.current;
     inspection.setState(current => current.kind === "dirty" ? current
-      : { kind: isInspectionComplete(current) ? "dirty" : "idle" });
+      : { kind: isInspectionComplete(current) || staleHistory ? "dirty" : "idle" });
   }
 
   function selectEvidenceType(type: EvidenceType) {
@@ -112,7 +118,7 @@ export function App() {
     setVerificationInputs({ ...example, scenarioId: selectedScenario });
     setVerificationRequiredErrors({});
     if (inputsChanged || verification.state.kind !== "completed") {
-      clearVerificationResult();
+      clearVerificationResult(inputsChanged);
     }
   }
 
@@ -123,7 +129,7 @@ export function App() {
     setEvidence(example);
     setInspectionRequiredError(false);
     if (inputsChanged || !isInspectionComplete(inspection.state)) {
-      clearInspectionResult();
+      clearInspectionResult(inputsChanged);
     }
   }
 
@@ -178,6 +184,9 @@ export function App() {
 
 
     setVerificationRequiredErrors({});
+    if (verification.state.kind === "completed" || verification.state.kind === "dirty") {
+      verificationHadResultRef.current = true;
+    }
     feedback.verificationTargets.pendingRef.current = true;
     feedback.setAnnouncement("Verifying observation…");
     await verification.run({ kind: "loading" }, signal => verifyObservationRequest(verificationInputs, signal));
@@ -192,6 +201,9 @@ export function App() {
       return;
     }
     setInspectionRequiredError(false);
+    if (isInspectionComplete(inspection.state) || inspection.state.kind === "dirty") {
+      inspectionHadResultRef.current = true;
+    }
     setSequenceView({ page: 0, failuresOnly: false, expandedMembers: [], expandedContinuity: [] });
     feedback.inspectionTargets.pendingRef.current = true;
     feedback.setAnnouncement("Inspecting evidence…");

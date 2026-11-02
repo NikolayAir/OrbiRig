@@ -139,6 +139,93 @@ describe("request and edited-input states", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  describe.each(["verification", "inspection"] as const)("%s retries without a new result", (workflow) => {
+    const inspection = workflow === "inspection";
+    const resultName = inspection ? "Observation details" : "Verified execution";
+    const fieldLabel = inspection ? "Evidence JSON" : "Execution ID";
+    const changed = inspection ? inspectionChanged : verificationChanged;
+    const again = inspection ? "Inspect again" : "Verify again";
+    const first = inspection ? "Inspect evidence" : "Verify observation";
+    const payload = inspection ? observation : verifiedExecution;
+
+    async function completeExample() {
+      fetchMock.mockResolvedValueOnce(respond(payload));
+      render(<App />);
+      if (inspection) selectInspectionWorkflow();
+      fireEvent.click(screen.getByRole("button", { name: "Load example" }));
+      fireEvent.click(screen.getByRole("button", { name: first }));
+      await screen.findByRole("region", { name: resultName });
+    }
+
+    async function cancelRetry(button: string) {
+      fetchMock.mockReturnValueOnce(new Promise(() => { }));
+      fireEvent.click(screen.getByRole("button", { name: button }));
+      fireEvent.click(screen.getByRole("button", { name: "Cancel request" }));
+      await screen.findByText(/request cancelled/, { selector: ".feedback-progress" });
+    }
+
+    async function failRetry(button: string) {
+      fetchMock.mockRejectedValueOnce(new TypeError("Network unavailable"));
+      fireEvent.click(screen.getByRole("button", { name: button }));
+      await screen.findByRole("alert");
+    }
+
+    it.each([["cancelled", cancelRetry], ["failed", failRetry]] as const)("keeps prompting after a %s retry of edited inputs", async (_, endRetry) => {
+      await completeExample();
+      const field = screen.getByLabelText(fieldLabel) as HTMLInputElement;
+      const original = field.value;
+      fireEvent.change(field, { target: { value: `${original} ` } });
+      await endRetry(again);
+      // No result belongs to these inputs, so the reminder waits for the next edit.
+      expect(document.querySelector(".action-status")).toBeNull();
+
+      fireEvent.change(field, { target: { value: original } });
+      expect(screen.getByRole("button", { name: again })).toHaveAccessibleDescription(changed);
+      expect(screen.getByRole("status")).toHaveTextContent(changed);
+    });
+
+    it("prompts after editing following a cancelled repeat of unchanged inputs", async () => {
+      await completeExample();
+      await cancelRetry(again);
+      const field = screen.getByLabelText(fieldLabel) as HTMLInputElement;
+      fireEvent.change(field, { target: { value: `${field.value} ` } });
+      expect(screen.getByRole("button", { name: again })).toHaveAccessibleDescription(changed);
+    });
+
+    it("clears the reminder once a new result completes", async () => {
+      await completeExample();
+      const field = screen.getByLabelText(fieldLabel) as HTMLInputElement;
+      fireEvent.change(field, { target: { value: `${field.value} ` } });
+      await cancelRetry(again);
+      fetchMock.mockResolvedValueOnce(respond(payload));
+      fireEvent.click(screen.getByRole("button", { name: first }));
+      await screen.findByRole("region", { name: resultName });
+      expect(screen.getByRole("button", { name: again })).toHaveAccessibleDescription(
+        inspection ? "Inspection completed. Evidence is valid." : "Verification completed.",
+      );
+    });
+
+    it("does not claim inputs changed when reloading the same example after a cancelled repeat", async () => {
+      await completeExample();
+      await cancelRetry(again);
+      fireEvent.click(screen.getByRole("button", { name: "Load example" }));
+      expect(screen.queryByText(changed)).not.toBeInTheDocument();
+      expect(screen.queryByRole("region", { name: resultName })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: first })).toBeEnabled();
+    });
+
+    it("does not prompt after a first request that never completed", async () => {
+      render(<App />);
+      if (inspection) selectInspectionWorkflow();
+      fireEvent.click(screen.getByRole("button", { name: "Load example" }));
+      await cancelRetry(first);
+      const field = screen.getByLabelText(fieldLabel) as HTMLInputElement;
+      fireEvent.change(field, { target: { value: `${field.value} ` } });
+      expect(document.querySelector(".action-status")).toBeNull();
+      expect(screen.getByRole("button", { name: first })).toBeEnabled();
+    });
+  });
+
   it.each(["verification", "inspection"] as const)("announces changed %s inputs once without moving focus", async (workflow) => {
     fetchMock.mockResolvedValue(respond(workflow === "verification" ? verifiedExecution : observation));
     if (workflow === "verification") submitVerification();
