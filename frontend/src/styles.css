@@ -1517,7 +1517,8 @@ dd {
   }
 
   .form-actions .primary-action {
-    padding-inline: 0.75rem;
+    /* Enlarged text needs the width: a wide font can split a label mid-word. */
+    padding-inline: 0.25rem;
     width: 100%;
   }
 

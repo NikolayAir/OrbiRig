@@ -119,7 +119,8 @@ for (const width of [320, 1280]) {
   test(`action feedback wraps at ${width}px with doubled text size`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 800 });
     await prepare(page);
-    await page.addStyleTag({ content: ":root { font-size: 200%; }" });
+    // Use a wide font on every platform: narrower system fonts can hide a split label.
+    await page.addStyleTag({ content: ':root { font-family: Verdana, "DejaVu Sans", sans-serif; font-size: 200%; }' });
     await page.getByLabel("Observation evidence JSON", { exact: true }).fill(failed);
     await page.locator("button[type=submit]").click();
     await expect(page.getByLabel("Verification outcome: FAIL", { exact: true })).toBeVisible();
