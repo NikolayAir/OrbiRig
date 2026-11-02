@@ -180,6 +180,72 @@ def test_separate_state_files_do_not_share_state(state_file, tmp_path):
     assert json.loads(state_file.read_bytes()) == {"operating_mode": "SAFE"}
 
 
+def test_fresh_stateful_runs_produce_identical_verified_sequence_evidence(tmp_path):
+    # Scenarios, reported values and outcomes are specified without consulting the target.
+    # Observation tuples are (pre-mode, accepted, post-mode, telemetry-mode).
+    steps = (
+        (ScenarioId.NOMINAL_TO_NOMINAL_REJECTION, "reject-no-change", False,
+         ("NOMINAL", False, "NOMINAL", "NOMINAL"), "PASS"),
+        (ScenarioId.NOMINAL_TO_SAFE_MODE, "to-safe", False,
+         ("NOMINAL", True, "SAFE", "SAFE"), "PASS"),
+        (ScenarioId.SAFE_TO_NOMINAL_MODE, "to-nominal", False,
+         ("SAFE", True, "NOMINAL", "NOMINAL"), "PASS"),
+        (ScenarioId.NOMINAL_TO_SAFE_MODE, "stale-telemetry", True,
+         ("NOMINAL", True, "SAFE", "NOMINAL"), "FAIL"),
+        (ScenarioId.SAFE_TO_NOMINAL_MODE, "after-fault", False,
+         ("SAFE", True, "NOMINAL", "NOMINAL"), "PASS"),
+    )
+    expected_continuity = (
+        ("reject-no-change", "to-safe", "NOMINAL", "NOMINAL", True),
+        ("to-safe", "to-nominal", "SAFE", "SAFE", True),
+        ("to-nominal", "stale-telemetry", "NOMINAL", "NOMINAL", True),
+        ("stale-telemetry", "after-fault", "SAFE", "SAFE", True),
+    )
+    serialized_runs = []
+    for filename in ("first-state.json", "second-state.json"):
+        state_file = tmp_path / filename
+        state_file.write_bytes(b'{ "operating_mode" : "NOMINAL" }\n')
+        records = []
+        for scenario, execution_id, stale, expected, outcome in steps:
+            before = state_file.read_bytes()
+            record = _execute(state_file, scenario, execution_id, stale=stale)
+            assert (record.execution_id, record.executed_at, record.scenario_id) == (
+                execution_id, EXECUTED_AT, scenario,
+            )
+            observation = record.observation
+            assert (observation.command.command_type, observation.command.target_mode) == (
+                "SET_OPERATING_MODE", expected[2],
+            )
+            assert (
+                observation.pre_state.operating_mode, observation.acknowledgement.accepted,
+                observation.post_state.operating_mode, observation.telemetry.operating_mode,
+            ) == expected
+            assert json.loads(state_file.read_bytes()) == {"operating_mode": expected[2]}
+            if scenario is ScenarioId.NOMINAL_TO_NOMINAL_REJECTION:
+                assert state_file.read_bytes() == before
+            expected_values = (expected[0], expected[1], expected[2], expected[2])
+            assert tuple((result.expected, result.actual, result.passed) for result in record.invariant_results) == tuple(
+                (wanted, reported, wanted == reported)
+                for wanted, reported in zip(expected_values, expected, strict=True)
+            )
+            assert record.outcome == outcome
+            records.append(record)
+
+        sequence = verify_execution_sequence(records)
+        assert sequence.records == tuple(records)
+        assert sequence.outcome is ExecutionOutcome.FAIL
+        assert tuple(
+            (check.previous_execution_id, check.next_execution_id,
+             check.expected_operating_mode, check.observed_operating_mode, check.passed)
+            for check in sequence.continuity_results
+        ) == expected_continuity
+        serialized = serialize_verified_execution_sequence_evidence(sequence)
+        assert deserialize_verified_execution_sequence_evidence(serialized) == sequence
+        serialized_runs.append(serialized)
+
+    assert serialized_runs[0] == serialized_runs[1]
+
+
 def test_valid_long_state_filename_does_not_overflow_the_temporary_filename(tmp_path):
     state_file = tmp_path / ("s" * 245 + ".json")
     try:

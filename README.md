@@ -116,6 +116,7 @@ See [verification concepts](docs/verification.md) for the 3 supported scenarios,
 | Follow the detailed verification flow and component responsibilities | [Architecture](docs/architecture.md) |
 | Verify a saved observation in a terminal | [Command-line use](docs/cli.md) |
 | Use the Python API or collect from a separate program | [Using the Python API](docs/python.md) |
+| Check command results from a program that preserves state between runs | [Stateful test target](docs/stateful-target.md) |
 | Use or run the browser interface and HTTP endpoints | [Web interface](docs/web-interface.md) |
 | Check JSON formats, execution IDs and timestamps | [Evidence format reference](docs/evidence-formats.md) |
 | Set up development and run tests | [Contributing and development](CONTRIBUTING.md) |
