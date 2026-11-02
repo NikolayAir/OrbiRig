@@ -13,6 +13,16 @@ const verificationChanged = "Inputs changed. Verify to check the current values.
 const inspectionChanged = "Inputs changed. Inspect to check the current evidence.";
 const respond = (payload: unknown) => ({ ok: true, status: 200, json: async () => payload });
 
+describe("page introduction", () => {
+  it("shows how a check works in order, separating expectations from the recorded result", () => {
+    render(<App />);
+    const steps = within(screen.getByRole("list", { name: "How a check works" })).getAllByRole("listitem");
+    expect(steps.map(step => step.querySelector("strong")?.textContent)).toEqual([
+      "Expected behaviour", "Recorded result", "Independent checks", "Outcome",
+    ]);
+  });
+});
+
 describe("page footer", () => {
   it("states the example domain and links to the source and documentation", () => {
     render(<App />);
