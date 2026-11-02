@@ -33,6 +33,7 @@ type Props = {
   };
   feedback: FeedbackTargets;
   fieldHelp: ReturnType<typeof useVerificationFieldHelp>;
+  hasEarlierResult: boolean;
   requiresConfirmation: boolean;
   onInputChange: <Key extends keyof VerificationInputs>(field: Key, value: VerificationInputs[Key]) => void;
   onLoadExample: () => void;
@@ -45,7 +46,7 @@ export function VerificationPanel({
   state: verification, errors: verificationRequiredErrors,
   inputRefs,
   feedback,
-  fieldHelp, requiresConfirmation: verificationNeedsConfirmation, onInputChange,
+  fieldHelp, hasEarlierResult, requiresConfirmation: verificationNeedsConfirmation, onInputChange,
   onLoadExample: loadVerificationExample, onSubmit: verifyObservation, onCancel: cancelVerification,
 }: Props) {
   const { executionId, executedAt, scenarioId, observationEvidence } = input;
@@ -60,7 +61,7 @@ export function VerificationPanel({
     submitRef: verificationSubmitRef,
     cancelRef: verificationCancelRef,
   } = feedback;
-  const needsRepeat = verification.kind === "completed" || verification.kind === "dirty";
+  const needsRepeat = hasEarlierResult || verification.kind === "completed" || verification.kind === "dirty";
   const actionStatus = verification.kind === "completed" ? "Verification completed."
     : verification.kind === "dirty" ? VERIFICATION_INPUTS_CHANGED : undefined;
 

@@ -178,6 +178,7 @@ describe("request and edited-input states", () => {
       await endRetry(again);
       // No result belongs to these inputs, so the reminder waits for the next edit.
       expect(document.querySelector(".action-status")).toBeNull();
+      expect(screen.getByRole("button", { name: again })).toBeEnabled();
 
       fireEvent.change(field, { target: { value: original } });
       expect(screen.getByRole("button", { name: again })).toHaveAccessibleDescription(changed);
@@ -198,7 +199,7 @@ describe("request and edited-input states", () => {
       fireEvent.change(field, { target: { value: `${field.value} ` } });
       await cancelRetry(again);
       fetchMock.mockResolvedValueOnce(respond(payload));
-      fireEvent.click(screen.getByRole("button", { name: first }));
+      fireEvent.click(screen.getByRole("button", { name: again }));
       await screen.findByRole("region", { name: resultName });
       expect(screen.getByRole("button", { name: again })).toHaveAccessibleDescription(
         inspection ? "Inspection completed. Evidence is valid." : "Verification completed.",
@@ -211,7 +212,7 @@ describe("request and edited-input states", () => {
       fireEvent.click(screen.getByRole("button", { name: "Load example" }));
       expect(screen.queryByText(changed)).not.toBeInTheDocument();
       expect(screen.queryByRole("region", { name: resultName })).not.toBeInTheDocument();
-      expect(screen.getByRole("button", { name: first })).toBeEnabled();
+      expect(screen.getByRole("button", { name: again })).toBeEnabled();
     });
 
     it("does not prompt after a first request that never completed", async () => {

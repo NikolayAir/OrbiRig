@@ -276,6 +276,7 @@ export function App() {
           }}
           feedback={feedback.verificationTargets}
           fieldHelp={fieldHelp}
+          hasEarlierResult={verificationHadResultRef.current}
           requiresConfirmation={verificationNeedsConfirmation}
           onInputChange={changeVerificationInput}
           onLoadExample={loadVerificationExample}
@@ -294,6 +295,7 @@ export function App() {
           sequenceView={sequenceView}
           onSequenceViewChange={setSequenceView}
           feedback={feedback.inspectionTargets}
+          hasEarlierResult={inspectionHadResultRef.current}
           requiresConfirmation={wouldReplaceEditedValue(evidence, inspectionExampleBaselineRef.current, INSPECTION_EXAMPLES[evidenceType])}
           onEvidenceTypeChange={selectEvidenceType}
           onEvidenceChange={changeInspectionEvidence}

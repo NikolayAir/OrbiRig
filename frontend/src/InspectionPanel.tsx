@@ -23,6 +23,7 @@ type Props = {
   sequenceView: SequenceView;
   onSequenceViewChange: Dispatch<SetStateAction<SequenceView>>;
   feedback: FeedbackTargets;
+  hasEarlierResult: boolean;
   requiresConfirmation: boolean;
   onEvidenceTypeChange: (type: EvidenceType) => void;
   onEvidenceChange: (value: string) => void;
@@ -35,7 +36,7 @@ export function InspectionPanel({
   evidenceType, evidence, state: inspection,
   requiredError, evidenceInputRef,
   sequenceView, onSequenceViewChange,
-  feedback,
+  feedback, hasEarlierResult,
   requiresConfirmation, onEvidenceTypeChange: selectEvidenceType, onEvidenceChange,
   onLoadExample: loadInspectionExample, onSubmit: inspectEvidence, onCancel: cancelInspection,
 }: Props) {
@@ -152,7 +153,7 @@ export function InspectionPanel({
             disabled={inspection.kind === "loading"}
             aria-describedby={actionStatus ? "inspection-action-status" : undefined}
           >
-            {inspection.kind === "loading" ? "Inspecting…" : completed || inspection.kind === "dirty" ? "Inspect again" : "Inspect evidence"}
+            {inspection.kind === "loading" ? "Inspecting…" : hasEarlierResult || completed || inspection.kind === "dirty" ? "Inspect again" : "Inspect evidence"}
           </button>
           {inspection.kind === "loading" && (
             <button ref={inspectionCancelRef} type="button" name="cancel-request" className="secondary-action" onClick={cancelInspection}>
