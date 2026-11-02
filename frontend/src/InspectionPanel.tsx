@@ -11,7 +11,7 @@ import {
   VerifiedExecutionSequenceDetails,
   type SequenceView,
 } from "./EvidenceDetails";
-import { INSPECTION_CANCELLED, invalidEvidenceMessage, isInspectionComplete } from "./workflowContent";
+import { INSPECTION_CANCELLED, INSPECTION_INPUTS_CHANGED, invalidEvidenceMessage, isInspectionComplete } from "./workflowContent";
 import type { EvidenceType, InspectionState } from "./workflowTypes";
 
 type Props = {
@@ -46,7 +46,7 @@ export function InspectionPanel({
   } = feedback;
   const completed = isInspectionComplete(inspection);
   const actionStatus = completed ? "Inspection completed. Evidence is valid."
-    : undefined;
+    : inspection.kind === "dirty" ? INSPECTION_INPUTS_CHANGED : undefined;
 
   return (<section
     className="workflow-panel"
@@ -152,7 +152,7 @@ export function InspectionPanel({
             disabled={inspection.kind === "loading"}
             aria-describedby={actionStatus ? "inspection-action-status" : undefined}
           >
-            {inspection.kind === "loading" ? "Inspecting…" : completed ? "Inspect again" : "Inspect evidence"}
+            {inspection.kind === "loading" ? "Inspecting…" : completed || inspection.kind === "dirty" ? "Inspect again" : "Inspect evidence"}
           </button>
           {inspection.kind === "loading" && (
             <button ref={inspectionCancelRef} type="button" name="cancel-request" className="secondary-action" onClick={cancelInspection}>

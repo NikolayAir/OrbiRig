@@ -9,7 +9,7 @@ import { inspectEvidenceRequest, verifyObservationRequest } from "./apiClient";
 import { useCancellableRequest } from "./useCancellableRequest";
 import { useVerificationFieldHelp } from "./useVerificationFieldHelp";
 import { useWorkflowFeedback } from "./useWorkflowFeedback";
-import { DEFAULT_VERIFICATION_SCENARIO, REQUIRED_VERIFICATION_MESSAGES } from "./workflowContent";
+import { DEFAULT_VERIFICATION_SCENARIO, REQUIRED_VERIFICATION_MESSAGES, isInspectionComplete } from "./workflowContent";
 import type {
   EvidenceType,
   InspectionState,
@@ -77,18 +77,28 @@ export function App() {
   function changeVerificationInput<Key extends keyof VerificationInputs>(field: Key, value: VerificationInputs[Key]) {
     setVerificationInputs(current => ({ ...current, [field]: value }));
     clearVerificationRequiredError(field);
-    verification.setState({ kind: "idle" });
+    clearVerificationResult();
+  }
+
+  function clearVerificationResult() {
+    verification.setState(current => current.kind === "dirty" ? current
+      : { kind: current.kind === "completed" ? "dirty" : "idle" });
+  }
+
+  function clearInspectionResult() {
+    inspection.setState(current => current.kind === "dirty" ? current
+      : { kind: isInspectionComplete(current) ? "dirty" : "idle" });
   }
 
   function selectEvidenceType(type: EvidenceType) {
     setEvidenceType(type);
-    inspection.setState({ kind: "idle" });
+    clearInspectionResult();
   }
 
   function changeInspectionEvidence(value: string) {
     setEvidence(value);
     setInspectionRequiredError(false);
-    inspection.setState({ kind: "idle" });
+    clearInspectionResult();
   }
 
   function loadVerificationExample() {
@@ -97,14 +107,14 @@ export function App() {
     verificationExampleBaselineRef.current = example;
     setVerificationInputs({ ...example, scenarioId: selectedScenario });
     setVerificationRequiredErrors({});
-    verification.setState({ kind: "idle" });
+    clearVerificationResult();
   }
 
   function loadInspectionExample() {
     inspectionExampleBaselineRef.current = INSPECTION_EXAMPLES[evidenceType];
     setEvidence(INSPECTION_EXAMPLES[evidenceType]);
     setInspectionRequiredError(false);
-    inspection.setState({ kind: "idle" });
+    clearInspectionResult();
   }
 
   function cancelVerification() {

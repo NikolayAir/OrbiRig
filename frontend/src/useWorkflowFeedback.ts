@@ -4,6 +4,8 @@ import type { InspectionState, VerificationState, Workflow } from "./workflowTyp
 import {
   INSPECTION_CANCELLED,
   VERIFICATION_CANCELLED,
+  VERIFICATION_INPUTS_CHANGED,
+  INSPECTION_INPUTS_CHANGED,
   inspectionAnnouncement,
 } from "./workflowContent";
 
@@ -38,7 +40,7 @@ function useCompletionFeedback(
       targets.cancelRef.current?.focus();
       return;
     }
-    const terminal = state.kind !== "idle" && state.kind !== "loading";
+    const terminal = state.kind !== "idle" && state.kind !== "loading" && state.kind !== "dirty";
     if (!targets.pendingRef.current || !terminal) return;
 
     // Consume hidden completion too: returning to that panel later must not
@@ -63,6 +65,18 @@ export function useWorkflowFeedback(
   const [announcement, setAnnouncement] = useState("");
   const verificationTargets = useFeedbackTargets();
   const inspectionTargets = useFeedbackTargets();
+  const previousKinds = useRef({ verification: verification.kind, inspection: inspection.kind });
+
+  useEffect(() => {
+    const previous = previousKinds.current;
+    previousKinds.current = { verification: verification.kind, inspection: inspection.kind };
+    // Announce the transition once, without moving focus or repeating on each edit.
+    if (activeWorkflow === "verification" && verification.kind === "dirty" && previous.verification !== "dirty") {
+      setAnnouncement(VERIFICATION_INPUTS_CHANGED);
+    } else if (activeWorkflow === "inspection" && inspection.kind === "dirty" && previous.inspection !== "dirty") {
+      setAnnouncement(INSPECTION_INPUTS_CHANGED);
+    }
+  }, [activeWorkflow, verification.kind, inspection.kind]);
 
   useEffect(() => {
     function cancelPendingFeedback(event: Event) {

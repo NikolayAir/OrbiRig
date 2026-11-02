@@ -356,7 +356,8 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                 <p>
                   After verification completes, choose <strong>Verify again</strong> to
                   repeat it. Both <strong>PASS</strong> and <strong>FAIL</strong> are completed
-                  results.
+                  results. Editing any input clears the result and prompts you to check
+                  the current values again.
                 </p>
               </div>
               <div
@@ -393,7 +394,8 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                 </p>
                 <p>
                   After inspection completes, choose <strong>Inspect again</strong> to
-                  repeat it.
+                  repeat it. Changing the JSON or evidence type clears the result and
+                  prompts you to inspect the current evidence again.
                 </p>
               </div>
             </>

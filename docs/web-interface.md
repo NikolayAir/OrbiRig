@@ -42,7 +42,7 @@ Completed results and request errors receive keyboard focus and are brought into
 
 The submission button shows **Verifying…** or **Inspecting…** while a request is pending. After a result, it offers **Verify again** or **Inspect again**, with a completion message below the button. Completion is separate from the verification outcome: both `PASS` and `FAIL` are completed results. Successful inspection confirms that the evidence is valid; observation inspection has no verification outcome, while saved verified evidence keeps its `PASS` or `FAIL` outcome.
 
-Empty or whitespace-only inspection JSON produces **Evidence JSON is required.**, focuses the field and sends no request.
+Editing any input after a result clears that result and shows an inline reminder to verify or inspect the current values again. Restoring the previous text or selection still requires a new request. The reminder is announced once on the first edit without moving focus. Verification and inspection retain their own inputs and states when you switch between them. Empty or whitespace-only inspection JSON produces **Evidence JSON is required.**, focuses the field and sends no request.
 
 While either request is pending, **Cancel request** stops waiting in the browser and keeps the current inputs and selection. Focus returns to the submission button so you can edit or retry. Cancellation produces no verification outcome. The server may already have completed the check; late responses from cancelled requests are ignored, including after a retry.
 

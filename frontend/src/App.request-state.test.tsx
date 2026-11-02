@@ -2,10 +2,15 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { describe, expect, it } from "vitest";
 import { App } from "./App";
 import { observation, verifiedExecution, failedTelemetryExecution } from "./test/appFixtures";
-import { setupAppTests, submitVerification, submitEvidence, fetchMock, deferred, selectInspectionWorkflow } from "./test/appTestSupport";
+import {
+  setupAppTests, submitVerification, submitEvidence, fetchMock, deferred,
+  selectInspectionWorkflow, selectVerificationWorkflow, scrollIntoViewMock,
+} from "./test/appTestSupport";
 
 setupAppTests();
 
+const verificationChanged = "Inputs changed. Verify again to check the current values.";
+const inspectionChanged = "Inputs changed. Inspect again to check the current evidence.";
 const respond = (payload: unknown) => ({ ok: true, status: 200, json: async () => payload });
 
 describe("request and edited-input states", () => {
@@ -54,6 +59,94 @@ describe("request and edited-input states", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     await act(async () => retry.resolve(respond(payload)));
     expect(screen.getByRole("button", { name: "Inspect again" })).toBeEnabled();
+  });
+
+  it.each([
+    ["Execution ID", "edited-id"],
+    ["Execution time (UTC)", "2026-10-30T10:00:00Z"],
+    ["Scenario", "safe_to_nominal_mode"],
+    ["Observation evidence JSON", "edited JSON"],
+  ])("requires verification again after editing %s, even when restored", async (label, value) => {
+    fetchMock.mockResolvedValue(respond(verifiedExecution));
+    submitVerification();
+    await screen.findByRole("region", { name: "Verified execution" });
+    const field = screen.getByLabelText(label, { exact: true });
+    const original = (field as HTMLInputElement).value;
+    act(() => field.focus());
+    scrollIntoViewMock.mockClear();
+    fireEvent.change(field, { target: { value } });
+    expect(screen.queryByRole("region", { name: "Verified execution" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Verification completed.", { exact: true })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Verify again" })).toHaveAccessibleDescription(verificationChanged);
+    expect(screen.getByRole("status")).toHaveTextContent(verificationChanged);
+    fireEvent.change(field, { target: { value: original } });
+    expect(screen.getByText(verificationChanged, { selector: ".action-status" })).toBeVisible();
+    expect(field).toHaveFocus();
+    expect(scrollIntoViewMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["JSON", "type"])("requires inspection again after changing its %s", async (field) => {
+    fetchMock.mockResolvedValue(respond(observation));
+    submitEvidence("original evidence");
+    await screen.findByRole("region", { name: "Observation details" });
+    if (field === "JSON") {
+      fireEvent.change(screen.getByLabelText("Evidence JSON"), { target: { value: "edited" } });
+      fireEvent.change(screen.getByLabelText("Evidence JSON"), { target: { value: "original evidence" } });
+    } else {
+      fireEvent.click(screen.getByRole("radio", { name: "Verified execution" }));
+      expect(screen.getByRole("status")).toHaveTextContent(inspectionChanged);
+      fireEvent.click(screen.getByRole("radio", { name: "Observation" }));
+    }
+    expect(screen.queryByRole("region", { name: "Observation details" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Inspect again" })).toHaveAccessibleDescription(inspectionChanged);
+    expect(screen.getByText(inspectionChanged, { selector: ".action-status" })).toBeVisible();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["verification", "inspection"] as const)("announces changed %s inputs once without moving focus", async (workflow) => {
+    fetchMock.mockResolvedValue(respond(workflow === "verification" ? verifiedExecution : observation));
+    if (workflow === "verification") submitVerification();
+    else submitEvidence("original evidence");
+    await screen.findByRole("region", { name: workflow === "verification" ? "Verified execution" : "Observation details" });
+    const field = screen.getByLabelText(workflow === "verification" ? "Observation evidence JSON" : "Evidence JSON");
+    act(() => field.focus());
+    scrollIntoViewMock.mockClear();
+    const changes: string[] = [];
+    const status = screen.getByRole("status");
+    const observer = new MutationObserver(() => changes.push(status.textContent!));
+    observer.observe(status, { subtree: true, childList: true, characterData: true });
+    try {
+      for (const value of ["a", "ab", "abc"]) {
+        await act(async () => { fireEvent.change(field, { target: { value } }); });
+      }
+      expect(changes).toEqual([workflow === "verification" ? verificationChanged : inspectionChanged]);
+      expect(field).toHaveFocus();
+      expect(scrollIntoViewMock).not.toHaveBeenCalled();
+    } finally { observer.disconnect(); }
+  });
+
+  it("keeps changed verification and completed inspection independent across task switches", async () => {
+    fetchMock.mockResolvedValueOnce(respond(verifiedExecution)).mockResolvedValueOnce(respond(observation));
+    submitVerification();
+    await screen.findByRole("region", { name: "Verified execution" });
+    fireEvent.change(screen.getByLabelText("Execution ID"), { target: { value: "edited-id" } });
+    selectInspectionWorkflow();
+    fireEvent.change(screen.getByLabelText("Evidence JSON"), { target: { value: "inspection evidence" } });
+    fireEvent.click(screen.getByRole("button", { name: "Inspect evidence" }));
+    await screen.findByRole("region", { name: "Observation details" });
+    selectVerificationWorkflow();
+    expect(screen.getByRole("button", { name: "Verify again" })).toHaveAccessibleDescription(verificationChanged);
+    expect(screen.getByLabelText("Execution ID")).toHaveValue("edited-id");
+    selectInspectionWorkflow();
+    expect(screen.getByRole("button", { name: "Inspect again" })).toHaveAccessibleDescription("Inspection completed. Evidence is valid.");
+    fireEvent.change(screen.getByLabelText("Evidence JSON"), { target: { value: "edited inspection" } });
+    selectVerificationWorkflow();
+    expect(screen.queryByText(inspectionChanged, { selector: ".action-status" })).not.toBeInTheDocument();
+    selectInspectionWorkflow();
+    expect(screen.getByText(inspectionChanged, { selector: ".action-status" })).toBeVisible();
+    expect(screen.queryByRole("region", { name: "Observation details" })).not.toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it.each(["", " \n\t "])("rejects empty inspection JSON locally (%j) and sends non-empty text unchanged", async (empty) => {

@@ -29,6 +29,7 @@ export type VerificationRequiredErrors = Partial<
 
 export type InspectionState =
   | { kind: "idle" }
+  | { kind: "dirty" }
   | { kind: "loading" }
   | { kind: "cancelled" }
   | { kind: "valid-observation"; observation: ObservationPresentation }
@@ -46,6 +47,7 @@ export type InspectionState =
 
 export type VerificationState =
   | { kind: "idle" }
+  | { kind: "dirty" }
   | { kind: "loading" }
   | { kind: "cancelled" }
   | { kind: "completed"; record: VerifiedExecutionPresentation }

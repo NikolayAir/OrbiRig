@@ -11,6 +11,7 @@ import {
   SUPPORTED_SCENARIOS,
   VERIFICATION_CANCELLED,
   VERIFICATION_ERROR_MESSAGES,
+  VERIFICATION_INPUTS_CHANGED,
 } from "./workflowContent";
 import type {
   ScenarioId,
@@ -59,9 +60,9 @@ export function VerificationPanel({
     submitRef: verificationSubmitRef,
     cancelRef: verificationCancelRef,
   } = feedback;
-  const needsRepeat = verification.kind === "completed";
+  const needsRepeat = verification.kind === "completed" || verification.kind === "dirty";
   const actionStatus = verification.kind === "completed" ? "Verification completed."
-    : undefined;
+    : verification.kind === "dirty" ? VERIFICATION_INPUTS_CHANGED : undefined;
 
   return (<section
     className="workflow-panel"

@@ -47,6 +47,10 @@ export const VERIFICATION_CANCELLED = "Verification request cancelled. Your inpu
 
 export const INSPECTION_CANCELLED = "Inspection request cancelled. Your inputs are kept.";
 
+export const VERIFICATION_INPUTS_CHANGED = "Inputs changed. Verify again to check the current values.";
+
+export const INSPECTION_INPUTS_CHANGED = "Inputs changed. Inspect again to check the current evidence.";
+
 export function isInspectionComplete(inspection: InspectionState): boolean {
   return inspection.kind === "valid-observation"
     || inspection.kind === "valid-verified-execution"
