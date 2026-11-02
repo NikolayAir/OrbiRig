@@ -141,6 +141,8 @@ The program runs with the caller's permissions; collection does not sandbox it. 
 
 For collection without verification, `collect_subprocess_observation(...)` takes `argv`, `command` and `timeout` and returns a `CommandExecutionObservation`. To verify this observation later, choose the expected scenario separately and pass it to the verifier.
 
+For actual command handling across separate launches, see the [stateful test target](stateful-target.md). It keeps operating-mode state in an isolated file and can deliberately report stale telemetry, allowing the same Python API to demonstrate a continuous sequence and detect a valid observation that fails verification.
+
 ## Reopen saved verified evidence
 
 The serialisation functions return JSON text; your script writes that text to a file. To save the sequence and its first record, add this code to the [sequence example](#verify-an-ordered-sequence):

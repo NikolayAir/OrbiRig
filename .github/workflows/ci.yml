@@ -239,7 +239,8 @@ jobs:
 
       - name: Run ${{ matrix.name }} browser tests
         working-directory: frontend
-        run: uv run --no-sync npm run test:e2e -- --project=${{ matrix.browser }}
+        # The full WebKit suite can exceed the local 5-minute limit on CI runners.
+        run: uv run --no-sync npm run test:e2e -- --project=${{ matrix.browser }} --global-timeout=600000
 
       - name: Upload browser reports, traces, screenshots and videos
         if: ${{ failure() }}

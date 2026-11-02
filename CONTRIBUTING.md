@@ -167,7 +167,7 @@ The [Checks workflow](.github/workflows/ci.yml) selects this matrix:
 | Manual `workflow_dispatch` | Python 3.12–3.15 on Ubuntu, macOS and Windows | 16 |
 | Push to `main` | Python 3.12–3.15 on Ubuntu | 8 |
 
-Totals include 3 Ubuntu browser jobs and the final `CI passed` job. Python jobs have a 10-minute timeout, browser jobs 30 minutes and `CI passed` 1 minute. Browser invocations also have Playwright's separate 5-minute timeout.
+Totals include 3 Ubuntu browser jobs and the final `CI passed` job. Python jobs have a 10-minute timeout, browser jobs 30 minutes and `CI passed` 1 minute. Each CI browser invocation sets a separate 10-minute Playwright timeout; the local default remains 5 minutes. Individual test and assertion timeouts are unchanged.
 
 Python setup uses `check-latest: true` to select the latest available patch in each chosen series. A newer patch is downloaded when the runner's cached version is older.
 
