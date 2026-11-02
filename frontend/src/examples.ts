@@ -331,7 +331,75 @@ const ALTERED_INSPECTION_EXAMPLES: Record<EvidenceType, string> = {
   "verified-execution-sequence": pretty(ALTERED_SEQUENCE_DOCUMENT),
 };
 
-export function inspectionExample(evidenceType: EvidenceType, variant: ExampleVariant): string | undefined {
+type Mode = "NOMINAL" | "SAFE";
+
+const LONG_SEQUENCE_MEMBERS = 100;
+const LONG_SEQUENCE_FAILED_TELEMETRY = new Set([37, 88]);
+const LONG_SEQUENCE_DISCONTINUITY_BEFORE = 61;
+
+function longSequenceRecord(member: number, preState: Mode) {
+  const target: Mode = preState === "NOMINAL" ? "SAFE" : "NOMINAL";
+  const telemetry = LONG_SEQUENCE_FAILED_TELEMETRY.has(member) ? preState : target;
+  return {
+    schema_version: 1,
+    execution: {
+      execution_id: `example-long-${String(member).padStart(3, "0")}`,
+      scenario_id: preState === "NOMINAL" ? "nominal_to_safe_mode" : "safe_to_nominal_mode",
+      executed_at: new Date(Date.UTC(2026, 7, 26, 8, member)).toISOString().replace(".000Z", "Z"),
+    },
+    observation: {
+      command: { command_type: "SET_OPERATING_MODE", target_mode: target },
+      pre_state: { operating_mode: preState },
+      acknowledgement: { accepted: true },
+      post_state: { operating_mode: target },
+      telemetry: { operating_mode: telemetry },
+    },
+    invariant_results: [
+      { invariant_id: "pre_state_matches_expected", passed: true, expected: preState, actual: preState },
+      { invariant_id: "acknowledgement_is_accepted", passed: true, expected: true, actual: true },
+      { invariant_id: "post_state_matches_requested_mode", passed: true, expected: target, actual: target },
+      { invariant_id: "telemetry_matches_post_state", passed: telemetry === target, expected: target, actual: telemetry },
+    ],
+    outcome: telemetry === target ? "PASS" : "FAIL",
+  };
+}
+
+function longSequenceDocument() {
+  const records: Array<ReturnType<typeof longSequenceRecord>> = [];
+  let mode: Mode = "NOMINAL";
+  for (let member = 1; member <= LONG_SEQUENCE_MEMBERS; member++) {
+    // Start one record in the wrong mode. It still passes alone, but the link to the previous record fails.
+    if (member === LONG_SEQUENCE_DISCONTINUITY_BEFORE) mode = mode === "NOMINAL" ? "SAFE" : "NOMINAL";
+    const record = longSequenceRecord(member, mode);
+    records.push(record);
+    mode = record.observation.post_state.operating_mode;
+  }
+  return {
+    schema_version: 1,
+    records,
+    continuity_results: records.slice(1).map((record, index) => ({
+      previous_execution_id: records[index].execution.execution_id,
+      next_execution_id: record.execution.execution_id,
+      expected_operating_mode: records[index].observation.post_state.operating_mode,
+      observed_operating_mode: record.observation.pre_state.operating_mode,
+      passed: records[index].observation.post_state.operating_mode === record.observation.pre_state.operating_mode,
+    })),
+    outcome: "FAIL",
+  };
+}
+
+let longSequence: string | undefined;
+
+// Build on first use: the form compares examples with its inputs on every render.
+function longSequenceExample() {
+  longSequence ??= pretty(longSequenceDocument());
+  return longSequence;
+}
+
+export type InspectionExampleVariant = ExampleVariant | "long";
+
+export function inspectionExample(evidenceType: EvidenceType, variant: InspectionExampleVariant): string | undefined {
   if (variant === "passing") return INSPECTION_EXAMPLES[evidenceType];
+  if (variant === "long") return evidenceType === "verified-execution-sequence" ? longSequenceExample() : undefined;
   return variant === "failing" ? FAILING_INSPECTION_EXAMPLES[evidenceType] : ALTERED_INSPECTION_EXAMPLES[evidenceType];
 }

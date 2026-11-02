@@ -1,7 +1,7 @@
 import type { Dispatch, RefObject, SetStateAction, SubmitEvent } from "react";
 import { WorkflowTitle } from "./WorkflowTitle";
 import { LoadExampleButton } from "./LoadExampleButton";
-import type { ExampleVariant } from "./examples";
+import type { InspectionExampleVariant } from "./examples";
 import { EvidenceRequestSizeError, RequestError } from "./RequestFeedback";
 import { describedBy, preventRepeatedRequestAction } from "./formHelpers";
 import type { FeedbackTargets } from "./useWorkflowFeedback";
@@ -24,10 +24,10 @@ type Props = {
   sequenceView: SequenceView;
   onSequenceViewChange: Dispatch<SetStateAction<SequenceView>>;
   feedback: FeedbackTargets;
-  requiresConfirmation: (variant: ExampleVariant) => boolean;
+  requiresConfirmation: (variant: InspectionExampleVariant) => boolean;
   onEvidenceTypeChange: (type: EvidenceType) => void;
   onEvidenceChange: (value: string) => void;
-  onLoadExample: (variant: ExampleVariant) => void;
+  onLoadExample: (variant: InspectionExampleVariant) => void;
   onSubmit: (event: SubmitEvent<HTMLFormElement>) => Promise<void>;
   onCancel: () => void;
 };
@@ -68,6 +68,16 @@ export function InspectionPanel({
           requiresConfirmation={requiresConfirmation("passing")}
           onLoad={() => loadInspectionExample("passing")}
         />
+        {evidenceType === "verified-execution-sequence" && (
+          <LoadExampleButton
+            label="Load long sequence"
+            tone="negative"
+            description="100 records across 4 pages, with failures to find. Replaces evidence JSON"
+            disabled={inspection.kind === "loading"}
+            requiresConfirmation={requiresConfirmation("long")}
+            onLoad={() => loadInspectionExample("long")}
+          />
+        )}
         {evidenceType !== "observation" && (
           <LoadExampleButton
             label="Load failing example"

@@ -4,7 +4,7 @@ import { WorkflowHelp } from "./WorkflowHelp";
 import { VerificationPanel } from "./VerificationPanel";
 import { InspectionPanel } from "./InspectionPanel";
 import type { SequenceView } from "./EvidenceDetails";
-import { type ExampleVariant, inspectionExample, verificationExample } from "./examples";
+import { type ExampleVariant, type InspectionExampleVariant, inspectionExample, verificationExample } from "./examples";
 import { wouldReplaceEditedValue } from "./formHelpers";
 import { inspectEvidenceRequest, verifyObservationRequest } from "./apiClient";
 import { useCancellableRequest } from "./useCancellableRequest";
@@ -68,7 +68,7 @@ export function App() {
     ));
   }
 
-  function inspectionNeedsConfirmation(variant: ExampleVariant) {
+  function inspectionNeedsConfirmation(variant: InspectionExampleVariant) {
     return wouldReplaceEditedValue(evidence, inspectionExampleBaselineRef.current, inspectionExample(evidenceType, variant) ?? "");
   }
 
@@ -128,7 +128,7 @@ export function App() {
     }
   }
 
-  function loadInspectionExample(variant: ExampleVariant) {
+  function loadInspectionExample(variant: InspectionExampleVariant) {
     const example = inspectionExample(evidenceType, variant);
     if (example === undefined) return;
     const inputsChanged = evidence !== example;

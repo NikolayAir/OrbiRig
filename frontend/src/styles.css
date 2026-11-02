@@ -979,7 +979,7 @@ textarea[aria-invalid="true"] {
   border-color: var(--accent);
 }
 
-/* Match the FAIL palette so these examples preview the kind of result they lead to. */
+/* Match the FAIL palette on examples that lead to a FAIL outcome or rejected evidence. */
 .secondary-action[data-tone="negative"] {
   background: var(--negative-soft);
   border-color: #dfb3a6;
