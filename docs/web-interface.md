@@ -44,18 +44,19 @@ While either request is pending, **Cancel request** stops waiting in the browser
 
 ## Run locally
 
-Install [Git](https://git-scm.com/downloads), [uv](https://docs.astral.sh/uv/getting-started/installation/) and Node.js 22.12 or later within the 22.x series. [`.node-version`](../.node-version) selects the 22.x series. Python 3.12–3.15 is supported; uv selects the local default from [`.python-version`](../.python-version).
+Install [Git](https://git-scm.com/downloads), [uv](https://docs.astral.sh/uv/getting-started/installation/) and Node.js 26 LTS. [`.node-version`](../.node-version) pins Node.js 26.13.0. See the [frontend environment](../CONTRIBUTING.md#frontend-environment) for selecting this version and platform requirements. Python 3.12–3.15 is supported; uv selects the local default from [`.python-version`](../.python-version).
 
-From a checkout, install the locked Python web and frontend dependencies:
+From the repository root, check that the active Node.js version matches `.node-version`, then install the locked Python web and frontend dependencies:
 
 ```bash
+node --version
 uv sync --locked --extra web
 cd frontend
 npm ci
 cd ..
 ```
 
-Start FastAPI and Vite in separate terminals from the repository root:
+Start FastAPI and Vite in separate terminals from the repository root. Select the same Node.js version in the Vite terminal as well:
 
 ```bash
 # Terminal 1
@@ -161,6 +162,8 @@ Content-type checks run before body-size checks. The server enforces the size li
 ## Render deployment configuration
 
 [`render.yaml`](../render.yaml) declares a Python web service built from `main`, using uv `0.13.4`, `npm ci` and a frontend build. It sets `PYTHON_VERSION=3.12.16`, uses `/` for its health check and declares `autoDeployTrigger: checksPass`.
+
+Render's [native Python runtime also provides Node.js and npm](https://render.com/docs/native-runtimes#tools-and-utilities) for building the frontend. The Blueprint sets `NODE_VERSION=26.13.0` for these build tools. This [setting takes precedence](https://render.com/docs/node-version) over the root `.node-version`; keep the two values aligned. Confirm the applied setting and selected Node.js version in the service's build logs after a Blueprint sync.
 
 The Python installation uses `uv sync --locked` with only the `web` extra and no default dependency groups. A missing or out-of-date `uv.lock` fails the build rather than being updated. OrbiRig is installed in editable mode in `.venv`, so it can serve the assets subsequently built into `src/orbirig/static`. The start command runs `.venv/bin/python` directly, using the installed environment without resolving dependencies again.
 

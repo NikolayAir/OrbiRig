@@ -19,3 +19,6 @@ services:
       - key: UV_VERSION
         # Match the uv version used in CI.
         value: "0.13.4"
+      - key: NODE_VERSION
+        # Keep the frontend build on the same Node.js LTS release as .node-version.
+        value: "26.13.0"
