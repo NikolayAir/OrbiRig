@@ -48,6 +48,20 @@ export const REQUIRED_VERIFICATION_MESSAGES: Record<
   observationEvidence: "Observation evidence is required.",
 };
 
+const REPOSITORY_URL = "https://github.com/NikolayAir/OrbiRig";
+const DOCS_URL = `${REPOSITORY_URL}/blob/main/docs`;
+
+export const LINKS = {
+  source: REPOSITORY_URL,
+  documentation: `${REPOSITORY_URL}#documentation`,
+  cli: `${DOCS_URL}/cli.md`,
+  scenarios: `${DOCS_URL}/verification.md#supported-scenarios`,
+  savedEvidence: `${DOCS_URL}/verification.md#loading-saved-evidence`,
+  evidenceFormats: `${DOCS_URL}/evidence-formats.md`,
+  executionMetadata: `${DOCS_URL}/evidence-formats.md#execution-ids`,
+  validationLimits: `${DOCS_URL}/evidence-formats.md#what-validation-establishes`,
+};
+
 export const DEFAULT_VERIFICATION_SCENARIO: ScenarioId = "nominal_to_safe_mode";
 
 export const VERIFICATION_CANCELLED = "Verification request cancelled. Your inputs are kept.";

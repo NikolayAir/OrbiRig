@@ -48,7 +48,7 @@ describe("App help", () => {
       expect(guidance.queryByRole("tabpanel", { name: "Inspect evidence" })).not.toBeInTheDocument();
       expect(guidance.queryByText(/OrbiRig can verify/)).not.toBeInTheDocument();
       expect(guidance.queryByRole("region", { name: "CLI verification command" })).not.toBeInTheDocument();
-      expect(guidance.queryByRole("link")).not.toBeInTheDocument();
+      expect(guidance.getAllByRole("link")).toHaveLength(2);
     } else {
       expect(guidance.getByRole("region", { name: "CLI verification command" })).toBeVisible();
       expect(guidance.queryByText(/OrbiRig checks command records/)).not.toBeInTheDocument();
@@ -130,7 +130,7 @@ describe("App help", () => {
     fireEvent.click(help.getByRole("tab", { name: otherName }));
     expect(help.getByRole("tabpanel", { name: otherName })).toBeVisible();
     expect(help.queryByRole("tabpanel", { name: selectedName })).not.toBeInTheDocument();
-    expect(help.getAllByRole("list")).toHaveLength(1);
+    expect(help.getAllByRole("list")).toHaveLength(2);
     fireEvent.click(help.getByRole("button", { name: "Close" }));
     fireEvent.click(trigger);
     expect(help.getByRole("tab", { name: selectedName, selected: true })).toBeVisible();
@@ -216,7 +216,7 @@ describe("App help", () => {
     fireEvent.click(screen.getByRole("button", { name: "In the browser" }));
 
     const guidance = within(screen.getByRole("dialog", { name: "How it works" }));
-    const verificationSteps = guidance.getByRole("list");
+    const [verificationSteps] = guidance.getAllByRole("list");
 
     expect(
       within(verificationSteps).getAllByRole("listitem").map((step) => step.textContent?.replace(/\s+/g, " ").trim()),
@@ -243,7 +243,7 @@ describe("App help", () => {
       "The scenario defines what should happen independently of the recorded observation.",
     );
     fireEvent.click(guidance.getByRole("tab", { name: "Inspect evidence" }));
-    const inspectionSteps = guidance.getByRole("list");
+    const [inspectionSteps] = guidance.getAllByRole("list");
     expect(
       within(inspectionSteps).getAllByRole("listitem").map((step) => step.textContent?.replace(/\s+/g, " ").trim()),
     ).toEqual([
@@ -288,7 +288,7 @@ describe("App help", () => {
     expect(guidance.getByText(/The execution ID and timestamp/)).toHaveTextContent(
       "The execution ID and timestamp above are examples. For recorded executions, use the ID and UTC time recorded for that execution.",
     );
-    expect(guidance.getByRole("link", { name: "CLI setup and full instructions" })).toHaveAttribute(
+    expect(guidance.getByRole("link", { name: /^CLI setup and full instructions/ })).toHaveAttribute(
       "href",
       "https://github.com/NikolayAir/OrbiRig/blob/main/docs/cli.md",
     );
@@ -548,4 +548,28 @@ describe("App help", () => {
       expect(document.activeElement).not.toBe(help);
     },
   );
+
+  it.each([
+    ["Verify observation", ["Supported scenarios and checks", "Execution ID and UTC time rules"]],
+    ["Inspect evidence", ["Evidence formats and JSON rules", "How saved evidence is rechecked", "What validation establishes"]],
+  ])("links %s guidance to its documentation without leaving the page", (tab, names) => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "In the browser" }));
+    const guidance = within(screen.getByRole("dialog", { name: "How it works" }));
+    fireEvent.click(guidance.getByRole("tab", { name: tab }));
+    const links = guidance.getAllByRole("link");
+    expect(links.map(link => link.textContent)).toEqual(names.map(name => `${name} (opens in a new tab)`));
+    for (const link of links) {
+      expect(link).toHaveAttribute("target", "_blank");
+      expect(link).toHaveAttribute("rel", "noreferrer");
+    }
+  });
+
+  it("offers the documentation beside the help actions", () => {
+    render(<App />);
+    const section = within(screen.getByRole("region", { name: "How it works" }));
+    expect(section.getByRole("link", { name: /^Documentation/ })).toHaveAttribute(
+      "href", "https://github.com/NikolayAir/OrbiRig#documentation",
+    );
+  });
 });

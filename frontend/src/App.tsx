@@ -1,4 +1,5 @@
 import { type SubmitEvent, useRef, useState } from "react";
+import { DocLink } from "./DocLink";
 import { WorkflowHelp } from "./WorkflowHelp";
 import { VerificationPanel } from "./VerificationPanel";
 import { InspectionPanel } from "./InspectionPanel";
@@ -9,7 +10,7 @@ import { inspectEvidenceRequest, verifyObservationRequest } from "./apiClient";
 import { useCancellableRequest } from "./useCancellableRequest";
 import { useVerificationFieldHelp } from "./useVerificationFieldHelp";
 import { useWorkflowFeedback } from "./useWorkflowFeedback";
-import { DEFAULT_VERIFICATION_SCENARIO, REQUIRED_VERIFICATION_MESSAGES, isInspectionComplete } from "./workflowContent";
+import { DEFAULT_VERIFICATION_SCENARIO, LINKS, REQUIRED_VERIFICATION_MESSAGES, isInspectionComplete } from "./workflowContent";
 import type {
   EvidenceType,
   InspectionState,
@@ -308,8 +309,8 @@ export function App() {
       <footer className="page-footer">
         <p>OrbiRig is a non-operational verification harness that uses a simplified reference spacecraft.</p>
         <p>
-          <a href="https://github.com/NikolayAir/OrbiRig">Source code</a>
-          <a href="https://github.com/NikolayAir/OrbiRig/tree/main/docs">Documentation</a>
+          <DocLink href={LINKS.source}>Source code</DocLink>
+          <DocLink href={LINKS.documentation}>Documentation</DocLink>
         </p>
       </footer>
     </main>

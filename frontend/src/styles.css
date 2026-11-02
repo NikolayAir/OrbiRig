@@ -137,6 +137,13 @@ h2 {
   text-underline-offset: 0.25em;
 }
 
+a.workflow-help-trigger {
+  align-items: center;
+  box-sizing: border-box;
+  display: inline-flex;
+  font-weight: 650;
+}
+
 .workflow-help-trigger:hover {
   color: var(--accent-strong);
   text-decoration-thickness: 2px;
@@ -356,6 +363,14 @@ h2 {
   text-underline-offset: 0.2em;
 }
 
+.workflow-help-links {
+  display: grid;
+  gap: 0.25rem;
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+}
+
 .workflow-help-content a:hover {
   color: var(--accent-strong);
 }
@@ -374,7 +389,9 @@ h2 {
 }
 
 .workflow-help-command:focus-visible,
-.workflow-help-content a:focus-visible {
+.workflow-help-content a:focus-visible,
+.workflow-help-actions a:focus-visible,
+.page-footer a:focus-visible {
   box-shadow: var(--focus-ring);
   outline: 1px solid var(--focus-edge);
   outline-offset: 4px;
@@ -1000,6 +1017,15 @@ button:disabled {
   padding-top: 1rem;
 }
 
+.page-footer a {
+  color: var(--accent);
+  text-underline-offset: 0.2em;
+}
+
+.page-footer a:hover {
+  color: var(--accent-strong);
+}
+
 .page-footer p {
   display: flex;
   flex-wrap: wrap;
@@ -1421,6 +1447,11 @@ dd {
 }
 
 /* Keep progress/completion announcements available to assistive technology without taking layout space. */
+/* Keep hidden text inside the link so WebKit does not scroll help to a distant position on focus. */
+a[target="_blank"] {
+  position: relative;
+}
+
 .visually-hidden {
   clip: rect(0, 0, 0, 0);
   height: 1px;

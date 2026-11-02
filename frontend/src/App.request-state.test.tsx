@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { App } from "./App";
 import { observation, verifiedExecution, failedTelemetryExecution } from "./test/appFixtures";
@@ -17,8 +17,9 @@ describe("page footer", () => {
   it("describes OrbiRig as non-operational and links to its source and documentation", () => {
     render(<App />);
     expect(screen.getByRole("contentinfo")).toHaveTextContent("non-operational verification harness");
-    expect(screen.getByRole("link", { name: "Source code" })).toHaveAttribute("href", "https://github.com/NikolayAir/OrbiRig");
-    expect(screen.getByRole("link", { name: "Documentation" })).toHaveAttribute("href", "https://github.com/NikolayAir/OrbiRig/tree/main/docs");
+    const footer = within(screen.getByRole("contentinfo"));
+    expect(footer.getByRole("link", { name: /^Source code/ })).toHaveAttribute("href", "https://github.com/NikolayAir/OrbiRig");
+    expect(footer.getByRole("link", { name: /^Documentation/ })).toHaveAttribute("href", "https://github.com/NikolayAir/OrbiRig#documentation");
   });
 });
 

@@ -1,5 +1,7 @@
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 
+import { DocLink } from "./DocLink";
+import { LINKS } from "./workflowContent";
 import type { Workflow } from "./workflowTypes";
 
 type HelpSection = "browser" | "cli";
@@ -174,6 +176,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
         >
           From the command line
         </button>
+        <DocLink href={LINKS.documentation} className="workflow-help-trigger">Documentation</DocLink>
       </div>
       <dialog
         ref={dialogRef}
@@ -359,6 +362,10 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                   results. Editing any input clears the result and prompts you to check
                   the current values again.
                 </p>
+                <ul className="workflow-help-links">
+                  <li><DocLink href={LINKS.scenarios}>Supported scenarios and checks</DocLink></li>
+                  <li><DocLink href={LINKS.executionMetadata}>Execution ID and UTC time rules</DocLink></li>
+                </ul>
               </div>
               <div
                 className="workflow-help-instructions"
@@ -397,6 +404,11 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                   repeat it. Changing the JSON or evidence type clears the result and
                   prompts you to inspect the current evidence again.
                 </p>
+                <ul className="workflow-help-links">
+                  <li><DocLink href={LINKS.evidenceFormats}>Evidence formats and JSON rules</DocLink></li>
+                  <li><DocLink href={LINKS.savedEvidence}>How saved evidence is rechecked</DocLink></li>
+                  <li><DocLink href={LINKS.validationLimits}>What validation establishes</DocLink></li>
+                </ul>
               </div>
             </>
           )}
@@ -448,9 +460,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                 errors <span className="keep-together">return <code>4</code></span>.
               </p>
               <p>
-                <a href="https://github.com/NikolayAir/OrbiRig/blob/main/docs/cli.md">
-                  CLI setup and full instructions
-                </a>
+                <DocLink href={LINKS.cli}>CLI setup and full instructions</DocLink>
               </p>
             </>
           )}
