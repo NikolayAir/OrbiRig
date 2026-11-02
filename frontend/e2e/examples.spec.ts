@@ -32,8 +32,8 @@ for (const inspection of [false, true]) {
     await expect(load).toBeFocused();
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(page.locator(".action-status")).toHaveText(inspection
-      ? "Inputs changed. Inspect again to check the current evidence."
-      : "Inputs changed. Verify again to check the current values.");
+      ? "Inputs changed. Inspect to check the current evidence."
+      : "Inputs changed. Verify to check the current values.");
     expect(requests).toBe(1);
   });
 }

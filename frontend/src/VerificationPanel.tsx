@@ -34,7 +34,6 @@ type Props = {
   };
   feedback: FeedbackTargets;
   fieldHelp: ReturnType<typeof useVerificationFieldHelp>;
-  hasEarlierResult: boolean;
   requiresConfirmation: boolean;
   onInputChange: <Key extends keyof VerificationInputs>(field: Key, value: VerificationInputs[Key]) => void;
   onLoadExample: () => void;
@@ -47,7 +46,7 @@ export function VerificationPanel({
   state: verification, errors: verificationRequiredErrors,
   inputRefs,
   feedback,
-  fieldHelp, hasEarlierResult, requiresConfirmation: verificationNeedsConfirmation, onInputChange,
+  fieldHelp, requiresConfirmation: verificationNeedsConfirmation, onInputChange,
   onLoadExample: loadVerificationExample, onSubmit: verifyObservation, onCancel: cancelVerification,
 }: Props) {
   const { executionId, executedAt, scenarioId, observationEvidence } = input;
@@ -62,8 +61,9 @@ export function VerificationPanel({
     submitRef: verificationSubmitRef,
     cancelRef: verificationCancelRef,
   } = feedback;
-  const needsRepeat = hasEarlierResult || verification.kind === "completed" || verification.kind === "dirty";
-  const actionStatus = verification.kind === "completed" ? "Verification completed."
+  // A completed result already belongs to these inputs: the same check would repeat it exactly.
+  const completed = verification.kind === "completed";
+  const actionStatus = completed ? "Verification completed."
     : verification.kind === "dirty" ? VERIFICATION_INPUTS_CHANGED : undefined;
 
   return (<section
@@ -258,10 +258,11 @@ export function VerificationPanel({
             ref={verificationSubmitRef}
             type="submit"
             className="primary-action"
-            disabled={verification.kind === "loading"}
+            disabled={verification.kind === "loading" || completed}
+            data-completed={completed || undefined}
             aria-describedby={actionStatus ? "verification-action-status" : undefined}
           >
-            {verification.kind === "loading" ? "Verifying…" : needsRepeat ? "Verify again" : "Verify observation"}
+            {verification.kind === "loading" ? "Verifying…" : "Verify observation"}
           </button>
           {verification.kind === "loading" && (
             <button ref={verificationCancelRef} type="button" name="cancel-request" className="secondary-action" onClick={cancelVerification}>

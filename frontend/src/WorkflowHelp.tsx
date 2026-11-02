@@ -357,10 +357,10 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                   observation.
                 </p>
                 <p>
-                  After verification completes, choose <strong>Verify again</strong> to
-                  repeat it. Both <strong>PASS</strong> and <strong>FAIL</strong> are completed
-                  results. Editing any input clears the result and prompts you to check
-                  the current values again.
+                  Both <strong>PASS</strong> and <strong>FAIL</strong> are completed results.
+                  The same inputs always give the same result, so <strong>Verify observation</strong> stays
+                  unavailable until you change an input. Editing any input clears the result
+                  and prompts you to check the current values.
                 </p>
                 <ul className="workflow-help-links">
                   <li><DocLink href={LINKS.scenarios}>Supported scenarios and checks</DocLink></li>
@@ -400,9 +400,9 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                   inspected when these results match.
                 </p>
                 <p>
-                  After inspection completes, choose <strong>Inspect again</strong> to
-                  repeat it. Changing the JSON or evidence type clears the result and
-                  prompts you to inspect the current evidence again.
+                  The same evidence always gives the same result, so <strong>Inspect evidence</strong> stays
+                  unavailable until you change the JSON or evidence type. Changing either
+                  clears the result and prompts you to inspect the current evidence.
                 </p>
                 <ul className="workflow-help-links">
                   <li><DocLink href={LINKS.evidenceFormats}>Evidence formats and JSON rules</DocLink></li>

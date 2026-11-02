@@ -303,7 +303,8 @@ describe("sequence inspection pages", () => {
     expect(screen.getByRole("button", { name: "Hide details for member 26" })).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByLabelText("Evidence JSON")).toHaveValue("retained submitted input");
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByRole("button", { name: "Inspect again" }));
+    fireEvent.change(screen.getByLabelText("Evidence JSON"), { target: { value: "edited submitted input" } });
+    fireEvent.click(screen.getByRole("button", { name: "Inspect evidence" }));
     await screen.findByRole("article", { name: "Member 1" });
     expect(pageControl().getByRole("spinbutton", { name: "Page" })).toHaveValue(1);
     expect(screen.getByRole("button", { name: "Show details for member 1" })).toHaveAttribute("aria-expanded", "false");

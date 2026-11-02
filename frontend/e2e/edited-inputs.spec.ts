@@ -4,8 +4,8 @@ import { expect, test, type Page } from "@playwright/test";
 const accepted = readFileSync(new URL("./fixtures/accepted.json", import.meta.url), "utf8");
 const failed = readFileSync(new URL("./fixtures/incorrect-behaviour.json", import.meta.url), "utf8");
 const savedFail = readFileSync(new URL("./fixtures/failed-execution.json", import.meta.url), "utf8");
-const verificationChanged = "Inputs changed. Verify again to check the current values.";
-const inspectionChanged = "Inputs changed. Inspect again to check the current evidence.";
+const verificationChanged = "Inputs changed. Verify to check the current values.";
+const inspectionChanged = "Inputs changed. Inspect to check the current evidence.";
 
 async function prepare(page: Page, inspection = false) {
   await page.emulateMedia({ reducedMotion: "reduce" });
@@ -44,7 +44,7 @@ for (const field of ["Execution ID", "Execution time (UTC)", "Scenario", "Observ
     await expect(page.locator(".action-status")).toHaveText(reminder);
     expect(requests).toBe(1);
     await expect(result).toHaveCount(0);
-    await page.getByRole("button", { name: inspection ? "Inspect again" : "Verify again", exact: true }).click();
+    await page.getByRole("button", { name: inspection ? "Inspect evidence" : "Verify observation", exact: true }).click();
     await expect(result).toBeVisible();
     await expect(page.locator(".action-status")).toHaveText(inspection ? "Inspection completed. Evidence is valid." : "Verification completed.");
     if (!inspection) await expect(result.getByLabel("Verification outcome: PASS", { exact: true })).toBeVisible();
@@ -115,6 +115,32 @@ test("empty inspection JSON focuses the field without an HTTP request", async ({
   expect(requests).toBe(0);
 });
 
+for (const { width, beside } of [{ width: 1440, beside: true }, { width: 390, beside: false }]) {
+  test(`completed action is unavailable with its status ${beside ? "beside" : "below"} it at ${width}px until an input changes`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await prepare(page);
+    const action = page.locator("button[type=submit]");
+    await action.click();
+    await expect(page.getByRole("region", { name: "Verified execution", exact: true })).toBeVisible();
+    await expect(action).toBeDisabled();
+    await expect(action).toHaveText("Verify observation");
+    await expect(action).toHaveCSS("cursor", "not-allowed");
+    const status = page.locator(".action-status");
+    await expect(status).toHaveText("Verification completed.");
+    const actionBox = (await action.boundingBox())!;
+    const statusBox = (await status.boundingBox())!;
+    if (beside) {
+      expect(statusBox.x + statusBox.width).toBeLessThanOrEqual(actionBox.x);
+      expect(statusBox.y).toBeLessThan(actionBox.y + actionBox.height);
+    } else {
+      expect(statusBox.y).toBeGreaterThanOrEqual(actionBox.y + actionBox.height);
+    }
+    await page.getByLabel("Execution ID", { exact: true }).fill("edited-execution");
+    await expect(action).toBeEnabled();
+    await expect(status).toHaveText(verificationChanged);
+  });
+}
+
 for (const width of [320, 1280]) {
   test(`action feedback wraps at ${width}px with doubled text size`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 800 });
@@ -130,7 +156,7 @@ for (const width of [320, 1280]) {
     await expect(page.locator(".action-status")).toHaveText(verificationChanged);
     const actions = page.locator(".form-actions");
     await actions.scrollIntoViewIfNeeded();
-    await expect(page.getByRole("button", { name: "Verify again", exact: true })).toBeInViewport();
+    await expect(page.getByRole("button", { name: "Verify observation", exact: true })).toBeInViewport();
     await expect(page.locator(".action-status")).toBeInViewport();
     for (const element of await actions.locator("button, p").all()) {
       expect(await element.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
@@ -145,7 +171,7 @@ for (const width of [320, 1280]) {
     await expect(page.locator(".action-status")).toHaveText("Inspection completed. Evidence is valid.");
     // "Valid saved evidence" may wrap between its 3 words, but not between letters.
     expect(await page.locator(".result-context").evaluate(label => label.getBoundingClientRect().height / parseFloat(getComputedStyle(label).lineHeight))).toBeLessThanOrEqual(3);
-    const inspect = page.getByRole("button", { name: "Inspect again", exact: true });
+    const inspect = page.getByRole("button", { name: "Inspect evidence", exact: true });
     // Keep the action word readable rather than splitting "Inspect" across lines.
     expect(await inspect.evaluate(button => {
       const range = document.createRange();

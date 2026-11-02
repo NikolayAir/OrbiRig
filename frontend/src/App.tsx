@@ -144,7 +144,7 @@ export function App() {
 
   async function verifyObservation(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (verification.state.kind === "loading") return;
+    if (verification.state.kind === "loading" || verification.state.kind === "completed") return;
 
     const requiredErrors: VerificationRequiredErrors = {};
 
@@ -185,9 +185,7 @@ export function App() {
 
 
     setVerificationRequiredErrors({});
-    if (verification.state.kind === "completed" || verification.state.kind === "dirty") {
-      verificationHadResultRef.current = true;
-    }
+    if (verification.state.kind === "dirty") verificationHadResultRef.current = true;
     feedback.verificationTargets.pendingRef.current = true;
     feedback.setAnnouncement("Verifying observation…");
     await verification.run({ kind: "loading" }, signal => verifyObservationRequest(verificationInputs, signal));
@@ -195,16 +193,14 @@ export function App() {
 
   async function inspectEvidence(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (inspection.state.kind === "loading") return;
+    if (inspection.state.kind === "loading" || isInspectionComplete(inspection.state)) return;
     if (!evidence.trim()) {
       setInspectionRequiredError(true);
       inspectionEvidenceInputRef.current?.focus();
       return;
     }
     setInspectionRequiredError(false);
-    if (isInspectionComplete(inspection.state) || inspection.state.kind === "dirty") {
-      inspectionHadResultRef.current = true;
-    }
+    if (inspection.state.kind === "dirty") inspectionHadResultRef.current = true;
     setSequenceView({ page: 0, failuresOnly: false, expandedMembers: [], expandedContinuity: [] });
     feedback.inspectionTargets.pendingRef.current = true;
     feedback.setAnnouncement("Inspecting evidence…");
@@ -277,7 +273,6 @@ export function App() {
           }}
           feedback={feedback.verificationTargets}
           fieldHelp={fieldHelp}
-          hasEarlierResult={verificationHadResultRef.current}
           requiresConfirmation={verificationNeedsConfirmation}
           onInputChange={changeVerificationInput}
           onLoadExample={loadVerificationExample}
@@ -296,7 +291,6 @@ export function App() {
           sequenceView={sequenceView}
           onSequenceViewChange={setSequenceView}
           feedback={feedback.inspectionTargets}
-          hasEarlierResult={inspectionHadResultRef.current}
           requiresConfirmation={wouldReplaceEditedValue(evidence, inspectionExampleBaselineRef.current, INSPECTION_EXAMPLES[evidenceType])}
           onEvidenceTypeChange={selectEvidenceType}
           onEvidenceChange={changeInspectionEvidence}

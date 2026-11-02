@@ -874,6 +874,15 @@ textarea[aria-invalid="true"] {
   padding: 0.8rem 1.25rem;
 }
 
+/* Unlike a pending request, a checked result has nothing to wait for. */
+.form-actions .primary-action[data-completed] {
+  background: #dfe6eb;
+  box-shadow: none;
+  color: #4d6272;
+  cursor: not-allowed;
+  opacity: 1;
+}
+
 /* Focus moves between Submit and Cancel in code, including after pointer submission. */
 .form-actions .primary-action:focus,
 .form-actions [name="cancel-request"]:focus {
@@ -1516,7 +1525,10 @@ a[target="_blank"] {
     padding: 0;
   }
 
+  /* Keep the status beside the action so wide layouts stay shorter. */
   .action-status {
+    flex: 1 1 0;
+    order: -1;
     text-align: right;
   }
 }

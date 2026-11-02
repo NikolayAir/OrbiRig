@@ -9,8 +9,8 @@ import {
 
 setupAppTests();
 
-const verificationChanged = "Inputs changed. Verify again to check the current values.";
-const inspectionChanged = "Inputs changed. Inspect again to check the current evidence.";
+const verificationChanged = "Inputs changed. Verify to check the current values.";
+const inspectionChanged = "Inputs changed. Inspect to check the current evidence.";
 const respond = (payload: unknown) => ({ ok: true, status: 200, json: async () => payload });
 
 describe("page footer", () => {
@@ -39,7 +39,7 @@ describe("request and edited-input states", () => {
     scrollIntoViewMock.mockClear();
     fireEvent.click(load);
     expect(screen.getByRole("region", { name: resultName })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: inspection ? "Inspect again" : "Verify again" })).toHaveAccessibleDescription(
+    expect(screen.getByRole("button", { name: inspection ? "Inspect evidence" : "Verify observation" })).toHaveAccessibleDescription(
       inspection ? "Inspection completed. Evidence is valid." : "Verification completed.",
     );
     expect(screen.getByRole("status")).toBeEmptyDOMElement();
@@ -52,7 +52,7 @@ describe("request and edited-input states", () => {
     fireEvent.change(field, { target: { value: original } });
     fireEvent.click(load);
     expect(screen.queryByRole("region", { name: resultName })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: inspection ? "Inspect again" : "Verify again" })).toHaveAccessibleDescription(
+    expect(screen.getByRole("button", { name: inspection ? "Inspect evidence" : "Verify observation" })).toHaveAccessibleDescription(
       inspection ? inspectionChanged : verificationChanged,
     );
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -69,7 +69,13 @@ describe("request and edited-input states", () => {
 
     const retry = deferred<unknown>();
     fetchMock.mockReturnValueOnce(retry.promise);
-    fireEvent.click(screen.getByRole("button", { name: "Verify again" }));
+    const action = screen.getByRole("button", { name: "Verify observation" });
+    expect(action).toBeDisabled();
+    fireEvent.submit(action.closest("form")!);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    fireEvent.change(screen.getByLabelText("Execution ID"), { target: { value: "edited-id" } });
+    expect(action).toBeEnabled();
+    fireEvent.click(action);
     expect(screen.getByRole("button", { name: "Verifying…" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Cancel request" })).toBeEnabled();
     expect(screen.queryByText("Verification completed.", { exact: true })).not.toBeInTheDocument();
@@ -78,7 +84,7 @@ describe("request and edited-input states", () => {
     fireEvent.submit(screen.getByRole("button", { name: "Verifying…" }).closest("form")!);
     expect(fetchMock).toHaveBeenCalledTimes(2);
     await act(async () => retry.resolve(respond(record)));
-    expect(screen.getByRole("button", { name: "Verify again" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Verify observation" })).toBeDisabled();
   });
 
   it.each([
@@ -97,13 +103,19 @@ describe("request and edited-input states", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     const retry = deferred<unknown>();
     fetchMock.mockReturnValueOnce(retry.promise);
-    fireEvent.click(screen.getByRole("button", { name: "Inspect again" }));
+    const action = screen.getByRole("button", { name: "Inspect evidence" });
+    expect(action).toBeDisabled();
+    fireEvent.submit(action.closest("form")!);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    fireEvent.change(screen.getByLabelText("Evidence JSON"), { target: { value: "edited evidence" } });
+    expect(action).toBeEnabled();
+    fireEvent.click(action);
     expect(screen.getByRole("button", { name: "Inspecting…" })).toBeDisabled();
     expect(screen.queryByText("Inspection completed. Evidence is valid.", { exact: true })).not.toBeInTheDocument();
     fireEvent.submit(screen.getByRole("button", { name: "Inspecting…" }).closest("form")!);
     expect(fetchMock).toHaveBeenCalledTimes(2);
     await act(async () => retry.resolve(respond(payload)));
-    expect(screen.getByRole("button", { name: "Inspect again" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Inspect evidence" })).toBeDisabled();
   });
 
   it.each([
@@ -122,7 +134,7 @@ describe("request and edited-input states", () => {
     fireEvent.change(field, { target: { value } });
     expect(screen.queryByRole("region", { name: "Verified execution" })).not.toBeInTheDocument();
     expect(screen.queryByText("Verification completed.", { exact: true })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Verify again" })).toHaveAccessibleDescription(verificationChanged);
+    expect(screen.getByRole("button", { name: "Verify observation" })).toHaveAccessibleDescription(verificationChanged);
     expect(screen.getByRole("status")).toHaveTextContent(verificationChanged);
     fireEvent.change(field, { target: { value: original } });
     expect(screen.getByText(verificationChanged, { selector: ".action-status" })).toBeVisible();
@@ -144,7 +156,7 @@ describe("request and edited-input states", () => {
       fireEvent.click(screen.getByRole("radio", { name: "Observation" }));
     }
     expect(screen.queryByRole("region", { name: "Observation details" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Inspect again" })).toHaveAccessibleDescription(inspectionChanged);
+    expect(screen.getByRole("button", { name: "Inspect evidence" })).toHaveAccessibleDescription(inspectionChanged);
     expect(screen.getByText(inspectionChanged, { selector: ".action-status" })).toBeVisible();
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
@@ -154,8 +166,7 @@ describe("request and edited-input states", () => {
     const resultName = inspection ? "Observation details" : "Verified execution";
     const fieldLabel = inspection ? "Evidence JSON" : "Execution ID";
     const changed = inspection ? inspectionChanged : verificationChanged;
-    const again = inspection ? "Inspect again" : "Verify again";
-    const first = inspection ? "Inspect evidence" : "Verify observation";
+    const action = inspection ? "Inspect evidence" : "Verify observation";
     const payload = inspection ? observation : verifiedExecution;
 
     async function completeExample() {
@@ -163,7 +174,7 @@ describe("request and edited-input states", () => {
       render(<App />);
       if (inspection) selectInspectionWorkflow();
       fireEvent.click(screen.getByRole("button", { name: "Load example" }));
-      fireEvent.click(screen.getByRole("button", { name: first }));
+      fireEvent.click(screen.getByRole("button", { name: action }));
       await screen.findByRole("region", { name: resultName });
     }
 
@@ -185,55 +196,51 @@ describe("request and edited-input states", () => {
       const field = screen.getByLabelText(fieldLabel) as HTMLInputElement;
       const original = field.value;
       fireEvent.change(field, { target: { value: `${original} ` } });
-      await endRetry(again);
+      await endRetry(action);
       // No result belongs to these inputs, so the reminder waits for the next edit.
       expect(document.querySelector(".action-status")).toBeNull();
-      expect(screen.getByRole("button", { name: again })).toBeEnabled();
+      expect(screen.getByRole("button", { name: action })).toBeEnabled();
 
       fireEvent.change(field, { target: { value: original } });
-      expect(screen.getByRole("button", { name: again })).toHaveAccessibleDescription(changed);
+      expect(screen.getByRole("button", { name: action })).toHaveAccessibleDescription(changed);
       expect(screen.getByRole("status")).toHaveTextContent(changed);
-    });
-
-    it("prompts after editing following a cancelled repeat of unchanged inputs", async () => {
-      await completeExample();
-      await cancelRetry(again);
-      const field = screen.getByLabelText(fieldLabel) as HTMLInputElement;
-      fireEvent.change(field, { target: { value: `${field.value} ` } });
-      expect(screen.getByRole("button", { name: again })).toHaveAccessibleDescription(changed);
     });
 
     it("clears the reminder once a new result completes", async () => {
       await completeExample();
       const field = screen.getByLabelText(fieldLabel) as HTMLInputElement;
       fireEvent.change(field, { target: { value: `${field.value} ` } });
-      await cancelRetry(again);
+      await cancelRetry(action);
       fetchMock.mockResolvedValueOnce(respond(payload));
-      fireEvent.click(screen.getByRole("button", { name: again }));
+      fireEvent.click(screen.getByRole("button", { name: action }));
       await screen.findByRole("region", { name: resultName });
-      expect(screen.getByRole("button", { name: again })).toHaveAccessibleDescription(
+      expect(screen.getByRole("button", { name: action })).toHaveAccessibleDescription(
         inspection ? "Inspection completed. Evidence is valid." : "Verification completed.",
       );
     });
 
-    it("does not claim inputs changed when reloading the same example after a cancelled repeat", async () => {
+    it("does not claim inputs changed when reloading the same example after a cancelled retry", async () => {
       await completeExample();
-      await cancelRetry(again);
+      const field = screen.getByLabelText(fieldLabel) as HTMLInputElement;
+      const original = field.value;
+      fireEvent.change(field, { target: { value: `${original} ` } });
+      fireEvent.change(field, { target: { value: original } });
+      await cancelRetry(action);
       fireEvent.click(screen.getByRole("button", { name: "Load example" }));
       expect(screen.queryByText(changed)).not.toBeInTheDocument();
       expect(screen.queryByRole("region", { name: resultName })).not.toBeInTheDocument();
-      expect(screen.getByRole("button", { name: again })).toBeEnabled();
+      expect(screen.getByRole("button", { name: action })).toBeEnabled();
     });
 
     it("does not prompt after a first request that never completed", async () => {
       render(<App />);
       if (inspection) selectInspectionWorkflow();
       fireEvent.click(screen.getByRole("button", { name: "Load example" }));
-      await cancelRetry(first);
+      await cancelRetry(action);
       const field = screen.getByLabelText(fieldLabel) as HTMLInputElement;
       fireEvent.change(field, { target: { value: `${field.value} ` } });
       expect(document.querySelector(".action-status")).toBeNull();
-      expect(screen.getByRole("button", { name: first })).toBeEnabled();
+      expect(screen.getByRole("button", { name: action })).toBeEnabled();
     });
   });
 
@@ -269,10 +276,10 @@ describe("request and edited-input states", () => {
     fireEvent.click(screen.getByRole("button", { name: "Inspect evidence" }));
     await screen.findByRole("region", { name: "Observation details" });
     selectVerificationWorkflow();
-    expect(screen.getByRole("button", { name: "Verify again" })).toHaveAccessibleDescription(verificationChanged);
+    expect(screen.getByRole("button", { name: "Verify observation" })).toHaveAccessibleDescription(verificationChanged);
     expect(screen.getByLabelText("Execution ID")).toHaveValue("edited-id");
     selectInspectionWorkflow();
-    expect(screen.getByRole("button", { name: "Inspect again" })).toHaveAccessibleDescription("Inspection completed. Evidence is valid.");
+    expect(screen.getByRole("button", { name: "Inspect evidence" })).toHaveAccessibleDescription("Inspection completed. Evidence is valid.");
     fireEvent.change(screen.getByLabelText("Evidence JSON"), { target: { value: "edited inspection" } });
     selectVerificationWorkflow();
     expect(screen.queryByText(inspectionChanged, { selector: ".action-status" })).not.toBeInTheDocument();
