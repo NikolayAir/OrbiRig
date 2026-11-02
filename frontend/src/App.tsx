@@ -214,10 +214,10 @@ export function App() {
           <img src={orbirigMark} width="40" height="40" alt="" />
           <span>OrbiRig</span>
         </p>
-        <h1>Verify observations and inspect evidence</h1>
+        <h1>Check what a system reported against what it should have done</h1>
         <p>
-          Check recorded behaviour from simplified spacecraft tests against a
-          selected scenario, or inspect saved evidence.
+          OrbiRig compares recorded command results with a scenario you choose and
+          recomputes saved results instead of trusting them.
         </p>
         <p className="field-hint">
           JSON is processed on the server. Use synthetic, non-sensitive data in the public demo.
@@ -246,7 +246,7 @@ export function App() {
           onClick={() => setActiveWorkflow("verification")}
         >
           <span>Verify observation</span>
-          <small>Check if expectations are met.</small>
+          <small>Compare a recorded result with a scenario.</small>
         </button>
         <button
           type="button"
@@ -256,7 +256,7 @@ export function App() {
           onClick={() => setActiveWorkflow("inspection")}
         >
           <span>Inspect evidence</span>
-          <small>Review saved evidence.</small>
+          <small>Recheck a saved result.</small>
         </button>
       </div>
 
@@ -301,7 +301,10 @@ export function App() {
       )}
 
       <footer className="page-footer">
-        <p>OrbiRig is a non-operational verification harness that uses a simplified reference spacecraft.</p>
+        <div>
+          <p>Example data uses a simplified spacecraft model. OrbiRig does not connect to or control real systems.</p>
+          <p>Built with a Python verification core, FastAPI, React and TypeScript.</p>
+        </div>
         <p>
           <DocLink href={LINKS.source}>Source code</DocLink>
           <DocLink href={LINKS.documentation}>Documentation</DocLink>

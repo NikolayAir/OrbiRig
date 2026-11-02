@@ -79,7 +79,7 @@ test.beforeEach(async ({ page }) => {
 test("page identity loads the product mark alongside its name", async ({ page }) => {
   await expect(page.locator(".brand")).toHaveText("OrbiRig");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "Verify observations and inspect evidence",
+    "Check what a system reported against what it should have done",
   );
   const mark = page.locator(".brand img");
   await expect(mark).toHaveAttribute("alt", "");

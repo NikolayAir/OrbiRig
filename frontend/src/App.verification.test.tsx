@@ -18,7 +18,7 @@ describe("App verification", () => {
     render(<App />);
 
     const heading = screen.getByRole("heading", {
-      name: "Verify observations and inspect evidence",
+      name: "Check what a system reported against what it should have done",
       level: 1,
     });
     const header = heading.closest("header")!;
@@ -37,10 +37,10 @@ describe("App verification", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Check recorded behaviour from simplified spacecraft tests/,
+        /OrbiRig compares recorded command results/,
       ),
     ).toHaveTextContent(
-      "Check recorded behaviour from simplified spacecraft tests against a selected scenario, or inspect saved evidence.",
+      "OrbiRig compares recorded command results with a scenario you choose and recomputes saved results instead of trusting them.",
     );
 
     const verificationChoice = screen.getByRole("button", {

@@ -14,9 +14,9 @@ const inspectionChanged = "Inputs changed. Inspect to check the current evidence
 const respond = (payload: unknown) => ({ ok: true, status: 200, json: async () => payload });
 
 describe("page footer", () => {
-  it("describes OrbiRig as non-operational and links to its source and documentation", () => {
+  it("states the example domain and links to the source and documentation", () => {
     render(<App />);
-    expect(screen.getByRole("contentinfo")).toHaveTextContent("non-operational verification harness");
+    expect(screen.getByRole("contentinfo")).toHaveTextContent("does not connect to or control real systems");
     const footer = within(screen.getByRole("contentinfo"));
     expect(footer.getByRole("link", { name: /^Source code/ })).toHaveAttribute("href", "https://github.com/NikolayAir/OrbiRig");
     expect(footer.getByRole("link", { name: /^Documentation/ })).toHaveAttribute("href", "https://github.com/NikolayAir/OrbiRig#documentation");

@@ -2,7 +2,7 @@
 
 OrbiRig is a software tool for checking recorded command results against the expected behaviour of a scenario you select. It supports 3 scenarios and shows the expected and actual values for each check, with an overall `PASS` or `FAIL`.
 
-The scenarios use a simplified spacecraft model with 2 operating modes: `NOMINAL` (normal operation) and `SAFE` (a protective mode). OrbiRig checks the mode before and after a command, its acknowledgement (whether it was accepted or rejected), and telemetry (the separately reported mode). This is a non-operational verification harness; it does not control a real spacecraft.
+The scenarios use a simplified spacecraft model with 2 operating modes: `NOMINAL` (normal operation) and `SAFE` (a protective mode). OrbiRig checks the mode before and after a command, its acknowledgement (whether it was accepted or rejected), and telemetry (the separately reported mode). This is a non-operational verification harness; it does not control a real spacecraft. The spacecraft model is the example domain: the approach of defining expectations separately, then checking reported results and saved evidence against them, applies to any system that records what it did.
 
 Choose how to use it:
 
