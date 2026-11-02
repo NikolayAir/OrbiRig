@@ -76,7 +76,8 @@ for (const example of completions) {
       await expect(heading).toHaveCSS("outline-style", "solid");
       await expect(page.getByRole("status")).toHaveText(example.message);
       await expect(page.locator("button[type=submit]")).toBeDisabled();
-      await expect(page.locator(".action-status")).toHaveText(example.workflow === "verification" ? "Verification completed." : "Inspection completed. Evidence is valid.");
+      await expect(page.locator(".action-status")).toHaveText(example.workflow === "verification" ? "Verification completed."
+        : example.type === "Observation" ? "Inspection completed. Evidence is valid." : "Inspection completed. Evidence is valid. Saved outcome: FAIL.");
       expect(await status!.evaluate((element) => element === document.querySelector('[role="status"]'))).toBe(true);
       await page.unrouteAll({ behavior: "wait" });
     }

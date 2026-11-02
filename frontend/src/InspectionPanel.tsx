@@ -12,7 +12,7 @@ import {
   VerifiedExecutionSequenceDetails,
   type SequenceView,
 } from "./EvidenceDetails";
-import { INSPECTION_CANCELLED, INSPECTION_INPUTS_CHANGED, invalidEvidenceGuidance, invalidEvidenceMessage, isInspectionComplete } from "./workflowContent";
+import { INSPECTION_CANCELLED, INSPECTION_INPUTS_CHANGED, inspectionCompletedStatus, invalidEvidenceGuidance, invalidEvidenceMessage, isInspectionComplete } from "./workflowContent";
 import type { EvidenceType, InspectionState } from "./workflowTypes";
 
 type Props = {
@@ -46,7 +46,7 @@ export function InspectionPanel({
     cancelRef: inspectionCancelRef,
   } = feedback;
   const completed = isInspectionComplete(inspection);
-  const actionStatus = completed ? "Inspection completed. Evidence is valid."
+  const actionStatus = completed ? inspectionCompletedStatus(inspection)
     : inspection.kind === "dirty" ? INSPECTION_INPUTS_CHANGED : undefined;
 
   return (<section

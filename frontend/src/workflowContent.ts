@@ -78,6 +78,14 @@ export function isInspectionComplete(inspection: InspectionState): boolean {
     || inspection.kind === "valid-verified-execution-sequence";
 }
 
+// "Valid" describes the document, so show the saved outcome beside it: a valid record can still be FAIL.
+export function inspectionCompletedStatus(inspection: InspectionState): string {
+  const completed = "Inspection completed. Evidence is valid.";
+  if (inspection.kind === "valid-verified-execution") return `${completed} Saved outcome: ${inspection.record.outcome}.`;
+  if (inspection.kind === "valid-verified-execution-sequence") return `${completed} Saved outcome: ${inspection.sequence.outcome}.`;
+  return completed;
+}
+
 export function evidenceTypeName(evidenceType: EvidenceType): string {
   if (evidenceType === "observation") {
     return "observation evidence";

@@ -104,7 +104,8 @@ describe("request and edited-input states", () => {
     fetchMock.mockResolvedValue(respond(payload));
     submitEvidence("original evidence", type);
     await screen.findByRole("region", { name: heading });
-    expect(screen.getByText("Inspection completed. Evidence is valid.", { exact: true })).toBeVisible();
+    const status = outcome ? `Inspection completed. Evidence is valid. Saved outcome: ${outcome}.` : "Inspection completed. Evidence is valid.";
+    expect(screen.getByText(status, { exact: true })).toBeVisible();
     if (outcome) expect(screen.getByLabelText("Verification outcome: FAIL")).toBeVisible();
     else {
       expect(screen.queryByLabelText(/Verification outcome:/)).not.toBeInTheDocument();
@@ -121,7 +122,7 @@ describe("request and edited-input states", () => {
     expect(action).toBeEnabled();
     fireEvent.click(action);
     expect(screen.getByRole("button", { name: "Inspecting…" })).toBeDisabled();
-    expect(screen.queryByText("Inspection completed. Evidence is valid.", { exact: true })).not.toBeInTheDocument();
+    expect(screen.queryByText(status, { exact: true })).not.toBeInTheDocument();
     fireEvent.submit(screen.getByRole("button", { name: "Inspecting…" }).closest("form")!);
     expect(fetchMock).toHaveBeenCalledTimes(2);
     await act(async () => retry.resolve(respond(payload)));

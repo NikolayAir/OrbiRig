@@ -29,7 +29,7 @@ test("the failing saved execution stays valid evidence with a FAIL outcome", asy
   await page.locator("button[type=submit]").click();
   await expect(page.getByLabel("Verification outcome: FAIL", { exact: true })).toBeVisible();
   await expect(page.getByRole("alert")).toHaveCount(0);
-  await expect(page.locator(".action-status")).toHaveText("Inspection completed. Evidence is valid.");
+  await expect(page.locator(".action-status")).toHaveText("Inspection completed. Evidence is valid. Saved outcome: FAIL.");
 });
 
 test("the failing sequence fails continuity while each record passes", async ({ page }) => {
