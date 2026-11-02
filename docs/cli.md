@@ -2,7 +2,7 @@
 
 [README](../README.md) · [Verification concepts](verification.md) · [Evidence formats](evidence-formats.md)
 
-The `orbirig` command checks a recorded command result from a local JSON file against a scenario you select. It writes a verified execution record as JSON, with the expected and observed values for each check and an overall `PASS` or `FAIL` outcome. It does not execute commands or collect new observations.
+The `orbirig` command checks a recorded command result from a local JSON file against a scenario you select. It writes a verified execution record as JSON, with the expected and actual values for each check and an overall `PASS` or `FAIL` outcome. It does not execute commands or collect new observations.
 
 ## Install
 

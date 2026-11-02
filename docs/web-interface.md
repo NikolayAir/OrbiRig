@@ -1,6 +1,6 @@
 # Web interface
 
-[README](../README.md) · [Verification concepts](verification.md) · [Development checks](../CONTRIBUTING.md)
+[README](../README.md) · [Verification concepts](verification.md) · [Evidence formats](evidence-formats.md) · [Development checks](../CONTRIBUTING.md)
 
 Use the [hosted interface](https://orbirig-evidence-inspector.onrender.com/) to check a recorded command result against a scenario you select, or to reopen and inspect saved JSON evidence. The Python core performs the checks on the server; the browser displays the results and errors. These actions do not execute commands or contact an external target.
 
@@ -36,17 +36,17 @@ Sequences show up to 25 compact member summaries per page, with their original m
 
 The sequence outcome and totals for members and continuity checks marked `FAIL` cover the complete document. **Show failures and related records** finds members marked `FAIL` and both members of each continuity check marked `FAIL` across the whole sequence. Continuity checks keep their original links, including links to the next page; filtering does not reconnect records. When more than 1 page is needed, page controls appear above and below the records. Changing the page brings the records heading into view and closes all details; changing the filter also closes details and returns to the first page. Switching between verification and inspection keeps the page, filter and open details. Submitting a new inspection returns to the first page with the filter off and all details closed.
 
-If loading an example would replace your edits, the interface asks for confirmation. Choosing **Cancel** in that dialog keeps your current inputs. Reloading an example with exactly the same current inputs keeps a completed result.
+If loading an example would replace your edits, the interface asks for confirmation. Choosing **Cancel** in that dialog keeps your current inputs. Reloading an example with exactly the same current inputs keeps a completed result; loading different values clears it and shows the same reminder as editing.
 
 Invalid input errors add a short suggestion of what to check. Python still decides whether input is valid. Completed results and request errors receive keyboard focus and are brought into view. A short status message announces completed verification or inspection. If you move to another control, switch between verification and inspection or open the help dialog while a request is pending, its response does not move focus or scroll the page.
 
 The submission button shows **Verifying…** or **Inspecting…** while a request is pending. After a result, it offers **Verify again** or **Inspect again**, with a completion message below the button. The repeat label stays when a later request is cancelled or fails. Completion is separate from the verification outcome: both `PASS` and `FAIL` are completed results. Successful inspection confirms that the evidence is valid; observation inspection has no verification outcome, while saved verified evidence keeps its `PASS` or `FAIL` outcome.
 
-Editing any input after a result clears that result and shows an inline reminder to verify or inspect the current values again. Restoring the previous text or selection still requires a new request. If a repeated request is cancelled or fails, the next edit shows the reminder again until a new result completes. The reminder is announced once on the first edit without moving focus. Verification and inspection retain their own inputs and states when you switch between them. Empty or whitespace-only inspection JSON produces **Evidence JSON is required.**, focuses the field and sends no request.
+Editing any input after a result clears that result and shows an inline reminder to verify or inspect the current values again. Restoring the previous text or selection still requires a new request. If a repeated request is cancelled or fails, the next edit shows the reminder again until a new result completes. The reminder is announced once on the first edit without moving focus. Verification and inspection retain their own inputs and states when you switch between them. Empty required fields are reported beside the field without sending a request: verification lists each missing input and focuses the first, and empty or whitespace-only inspection JSON produces **Evidence JSON is required.** and focuses the field.
 
 While either request is pending, **Cancel request** stops waiting in the browser and keeps the current inputs and selection. Focus returns to the submission button so you can edit or retry. Cancellation produces no verification outcome. The server may already have completed the check; late responses from cancelled requests are ignored, including after a retry.
 
-**How it works** provides browser and command-line instructions. Browser guidance covers verification and inspection; command-line guidance explains local CLI use and exit codes.
+**How it works** provides browser and command-line instructions. Browser guidance covers verification and inspection, with links to the relevant scenario, evidence-format and validation documentation; command-line guidance explains local CLI use and exit codes. **Documentation** beside these controls opens the guide index. Documentation and source links open in a new tab so your current inputs and results stay in place.
 
 ## Run locally
 
