@@ -31,6 +31,13 @@ export const VERIFICATION_ERROR_MESSAGES: Record<VerificationErrorCode, string> 
     "The observation command does not match the selected scenario.",
 };
 
+// Say what to check next. The server decides validity; this text only guides correction.
+export const VERIFICATION_ERROR_GUIDANCE: Partial<Record<VerificationErrorCode, string>> = {
+  invalid_observation_evidence: "Check that it is complete JSON with every required field and no repeated field names.",
+  invalid_execution_metadata: "Use a non-blank ID and a UTC time such as 2026-08-26T08:30:00Z.",
+  scenario_command_mismatch: "Select the scenario for the recorded command, or correct the evidence.",
+};
+
 export const REQUIRED_VERIFICATION_MESSAGES: Record<
   VerificationRequiredField,
   string
@@ -69,6 +76,13 @@ export function evidenceTypeName(evidenceType: EvidenceType): string {
 
 export function invalidEvidenceMessage(evidenceType: EvidenceType): string {
   return `The ${evidenceTypeName(evidenceType)} is invalid.`;
+}
+
+export function invalidEvidenceGuidance(evidenceType: EvidenceType): string {
+  const structure = "Check that the selected evidence type matches the document and that it is complete JSON with no repeated field names.";
+  return evidenceType === "observation"
+    ? structure
+    : `${structure} Saved results must also match the checks OrbiRig recomputes.`;
 }
 
 export function inspectionAnnouncement(inspection: InspectionState): string {

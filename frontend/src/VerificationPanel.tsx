@@ -10,6 +10,7 @@ import { VerifiedExecutionDetails } from "./EvidenceDetails";
 import {
   SUPPORTED_SCENARIOS,
   VERIFICATION_CANCELLED,
+  VERIFICATION_ERROR_GUIDANCE,
   VERIFICATION_ERROR_MESSAGES,
   VERIFICATION_INPUTS_CHANGED,
 } from "./workflowContent";
@@ -280,7 +281,9 @@ export function VerificationPanel({
       {verification.kind === "request-too-large" && <EvidenceRequestSizeError />}
 
       {verification.kind === "validation-failure" && (
-        <RequestError title="Input error">{VERIFICATION_ERROR_MESSAGES[verification.code]}</RequestError>
+        <RequestError title="Input error" guidance={VERIFICATION_ERROR_GUIDANCE[verification.code]}>
+          {VERIFICATION_ERROR_MESSAGES[verification.code]}
+        </RequestError>
       )}
 
       {verification.kind === "network-failure" && (

@@ -272,6 +272,19 @@ describe("request and edited-input states", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it.each([
+    ["observation", false],
+    ["verified-execution", true],
+    ["verified-execution-sequence", true],
+  ] as const)("explains what to check after invalid %s evidence", async (type, savedResults) => {
+    fetchMock.mockResolvedValue({ ok: false, status: 422 });
+    submitEvidence("invalid evidence", type);
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Check that the selected evidence type matches the document");
+    if (savedResults) expect(alert).toHaveTextContent("Saved results must also match the checks OrbiRig recomputes.");
+    else expect(alert).not.toHaveTextContent("Saved results");
+  });
+
   it.each(["", " \n\t "])("rejects empty inspection JSON locally (%j) and sends non-empty text unchanged", async (empty) => {
     render(<App />);
     selectInspectionWorkflow();

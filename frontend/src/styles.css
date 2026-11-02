@@ -988,6 +988,12 @@ button:disabled {
   margin-bottom: 0.35rem;
 }
 
+.feedback-guidance {
+  display: block;
+  font-size: 0.9375rem;
+  margin-top: 0.35rem;
+}
+
 .workflow-feedback > section {
   background: transparent;
   border: 0;

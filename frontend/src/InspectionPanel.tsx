@@ -11,7 +11,7 @@ import {
   VerifiedExecutionSequenceDetails,
   type SequenceView,
 } from "./EvidenceDetails";
-import { INSPECTION_CANCELLED, INSPECTION_INPUTS_CHANGED, invalidEvidenceMessage, isInspectionComplete } from "./workflowContent";
+import { INSPECTION_CANCELLED, INSPECTION_INPUTS_CHANGED, invalidEvidenceGuidance, invalidEvidenceMessage, isInspectionComplete } from "./workflowContent";
 import type { EvidenceType, InspectionState } from "./workflowTypes";
 
 type Props = {
@@ -173,7 +173,9 @@ export function InspectionPanel({
       {inspection.kind === "request-too-large" && <EvidenceRequestSizeError />}
 
       {inspection.kind === "invalid" && (
-        <RequestError title="Invalid evidence">{invalidEvidenceMessage(inspection.evidenceType)}</RequestError>
+        <RequestError title="Invalid evidence" guidance={invalidEvidenceGuidance(inspection.evidenceType)}>
+          {invalidEvidenceMessage(inspection.evidenceType)}
+        </RequestError>
       )}
 
       {inspection.kind === "transport-failure" && (
