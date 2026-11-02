@@ -104,17 +104,27 @@ export function App() {
   function loadVerificationExample() {
     const selectedScenario = scenarioId === "" ? DEFAULT_VERIFICATION_SCENARIO : scenarioId;
     const example = VERIFICATION_EXAMPLES[selectedScenario];
+    const inputsChanged = executionId !== example.executionId
+      || executedAt !== example.executedAt
+      || scenarioId !== selectedScenario
+      || observationEvidence !== example.observationEvidence;
     verificationExampleBaselineRef.current = example;
     setVerificationInputs({ ...example, scenarioId: selectedScenario });
     setVerificationRequiredErrors({});
-    clearVerificationResult();
+    if (inputsChanged || verification.state.kind !== "completed") {
+      clearVerificationResult();
+    }
   }
 
   function loadInspectionExample() {
-    inspectionExampleBaselineRef.current = INSPECTION_EXAMPLES[evidenceType];
-    setEvidence(INSPECTION_EXAMPLES[evidenceType]);
+    const example = INSPECTION_EXAMPLES[evidenceType];
+    const inputsChanged = evidence !== example;
+    inspectionExampleBaselineRef.current = example;
+    setEvidence(example);
     setInspectionRequiredError(false);
-    clearInspectionResult();
+    if (inputsChanged || !isInspectionComplete(inspection.state)) {
+      clearInspectionResult();
+    }
   }
 
   function cancelVerification() {

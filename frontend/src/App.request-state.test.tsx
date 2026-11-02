@@ -14,6 +14,41 @@ const inspectionChanged = "Inputs changed. Inspect again to check the current ev
 const respond = (payload: unknown) => ({ ok: true, status: 200, json: async () => payload });
 
 describe("request and edited-input states", () => {
+  it.each(["verification", "inspection"] as const)("keeps a completed %s result when reloading identical example inputs, but never restores a result after editing", async (workflow) => {
+    const inspection = workflow === "inspection";
+    fetchMock.mockResolvedValue(respond(inspection ? observation : verifiedExecution));
+    render(<App />);
+    if (inspection) selectInspectionWorkflow();
+    const load = screen.getByRole("button", { name: "Load example" });
+    fireEvent.click(load);
+    fireEvent.click(screen.getByRole("button", { name: inspection ? "Inspect evidence" : "Verify observation" }));
+    const resultName = inspection ? "Observation details" : "Verified execution";
+    await screen.findByRole("region", { name: resultName });
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("completed."));
+    act(() => load.focus());
+    scrollIntoViewMock.mockClear();
+    fireEvent.click(load);
+    expect(screen.getByRole("region", { name: resultName })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: inspection ? "Inspect again" : "Verify again" })).toHaveAccessibleDescription(
+      inspection ? "Inspection completed. Evidence is valid." : "Verification completed.",
+    );
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    expect(load).toHaveFocus();
+    expect(scrollIntoViewMock).not.toHaveBeenCalled();
+
+    const field = screen.getByLabelText(inspection ? "Evidence JSON" : "Execution ID");
+    const original = (field as HTMLInputElement).value;
+    fireEvent.change(field, { target: { value: `${original} ` } });
+    fireEvent.change(field, { target: { value: original } });
+    fireEvent.click(load);
+    expect(screen.queryByRole("region", { name: resultName })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: inspection ? "Inspect again" : "Verify again" })).toHaveAccessibleDescription(
+      inspection ? inspectionChanged : verificationChanged,
+    );
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it.each([verifiedExecution, failedTelemetryExecution])("completes verification with $outcome and allows a fresh request", async (record) => {
     fetchMock.mockResolvedValue(respond(record));
     submitVerification();

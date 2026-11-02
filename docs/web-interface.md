@@ -36,7 +36,7 @@ Sequences show up to 25 compact member summaries per page, with their original m
 
 The sequence outcome and totals for members and continuity checks marked `FAIL` cover the complete document. **Show failures and related records** finds members marked `FAIL` and both members of each continuity check marked `FAIL` across the whole sequence. Continuity checks keep their original links, including links to the next page; filtering does not reconnect records. When more than 1 page is needed, page controls appear above and below the records. Changing the page brings the records heading into view and closes all details; changing the filter also closes details and returns to the first page. Switching between verification and inspection keeps the page, filter and open details. Submitting a new inspection returns to the first page with the filter off and all details closed.
 
-If loading an example would replace your edits, the interface asks for confirmation. Choosing **Cancel** in that dialog keeps your current inputs.
+If loading an example would replace your edits, the interface asks for confirmation. Choosing **Cancel** in that dialog keeps your current inputs. Reloading an example with exactly the same current inputs keeps a completed result.
 
 Completed results and request errors receive keyboard focus and are brought into view. A short status message announces completed verification or inspection. If you move to another control, switch between verification and inspection or open the help dialog while a request is pending, its response does not move focus or scroll the page.
 
