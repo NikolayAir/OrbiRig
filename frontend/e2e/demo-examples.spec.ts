@@ -20,6 +20,16 @@ for (const { scenario, label, reportedTelemetry, expectedTelemetry } of [
   });
 }
 
+test("failing and altered examples use the FAIL colours while the standard example does not", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Show Inspect evidence" }).click();
+  await page.getByRole("radio", { name: "Verified execution", exact: true }).check();
+  const failColour = "rgb(150, 63, 45)";
+  await expect(page.getByRole("button", { name: "Load failing example", exact: true })).toHaveCSS("color", failColour);
+  await expect(page.getByRole("button", { name: "Load altered example", exact: true })).toHaveCSS("color", failColour);
+  await expect(page.getByRole("button", { name: "Load example", exact: true })).not.toHaveCSS("color", failColour);
+});
+
 test("the failing saved execution stays valid evidence with a FAIL outcome", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Show Inspect evidence" }).click();

@@ -2,13 +2,14 @@ import { useEffect, useId, useRef, useState } from "react";
 
 type Props = {
   label?: string;
+  tone?: "negative";
   description: string;
   disabled: boolean;
   requiresConfirmation: boolean;
   onLoad: () => void;
 };
 
-export function LoadExampleButton({ label = "Load example", description, disabled, requiresConfirmation, onLoad }: Props) {
+export function LoadExampleButton({ label = "Load example", tone, description, disabled, requiresConfirmation, onLoad }: Props) {
   const id = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -40,6 +41,7 @@ export function LoadExampleButton({ label = "Load example", description, disable
         ref={triggerRef}
         type="button"
         className="secondary-action"
+        data-tone={tone}
         aria-describedby={`${id}-hint`}
         aria-haspopup={requiresConfirmation ? "dialog" : undefined}
         disabled={disabled}

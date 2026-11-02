@@ -71,6 +71,7 @@ export function InspectionPanel({
         {evidenceType !== "observation" && (
           <LoadExampleButton
             label="Load failing example"
+            tone="negative"
             description={`${evidenceType === "verified-execution"
               ? "Valid saved evidence with a FAIL outcome."
               : "Each record passes, but the next one starts in a different state."} Replaces evidence JSON`}
@@ -81,6 +82,7 @@ export function InspectionPanel({
         )}
         <LoadExampleButton
           label="Load altered example"
+          tone="negative"
           description={`${evidenceType === "observation"
             ? "Repeats a field name, so the evidence is rejected."
             : "Saved checks no longer match the data, so recomputing rejects it."} Replaces evidence JSON`}
