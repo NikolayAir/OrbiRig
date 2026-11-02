@@ -143,6 +143,8 @@ for (const width of [320, 1280]) {
     await page.locator("button[type=submit]").click();
     await expect(page.getByLabel("Verification outcome: FAIL", { exact: true })).toBeVisible();
     await expect(page.locator(".action-status")).toHaveText("Inspection completed. Evidence is valid.");
+    // "Valid saved evidence" may wrap between its 3 words, but not between letters.
+    expect(await page.locator(".result-context").evaluate(label => label.getBoundingClientRect().height / parseFloat(getComputedStyle(label).lineHeight))).toBeLessThanOrEqual(3);
     const inspect = page.getByRole("button", { name: "Inspect again", exact: true });
     // Keep the action word readable rather than splitting "Inspect" across lines.
     expect(await inspect.evaluate(button => {

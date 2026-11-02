@@ -1008,10 +1008,13 @@ button:disabled {
 
 .result-heading {
   align-items: flex-start;
+  flex-wrap: wrap;
   margin-bottom: 1rem;
 }
 
+/* Move the outcome below the title rather than squeezing the title to one letter per line. */
 .result-heading > div {
+  flex: 1 1 10rem;
   min-width: 0;
 }
 
