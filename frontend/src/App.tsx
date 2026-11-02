@@ -36,6 +36,7 @@ export function App() {
   const [verificationRequiredErrors, setVerificationRequiredErrors] = useState<VerificationRequiredErrors>({});
   const [evidenceType, setEvidenceType] = useState<EvidenceType>("observation");
   const [evidence, setEvidence] = useState("");
+  const [inspectionRequiredError, setInspectionRequiredError] = useState(false);
   // The panel is removed when verification is selected; keep its page and open details here.
   const [sequenceView, setSequenceView] = useState<SequenceView>({
     page: 0, failuresOnly: false, expandedMembers: [], expandedContinuity: [],
@@ -49,6 +50,7 @@ export function App() {
   const executedAtInputRef = useRef<HTMLInputElement>(null);
   const scenarioInputRef = useRef<HTMLSelectElement>(null);
   const observationEvidenceInputRef = useRef<HTMLTextAreaElement>(null);
+  const inspectionEvidenceInputRef = useRef<HTMLTextAreaElement>(null);
   const verificationExampleBaselineRef = useRef({ executionId: "", executedAt: "", observationEvidence: "" });
   const inspectionExampleBaselineRef = useRef("");
   const verificationExample = VERIFICATION_EXAMPLES[scenarioId || DEFAULT_VERIFICATION_SCENARIO];
@@ -85,6 +87,7 @@ export function App() {
 
   function changeInspectionEvidence(value: string) {
     setEvidence(value);
+    setInspectionRequiredError(false);
     inspection.setState({ kind: "idle" });
   }
 
@@ -100,6 +103,7 @@ export function App() {
   function loadInspectionExample() {
     inspectionExampleBaselineRef.current = INSPECTION_EXAMPLES[evidenceType];
     setEvidence(INSPECTION_EXAMPLES[evidenceType]);
+    setInspectionRequiredError(false);
     inspection.setState({ kind: "idle" });
   }
 
@@ -160,6 +164,12 @@ export function App() {
 
   async function inspectEvidence(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!evidence.trim()) {
+      setInspectionRequiredError(true);
+      inspectionEvidenceInputRef.current?.focus();
+      return;
+    }
+    setInspectionRequiredError(false);
     setSequenceView({ page: 0, failuresOnly: false, expandedMembers: [], expandedContinuity: [] });
     feedback.inspectionTargets.pendingRef.current = true;
     feedback.setAnnouncement("Inspecting evidence…");
@@ -242,6 +252,8 @@ export function App() {
           evidenceType={evidenceType}
           evidence={evidence}
           state={inspection.state}
+          requiredError={inspectionRequiredError}
+          evidenceInputRef={inspectionEvidenceInputRef}
           sequenceView={sequenceView}
           onSequenceViewChange={setSequenceView}
           feedback={feedback.inspectionTargets}

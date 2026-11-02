@@ -1,8 +1,8 @@
-import type { Dispatch, SetStateAction, SubmitEvent } from "react";
+import type { Dispatch, RefObject, SetStateAction, SubmitEvent } from "react";
 import { WorkflowTitle } from "./WorkflowTitle";
 import { LoadExampleButton } from "./LoadExampleButton";
 import { EvidenceRequestSizeError, RequestError } from "./RequestFeedback";
-import { preventRepeatedRequestAction } from "./formHelpers";
+import { describedBy, preventRepeatedRequestAction } from "./formHelpers";
 import type { FeedbackTargets } from "./useWorkflowFeedback";
 
 import {
@@ -18,6 +18,8 @@ type Props = {
   evidenceType: EvidenceType;
   evidence: string;
   state: InspectionState;
+  requiredError: boolean;
+  evidenceInputRef: RefObject<HTMLTextAreaElement | null>;
   sequenceView: SequenceView;
   onSequenceViewChange: Dispatch<SetStateAction<SequenceView>>;
   feedback: FeedbackTargets;
@@ -31,6 +33,7 @@ type Props = {
 
 export function InspectionPanel({
   evidenceType, evidence, state: inspection,
+  requiredError, evidenceInputRef,
   sequenceView, onSequenceViewChange,
   feedback,
   requiresConfirmation, onEvidenceTypeChange: selectEvidenceType, onEvidenceChange,
@@ -62,7 +65,7 @@ export function InspectionPanel({
       />
     </div>
 
-    <form className="inspection-form" onKeyDown={preventRepeatedRequestAction} onSubmit={inspectEvidence}>
+    <form className="inspection-form" noValidate onKeyDown={preventRepeatedRequestAction} onSubmit={inspectEvidence}>
       <fieldset
         className="evidence-types"
         disabled={inspection.kind === "loading"}
@@ -126,13 +129,17 @@ export function InspectionPanel({
           <textarea
             id="evidence"
             name="evidence"
-            aria-describedby="inspection-evidence-hint"
+            ref={evidenceInputRef}
+            aria-describedby={describedBy("inspection-evidence-hint", requiredError ? "inspection-evidence-error" : undefined)}
+            aria-invalid={requiredError ? true : undefined}
             value={evidence}
             onChange={(event) => onEvidenceChange(event.target.value)}
             disabled={inspection.kind === "loading"}
             spellCheck={false}
             rows={7}
+            required
           />
+          {requiredError && <p className="field-error" id="inspection-evidence-error" role="alert">Evidence JSON is required.</p>}
         </div>
         <div className="form-actions">
           <button

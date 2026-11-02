@@ -187,6 +187,7 @@ describe("App cancellation", () => {
     fetchMock.mockReturnValue(new Promise(() => { }));
     submitVerification();
     selectInspectionWorkflow();
+    fireEvent.change(screen.getByLabelText("Evidence JSON"), { target: { value: "pending observation" } });
     fireEvent.click(screen.getByRole("button", { name: "Inspect evidence" }));
     const signals = fetchMock.mock.calls.map(([, request]) => request.signal as AbortSignal);
     expect(signals).toHaveLength(2);
