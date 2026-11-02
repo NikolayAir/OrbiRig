@@ -59,6 +59,9 @@ export function VerificationPanel({
     submitRef: verificationSubmitRef,
     cancelRef: verificationCancelRef,
   } = feedback;
+  const needsRepeat = verification.kind === "completed";
+  const actionStatus = verification.kind === "completed" ? "Verification completed."
+    : undefined;
 
   return (<section
     className="workflow-panel"
@@ -253,23 +256,21 @@ export function VerificationPanel({
             type="submit"
             className="primary-action"
             disabled={verification.kind === "loading"}
+            aria-describedby={actionStatus ? "verification-action-status" : undefined}
           >
-            Verify observation
+            {verification.kind === "loading" ? "Verifying…" : needsRepeat ? "Verify again" : "Verify observation"}
           </button>
           {verification.kind === "loading" && (
             <button ref={verificationCancelRef} type="button" name="cancel-request" className="secondary-action" onClick={cancelVerification}>
               Cancel request
             </button>
           )}
+          {actionStatus && <p className="action-status" id="verification-action-status">{actionStatus}</p>}
         </div>
       </div>
     </form>
 
     <div className="workflow-feedback" ref={verificationFeedbackRef}>
-      {verification.kind === "loading" && (
-        <p className="feedback-progress">Verifying observation…</p>
-      )}
-
       {verification.kind === "cancelled" && (
         <p className="feedback-progress">{VERIFICATION_CANCELLED}</p>
       )}

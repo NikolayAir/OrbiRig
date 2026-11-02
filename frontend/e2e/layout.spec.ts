@@ -32,7 +32,7 @@ for (const viewport of [
     await page.goto("/");
 
     if (viewport.width >= 1280) {
-      const introductionLines = await page.locator(".page-header > p:last-child").evaluate(element => {
+      const introductionLines = await page.locator(".page-header > p:not(.brand):not(.field-hint)").evaluate(element => {
         const range = document.createRange();
         range.selectNodeContents(element);
         return range.getClientRects().length;

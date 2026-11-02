@@ -27,7 +27,8 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 320, height: 600 
       const evidence = readFileSync(new URL(`./fixtures/${example.file}`, import.meta.url), "utf8");
       await editor.fill(evidence);
       const submitted = await editor.inputValue();
-      const action = page.getByRole("button", { name: example.action, exact: true });
+      const action = page.locator("button[type=submit]");
+      await expect(action).toHaveText(example.action);
       let release!: () => void;
       const gate = new Promise<void>((resolve) => { release = resolve; });
       let received!: () => void;
@@ -45,6 +46,7 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 320, height: 600 
         await page.keyboard.down("Enter");
         const cancel = page.getByRole("button", { name: "Cancel request", exact: true });
         await expect(action).toBeDisabled();
+        await expect(action).toHaveText(example.workflow === "verification" ? "Verifying…" : "Inspecting…");
         await expect(editor).toBeDisabled();
         await expect(cancel).toBeFocused();
         await expect(cancel).toBeInViewport();
@@ -68,6 +70,8 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 320, height: 600 
 
         await expect(action).toBeFocused();
         await expect(action).toBeEnabled();
+        await expect(action).toHaveText(example.action);
+        await expect(page.locator(".action-status")).toHaveCount(0);
         await expect(action).toBeInViewport();
         await expect(action).toHaveCSS("outline-style", "solid");
         await expect(editor).toBeEnabled();

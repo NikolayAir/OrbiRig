@@ -4,6 +4,8 @@
 
 Use the [hosted interface](https://orbirig-evidence-inspector.onrender.com/) to check a recorded command result against a scenario you select, or to reopen and inspect saved JSON evidence. The Python core performs the checks on the server; the browser displays the results and errors. These actions do not execute commands or contact an external target.
 
+JSON is processed on the server. Use synthetic, non-sensitive data in the public demo.
+
 ## Verify an observation
 
 1. Choose **Verify observation** and select the scenario describing the expected behaviour.
@@ -37,6 +39,8 @@ The sequence outcome and totals for members and continuity checks marked `FAIL` 
 If loading an example would replace your edits, the interface asks for confirmation. Choosing **Cancel** in that dialog keeps your current inputs.
 
 Completed results and request errors receive keyboard focus and are brought into view. A short status message announces completed verification or inspection. If you move to another control, switch between verification and inspection or open the help dialog while a request is pending, its response does not move focus or scroll the page.
+
+The submission button shows **Verifying…** or **Inspecting…** while a request is pending. After a result, it offers **Verify again** or **Inspect again**, with a completion message below the button. Completion is separate from the verification outcome: both `PASS` and `FAIL` are completed results. Successful inspection confirms that the evidence is valid; observation inspection has no verification outcome, while saved verified evidence keeps its `PASS` or `FAIL` outcome.
 
 Empty or whitespace-only inspection JSON produces **Evidence JSON is required.**, focuses the field and sends no request.
 

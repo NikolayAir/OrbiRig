@@ -353,6 +353,11 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                   The scenario defines what should happen independently of the recorded
                   observation.
                 </p>
+                <p>
+                  After verification completes, choose <strong>Verify again</strong> to
+                  repeat it. Both <strong>PASS</strong> and <strong>FAIL</strong> are completed
+                  results.
+                </p>
               </div>
               <div
                 className="workflow-help-instructions"
@@ -385,6 +390,10 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                   them with the stored results. For sequences, it also checks continuity in
                   the saved order. A record with a <strong>FAIL</strong> outcome can still be
                   inspected when these results match.
+                </p>
+                <p>
+                  After inspection completes, choose <strong>Inspect again</strong> to
+                  repeat it.
                 </p>
               </div>
             </>

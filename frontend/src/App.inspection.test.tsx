@@ -920,7 +920,7 @@ describe("App inspection", () => {
       "Inspecting evidence…",
     );
     expect(
-      screen.getByRole("button", { name: "Inspect evidence" }),
+      screen.getByRole("button", { name: "Inspecting…" }),
     ).toBeDisabled();
     expect(screen.getByLabelText("Evidence JSON")).toBeDisabled();
     expect(

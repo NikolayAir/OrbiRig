@@ -831,12 +831,20 @@ textarea[aria-invalid="true"] {
 }
 
 .form-actions {
+  align-items: center;
   border-top: 1px solid var(--line);
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
   margin-top: 1.5rem;
   padding-top: 1.25rem;
+}
+
+.action-status {
+  color: var(--muted);
+  flex-basis: 100%;
+  font-size: 0.9375rem;
+  margin: 0;
 }
 
 /* Solid blue gives submission more emphasis than the pale secondary actions. */
@@ -1448,6 +1456,10 @@ dd {
     margin-top: 1rem;
     padding: 0;
   }
+
+  .action-status {
+    text-align: right;
+  }
 }
 
 /* Put each check's name above its values before the desktop row becomes cramped. */
@@ -1505,6 +1517,7 @@ dd {
   }
 
   .form-actions .primary-action {
+    padding-inline: 0.75rem;
     width: 100%;
   }
 

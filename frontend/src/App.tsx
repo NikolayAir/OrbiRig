@@ -117,6 +117,7 @@ export function App() {
 
   async function verifyObservation(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (verification.state.kind === "loading") return;
 
     const requiredErrors: VerificationRequiredErrors = {};
 
@@ -164,6 +165,7 @@ export function App() {
 
   async function inspectEvidence(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (inspection.state.kind === "loading") return;
     if (!evidence.trim()) {
       setInspectionRequiredError(true);
       inspectionEvidenceInputRef.current?.focus();
@@ -187,6 +189,9 @@ export function App() {
         <p>
           Check recorded behaviour from simplified spacecraft tests against a
           selected scenario, or inspect saved evidence.
+        </p>
+        <p className="field-hint">
+          JSON is processed on the server. Use synthetic, non-sensitive data in the public demo.
         </p>
       </header>
 

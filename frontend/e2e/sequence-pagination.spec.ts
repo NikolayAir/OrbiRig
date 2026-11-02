@@ -176,7 +176,7 @@ for (const [width, withFailures] of [[1280, false], [390, true]] as const) {
     await expect(page.getByLabel("Evidence JSON", { exact: true })).toHaveValue(input);
     await expect(page.getByRole("alert")).toHaveCount(0);
 
-    await page.getByRole("button", { name: "Inspect evidence", exact: true }).click();
+    await page.getByRole("button", { name: "Inspect again", exact: true }).click();
     await expect(result.locator(".sequence-page-status")).toHaveText("Showing members 1–25 of 3,900.");
     await expect(filter).not.toBeChecked();
     await expect(result.locator(".verified-execution-fields, .continuity-boundary-fields")).toHaveCount(0);

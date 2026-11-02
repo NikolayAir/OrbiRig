@@ -41,9 +41,9 @@ for (const { height, textScale, fontFamily } of [
     }
     async function wheelTo(target: Locator, direction: number, ratio = 0) {
       // Engines may limit one wheel event to a fraction of the viewport.
-      // Stop only when the target has the visibility required by the next action.
+      // Short steps also avoid skipping the target in very short windows.
       await expect(async () => {
-        await page.mouse.wheel(0, direction * 800);
+        await page.mouse.wheel(0, direction * Math.min(800, height / 2));
         await expect(target).toBeInViewport({ ratio, timeout: 100 });
       }).toPass({ timeout: 10_000, intervals: [50] });
     }

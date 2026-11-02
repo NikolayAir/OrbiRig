@@ -27,7 +27,7 @@ describe("App cancellation", () => {
       fetchMock.mockReturnValue(pending.promise);
       start();
       const signal: AbortSignal = fetchMock.mock.calls[0][1].signal;
-      const action = screen.getByRole("button", { name: actionName });
+      const action = screen.getByRole("button", { name: workflow === "verification" ? "Verifying…" : "Inspecting…" });
       const labels = workflow === "verification"
         ? ["Execution ID", "Execution time (UTC)", "Scenario", "Observation evidence JSON"]
         : ["Evidence JSON"];
@@ -39,6 +39,8 @@ describe("App cancellation", () => {
 
       expect(signal.aborted).toBe(true);
       expect(action).toBeEnabled();
+      expect(action).toHaveTextContent(actionName);
+      expect(document.querySelector(".action-status")).toBeNull();
       expect(action).toHaveFocus();
       labels.forEach((label, index) => {
         expect(screen.getByLabelText(label, { exact: true })).toBeEnabled();
@@ -74,7 +76,7 @@ describe("App cancellation", () => {
       expect(oldSignal.aborted).toBe(true);
       expect(currentSignal.aborted).toBe(false);
       expect(json).not.toHaveBeenCalled();
-      expect(screen.getByRole("button", { name: actionName })).toBeDisabled();
+      expect(screen.getByRole("button", { name: workflow === "verification" ? "Verifying…" : "Inspecting…" })).toBeDisabled();
       expect(screen.getByRole("button", { name: "Cancel request" })).toBeEnabled();
       expect(screen.getByRole("status")).toHaveTextContent(workflow === "verification" ? "Verifying observation…" : "Inspecting evidence…");
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
@@ -208,7 +210,7 @@ describe("App cancellation", () => {
       for (const label of ["Execution ID", "Execution time (UTC)", "Scenario", "Observation evidence JSON"]) {
         expect(screen.getByLabelText(label, { exact: true })).toBeDisabled();
       }
-      expect(screen.getByRole("button", { name: "Verify observation" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Verifying…" })).toBeDisabled();
     }
   });
 });

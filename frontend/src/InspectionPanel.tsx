@@ -11,7 +11,7 @@ import {
   VerifiedExecutionSequenceDetails,
   type SequenceView,
 } from "./EvidenceDetails";
-import { INSPECTION_CANCELLED, invalidEvidenceMessage } from "./workflowContent";
+import { INSPECTION_CANCELLED, invalidEvidenceMessage, isInspectionComplete } from "./workflowContent";
 import type { EvidenceType, InspectionState } from "./workflowTypes";
 
 type Props = {
@@ -44,6 +44,9 @@ export function InspectionPanel({
     submitRef: inspectionSubmitRef,
     cancelRef: inspectionCancelRef,
   } = feedback;
+  const completed = isInspectionComplete(inspection);
+  const actionStatus = completed ? "Inspection completed. Evidence is valid."
+    : undefined;
 
   return (<section
     className="workflow-panel"
@@ -147,23 +150,21 @@ export function InspectionPanel({
             type="submit"
             className="primary-action"
             disabled={inspection.kind === "loading"}
+            aria-describedby={actionStatus ? "inspection-action-status" : undefined}
           >
-            Inspect evidence
+            {inspection.kind === "loading" ? "Inspecting…" : completed ? "Inspect again" : "Inspect evidence"}
           </button>
           {inspection.kind === "loading" && (
             <button ref={inspectionCancelRef} type="button" name="cancel-request" className="secondary-action" onClick={cancelInspection}>
               Cancel request
             </button>
           )}
+          {actionStatus && <p className="action-status" id="inspection-action-status">{actionStatus}</p>}
         </div>
       </div>
     </form>
 
     <div className="workflow-feedback" ref={inspectionFeedbackRef}>
-      {inspection.kind === "loading" && (
-        <p className="feedback-progress">Inspecting evidence…</p>
-      )}
-
       {inspection.kind === "cancelled" && (
         <p className="feedback-progress">{INSPECTION_CANCELLED}</p>
       )}
