@@ -37,15 +37,22 @@ An existing `.venv` can keep an older patch of its interpreter. To switch patche
 
 ## Frontend environment
 
-Use Node.js 22.12 or later within the 22.x series. [`.node-version`](.node-version) selects that series. Install the locked frontend dependencies from the repository root:
+Use Node.js **26 LTS**. [`.node-version`](.node-version) pins **26.13.0** for local development and both Node.js setup steps in CI. The frontend's `@types/node` dependency uses the same major version.
+
+Select that runtime in each shell used for frontend commands. With [nvm on macOS or Linux](https://github.com/nvm-sh/nvm#usage), run `nvm install "$(cat .node-version)"` from the repository root to install and select it. nvm does not read `.node-version` automatically. Check that the active version matches `.node-version`, then install the locked frontend dependencies:
 
 ```bash
+node --version
 cd frontend
 npm ci
 cd ..
 ```
 
 See the [web-interface guide](docs/web-interface.md#run-locally) for running FastAPI and Vite or serving a production build.
+
+On macOS, official Node.js 26 binaries require [version 13.5 or later](https://github.com/nodejs/node/blob/v26.13.0/BUILDING.md#platform-list); [Playwright browser tests](https://playwright.dev/docs/intro#system-requirements) require macOS 14 or later.
+
+On Linux, official Node.js 26 binaries require the [`libatomic` runtime](https://github.com/nodejs/node/blob/v26.13.0/BUILDING.md#official-binary-platforms-and-toolchains), usually packaged as `libatomic1` on Debian and Ubuntu. The Python core and CLI remain usable without Node.js.
 
 ## Python checks
 
@@ -73,7 +80,7 @@ To inspect the assertions behind the main verification claims, start here:
 
 Behave describes the 3 supported command scenarios in Given/When/Then steps: the starting mode, command and expected result. Use pytest for detailed negative cases instead of duplicating them in Behave.
 
-Pyright checks the package, pytest tests, Behave steps and distribution scripts in standard mode against Python 3.12 language and typing rules, regardless of the development interpreter. CI supplies Node.js 22 for its underlying type checker.
+Pyright checks the package, pytest tests, Behave steps and distribution scripts in standard mode against Python 3.12 language and typing rules, regardless of the development interpreter. CI supplies the Node.js version from `.node-version` for its underlying type checker.
 
 ### Distribution checks
 
@@ -177,7 +184,7 @@ Every Python test job checks dependency consistency and package imports, then ru
 
 The Ubuntu `Python 3.12` job also runs Ruff, Pyright and branch coverage. It type-checks, tests and builds the frontend, checks isolated distributions and verifies that FastAPI serves the built page and favicon.
 
-`Chromium / Ubuntu`, `Firefox / Ubuntu` and `WebKit / Ubuntu` each install Python 3.12, Node.js 22 and the selected browser with system dependencies. They type-check the frontend and browser tests, then run that engine's full E2E suite with 1 worker. Chromium uses the headless shell. These jobs run for every listed trigger, independently of the Python compatibility matrix. One failure does not cancel the others. Available failure diagnostics are uploaded as `<browser>-failure-diagnostics` and retained for 7 days.
+`Chromium / Ubuntu`, `Firefox / Ubuntu` and `WebKit / Ubuntu` each install Python 3.12, the Node.js version from `.node-version` and the selected browser with system dependencies. They type-check the frontend and browser tests, then run that engine's full E2E suite with 1 worker. Chromium uses the headless shell. These jobs run for every listed trigger, independently of the Python compatibility matrix. One failure does not cancel the others. Available failure diagnostics are uploaded as `<browser>-failure-diagnostics` and retained for 7 days.
 
 `CI passed` waits for the Python 3.12 job, compatibility matrix and browser matrix. Every selected job must succeed; failures, cancellations and skipped jobs make the gate fail. This includes all 4 Ubuntu Python versions on pushes to `main`.
 
