@@ -84,8 +84,12 @@ for (const width of [1440, 320]) {
       await expect(hint).toBeHidden();
 
       await page.mouse.move(0, 0);
+      // Header text can leave the button at the viewport edge. A pointer below the
+      // viewport cannot reliably keep hover, so keep the whole path inside it.
+      await trigger.evaluate(element => element.scrollIntoView({ block: "center" }));
       await trigger.hover();
       await expect(hint).toBeVisible();
+      await expect(hint).toBeInViewport({ ratio: 1 });
       const hintBounds = (await hint.boundingBox())!;
       await page.mouse.move(hintBounds.x + hintBounds.width / 2, hintBounds.y + hintBounds.height / 2, { steps: 12 });
       await expect(hint).toBeVisible();
