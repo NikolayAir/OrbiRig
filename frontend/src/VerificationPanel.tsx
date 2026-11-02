@@ -7,6 +7,7 @@ import type { FeedbackTargets } from "./useWorkflowFeedback";
 
 import { FieldHelp } from "./FieldHelp";
 import { VerifiedExecutionDetails } from "./EvidenceDetails";
+import type { ExampleVariant } from "./examples";
 import {
   SUPPORTED_SCENARIOS,
   VERIFICATION_CANCELLED,
@@ -34,9 +35,9 @@ type Props = {
   };
   feedback: FeedbackTargets;
   fieldHelp: ReturnType<typeof useVerificationFieldHelp>;
-  requiresConfirmation: boolean;
+  requiresConfirmation: (variant: ExampleVariant) => boolean;
   onInputChange: <Key extends keyof VerificationInputs>(field: Key, value: VerificationInputs[Key]) => void;
-  onLoadExample: () => void;
+  onLoadExample: (variant: ExampleVariant) => void;
   onSubmit: (event: SubmitEvent<HTMLFormElement>) => Promise<void>;
   onCancel: () => void;
 };
@@ -79,12 +80,21 @@ export function VerificationPanel({
         description="Provide execution details, select a supported scenario, and submit observation evidence for verification."
         onHelpOpen={fieldHelp.closePinned}
       />
-      <LoadExampleButton
-        description="Replaces current inputs"
-        disabled={verification.kind === "loading"}
-        requiresConfirmation={verificationNeedsConfirmation}
-        onLoad={loadVerificationExample}
-      />
+      <div className="example-actions">
+        <LoadExampleButton
+          description="Replaces current inputs"
+          disabled={verification.kind === "loading"}
+          requiresConfirmation={verificationNeedsConfirmation("passing")}
+          onLoad={() => loadVerificationExample("passing")}
+        />
+        <LoadExampleButton
+          label="Load failing example"
+          description="Telemetry disagrees with the recorded state. Replaces current inputs"
+          disabled={verification.kind === "loading"}
+          requiresConfirmation={verificationNeedsConfirmation("failing")}
+          onLoad={() => loadVerificationExample("failing")}
+        />
+      </div>
     </div>
 
     <form

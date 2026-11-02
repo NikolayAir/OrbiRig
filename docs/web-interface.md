@@ -12,7 +12,7 @@ JSON is processed on the server. Use synthetic, non-sensitive data in the public
 2. Enter an execution ID, UTC execution time and observation JSON, or choose **Load example**.
 3. Choose **Verify observation** to see the recorded values, each check's expected and actual values, and the overall `PASS` or `FAIL`.
 
-**Load example** fills in a sample execution ID, UTC time and observation JSON for the selected scenario. It uses **NOMINAL to SAFE** if none is selected. Choose **Verify observation** to run the checks after loading the example.
+**Load example** fills in a sample execution ID, UTC time and observation JSON for the selected scenario. It uses **NOMINAL to SAFE** if none is selected. **Load failing example** does the same with telemetry that disagrees with the recorded post-state, which produces `FAIL`. Choose **Verify observation** to run the checks after loading an example.
 
 An expected command rejection can pass. Invalid input, including a command incompatible with the selected scenario, produces an error rather than a completed `FAIL` result. See [supported scenarios](verification.md#supported-scenarios) and the rules for [execution IDs and timestamps](evidence-formats.md#execution-ids).
 
@@ -22,7 +22,7 @@ An expected command rejection can pass. Invalid input, including a command incom
 
 ## Inspect evidence
 
-Choose **Inspect evidence**, select its type and paste saved JSON or choose **Load example**. Then choose **Inspect evidence**.
+Choose **Inspect evidence**, select its type and paste saved JSON or load an example. Then choose **Inspect evidence**. **Load example** provides valid evidence. For verified types, **Load failing example** provides valid evidence with a `FAIL` outcome; the sequence example fails continuity while each record passes. **Load altered example** provides evidence that is rejected: a repeated field name for an observation, and data changed after saving for verified types.
 
 | Type | What inspection shows and checks |
 | --- | --- |

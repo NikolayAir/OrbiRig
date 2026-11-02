@@ -19,6 +19,7 @@ Choose how to use it:
 1. Open the [web interface](https://orbirig-evidence-inspector.onrender.com/) and choose **Verify observation**.
 2. Choose **Load example**, then **Verify observation**.
 3. Inspect the expected and actual values. The default example records an accepted change from `NOMINAL` to `SAFE` and produces `PASS`.
+4. Choose **Load failing example**, then **Verify observation**, to see a mismatch produce `FAIL`.
 
 To explore saved records, choose **Inspect evidence**, select an evidence type, load its example and choose **Inspect evidence**.
 

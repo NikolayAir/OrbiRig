@@ -1,6 +1,7 @@
 import type { Dispatch, RefObject, SetStateAction, SubmitEvent } from "react";
 import { WorkflowTitle } from "./WorkflowTitle";
 import { LoadExampleButton } from "./LoadExampleButton";
+import type { ExampleVariant } from "./examples";
 import { EvidenceRequestSizeError, RequestError } from "./RequestFeedback";
 import { describedBy, preventRepeatedRequestAction } from "./formHelpers";
 import type { FeedbackTargets } from "./useWorkflowFeedback";
@@ -23,10 +24,10 @@ type Props = {
   sequenceView: SequenceView;
   onSequenceViewChange: Dispatch<SetStateAction<SequenceView>>;
   feedback: FeedbackTargets;
-  requiresConfirmation: boolean;
+  requiresConfirmation: (variant: ExampleVariant) => boolean;
   onEvidenceTypeChange: (type: EvidenceType) => void;
   onEvidenceChange: (value: string) => void;
-  onLoadExample: () => void;
+  onLoadExample: (variant: ExampleVariant) => void;
   onSubmit: (event: SubmitEvent<HTMLFormElement>) => Promise<void>;
   onCancel: () => void;
 };
@@ -60,12 +61,34 @@ export function InspectionPanel({
         title="Inspect evidence"
         description="Select an evidence type and paste its JSON to see the recorded values and any saved verification results."
       />
-      <LoadExampleButton
-        description="Replaces evidence JSON"
-        disabled={inspection.kind === "loading"}
-        requiresConfirmation={requiresConfirmation}
-        onLoad={loadInspectionExample}
-      />
+      <div className="example-actions">
+        <LoadExampleButton
+          description="Replaces evidence JSON"
+          disabled={inspection.kind === "loading"}
+          requiresConfirmation={requiresConfirmation("passing")}
+          onLoad={() => loadInspectionExample("passing")}
+        />
+        {evidenceType !== "observation" && (
+          <LoadExampleButton
+            label="Load failing example"
+            description={`${evidenceType === "verified-execution"
+              ? "Valid saved evidence with a FAIL outcome."
+              : "Each record passes, but the next one starts from a different mode."} Replaces evidence JSON`}
+            disabled={inspection.kind === "loading"}
+            requiresConfirmation={requiresConfirmation("failing")}
+            onLoad={() => loadInspectionExample("failing")}
+          />
+        )}
+        <LoadExampleButton
+          label="Load altered example"
+          description={`${evidenceType === "observation"
+            ? "Repeats a field name, so the evidence is rejected."
+            : "Data changed after saving, so recomputing rejects it."} Replaces evidence JSON`}
+          disabled={inspection.kind === "loading"}
+          requiresConfirmation={requiresConfirmation("altered")}
+          onLoad={() => loadInspectionExample("altered")}
+        />
+      </div>
     </div>
 
     <form className="inspection-form" noValidate onKeyDown={preventRepeatedRequestAction} onSubmit={inspectEvidence}>

@@ -551,6 +551,21 @@ button {
   max-width: 66ch;
 }
 
+.example-actions {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+/* Keep an open tooltip above the neighbouring example button. */
+.example-action:hover,
+.example-action:focus-within {
+  z-index: 3;
+}
+
 .example-action {
   align-items: flex-end;
   display: flex;
@@ -1579,6 +1594,10 @@ a[target="_blank"] {
   .workflow-heading {
     flex-direction: column;
     gap: 1rem;
+  }
+
+  .example-actions {
+    justify-content: flex-start;
   }
 
   .example-action {

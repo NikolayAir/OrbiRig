@@ -335,8 +335,8 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                     from NOMINAL to SAFE mode.
                   </li>
                   <li>
-                    Paste the observation JSON or choose <strong>Load example</strong> to
-                    try a sample.
+                    Paste the observation JSON, or choose <strong>Load example</strong> or{" "}
+                    <strong>Load failing example</strong> to try a sample.
                   </li>
                   <li>
                     Choose <strong>Verify observation</strong> to see the individual checks
@@ -381,7 +381,8 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                     verified-execution sequence.
                   </li>
                   <li>
-                    Paste its JSON or choose <strong>Load example</strong>.
+                    Paste its JSON or load an example. <strong>Load altered example</strong> shows
+                    how changed evidence is rejected.
                   </li>
                   <li>
                     Choose <strong>Inspect evidence</strong> to see the recorded values

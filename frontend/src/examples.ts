@@ -245,3 +245,93 @@ export const INSPECTION_EXAMPLES: Record<EvidenceType, string> = {
     2,
   ),
 };
+
+export type ExampleVariant = "passing" | "failing" | "altered";
+
+const pretty = (document: unknown) => JSON.stringify(document, null, 2);
+
+// Each variant reports a telemetry mode that differs from the recorded post-state.
+const MISMATCHED_TELEMETRY: Record<ScenarioId, unknown> = {
+  nominal_to_safe_mode: { ...NOMINAL_TO_SAFE_EXAMPLE_OBSERVATION_DOCUMENT, telemetry: { operating_mode: "NOMINAL" } },
+  nominal_to_nominal_rejection: { ...NOMINAL_TO_NOMINAL_REJECTION_EXAMPLE_OBSERVATION_DOCUMENT, telemetry: { operating_mode: "SAFE" } },
+  safe_to_nominal_mode: { ...SAFE_TO_NOMINAL_EXAMPLE_OBSERVATION_DOCUMENT, telemetry: { operating_mode: "SAFE" } },
+};
+
+export function verificationExample(scenario: ScenarioId, variant: ExampleVariant) {
+  const example = VERIFICATION_EXAMPLES[scenario];
+  return variant === "passing" ? example : {
+    ...example,
+    executionId: `${example.executionId}-mismatch`,
+    observationEvidence: pretty(MISMATCHED_TELEMETRY[scenario]),
+  };
+}
+
+const CHANGED_TELEMETRY = { operating_mode: "NOMINAL" };
+
+const FAILED_VERIFIED_EXECUTION_DOCUMENT = {
+  ...EXAMPLE_VERIFIED_EXECUTION_DOCUMENT,
+  execution: { ...EXAMPLE_VERIFIED_EXECUTION_DOCUMENT.execution, execution_id: "example-failed-execution-001" },
+  observation: { ...EXAMPLE_VERIFIED_EXECUTION_DOCUMENT.observation, telemetry: CHANGED_TELEMETRY },
+  invariant_results: EXAMPLE_VERIFIED_EXECUTION_DOCUMENT.invariant_results.map(result => (
+    result.invariant_id === "telemetry_matches_post_state" ? { ...result, passed: false, actual: "NOMINAL" } : result
+  )),
+  outcome: "FAIL",
+};
+
+// Both records pass alone, but the second starts in a mode the first did not end in.
+const sequenceRecord = (executionId: string, executedAt: string) => ({
+  ...EXAMPLE_VERIFIED_EXECUTION_DOCUMENT,
+  execution: { ...EXAMPLE_VERIFIED_EXECUTION_DOCUMENT.execution, execution_id: executionId, executed_at: executedAt },
+});
+
+const DISCONTINUOUS_SEQUENCE_DOCUMENT = {
+  schema_version: 1,
+  records: [
+    sequenceRecord("example-discontinuous-001", "2026-08-26T08:30:00Z"),
+    sequenceRecord("example-discontinuous-002", "2026-08-26T08:35:00Z"),
+  ],
+  continuity_results: [{
+    previous_execution_id: "example-discontinuous-001",
+    next_execution_id: "example-discontinuous-002",
+    expected_operating_mode: "SAFE",
+    observed_operating_mode: "NOMINAL",
+    passed: false,
+  }],
+  outcome: "FAIL",
+};
+
+// Repeated field names are kept as text: serialising an object would remove one.
+const REPEATED_FIELD_OBSERVATION = INSPECTION_EXAMPLES.observation.replace(
+  '"accepted": true',
+  '"accepted": false,\n    "accepted": true',
+);
+
+// The observation changes after saving while its stored PASS results stay the same.
+const ALTERED_VERIFIED_EXECUTION_DOCUMENT = {
+  ...EXAMPLE_VERIFIED_EXECUTION_DOCUMENT,
+  observation: { ...EXAMPLE_VERIFIED_EXECUTION_DOCUMENT.observation, telemetry: CHANGED_TELEMETRY },
+};
+
+const ALTERED_SEQUENCE_DOCUMENT = {
+  ...EXAMPLE_VERIFIED_EXECUTION_SEQUENCE_DOCUMENT,
+  records: [
+    { ...EXAMPLE_VERIFIED_EXECUTION_SEQUENCE_DOCUMENT.records[0], observation: ALTERED_VERIFIED_EXECUTION_DOCUMENT.observation },
+    ...EXAMPLE_VERIFIED_EXECUTION_SEQUENCE_DOCUMENT.records.slice(1),
+  ],
+};
+
+const FAILING_INSPECTION_EXAMPLES: Partial<Record<EvidenceType, string>> = {
+  "verified-execution": pretty(FAILED_VERIFIED_EXECUTION_DOCUMENT),
+  "verified-execution-sequence": pretty(DISCONTINUOUS_SEQUENCE_DOCUMENT),
+};
+
+const ALTERED_INSPECTION_EXAMPLES: Record<EvidenceType, string> = {
+  observation: REPEATED_FIELD_OBSERVATION,
+  "verified-execution": pretty(ALTERED_VERIFIED_EXECUTION_DOCUMENT),
+  "verified-execution-sequence": pretty(ALTERED_SEQUENCE_DOCUMENT),
+};
+
+export function inspectionExample(evidenceType: EvidenceType, variant: ExampleVariant): string | undefined {
+  if (variant === "passing") return INSPECTION_EXAMPLES[evidenceType];
+  return variant === "failing" ? FAILING_INSPECTION_EXAMPLES[evidenceType] : ALTERED_INSPECTION_EXAMPLES[evidenceType];
+}

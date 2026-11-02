@@ -4,7 +4,7 @@ import { WorkflowHelp } from "./WorkflowHelp";
 import { VerificationPanel } from "./VerificationPanel";
 import { InspectionPanel } from "./InspectionPanel";
 import type { SequenceView } from "./EvidenceDetails";
-import { INSPECTION_EXAMPLES, VERIFICATION_EXAMPLES } from "./examples";
+import { type ExampleVariant, inspectionExample, verificationExample } from "./examples";
 import { wouldReplaceEditedValue } from "./formHelpers";
 import { inspectEvidenceRequest, verifyObservationRequest } from "./apiClient";
 import { useCancellableRequest } from "./useCancellableRequest";
@@ -58,14 +58,19 @@ export function App() {
   // edits after a cancelled or failed retry still prompt for a new check.
   const verificationHadResultRef = useRef(false);
   const inspectionHadResultRef = useRef(false);
-  const verificationExample = VERIFICATION_EXAMPLES[scenarioId || DEFAULT_VERIFICATION_SCENARIO];
-  const verificationNeedsConfirmation = (
-    ["executionId", "executedAt", "observationEvidence"] as const
-  ).some(field => wouldReplaceEditedValue(
-    verificationInputs[field],
-    verificationExampleBaselineRef.current[field],
-    verificationExample[field],
-  ));
+
+  function verificationNeedsConfirmation(variant: ExampleVariant) {
+    const example = verificationExample(scenarioId || DEFAULT_VERIFICATION_SCENARIO, variant);
+    return (["executionId", "executedAt", "observationEvidence"] as const).some(field => wouldReplaceEditedValue(
+      verificationInputs[field],
+      verificationExampleBaselineRef.current[field],
+      example[field],
+    ));
+  }
+
+  function inspectionNeedsConfirmation(variant: ExampleVariant) {
+    return wouldReplaceEditedValue(evidence, inspectionExampleBaselineRef.current, inspectionExample(evidenceType, variant) ?? "");
+  }
 
   function clearVerificationRequiredError(field: VerificationRequiredField) {
     setVerificationRequiredErrors((errors) => {
@@ -108,9 +113,9 @@ export function App() {
     clearInspectionResult();
   }
 
-  function loadVerificationExample() {
+  function loadVerificationExample(variant: ExampleVariant) {
     const selectedScenario = scenarioId === "" ? DEFAULT_VERIFICATION_SCENARIO : scenarioId;
-    const example = VERIFICATION_EXAMPLES[selectedScenario];
+    const example = verificationExample(selectedScenario, variant);
     const inputsChanged = executionId !== example.executionId
       || executedAt !== example.executedAt
       || scenarioId !== selectedScenario
@@ -123,8 +128,9 @@ export function App() {
     }
   }
 
-  function loadInspectionExample() {
-    const example = INSPECTION_EXAMPLES[evidenceType];
+  function loadInspectionExample(variant: ExampleVariant) {
+    const example = inspectionExample(evidenceType, variant);
+    if (example === undefined) return;
     const inputsChanged = evidence !== example;
     inspectionExampleBaselineRef.current = example;
     setEvidence(example);
@@ -291,7 +297,7 @@ export function App() {
           sequenceView={sequenceView}
           onSequenceViewChange={setSequenceView}
           feedback={feedback.inspectionTargets}
-          requiresConfirmation={wouldReplaceEditedValue(evidence, inspectionExampleBaselineRef.current, INSPECTION_EXAMPLES[evidenceType])}
+          requiresConfirmation={inspectionNeedsConfirmation}
           onEvidenceTypeChange={selectEvidenceType}
           onEvidenceChange={changeInspectionEvidence}
           onLoadExample={loadInspectionExample}

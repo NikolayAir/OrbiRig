@@ -1,13 +1,14 @@
 import { useEffect, useId, useRef, useState } from "react";
 
 type Props = {
+  label?: string;
   description: string;
   disabled: boolean;
   requiresConfirmation: boolean;
   onLoad: () => void;
 };
 
-export function LoadExampleButton({ description, disabled, requiresConfirmation, onLoad }: Props) {
+export function LoadExampleButton({ label = "Load example", description, disabled, requiresConfirmation, onLoad }: Props) {
   const id = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -48,7 +49,7 @@ export function LoadExampleButton({ description, disabled, requiresConfirmation,
           else onLoad();
         }}
       >
-        Load example
+        {label}
       </button>
       <span id={`${id}-hint`} role="tooltip">{description}</span>
       {confirming && (
@@ -78,7 +79,7 @@ export function LoadExampleButton({ description, disabled, requiresConfirmation,
               onLoad();
               dialogRef.current?.close();
             }}>
-              Load example
+              {label}
             </button>
           </div>
         </dialog>
