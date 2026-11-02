@@ -16,9 +16,9 @@ JSON is processed on the server. Use synthetic, non-sensitive data in the public
 
 An expected command rejection can pass. Invalid input, including a command incompatible with the selected scenario, produces an error rather than a completed `FAIL` result. See [supported scenarios](verification.md#supported-scenarios) and the rules for [execution IDs and timestamps](evidence-formats.md#execution-ids).
 
-![OrbiRig v0.9.0 interface showing the verification form and a PASS result](images/orbirig-web-verification-v0.9.0.png)
+![OrbiRig interface showing the verification form and a PASS result](images/orbirig-web-interface.png)
 
-*OrbiRig v0.9.0 after verifying the NOMINAL-to-SAFE example.*
+*The interface after verifying the NOMINAL-to-SAFE example.*
 
 ## Inspect evidence
 
