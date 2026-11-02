@@ -226,8 +226,8 @@ for (const viewport of [
       await page.mouse.click(bounds.x + 1, bounds.y + 1);
       await expect(help).toBeVisible();
       if (guide === "In the browser") {
-        const webScope = help.getByText(/The web interface verifies and inspects submitted records/);
-        await expect(webScope).toHaveText("The web interface verifies and inspects submitted records. It does not connect to a real spacecraft, send spacecraft commands or collect live telemetry.");
+        const webScope = help.getByText(/The examples use a simplified spacecraft/);
+        await expect(webScope).toHaveText("The examples use a simplified spacecraft with 2 operating modes, NOMINAL and SAFE, but the approach suits any system that records what it did. The web interface only checks submitted records. It does not connect to real systems, send commands or collect live data.");
         await webScope.scrollIntoViewIfNeeded();
         await expect(webScope).toBeInViewport();
         await expect(help.getByRole("tab", { name: "Verify observation", selected: true })).toBeVisible();
@@ -266,7 +266,7 @@ for (const viewport of [
       } else {
         await expect(help.getByRole("heading", { name: "Verify observation" })).toHaveCount(0);
         await expect(help.getByRole("heading", { name: "Inspect evidence" })).toHaveCount(0);
-        await expect(help.getByText(/OrbiRig checks command records/)).toHaveCount(0);
+        await expect(help.getByText(/OrbiRig checks whether a system/)).toHaveCount(0);
 
         if (viewport.width === 1280) {
           const lastCodeOffset = await help.getByText(/The command prints JSON evidence/)

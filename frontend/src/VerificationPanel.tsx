@@ -116,7 +116,7 @@ export function VerificationPanel({
                 Execution ID
               </label>
               <FieldHelp control={fieldHelp.executionId} label="Execution ID" helpId="execution-id-help-description">
-                A label you provide for this command execution, such as run-001.
+                A label you choose for this recorded command, such as run-001.
                 It is saved with the result.
               </FieldHelp>
             </div>

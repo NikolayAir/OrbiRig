@@ -22,7 +22,7 @@ An expected command rejection can pass. Invalid input, including a command incom
 
 ## Inspect evidence
 
-Choose **Inspect evidence**, select its type and paste saved JSON or load an example. Then choose **Inspect evidence**. **Load example** provides valid evidence. For verified types, **Load failing example** provides valid evidence with a `FAIL` outcome; the sequence example fails continuity while each record passes. **Load altered example** provides evidence that is rejected: a repeated field name for an observation, and data changed after saving for verified types.
+Choose **Inspect evidence**, select its type and paste saved JSON or load an example. Then choose **Inspect evidence**. **Load example** provides valid evidence. For verified types, **Load failing example** provides valid evidence with a `FAIL` outcome; the sequence example fails continuity while each record passes. **Load altered example** provides evidence that is rejected: a repeated field name for an observation, and saved checks that no longer match the data for verified types.
 
 | Type | What inspection shows and checks |
 | --- | --- |

@@ -51,7 +51,7 @@ describe("App help", () => {
       expect(guidance.getAllByRole("link")).toHaveLength(2);
     } else {
       expect(guidance.getByRole("region", { name: "CLI verification command" })).toBeVisible();
-      expect(guidance.queryByText(/OrbiRig checks command records/)).not.toBeInTheDocument();
+      expect(guidance.queryByText(/OrbiRig checks whether a system/)).not.toBeInTheDocument();
       expect(guidance.queryByRole("list")).not.toBeInTheDocument();
     }
 
@@ -227,11 +227,11 @@ describe("App help", () => {
       "Choose Verify observation to see the individual checks and overall PASS or FAIL result.",
     ]);
 
-    expect(guidance.getByText(/OrbiRig checks command records/)).toHaveTextContent(
-      "OrbiRig checks command records from simplified spacecraft tests. Each observation includes the command, whether it was accepted, the operating modes before and after execution, and the mode reported in telemetry (recorded status data).",
+    expect(guidance.getByText(/OrbiRig checks whether a system/)).toHaveTextContent(
+      "OrbiRig checks whether a system did what it was asked to do. An observation is one recorded command: the request, whether it was accepted, the system's state before and after, and the state it reported separately (telemetry).",
     );
-    expect(guidance.getByText(/The web interface verifies and inspects submitted records/)).toHaveTextContent(
-      "The web interface verifies and inspects submitted records. It does not connect to a real spacecraft, send spacecraft commands or collect live telemetry.",
+    expect(guidance.getByText(/The examples use a simplified spacecraft/)).toHaveTextContent(
+      "The examples use a simplified spacecraft with 2 operating modes, NOMINAL and SAFE, but the approach suits any system that records what it did. The web interface only checks submitted records. It does not connect to real systems, send commands or collect live data.",
     );
     expect(guidance.getByText(/means the recorded behaviour matches/)).toHaveTextContent(
       "PASS means the recorded behaviour matches the selected scenario. This can include a rejected command if rejection was expected.",
@@ -240,7 +240,7 @@ describe("App help", () => {
       "FAIL means the observation is valid, but the recorded behaviour does not meet the scenario's expectations. Invalid evidence is reported separately as an input error.",
     );
     expect(guidance.getByText(/The scenario defines/)).toHaveTextContent(
-      "The scenario defines what should happen independently of the recorded observation.",
+      "The scenario defines what should happen separately from the recorded data, so a result can never set its own expectations.",
     );
     fireEvent.click(guidance.getByRole("tab", { name: "Inspect evidence" }));
     const [inspectionSteps] = guidance.getAllByRole("list");
@@ -273,7 +273,7 @@ describe("App help", () => {
       "How it works",
     ]);
     expect(guidance.getByText(/OrbiRig can verify/)).toHaveTextContent(
-      "OrbiRig can verify a saved observation from a terminal, without opening the web interface. It uses the same Python verification core. The command runs locally on your computer and does not execute spacecraft commands or collect observations.",
+      "OrbiRig can verify a saved observation from a terminal, without opening the web interface. It uses the same Python verification core. The command runs locally on your computer and does not execute system commands or collect observations.",
     );
     expect(guidance.getByText(/For this command/)).toHaveTextContent(
       "For this command, select NOMINAL to SAFE in Verify observation, choose Load example, and save the observation JSON to a UTF-8 file named observation.json. From an OrbiRig checkout, run uv sync --locked if needed, then:",
@@ -475,7 +475,7 @@ describe("App help", () => {
 
     const help = screen.getByRole("button", { name: "About Execution ID" });
     const description = screen.getByText(
-      "A label you provide for this command execution, such as run-001. It is saved with the result.",
+      "A label you choose for this recorded command, such as run-001. It is saved with the result.",
     );
     const executionId = screen.getByLabelText("Execution ID");
     const helpContainer = help.parentElement;

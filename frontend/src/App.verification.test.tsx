@@ -231,7 +231,7 @@ describe("App verification", () => {
       within(record).getByLabelText("Verification outcome: FAIL"),
     ).toBeInTheDocument();
     expect(within(record).getAllByText("FAIL")).toHaveLength(2);
-    expect(within(record).getByText("The recorded behaviour does not meet this execution's scenario expectations. Review the failed checks below.")).toBeVisible();
+    expect(within(record).getByText("The recorded behaviour does not meet the scenario's expectations. Review the failed checks below.")).toBeVisible();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 

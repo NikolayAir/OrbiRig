@@ -73,7 +73,7 @@ export function InspectionPanel({
             label="Load failing example"
             description={`${evidenceType === "verified-execution"
               ? "Valid saved evidence with a FAIL outcome."
-              : "Each record passes, but the next one starts from a different mode."} Replaces evidence JSON`}
+              : "Each record passes, but the next one starts in a different state."} Replaces evidence JSON`}
             disabled={inspection.kind === "loading"}
             requiresConfirmation={requiresConfirmation("failing")}
             onLoad={() => loadInspectionExample("failing")}
@@ -83,7 +83,7 @@ export function InspectionPanel({
           label="Load altered example"
           description={`${evidenceType === "observation"
             ? "Repeats a field name, so the evidence is rejected."
-            : "Data changed after saving, so recomputing rejects it."} Replaces evidence JSON`}
+            : "Saved checks no longer match the data, so recomputing rejects it."} Replaces evidence JSON`}
           disabled={inspection.kind === "loading"}
           requiresConfirmation={requiresConfirmation("altered")}
           onLoad={() => loadInspectionExample("altered")}
@@ -141,7 +141,7 @@ export function InspectionPanel({
           />
           <span>
             <span id="sequence-type-label">Verified execution sequence</span>
-            <small id="sequence-type-description">Ordered executions and continuity checks.</small>
+            <small id="sequence-type-description">Ordered records, each starting where the last ended.</small>
           </span>
         </label>
       </fieldset>

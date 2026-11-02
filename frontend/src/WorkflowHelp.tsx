@@ -276,15 +276,15 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
           {section === "browser" && (
             <>
               <p>
-                OrbiRig checks command records from simplified spacecraft tests.
-                Each observation includes the command, whether it was accepted,
-                the operating modes before and after execution, and the mode reported in
-                telemetry (recorded status data).
+                OrbiRig checks whether a system did what it was asked to do. An observation
+                is one recorded command: the request, whether it was accepted, the system's
+                state before and after, and the state it reported separately (telemetry).
               </p>
               <p>
-                The web interface verifies and inspects submitted records. It does not
-                connect to a real spacecraft, send spacecraft commands or collect live
-                telemetry.
+                The examples use a simplified spacecraft with 2 operating modes, NOMINAL
+                and SAFE, but the approach suits any system that records what it did. The web
+                interface only checks submitted records. It does not connect to real systems,
+                send commands or collect live data.
               </p>
 
               <div
@@ -353,8 +353,8 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                   reported separately as an input error.
                 </p>
                 <p>
-                  The scenario defines what should happen independently of the recorded
-                  observation.
+                  The scenario defines what should happen separately from the recorded data,
+                  so a result can never set its own expectations.
                 </p>
                 <p>
                   Both <strong>PASS</strong> and <strong>FAIL</strong> are completed results.
@@ -429,7 +429,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                 OrbiRig can verify a saved observation from a terminal, without
                 opening the web interface. It uses the same Python verification core.
                 The command runs locally on your computer and does not execute
-                spacecraft commands or collect observations.
+                system commands or collect observations.
               </p>
               <p>
                 For this command, select <strong>NOMINAL to SAFE</strong> in{" "}

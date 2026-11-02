@@ -229,9 +229,9 @@ export function App() {
           JSON is processed on the server. Use synthetic, non-sensitive data in the public demo.
         </p>
         <ol className="check-flow" aria-label="How a check works">
-          <li><strong>Expected behaviour</strong><span>A scenario you choose, defined separately from the data.</span></li>
+          <li><strong>Expected behaviour</strong><span>A scenario defined apart from the data.</span></li>
           <li><strong>Recorded result</strong><span>What the system reported.</span></li>
-          <li><strong>Independent checks</strong><span>Each one shows expected and actual values.</span></li>
+          <li><strong>Independent checks</strong><span>Each shows expected and actual values.</span></li>
           <li><strong>Outcome</strong><span>PASS, FAIL or an input error.</span></li>
         </ol>
       </header>
