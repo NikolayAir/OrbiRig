@@ -1576,6 +1576,19 @@ a[target="_blank"] {
  * The 0 minimum in minmax(0, ...) lets columns shrink even when their content is long.
  */
 @media (min-width: 75rem) {
+  /*
+   * Wider fonts wrap the check flow onto a second line. Tighter spacing around the
+   * guidance links and the form panel keeps the action visible at 1440x900.
+   */
+  .workflow-help {
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .workflow-panel {
+    padding-top: 1.5rem;
+  }
+
   .verification-form,
   .inspection-form {
     align-items: start;
