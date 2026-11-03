@@ -240,7 +240,8 @@ for (const viewport of [
         await expect(help.getByRole("link")).toHaveCount(3);
         const browserTabs = help.getByRole("tablist", { name: "Browser instructions" });
         for (const tab of await browserTabs.getByRole("tab").all()) {
-          expect((await tab.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+          // The 2.75rem minimum is exactly 44px; Firefox on Linux can report it 2**-16 px short.
+          expect((await tab.boundingBox())!.height).toBeGreaterThanOrEqual(44 - 0.01);
         }
         await browserTabs.getByRole("tab", { name: "Inspect evidence" }).focus();
         for (const [key, name] of [
