@@ -29,11 +29,12 @@ async function holdResponse(page: Page) {
 }
 
 async function submit(page: Page, workflow: Workflow) {
-  await page.getByRole("button", { name: actionName(workflow), exact: true }).focus();
+  await page.locator("button[type=submit]").focus();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("status")).toHaveText(
     workflow === "verification" ? "Verifying observation…" : "Inspecting evidence…",
   );
+  await expect(page.getByRole("button", { name: workflow === "verification" ? "Verifying…" : "Inspecting…", exact: true })).toBeDisabled();
 }
 
 const completions = [
@@ -64,6 +65,8 @@ for (const example of completions) {
     const status = await page.getByRole("status").elementHandle();
     expect(status).not.toBeNull();
     for (let attempt = 0; attempt < 2; attempt++) {
+      // An unchanged input has nothing new to check, so change it before submitting again.
+      if (attempt > 0) await page.getByLabel(example.workflow === "verification" ? "Observation evidence JSON" : "Evidence JSON", { exact: true }).fill(`${evidence}\n`);
       const release = await holdResponse(page);
       await submit(page, example.workflow);
       release();
@@ -72,6 +75,9 @@ for (const example of completions) {
       await expect(heading).toBeInViewport();
       await expect(heading).toHaveCSS("outline-style", "solid");
       await expect(page.getByRole("status")).toHaveText(example.message);
+      await expect(page.locator("button[type=submit]")).toBeDisabled();
+      await expect(page.locator(".action-status")).toHaveText(example.workflow === "verification" ? "Verification completed."
+        : example.type === "Observation" ? "Inspection completed. Evidence is valid." : "Inspection completed. Evidence is valid. Saved outcome: FAIL.");
       expect(await status!.evaluate((element) => element === document.querySelector('[role="status"]'))).toBe(true);
       await page.unrouteAll({ behavior: "wait" });
     }
@@ -82,7 +88,7 @@ for (const workflow of ["verification", "inspection"] as const) {
   test(`${workflow} also restores focus after pointer submission`, async ({ page }) => {
     await prepare(page, workflow);
     const release = await holdResponse(page);
-    const action = page.getByRole("button", { name: actionName(workflow), exact: true });
+    const action = page.locator("button[type=submit]");
     await action.click();
     await expect(action).toBeDisabled();
     // A repeated click on the pending action does not mean the user moved on.
@@ -156,5 +162,5 @@ test("verification restores focus after Enter in an execution field", async ({ p
   await expect(page.locator(".workflow-feedback h2")).toBeFocused();
   await expect(page.getByRole("status")).toHaveText("Verification completed. Outcome: PASS.");
   await page.keyboard.press(browserName === "webkit" && process.platform === "darwin" ? "Alt+Shift+Tab" : "Shift+Tab");
-  await expect(page.getByRole("button", { name: "Verify observation", exact: true })).toBeFocused();
+  await expect(page.getByLabel("Observation evidence JSON", { exact: true })).toBeFocused();
 });

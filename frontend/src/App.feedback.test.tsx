@@ -245,6 +245,8 @@ describe("App feedback", () => {
       const alert = await screen.findByRole("alert");
       await waitFor(() => expect(alert).toHaveFocus());
       expect(screen.getByRole("status")).toBeEmptyDOMElement();
+      expect(document.querySelector(".action-status")).toBeNull();
+      expect(screen.getByRole("button", { name: workflow === "verification" ? "Verify observation" : "Inspect evidence" })).toBeEnabled();
       await expectFeedbackScroll();
     });
   }

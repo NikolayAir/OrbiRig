@@ -181,7 +181,7 @@ export function VerifiedExecutionDetails({
       <p className="result-description">
         {record.outcome === "PASS"
           ? "The recorded behaviour matches this execution's scenario."
-          : "The recorded behaviour does not meet this execution's scenario expectations. Review the failed checks below."}
+          : "The recorded behaviour does not meet the scenario's expectations. Review the failed checks below."}
       </p>
       <VerifiedExecutionFields record={record} />
     </section>

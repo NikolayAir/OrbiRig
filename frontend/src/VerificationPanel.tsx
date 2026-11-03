@@ -7,10 +7,13 @@ import type { FeedbackTargets } from "./useWorkflowFeedback";
 
 import { FieldHelp } from "./FieldHelp";
 import { VerifiedExecutionDetails } from "./EvidenceDetails";
+import type { ExampleVariant } from "./examples";
 import {
   SUPPORTED_SCENARIOS,
   VERIFICATION_CANCELLED,
+  VERIFICATION_ERROR_GUIDANCE,
   VERIFICATION_ERROR_MESSAGES,
+  VERIFICATION_INPUTS_CHANGED,
 } from "./workflowContent";
 import type {
   ScenarioId,
@@ -32,9 +35,9 @@ type Props = {
   };
   feedback: FeedbackTargets;
   fieldHelp: ReturnType<typeof useVerificationFieldHelp>;
-  requiresConfirmation: boolean;
+  requiresConfirmation: (variant: ExampleVariant) => boolean;
   onInputChange: <Key extends keyof VerificationInputs>(field: Key, value: VerificationInputs[Key]) => void;
-  onLoadExample: () => void;
+  onLoadExample: (variant: ExampleVariant) => void;
   onSubmit: (event: SubmitEvent<HTMLFormElement>) => Promise<void>;
   onCancel: () => void;
 };
@@ -59,6 +62,10 @@ export function VerificationPanel({
     submitRef: verificationSubmitRef,
     cancelRef: verificationCancelRef,
   } = feedback;
+  // A completed result already belongs to these inputs: the same check would repeat it exactly.
+  const completed = verification.kind === "completed";
+  const actionStatus = completed ? "Verification completed."
+    : verification.kind === "dirty" ? VERIFICATION_INPUTS_CHANGED : undefined;
 
   return (<section
     className="workflow-panel"
@@ -73,12 +80,22 @@ export function VerificationPanel({
         description="Provide execution details, select a supported scenario, and submit observation evidence for verification."
         onHelpOpen={fieldHelp.closePinned}
       />
-      <LoadExampleButton
-        description="Replaces current inputs"
-        disabled={verification.kind === "loading"}
-        requiresConfirmation={verificationNeedsConfirmation}
-        onLoad={loadVerificationExample}
-      />
+      <div className="example-actions">
+        <LoadExampleButton
+          description="Replaces current inputs"
+          disabled={verification.kind === "loading"}
+          requiresConfirmation={verificationNeedsConfirmation("passing")}
+          onLoad={() => loadVerificationExample("passing")}
+        />
+        <LoadExampleButton
+          label="Load failing example"
+          tone="negative"
+          description="Telemetry disagrees with the recorded state. Replaces current inputs"
+          disabled={verification.kind === "loading"}
+          requiresConfirmation={verificationNeedsConfirmation("failing")}
+          onLoad={() => loadVerificationExample("failing")}
+        />
+      </div>
     </div>
 
     <form
@@ -100,7 +117,7 @@ export function VerificationPanel({
                 Execution ID
               </label>
               <FieldHelp control={fieldHelp.executionId} label="Execution ID" helpId="execution-id-help-description">
-                A label you provide for this command execution, such as run-001.
+                A label you choose for this recorded command, such as run-001.
                 It is saved with the result.
               </FieldHelp>
             </div>
@@ -252,24 +269,23 @@ export function VerificationPanel({
             ref={verificationSubmitRef}
             type="submit"
             className="primary-action"
-            disabled={verification.kind === "loading"}
+            disabled={verification.kind === "loading" || completed}
+            data-completed={completed || undefined}
+            aria-describedby={actionStatus ? "verification-action-status" : undefined}
           >
-            Verify observation
+            {verification.kind === "loading" ? "Verifying…" : "Verify observation"}
           </button>
           {verification.kind === "loading" && (
             <button ref={verificationCancelRef} type="button" name="cancel-request" className="secondary-action" onClick={cancelVerification}>
               Cancel request
             </button>
           )}
+          {actionStatus && <p className="action-status" id="verification-action-status">{actionStatus}</p>}
         </div>
       </div>
     </form>
 
     <div className="workflow-feedback" ref={verificationFeedbackRef}>
-      {verification.kind === "loading" && (
-        <p className="feedback-progress">Verifying observation…</p>
-      )}
-
       {verification.kind === "cancelled" && (
         <p className="feedback-progress">{VERIFICATION_CANCELLED}</p>
       )}
@@ -277,7 +293,9 @@ export function VerificationPanel({
       {verification.kind === "request-too-large" && <EvidenceRequestSizeError />}
 
       {verification.kind === "validation-failure" && (
-        <RequestError title="Input error">{VERIFICATION_ERROR_MESSAGES[verification.code]}</RequestError>
+        <RequestError title="Input error" guidance={VERIFICATION_ERROR_GUIDANCE[verification.code]}>
+          {VERIFICATION_ERROR_MESSAGES[verification.code]}
+        </RequestError>
       )}
 
       {verification.kind === "network-failure" && (

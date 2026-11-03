@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
 
-export function RequestError({ title, children }: { title: string; children: ReactNode }) {
+export function RequestError({ title, guidance, children }: { title: string; guidance?: string; children: ReactNode }) {
   return (
     <p role="alert" tabIndex={-1}>
       <strong className="feedback-label">{title}</strong>
       <span>{children}</span>
+      {guidance && <small className="feedback-guidance">{guidance}</small>}
     </p>
   );
 }

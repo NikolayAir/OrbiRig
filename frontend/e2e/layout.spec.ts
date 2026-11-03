@@ -32,7 +32,7 @@ for (const viewport of [
     await page.goto("/");
 
     if (viewport.width >= 1280) {
-      const introductionLines = await page.locator(".page-header > p:last-child").evaluate(element => {
+      const introductionLines = await page.locator(".page-header > p:not(.brand):not(.field-hint)").evaluate(element => {
         const range = document.createRange();
         range.selectNodeContents(element);
         return range.getClientRects().length;
@@ -197,7 +197,7 @@ for (const viewport of [
     await observation.focus();
     for (const [name, description] of [
       ["Verified execution", "1 execution with its scenario and checks."],
-      ["Verified execution sequence", "Ordered executions and continuity checks."],
+      ["Verified execution sequence", "Ordered records, each starting where the last ended."],
     ]) {
       await page.keyboard.press("ArrowDown");
       const radio = page.getByRole("radio", { name, exact: true });
@@ -383,6 +383,8 @@ for (const width of [1440, 390, 320]) {
       await expect(help).toHaveAccessibleDescription(
         description,
       );
+      // Measure after scrolling: page content above the panel can place it below the fold.
+      await help.scrollIntoViewIfNeeded();
       const headingBounds = (await heading.boundingBox())!;
       const helpBounds = (await help.boundingBox())!;
       expect(helpBounds.x).toBeGreaterThanOrEqual(headingBounds.x + headingBounds.width);

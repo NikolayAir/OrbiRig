@@ -48,10 +48,10 @@ describe("App help", () => {
       expect(guidance.queryByRole("tabpanel", { name: "Inspect evidence" })).not.toBeInTheDocument();
       expect(guidance.queryByText(/OrbiRig can verify/)).not.toBeInTheDocument();
       expect(guidance.queryByRole("region", { name: "CLI verification command" })).not.toBeInTheDocument();
-      expect(guidance.queryByRole("link")).not.toBeInTheDocument();
+      expect(guidance.getAllByRole("link")).toHaveLength(2);
     } else {
       expect(guidance.getByRole("region", { name: "CLI verification command" })).toBeVisible();
-      expect(guidance.queryByText(/OrbiRig checks command records/)).not.toBeInTheDocument();
+      expect(guidance.queryByText(/OrbiRig checks whether a system/)).not.toBeInTheDocument();
       expect(guidance.queryByRole("list")).not.toBeInTheDocument();
     }
 
@@ -130,7 +130,7 @@ describe("App help", () => {
     fireEvent.click(help.getByRole("tab", { name: otherName }));
     expect(help.getByRole("tabpanel", { name: otherName })).toBeVisible();
     expect(help.queryByRole("tabpanel", { name: selectedName })).not.toBeInTheDocument();
-    expect(help.getAllByRole("list")).toHaveLength(1);
+    expect(help.getAllByRole("list")).toHaveLength(2);
     fireEvent.click(help.getByRole("button", { name: "Close" }));
     fireEvent.click(trigger);
     expect(help.getByRole("tab", { name: selectedName, selected: true })).toBeVisible();
@@ -216,22 +216,22 @@ describe("App help", () => {
     fireEvent.click(screen.getByRole("button", { name: "In the browser" }));
 
     const guidance = within(screen.getByRole("dialog", { name: "How it works" }));
-    const verificationSteps = guidance.getByRole("list");
+    const [verificationSteps] = guidance.getAllByRole("list");
 
     expect(
       within(verificationSteps).getAllByRole("listitem").map((step) => step.textContent?.replace(/\s+/g, " ").trim()),
     ).toEqual([
       "Enter an execution ID and the UTC time of the recorded execution.",
       "Select a scenario describing the expected behaviour, such as switching from NOMINAL to SAFE mode.",
-      "Paste the observation JSON or choose Load example to try a sample.",
+      "Paste the observation JSON, or choose Load example or Load failing example to try a sample.",
       "Choose Verify observation to see the individual checks and overall PASS or FAIL result.",
     ]);
 
-    expect(guidance.getByText(/OrbiRig checks command records/)).toHaveTextContent(
-      "OrbiRig checks command records from simplified spacecraft tests. Each observation includes the command, whether it was accepted, the operating modes before and after execution, and the mode reported in telemetry (recorded status data).",
+    expect(guidance.getByText(/OrbiRig checks whether a system/)).toHaveTextContent(
+      "OrbiRig checks whether a system did what it was asked to do. An observation is one recorded command: the request, whether it was accepted, the system's state before and after, and the state it reported separately (telemetry).",
     );
-    expect(guidance.getByText(/The web interface verifies and inspects submitted records/)).toHaveTextContent(
-      "The web interface verifies and inspects submitted records. It does not connect to a real spacecraft, send spacecraft commands or collect live telemetry.",
+    expect(guidance.getByText(/The examples use a simplified spacecraft/)).toHaveTextContent(
+      "The examples use a simplified spacecraft with 2 operating modes, NOMINAL and SAFE, but the approach suits any system that records what it did. The web interface only checks submitted records. It does not connect to real systems, send commands or collect live data.",
     );
     expect(guidance.getByText(/means the recorded behaviour matches/)).toHaveTextContent(
       "PASS means the recorded behaviour matches the selected scenario. This can include a rejected command if rejection was expected.",
@@ -240,15 +240,15 @@ describe("App help", () => {
       "FAIL means the observation is valid, but the recorded behaviour does not meet the scenario's expectations. Invalid evidence is reported separately as an input error.",
     );
     expect(guidance.getByText(/The scenario defines/)).toHaveTextContent(
-      "The scenario defines what should happen independently of the recorded observation.",
+      "The scenario defines what should happen separately from the recorded data, so a result can never set its own expectations.",
     );
     fireEvent.click(guidance.getByRole("tab", { name: "Inspect evidence" }));
-    const inspectionSteps = guidance.getByRole("list");
+    const [inspectionSteps] = guidance.getAllByRole("list");
     expect(
       within(inspectionSteps).getAllByRole("listitem").map((step) => step.textContent?.replace(/\s+/g, " ").trim()),
     ).toEqual([
       "Select the evidence type: observation, verified execution, or verified-execution sequence.",
-      "Paste its JSON or choose Load example.",
+      "Paste its JSON or load an example. Load altered example shows how changed evidence is rejected.",
       "Choose Inspect evidence to see the recorded values and any saved verification results.",
     ]);
     const observationInspection = guidance.getByText(/Inspecting an observation checks/);
@@ -273,7 +273,7 @@ describe("App help", () => {
       "How it works",
     ]);
     expect(guidance.getByText(/OrbiRig can verify/)).toHaveTextContent(
-      "OrbiRig can verify a saved observation from a terminal, without opening the web interface. It uses the same Python verification core. The command runs locally on your computer and does not execute spacecraft commands or collect observations.",
+      "OrbiRig can verify a saved observation from a terminal, without opening the web interface. It uses the same Python verification core. The command runs locally on your computer and does not execute system commands or collect observations.",
     );
     expect(guidance.getByText(/For this command/)).toHaveTextContent(
       "For this command, select NOMINAL to SAFE in Verify observation, choose Load example, and save the observation JSON to a UTF-8 file named observation.json. From an OrbiRig checkout, run uv sync --locked if needed, then:",
@@ -288,7 +288,7 @@ describe("App help", () => {
     expect(guidance.getByText(/The execution ID and timestamp/)).toHaveTextContent(
       "The execution ID and timestamp above are examples. For recorded executions, use the ID and UTC time recorded for that execution.",
     );
-    expect(guidance.getByRole("link", { name: "CLI setup and full instructions" })).toHaveAttribute(
+    expect(guidance.getByRole("link", { name: /^CLI setup and full instructions/ })).toHaveAttribute(
       "href",
       "https://github.com/NikolayAir/OrbiRig/blob/main/docs/cli.md",
     );
@@ -475,7 +475,7 @@ describe("App help", () => {
 
     const help = screen.getByRole("button", { name: "About Execution ID" });
     const description = screen.getByText(
-      "A label you provide for this command execution, such as run-001. It is saved with the result.",
+      "A label you choose for this recorded command, such as run-001. It is saved with the result.",
     );
     const executionId = screen.getByLabelText("Execution ID");
     const helpContainer = help.parentElement;
@@ -548,4 +548,28 @@ describe("App help", () => {
       expect(document.activeElement).not.toBe(help);
     },
   );
+
+  it.each([
+    ["Verify observation", ["Supported scenarios and checks", "Execution ID and UTC time rules"]],
+    ["Inspect evidence", ["Evidence formats and JSON rules", "How saved evidence is rechecked", "What validation establishes"]],
+  ])("links %s guidance to its documentation without leaving the page", (tab, names) => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "In the browser" }));
+    const guidance = within(screen.getByRole("dialog", { name: "How it works" }));
+    fireEvent.click(guidance.getByRole("tab", { name: tab }));
+    const links = guidance.getAllByRole("link");
+    expect(links.map(link => link.textContent)).toEqual(names.map(name => `${name} (opens in a new tab)`));
+    for (const link of links) {
+      expect(link).toHaveAttribute("target", "_blank");
+      expect(link).toHaveAttribute("rel", "noreferrer");
+    }
+  });
+
+  it("offers the documentation beside the help actions", () => {
+    render(<App />);
+    const section = within(screen.getByRole("region", { name: "How it works" }));
+    expect(section.getByRole("link", { name: /^Documentation/ })).toHaveAttribute(
+      "href", "https://github.com/NikolayAir/OrbiRig#documentation",
+    );
+  });
 });

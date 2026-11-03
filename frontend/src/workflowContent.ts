@@ -31,6 +31,13 @@ export const VERIFICATION_ERROR_MESSAGES: Record<VerificationErrorCode, string> 
     "The observation command does not match the selected scenario.",
 };
 
+// Say what to check next. The server decides validity; this text only guides correction.
+export const VERIFICATION_ERROR_GUIDANCE: Partial<Record<VerificationErrorCode, string>> = {
+  invalid_observation_evidence: "Check that it is complete JSON with every required field and no repeated field names.",
+  invalid_execution_metadata: "Use a non-blank ID and a UTC time such as 2026-08-26T08:30:00Z.",
+  scenario_command_mismatch: "Select the scenario for the recorded command, or correct the evidence.",
+};
+
 export const REQUIRED_VERIFICATION_MESSAGES: Record<
   VerificationRequiredField,
   string
@@ -41,11 +48,43 @@ export const REQUIRED_VERIFICATION_MESSAGES: Record<
   observationEvidence: "Observation evidence is required.",
 };
 
+const REPOSITORY_URL = "https://github.com/NikolayAir/OrbiRig";
+const DOCS_URL = `${REPOSITORY_URL}/blob/main/docs`;
+
+export const LINKS = {
+  source: REPOSITORY_URL,
+  documentation: `${REPOSITORY_URL}#documentation`,
+  cli: `${DOCS_URL}/cli.md`,
+  scenarios: `${DOCS_URL}/verification.md#supported-scenarios`,
+  savedEvidence: `${DOCS_URL}/verification.md#loading-saved-evidence`,
+  evidenceFormats: `${DOCS_URL}/evidence-formats.md`,
+  executionMetadata: `${DOCS_URL}/evidence-formats.md#execution-ids`,
+  validationLimits: `${DOCS_URL}/evidence-formats.md#what-validation-establishes`,
+};
+
 export const DEFAULT_VERIFICATION_SCENARIO: ScenarioId = "nominal_to_safe_mode";
 
 export const VERIFICATION_CANCELLED = "Verification request cancelled. Your inputs are kept.";
 
 export const INSPECTION_CANCELLED = "Inspection request cancelled. Your inputs are kept.";
+
+export const VERIFICATION_INPUTS_CHANGED = "Inputs changed. Verify to check the current values.";
+
+export const INSPECTION_INPUTS_CHANGED = "Inputs changed. Inspect to check the current evidence.";
+
+export function isInspectionComplete(inspection: InspectionState): boolean {
+  return inspection.kind === "valid-observation"
+    || inspection.kind === "valid-verified-execution"
+    || inspection.kind === "valid-verified-execution-sequence";
+}
+
+// "Valid" describes the document, so show the saved outcome beside it: a valid record can still be FAIL.
+export function inspectionCompletedStatus(inspection: InspectionState): string {
+  const completed = "Inspection completed. Evidence is valid.";
+  if (inspection.kind === "valid-verified-execution") return `${completed} Saved outcome: ${inspection.record.outcome}.`;
+  if (inspection.kind === "valid-verified-execution-sequence") return `${completed} Saved outcome: ${inspection.sequence.outcome}.`;
+  return completed;
+}
 
 export function evidenceTypeName(evidenceType: EvidenceType): string {
   if (evidenceType === "observation") {
@@ -59,6 +98,13 @@ export function evidenceTypeName(evidenceType: EvidenceType): string {
 
 export function invalidEvidenceMessage(evidenceType: EvidenceType): string {
   return `The ${evidenceTypeName(evidenceType)} is invalid.`;
+}
+
+export function invalidEvidenceGuidance(evidenceType: EvidenceType): string {
+  const structure = "Check that the selected evidence type matches the document and that it is complete JSON with no repeated field names.";
+  return evidenceType === "observation"
+    ? structure
+    : `${structure} Saved results must also match the checks OrbiRig recomputes.`;
 }
 
 export function inspectionAnnouncement(inspection: InspectionState): string {

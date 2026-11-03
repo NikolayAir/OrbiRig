@@ -1,8 +1,10 @@
 # Web interface
 
-[README](../README.md) · [Verification concepts](verification.md) · [Development checks](../CONTRIBUTING.md)
+[README](../README.md) · [Verification concepts](verification.md) · [Evidence formats](evidence-formats.md) · [Development checks](../CONTRIBUTING.md)
 
 Use the [hosted interface](https://orbirig-evidence-inspector.onrender.com/) to check a recorded command result against a scenario you select, or to reopen and inspect saved JSON evidence. The Python core performs the checks on the server; the browser displays the results and errors. These actions do not execute commands or contact an external target.
+
+JSON is processed on the server. Use synthetic, non-sensitive data in the public demo.
 
 ## Verify an observation
 
@@ -10,17 +12,17 @@ Use the [hosted interface](https://orbirig-evidence-inspector.onrender.com/) to 
 2. Enter an execution ID, UTC execution time and observation JSON, or choose **Load example**.
 3. Choose **Verify observation** to see the recorded values, each check's expected and actual values, and the overall `PASS` or `FAIL`.
 
-**Load example** fills in a sample execution ID, UTC time and observation JSON for the selected scenario. It uses **NOMINAL to SAFE** if none is selected. Choose **Verify observation** to run the checks after loading the example.
+**Load example** fills in a sample execution ID, UTC time and observation JSON for the selected scenario. It uses **NOMINAL to SAFE** if none is selected. **Load failing example** does the same with telemetry that disagrees with the recorded post-state, which produces `FAIL`. Choose **Verify observation** to run the checks after loading an example.
 
 An expected command rejection can pass. Invalid input, including a command incompatible with the selected scenario, produces an error rather than a completed `FAIL` result. See [supported scenarios](verification.md#supported-scenarios) and the rules for [execution IDs and timestamps](evidence-formats.md#execution-ids).
 
-![OrbiRig v0.9.0 interface showing the verification form and a PASS result](images/orbirig-web-verification-v0.9.0.png)
+![OrbiRig interface showing the verification form and a PASS result](images/orbirig-web-interface.png)
 
-*OrbiRig v0.9.0 after verifying the NOMINAL-to-SAFE example.*
+*The interface after verifying the NOMINAL-to-SAFE example.*
 
 ## Inspect evidence
 
-Choose **Inspect evidence**, select its type and paste saved JSON or choose **Load example**. Then choose **Inspect evidence**.
+Choose **Inspect evidence**, select its type and paste saved JSON or load an example. Then choose **Inspect evidence**. **Load example** provides valid evidence. For verified types, **Load failing example** provides valid evidence with a `FAIL` outcome; the sequence example fails continuity while each record passes. For sequences, **Load long sequence** provides 100 records with a `FAIL` outcome, which shows page controls and the failure filter. **Load altered example** provides evidence that is rejected: a repeated field name for an observation, and saved checks that no longer match the data for verified types.
 
 | Type | What inspection shows and checks |
 | --- | --- |
@@ -34,13 +36,17 @@ Sequences show up to 25 compact member summaries per page, with their original m
 
 The sequence outcome and totals for members and continuity checks marked `FAIL` cover the complete document. **Show failures and related records** finds members marked `FAIL` and both members of each continuity check marked `FAIL` across the whole sequence. Continuity checks keep their original links, including links to the next page; filtering does not reconnect records. When more than 1 page is needed, page controls appear above and below the records. Changing the page brings the records heading into view and closes all details; changing the filter also closes details and returns to the first page. Switching between verification and inspection keeps the page, filter and open details. Submitting a new inspection returns to the first page with the filter off and all details closed.
 
-If loading an example would replace your edits, the interface asks for confirmation. Choosing **Cancel** in that dialog keeps your current inputs.
+If loading an example would replace your edits, the interface asks for confirmation. Choosing **Cancel** in that dialog keeps your current inputs. Reloading an example with exactly the same current inputs keeps a completed result; loading different values clears it and shows the same reminder as editing.
 
-Completed results and request errors receive keyboard focus and are brought into view. A short status message announces completed verification or inspection. If you move to another control, switch between verification and inspection or open the help dialog while a request is pending, its response does not move focus or scroll the page.
+Invalid input errors add a short suggestion of what to check. Python still decides whether input is valid. Completed results and request errors receive keyboard focus and are brought into view. A short status message announces completed verification or inspection. If you move to another control, switch between verification and inspection or open the help dialog while a request is pending, its response does not move focus or scroll the page.
+
+The submission button shows **Verifying…** or **Inspecting…** while a request is pending. After a result, a completion message appears beside the button on wide screens and below it on narrower ones. The button then stays unavailable until an input changes, because the same inputs give the same result. It remains available after a cancelled request, an input error or a request failure. Completion is separate from the verification outcome: both `PASS` and `FAIL` are completed results. Successful inspection confirms that the evidence is valid, meaning its format is correct and any saved results match the recomputed ones. Observation inspection has no verification outcome; for saved verified evidence, the completion message also states the saved `PASS` or `FAIL` outcome, because valid evidence can record a `FAIL`.
+
+Editing any input after a result clears that result and shows an inline reminder to verify or inspect the current values. Restoring the previous text or selection still requires a new request. If a repeated request is cancelled or fails, the next edit shows the reminder again until a new result completes. The reminder is announced once on the first edit without moving focus. Verification and inspection retain their own inputs and states when you switch between them. Empty required fields are reported beside the field without sending a request: verification lists each missing input and focuses the first, and empty or whitespace-only inspection JSON produces **Evidence JSON is required.** and focuses the field.
 
 While either request is pending, **Cancel request** stops waiting in the browser and keeps the current inputs and selection. Focus returns to the submission button so you can edit or retry. Cancellation produces no verification outcome. The server may already have completed the check; late responses from cancelled requests are ignored, including after a retry.
 
-**How it works** provides browser and command-line instructions. Browser guidance covers verification and inspection; command-line guidance explains local CLI use and exit codes.
+**How it works** provides browser and command-line instructions. Browser guidance covers verification and inspection, with links to the relevant scenario, evidence-format and validation documentation; command-line guidance explains local CLI use and exit codes. **Documentation** beside these controls opens the guide index. Documentation and source links open in a new tab so your current inputs and results stay in place.
 
 ## Run locally
 

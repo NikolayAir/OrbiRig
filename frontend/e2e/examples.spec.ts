@@ -1,5 +1,43 @@
 import { expect, test } from "@playwright/test";
 
+for (const inspection of [false, true]) {
+  test(`${inspection ? "inspection" : "verification"} keeps a result when reloading identical inputs without restoring a result cleared by editing`, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/");
+    if (inspection) await page.getByRole("button", { name: "Show Inspect evidence" }).click();
+    const load = page.getByRole("button", { name: "Load example", exact: true });
+    await load.click();
+    let requests = 0;
+    page.on("request", request => { if (new URL(request.url()).pathname.startsWith("/api/")) requests++; });
+    await page.getByRole("button", { name: inspection ? "Inspect evidence" : "Verify observation", exact: true }).click();
+    const result = page.getByRole("region", { name: inspection ? "Observation details" : "Verified execution", exact: true });
+    await expect(result).toBeVisible();
+    if (inspection) await expect(page.getByLabel(/Verification outcome:/)).toHaveCount(0);
+    else await expect(result.getByLabel("Verification outcome: PASS", { exact: true })).toBeVisible();
+
+    await load.focus();
+    await page.keyboard.press("Enter");
+    await expect(result).toBeVisible();
+    await expect(load).toBeFocused();
+    await expect(page.locator(".action-status")).toHaveText(inspection ? "Inspection completed. Evidence is valid." : "Verification completed.");
+    await expect(page.getByRole("status")).toBeEmpty();
+
+    const field = page.getByLabel(inspection ? "Evidence JSON" : "Execution ID", { exact: true });
+    const original = await field.inputValue();
+    await field.fill(`${original} `);
+    await field.fill(original);
+    await load.focus();
+    await page.keyboard.press("Enter");
+    await expect(result).toHaveCount(0);
+    await expect(load).toBeFocused();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page.locator(".action-status")).toHaveText(inspection
+      ? "Inputs changed. Inspect to check the current evidence."
+      : "Inputs changed. Verify to check the current values.");
+    expect(requests).toBe(1);
+  });
+}
+
 test("example tooltips leave touch taps at the button edge usable", async ({ browser, baseURL }) => {
   const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 }, hasTouch: true });
   try {
@@ -46,8 +84,12 @@ for (const width of [1440, 320]) {
       await expect(hint).toBeHidden();
 
       await page.mouse.move(0, 0);
+      // Header text can leave the button at the viewport edge. A pointer below the
+      // viewport cannot reliably keep hover, so keep the whole path inside it.
+      await trigger.evaluate(element => element.scrollIntoView({ block: "center" }));
       await trigger.hover();
       await expect(hint).toBeVisible();
+      await expect(hint).toBeInViewport({ ratio: 1 });
       const hintBounds = (await hint.boundingBox())!;
       await page.mouse.move(hintBounds.x + hintBounds.width / 2, hintBounds.y + hintBounds.height / 2, { steps: 12 });
       await expect(hint).toBeVisible();

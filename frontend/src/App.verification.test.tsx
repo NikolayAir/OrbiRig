@@ -18,7 +18,7 @@ describe("App verification", () => {
     render(<App />);
 
     const heading = screen.getByRole("heading", {
-      name: "Verify observations and inspect evidence",
+      name: "Check what a system reported against what it should have done",
       level: 1,
     });
     const header = heading.closest("header")!;
@@ -37,10 +37,10 @@ describe("App verification", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Check recorded behaviour from simplified spacecraft tests/,
+        /OrbiRig compares recorded command results/,
       ),
     ).toHaveTextContent(
-      "Check recorded behaviour from simplified spacecraft tests against a selected scenario, or inspect saved evidence.",
+      "OrbiRig compares recorded command results with a scenario you choose and recomputes saved results instead of trusting them.",
     );
 
     const verificationChoice = screen.getByRole("button", {
@@ -231,7 +231,7 @@ describe("App verification", () => {
       within(record).getByLabelText("Verification outcome: FAIL"),
     ).toBeInTheDocument();
     expect(within(record).getAllByText("FAIL")).toHaveLength(2);
-    expect(within(record).getByText("The recorded behaviour does not meet this execution's scenario expectations. Review the failed checks below.")).toBeVisible();
+    expect(within(record).getByText("The recorded behaviour does not meet the scenario's expectations. Review the failed checks below.")).toBeVisible();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
@@ -278,6 +278,23 @@ describe("App verification", () => {
     expect(
       screen.queryByRole("region", { name: "Verified execution" }),
     ).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["invalid_observation_evidence", "Check that it is complete JSON with every required field and no repeated field names."],
+    ["invalid_execution_metadata", "Use a non-blank ID and a UTC time such as 2026-08-26T08:30:00Z."],
+    ["scenario_command_mismatch", "Select the scenario for the recorded command, or correct the evidence."],
+  ])("explains what to check after %s", async (code, guidance) => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 422,
+      json: async () => ({ detail: { code, message: "server message" } }),
+    });
+
+    submitVerification();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(guidance);
+    expect(screen.queryByText("server message")).not.toBeInTheDocument();
   });
 
   it("keeps network failure separate from validation", async () => {

@@ -1,5 +1,7 @@
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 
+import { DocLink } from "./DocLink";
+import { LINKS } from "./workflowContent";
 import type { Workflow } from "./workflowTypes";
 
 type HelpSection = "browser" | "cli";
@@ -174,6 +176,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
         >
           From the command line
         </button>
+        <DocLink href={LINKS.documentation} className="workflow-help-trigger">Documentation</DocLink>
       </div>
       <dialog
         ref={dialogRef}
@@ -273,15 +276,15 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
           {section === "browser" && (
             <>
               <p>
-                OrbiRig checks command records from simplified spacecraft tests.
-                Each observation includes the command, whether it was accepted,
-                the operating modes before and after execution, and the mode reported in
-                telemetry (recorded status data).
+                OrbiRig checks whether a system did what it was asked to do. An observation
+                is one recorded command: the request, whether it was accepted, the system's
+                state before and after, and the state it reported separately (telemetry).
               </p>
               <p>
-                The web interface verifies and inspects submitted records. It does not
-                connect to a real spacecraft, send spacecraft commands or collect live
-                telemetry.
+                The examples use a simplified spacecraft with 2 operating modes, NOMINAL
+                and SAFE, but the approach suits any system that records what it did. The web
+                interface only checks submitted records. It does not connect to real systems,
+                send commands or collect live data.
               </p>
 
               <div
@@ -332,8 +335,8 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                     from NOMINAL to SAFE mode.
                   </li>
                   <li>
-                    Paste the observation JSON or choose <strong>Load example</strong> to
-                    try a sample.
+                    Paste the observation JSON, or choose <strong>Load example</strong> or{" "}
+                    <strong>Load failing example</strong> to try a sample.
                   </li>
                   <li>
                     Choose <strong>Verify observation</strong> to see the individual checks
@@ -350,9 +353,19 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                   reported separately as an input error.
                 </p>
                 <p>
-                  The scenario defines what should happen independently of the recorded
-                  observation.
+                  The scenario defines what should happen separately from the recorded data,
+                  so a result can never set its own expectations.
                 </p>
+                <p>
+                  Both <strong>PASS</strong> and <strong>FAIL</strong> are completed results.
+                  The same inputs always give the same result, so <strong>Verify observation</strong> stays
+                  unavailable until you change an input. Editing any input clears the result
+                  and prompts you to check the current values.
+                </p>
+                <ul className="workflow-help-links">
+                  <li><DocLink href={LINKS.scenarios}>Supported scenarios and checks</DocLink></li>
+                  <li><DocLink href={LINKS.executionMetadata}>Execution ID and UTC time rules</DocLink></li>
+                </ul>
               </div>
               <div
                 className="workflow-help-instructions"
@@ -368,7 +381,8 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                     verified-execution sequence.
                   </li>
                   <li>
-                    Paste its JSON or choose <strong>Load example</strong>.
+                    Paste its JSON or load an example. <strong>Load altered example</strong> shows
+                    how changed evidence is rejected.
                   </li>
                   <li>
                     Choose <strong>Inspect evidence</strong> to see the recorded values
@@ -386,6 +400,16 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                   the saved order. A record with a <strong>FAIL</strong> outcome can still be
                   inspected when these results match.
                 </p>
+                <p>
+                  The same evidence always gives the same result, so <strong>Inspect evidence</strong> stays
+                  unavailable until you change the JSON or evidence type. Changing either
+                  clears the result and prompts you to inspect the current evidence.
+                </p>
+                <ul className="workflow-help-links">
+                  <li><DocLink href={LINKS.evidenceFormats}>Evidence formats and JSON rules</DocLink></li>
+                  <li><DocLink href={LINKS.savedEvidence}>How saved evidence is rechecked</DocLink></li>
+                  <li><DocLink href={LINKS.validationLimits}>What validation establishes</DocLink></li>
+                </ul>
               </div>
             </>
           )}
@@ -405,7 +429,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                 OrbiRig can verify a saved observation from a terminal, without
                 opening the web interface. It uses the same Python verification core.
                 The command runs locally on your computer and does not execute
-                spacecraft commands or collect observations.
+                system commands or collect observations.
               </p>
               <p>
                 For this command, select <strong>NOMINAL to SAFE</strong> in{" "}
@@ -437,9 +461,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                 errors <span className="keep-together">return <code>4</code></span>.
               </p>
               <p>
-                <a href="https://github.com/NikolayAir/OrbiRig/blob/main/docs/cli.md">
-                  CLI setup and full instructions
-                </a>
+                <DocLink href={LINKS.cli}>CLI setup and full instructions</DocLink>
               </p>
             </>
           )}

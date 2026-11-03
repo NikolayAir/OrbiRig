@@ -1,8 +1,9 @@
-import type { Dispatch, SetStateAction, SubmitEvent } from "react";
+import type { Dispatch, RefObject, SetStateAction, SubmitEvent } from "react";
 import { WorkflowTitle } from "./WorkflowTitle";
 import { LoadExampleButton } from "./LoadExampleButton";
+import type { InspectionExampleVariant } from "./examples";
 import { EvidenceRequestSizeError, RequestError } from "./RequestFeedback";
-import { preventRepeatedRequestAction } from "./formHelpers";
+import { describedBy, preventRepeatedRequestAction } from "./formHelpers";
 import type { FeedbackTargets } from "./useWorkflowFeedback";
 
 import {
@@ -11,26 +12,29 @@ import {
   VerifiedExecutionSequenceDetails,
   type SequenceView,
 } from "./EvidenceDetails";
-import { INSPECTION_CANCELLED, invalidEvidenceMessage } from "./workflowContent";
+import { INSPECTION_CANCELLED, INSPECTION_INPUTS_CHANGED, inspectionCompletedStatus, invalidEvidenceGuidance, invalidEvidenceMessage, isInspectionComplete } from "./workflowContent";
 import type { EvidenceType, InspectionState } from "./workflowTypes";
 
 type Props = {
   evidenceType: EvidenceType;
   evidence: string;
   state: InspectionState;
+  requiredError: boolean;
+  evidenceInputRef: RefObject<HTMLTextAreaElement | null>;
   sequenceView: SequenceView;
   onSequenceViewChange: Dispatch<SetStateAction<SequenceView>>;
   feedback: FeedbackTargets;
-  requiresConfirmation: boolean;
+  requiresConfirmation: (variant: InspectionExampleVariant) => boolean;
   onEvidenceTypeChange: (type: EvidenceType) => void;
   onEvidenceChange: (value: string) => void;
-  onLoadExample: () => void;
+  onLoadExample: (variant: InspectionExampleVariant) => void;
   onSubmit: (event: SubmitEvent<HTMLFormElement>) => Promise<void>;
   onCancel: () => void;
 };
 
 export function InspectionPanel({
   evidenceType, evidence, state: inspection,
+  requiredError, evidenceInputRef,
   sequenceView, onSequenceViewChange,
   feedback,
   requiresConfirmation, onEvidenceTypeChange: selectEvidenceType, onEvidenceChange,
@@ -41,6 +45,9 @@ export function InspectionPanel({
     submitRef: inspectionSubmitRef,
     cancelRef: inspectionCancelRef,
   } = feedback;
+  const completed = isInspectionComplete(inspection);
+  const actionStatus = completed ? inspectionCompletedStatus(inspection)
+    : inspection.kind === "dirty" ? INSPECTION_INPUTS_CHANGED : undefined;
 
   return (<section
     className="workflow-panel"
@@ -54,15 +61,49 @@ export function InspectionPanel({
         title="Inspect evidence"
         description="Select an evidence type and paste its JSON to see the recorded values and any saved verification results."
       />
-      <LoadExampleButton
-        description="Replaces evidence JSON"
-        disabled={inspection.kind === "loading"}
-        requiresConfirmation={requiresConfirmation}
-        onLoad={loadInspectionExample}
-      />
+      <div className="example-actions">
+        <LoadExampleButton
+          description="Replaces evidence JSON"
+          disabled={inspection.kind === "loading"}
+          requiresConfirmation={requiresConfirmation("passing")}
+          onLoad={() => loadInspectionExample("passing")}
+        />
+        {evidenceType === "verified-execution-sequence" && (
+          <LoadExampleButton
+            label="Load long sequence"
+            tone="negative"
+            description="100 records across 4 pages, with failures to find. Replaces evidence JSON"
+            disabled={inspection.kind === "loading"}
+            requiresConfirmation={requiresConfirmation("long")}
+            onLoad={() => loadInspectionExample("long")}
+          />
+        )}
+        {evidenceType !== "observation" && (
+          <LoadExampleButton
+            label="Load failing example"
+            tone="negative"
+            description={`${evidenceType === "verified-execution"
+              ? "Valid saved evidence with a FAIL outcome."
+              : "Each record passes, but the next one starts in a different state."} Replaces evidence JSON`}
+            disabled={inspection.kind === "loading"}
+            requiresConfirmation={requiresConfirmation("failing")}
+            onLoad={() => loadInspectionExample("failing")}
+          />
+        )}
+        <LoadExampleButton
+          label="Load altered example"
+          tone="negative"
+          description={`${evidenceType === "observation"
+            ? "Repeats a field name, so the evidence is rejected."
+            : "Saved checks no longer match the data, so recomputing rejects it."} Replaces evidence JSON`}
+          disabled={inspection.kind === "loading"}
+          requiresConfirmation={requiresConfirmation("altered")}
+          onLoad={() => loadInspectionExample("altered")}
+        />
+      </div>
     </div>
 
-    <form className="inspection-form" onKeyDown={preventRepeatedRequestAction} onSubmit={inspectEvidence}>
+    <form className="inspection-form" noValidate onKeyDown={preventRepeatedRequestAction} onSubmit={inspectEvidence}>
       <fieldset
         className="evidence-types"
         disabled={inspection.kind === "loading"}
@@ -112,7 +153,7 @@ export function InspectionPanel({
           />
           <span>
             <span id="sequence-type-label">Verified execution sequence</span>
-            <small id="sequence-type-description">Ordered executions and continuity checks.</small>
+            <small id="sequence-type-description">Ordered records, each starting where the last ended.</small>
           </span>
         </label>
       </fieldset>
@@ -126,37 +167,40 @@ export function InspectionPanel({
           <textarea
             id="evidence"
             name="evidence"
-            aria-describedby="inspection-evidence-hint"
+            ref={evidenceInputRef}
+            aria-describedby={describedBy("inspection-evidence-hint", requiredError ? "inspection-evidence-error" : undefined)}
+            aria-invalid={requiredError ? true : undefined}
             value={evidence}
             onChange={(event) => onEvidenceChange(event.target.value)}
             disabled={inspection.kind === "loading"}
             spellCheck={false}
             rows={7}
+            required
           />
+          {requiredError && <p className="field-error" id="inspection-evidence-error" role="alert">Evidence JSON is required.</p>}
         </div>
         <div className="form-actions">
           <button
             ref={inspectionSubmitRef}
             type="submit"
             className="primary-action"
-            disabled={inspection.kind === "loading"}
+            disabled={inspection.kind === "loading" || completed}
+            data-completed={completed || undefined}
+            aria-describedby={actionStatus ? "inspection-action-status" : undefined}
           >
-            Inspect evidence
+            {inspection.kind === "loading" ? "Inspecting…" : "Inspect evidence"}
           </button>
           {inspection.kind === "loading" && (
             <button ref={inspectionCancelRef} type="button" name="cancel-request" className="secondary-action" onClick={cancelInspection}>
               Cancel request
             </button>
           )}
+          {actionStatus && <p className="action-status" id="inspection-action-status">{actionStatus}</p>}
         </div>
       </div>
     </form>
 
     <div className="workflow-feedback" ref={inspectionFeedbackRef}>
-      {inspection.kind === "loading" && (
-        <p className="feedback-progress">Inspecting evidence…</p>
-      )}
-
       {inspection.kind === "cancelled" && (
         <p className="feedback-progress">{INSPECTION_CANCELLED}</p>
       )}
@@ -164,7 +208,9 @@ export function InspectionPanel({
       {inspection.kind === "request-too-large" && <EvidenceRequestSizeError />}
 
       {inspection.kind === "invalid" && (
-        <RequestError title="Invalid evidence">{invalidEvidenceMessage(inspection.evidenceType)}</RequestError>
+        <RequestError title="Invalid evidence" guidance={invalidEvidenceGuidance(inspection.evidenceType)}>
+          {invalidEvidenceMessage(inspection.evidenceType)}
+        </RequestError>
       )}
 
       {inspection.kind === "transport-failure" && (

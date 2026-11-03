@@ -89,16 +89,59 @@ h2 {
   margin: 0;
 }
 
-.page-header > p:last-child,
+.page-header > .field-hint,
 .workflow-heading p {
   color: var(--muted);
   line-height: 1.5;
   margin: 0.5rem 0 0;
 }
 
-.page-header > p:last-child {
+.page-header > .field-hint {
   line-height: 1.6;
   margin: 0;
+}
+
+/* The arrows are decorative: the numbered list already gives the order to assistive technology. */
+.check-flow {
+  display: grid;
+  gap: 0.5rem 1.75rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+}
+
+.check-flow li {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.625rem 0.75rem;
+  position: relative;
+}
+
+.check-flow li:not(:last-child)::after {
+  color: var(--muted);
+  content: "→";
+  font-size: 1rem;
+  left: 100%;
+  position: absolute;
+  text-align: center;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1.75rem;
+}
+
+.check-flow strong {
+  color: var(--heading);
+  font-size: 0.875rem;
+}
+
+.check-flow span {
+  color: var(--muted);
+  font-size: 0.8125rem;
+  line-height: 1.4;
 }
 
 .workflow-help {
@@ -135,6 +178,13 @@ h2 {
   text-align: left;
   text-decoration: underline;
   text-underline-offset: 0.25em;
+}
+
+a.workflow-help-trigger {
+  align-items: center;
+  box-sizing: border-box;
+  display: inline-flex;
+  font-weight: 650;
 }
 
 .workflow-help-trigger:hover {
@@ -356,6 +406,14 @@ h2 {
   text-underline-offset: 0.2em;
 }
 
+.workflow-help-links {
+  display: grid;
+  gap: 0.25rem;
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+}
+
 .workflow-help-content a:hover {
   color: var(--accent-strong);
 }
@@ -374,7 +432,9 @@ h2 {
 }
 
 .workflow-help-command:focus-visible,
-.workflow-help-content a:focus-visible {
+.workflow-help-content a:focus-visible,
+.workflow-help-actions a:focus-visible,
+.page-footer a:focus-visible {
   box-shadow: var(--focus-ring);
   outline: 1px solid var(--focus-edge);
   outline-offset: 4px;
@@ -532,6 +592,21 @@ button {
   font-size: 0.9375rem;
   line-height: 1.6;
   max-width: 66ch;
+}
+
+.example-actions {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+/* Keep an open tooltip above the neighbouring example button. */
+.example-action:hover,
+.example-action:focus-within {
+  z-index: 3;
 }
 
 .example-action {
@@ -831,12 +906,20 @@ textarea[aria-invalid="true"] {
 }
 
 .form-actions {
+  align-items: center;
   border-top: 1px solid var(--line);
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
   margin-top: 1.5rem;
   padding-top: 1.25rem;
+}
+
+.action-status {
+  color: var(--muted);
+  flex-basis: 100%;
+  font-size: 0.9375rem;
+  margin: 0;
 }
 
 /* Solid blue gives submission more emphasis than the pale secondary actions. */
@@ -847,6 +930,15 @@ textarea[aria-invalid="true"] {
   border-radius: 0.5rem;
   min-height: 2.875rem;
   padding: 0.8rem 1.25rem;
+}
+
+/* Unlike a pending request, a checked result has nothing to wait for. */
+.form-actions .primary-action[data-completed] {
+  background: #dfe6eb;
+  box-shadow: none;
+  color: #4d6272;
+  cursor: not-allowed;
+  opacity: 1;
 }
 
 /* Focus moves between Submit and Cancel in code, including after pointer submission. */
@@ -885,6 +977,23 @@ textarea[aria-invalid="true"] {
 .secondary-action:active:not(:disabled) {
   background: #e1ebf1;
   border-color: var(--accent);
+}
+
+/* Match the FAIL palette on examples that lead to a FAIL outcome or rejected evidence. */
+.secondary-action[data-tone="negative"] {
+  background: var(--negative-soft);
+  border-color: #dfb3a6;
+  color: var(--negative);
+}
+
+.secondary-action[data-tone="negative"]:hover:not(:disabled) {
+  background: #ffe9e2;
+  border-color: var(--negative);
+}
+
+.secondary-action[data-tone="negative"]:active:not(:disabled) {
+  background: #fbdcd2;
+  border-color: var(--negative);
 }
 
 button:disabled {
@@ -980,6 +1089,43 @@ button:disabled {
   margin-bottom: 0.35rem;
 }
 
+.page-footer {
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.875rem;
+  gap: 0.5rem 1.5rem;
+  justify-content: space-between;
+  margin-top: 2rem;
+  padding-top: 1rem;
+}
+
+.page-footer a {
+  color: var(--accent);
+  text-underline-offset: 0.2em;
+}
+
+.page-footer a:hover {
+  color: var(--accent-strong);
+}
+
+.page-footer p {
+  margin: 0;
+}
+
+.page-footer > p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+
+.feedback-guidance {
+  display: block;
+  font-size: 0.9375rem;
+  margin-top: 0.35rem;
+}
+
 .workflow-feedback > section {
   background: transparent;
   border: 0;
@@ -1000,11 +1146,19 @@ button:disabled {
 
 .result-heading {
   align-items: flex-start;
+  flex-wrap: wrap;
   margin-bottom: 1rem;
 }
 
+/* Move the outcome below the title rather than squeezing the title to one letter per line. */
 .result-heading > div {
+  flex: 1 1 10rem;
   min-width: 0;
+}
+
+/* Keep the focus outline around the title rather than the wider column. */
+.result-heading h2 {
+  width: fit-content;
 }
 
 .result-context {
@@ -1385,6 +1539,11 @@ dd {
 }
 
 /* Keep progress/completion announcements available to assistive technology without taking layout space. */
+/* Keep hidden text inside the link so WebKit does not scroll help to a distant position on focus. */
+a[target="_blank"] {
+  position: relative;
+}
+
 .visually-hidden {
   clip: rect(0, 0, 0, 0);
   height: 1px;
@@ -1417,6 +1576,19 @@ dd {
  * The 0 minimum in minmax(0, ...) lets columns shrink even when their content is long.
  */
 @media (min-width: 75rem) {
+  /*
+   * Wider fonts wrap the check flow onto a second line. Tighter spacing around the
+   * guidance links and the form panel keeps the action visible at 1440x900.
+   */
+  .workflow-help {
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .workflow-panel {
+    padding-top: 1.5rem;
+  }
+
   .verification-form,
   .inspection-form {
     align-items: start;
@@ -1447,6 +1619,13 @@ dd {
     justify-content: flex-end;
     margin-top: 1rem;
     padding: 0;
+  }
+
+  /* Keep the status beside the action so wide layouts stay shorter. */
+  .action-status {
+    flex: 1 1 0;
+    order: -1;
+    text-align: right;
   }
 }
 
@@ -1495,6 +1674,40 @@ dd {
     gap: 1rem;
   }
 
+  .example-actions {
+    justify-content: flex-start;
+  }
+
+  /* Plain titles keep the form close to the top and do not look like buttons. */
+  .check-flow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.125rem 0.375rem;
+    margin-top: 0.75rem;
+  }
+
+  .check-flow li {
+    background: none;
+    border: 0;
+    display: block;
+    padding: 0;
+  }
+
+  .check-flow li:not(:last-child)::after {
+    margin-left: 0.375rem;
+    position: static;
+    transform: none;
+    width: auto;
+  }
+
+  .check-flow strong {
+    font-weight: 600;
+  }
+
+  .check-flow span {
+    display: none;
+  }
+
   .example-action {
     align-items: flex-start;
   }
@@ -1505,6 +1718,8 @@ dd {
   }
 
   .form-actions .primary-action {
+    /* Enlarged text needs the width: a wide font can split a label mid-word. */
+    padding-inline: 0.25rem;
     width: 100%;
   }
 

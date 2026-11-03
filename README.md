@@ -1,8 +1,8 @@
 # OrbiRig
 
-OrbiRig is a software tool for checking recorded command results against the expected behaviour of a scenario you select. It supports 3 scenarios and shows the expected and reported values for each check, with an overall `PASS` or `FAIL`.
+OrbiRig is a software tool for checking recorded command results against the expected behaviour of a scenario you select. It supports 3 scenarios and shows the expected and actual values for each check, with an overall `PASS` or `FAIL`.
 
-The scenarios use a simplified spacecraft model with 2 operating modes: `NOMINAL` (normal operation) and `SAFE` (a protective mode). OrbiRig checks the mode before and after a command, its acknowledgement (whether it was accepted or rejected), and telemetry (the separately reported mode). This is a non-operational verification harness; it does not control a real spacecraft.
+The scenarios use a simplified spacecraft model with 2 operating modes: `NOMINAL` (normal operation) and `SAFE` (a protective mode). OrbiRig checks the mode before and after a command, its acknowledgement (whether it was accepted or rejected), and telemetry (the separately reported mode). This is a non-operational verification harness; it does not control a real spacecraft. The spacecraft model is the example domain: the approach of defining expectations separately, then checking reported results and saved evidence against them, applies to any system that records what it did.
 
 Choose how to use it:
 
@@ -18,7 +18,8 @@ Choose how to use it:
 
 1. Open the [web interface](https://orbirig-evidence-inspector.onrender.com/) and choose **Verify observation**.
 2. Choose **Load example**, then **Verify observation**.
-3. Inspect the expected and observed values. The default example records an accepted change from `NOMINAL` to `SAFE` and produces `PASS`.
+3. Inspect the expected and actual values. The default example records an accepted change from `NOMINAL` to `SAFE` and produces `PASS`.
+4. Choose **Load failing example**, then **Verify observation**, to see a mismatch produce `FAIL`.
 
 To explore saved records, choose **Inspect evidence**, select an evidence type, load its example and choose **Inspect evidence**.
 
@@ -81,7 +82,7 @@ The Python API can execute a command and collect an observation from the include
 
 [Tests](CONTRIBUTING.md#python-checks) include deliberately incorrect observations and [browser-to-Python checks](CONTRIBUTING.md#browser-tests) with independently defined expected results.
 
-Each verification check, called an **invariant**, retains the expected value, observed value and whether they match:
+Each verification check, called an **invariant**, retains the expected value, actual value and whether they match:
 
 | Check | What it establishes |
 | --- | --- |

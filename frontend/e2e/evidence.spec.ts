@@ -79,7 +79,7 @@ test.beforeEach(async ({ page }) => {
 test("page identity loads the product mark alongside its name", async ({ page }) => {
   await expect(page.locator(".brand")).toHaveText("OrbiRig");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "Verify observations and inspect evidence",
+    "Check what a system reported against what it should have done",
   );
   const mark = page.locator(".brand img");
   await expect(mark).toHaveAttribute("alt", "");
@@ -226,8 +226,8 @@ for (const viewport of [
       await page.mouse.click(bounds.x + 1, bounds.y + 1);
       await expect(help).toBeVisible();
       if (guide === "In the browser") {
-        const webScope = help.getByText(/The web interface verifies and inspects submitted records/);
-        await expect(webScope).toHaveText("The web interface verifies and inspects submitted records. It does not connect to a real spacecraft, send spacecraft commands or collect live telemetry.");
+        const webScope = help.getByText(/The examples use a simplified spacecraft/);
+        await expect(webScope).toHaveText("The examples use a simplified spacecraft with 2 operating modes, NOMINAL and SAFE, but the approach suits any system that records what it did. The web interface only checks submitted records. It does not connect to real systems, send commands or collect live data.");
         await webScope.scrollIntoViewIfNeeded();
         await expect(webScope).toBeInViewport();
         await expect(help.getByRole("tab", { name: "Verify observation", selected: true })).toBeVisible();
@@ -237,10 +237,11 @@ for (const viewport of [
         await expect(help.getByRole("tabpanel", { name: "Inspect evidence" })).toBeVisible();
         await expect(help.getByRole("region", { name: "CLI verification command" })).toHaveCount(0);
         await expect(help.getByText(/OrbiRig can verify/)).toHaveCount(0);
-        await expect(help.getByRole("link")).toHaveCount(0);
+        await expect(help.getByRole("link")).toHaveCount(3);
         const browserTabs = help.getByRole("tablist", { name: "Browser instructions" });
         for (const tab of await browserTabs.getByRole("tab").all()) {
-          expect((await tab.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+          // The 2.75rem minimum is exactly 44px; Firefox on Linux can report it 2**-16 px short.
+          expect((await tab.boundingBox())!.height).toBeGreaterThanOrEqual(44 - 0.01);
         }
         await browserTabs.getByRole("tab", { name: "Inspect evidence" }).focus();
         for (const [key, name] of [
@@ -266,7 +267,7 @@ for (const viewport of [
       } else {
         await expect(help.getByRole("heading", { name: "Verify observation" })).toHaveCount(0);
         await expect(help.getByRole("heading", { name: "Inspect evidence" })).toHaveCount(0);
-        await expect(help.getByText(/OrbiRig checks command records/)).toHaveCount(0);
+        await expect(help.getByText(/OrbiRig checks whether a system/)).toHaveCount(0);
 
         if (viewport.width === 1280) {
           const lastCodeOffset = await help.getByText(/The command prints JSON evidence/)

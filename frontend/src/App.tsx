@@ -1,15 +1,16 @@
 import { type SubmitEvent, useRef, useState } from "react";
+import { DocLink } from "./DocLink";
 import { WorkflowHelp } from "./WorkflowHelp";
 import { VerificationPanel } from "./VerificationPanel";
 import { InspectionPanel } from "./InspectionPanel";
 import type { SequenceView } from "./EvidenceDetails";
-import { INSPECTION_EXAMPLES, VERIFICATION_EXAMPLES } from "./examples";
+import { type ExampleVariant, type InspectionExampleVariant, inspectionExample, verificationExample } from "./examples";
 import { wouldReplaceEditedValue } from "./formHelpers";
 import { inspectEvidenceRequest, verifyObservationRequest } from "./apiClient";
 import { useCancellableRequest } from "./useCancellableRequest";
 import { useVerificationFieldHelp } from "./useVerificationFieldHelp";
 import { useWorkflowFeedback } from "./useWorkflowFeedback";
-import { DEFAULT_VERIFICATION_SCENARIO, REQUIRED_VERIFICATION_MESSAGES } from "./workflowContent";
+import { DEFAULT_VERIFICATION_SCENARIO, LINKS, REQUIRED_VERIFICATION_MESSAGES, isInspectionComplete } from "./workflowContent";
 import type {
   EvidenceType,
   InspectionState,
@@ -36,6 +37,7 @@ export function App() {
   const [verificationRequiredErrors, setVerificationRequiredErrors] = useState<VerificationRequiredErrors>({});
   const [evidenceType, setEvidenceType] = useState<EvidenceType>("observation");
   const [evidence, setEvidence] = useState("");
+  const [inspectionRequiredError, setInspectionRequiredError] = useState(false);
   // The panel is removed when verification is selected; keep its page and open details here.
   const [sequenceView, setSequenceView] = useState<SequenceView>({
     page: 0, failuresOnly: false, expandedMembers: [], expandedContinuity: [],
@@ -49,16 +51,26 @@ export function App() {
   const executedAtInputRef = useRef<HTMLInputElement>(null);
   const scenarioInputRef = useRef<HTMLSelectElement>(null);
   const observationEvidenceInputRef = useRef<HTMLTextAreaElement>(null);
+  const inspectionEvidenceInputRef = useRef<HTMLTextAreaElement>(null);
   const verificationExampleBaselineRef = useRef({ executionId: "", executedAt: "", observationEvidence: "" });
   const inspectionExampleBaselineRef = useRef("");
-  const verificationExample = VERIFICATION_EXAMPLES[scenarioId || DEFAULT_VERIFICATION_SCENARIO];
-  const verificationNeedsConfirmation = (
-    ["executionId", "executedAt", "observationEvidence"] as const
-  ).some(field => wouldReplaceEditedValue(
-    verificationInputs[field],
-    verificationExampleBaselineRef.current[field],
-    verificationExample[field],
-  ));
+  // A new request replaces the completed or edited state. Keep that history so
+  // edits after a cancelled or failed retry still prompt for a new check.
+  const verificationHadResultRef = useRef(false);
+  const inspectionHadResultRef = useRef(false);
+
+  function verificationNeedsConfirmation(variant: ExampleVariant) {
+    const example = verificationExample(scenarioId || DEFAULT_VERIFICATION_SCENARIO, variant);
+    return (["executionId", "executedAt", "observationEvidence"] as const).some(field => wouldReplaceEditedValue(
+      verificationInputs[field],
+      verificationExampleBaselineRef.current[field],
+      example[field],
+    ));
+  }
+
+  function inspectionNeedsConfirmation(variant: InspectionExampleVariant) {
+    return wouldReplaceEditedValue(evidence, inspectionExampleBaselineRef.current, inspectionExample(evidenceType, variant) ?? "");
+  }
 
   function clearVerificationRequiredError(field: VerificationRequiredField) {
     setVerificationRequiredErrors((errors) => {
@@ -75,32 +87,57 @@ export function App() {
   function changeVerificationInput<Key extends keyof VerificationInputs>(field: Key, value: VerificationInputs[Key]) {
     setVerificationInputs(current => ({ ...current, [field]: value }));
     clearVerificationRequiredError(field);
-    verification.setState({ kind: "idle" });
+    clearVerificationResult();
+  }
+
+  function clearVerificationResult(inputsChanged = true) {
+    const staleHistory = inputsChanged && verificationHadResultRef.current;
+    verification.setState(current => current.kind === "dirty" ? current
+      : { kind: current.kind === "completed" || staleHistory ? "dirty" : "idle" });
+  }
+
+  function clearInspectionResult(inputsChanged = true) {
+    const staleHistory = inputsChanged && inspectionHadResultRef.current;
+    inspection.setState(current => current.kind === "dirty" ? current
+      : { kind: isInspectionComplete(current) || staleHistory ? "dirty" : "idle" });
   }
 
   function selectEvidenceType(type: EvidenceType) {
     setEvidenceType(type);
-    inspection.setState({ kind: "idle" });
+    clearInspectionResult();
   }
 
   function changeInspectionEvidence(value: string) {
     setEvidence(value);
-    inspection.setState({ kind: "idle" });
+    setInspectionRequiredError(false);
+    clearInspectionResult();
   }
 
-  function loadVerificationExample() {
+  function loadVerificationExample(variant: ExampleVariant) {
     const selectedScenario = scenarioId === "" ? DEFAULT_VERIFICATION_SCENARIO : scenarioId;
-    const example = VERIFICATION_EXAMPLES[selectedScenario];
+    const example = verificationExample(selectedScenario, variant);
+    const inputsChanged = executionId !== example.executionId
+      || executedAt !== example.executedAt
+      || scenarioId !== selectedScenario
+      || observationEvidence !== example.observationEvidence;
     verificationExampleBaselineRef.current = example;
     setVerificationInputs({ ...example, scenarioId: selectedScenario });
     setVerificationRequiredErrors({});
-    verification.setState({ kind: "idle" });
+    if (inputsChanged || verification.state.kind !== "completed") {
+      clearVerificationResult(inputsChanged);
+    }
   }
 
-  function loadInspectionExample() {
-    inspectionExampleBaselineRef.current = INSPECTION_EXAMPLES[evidenceType];
-    setEvidence(INSPECTION_EXAMPLES[evidenceType]);
-    inspection.setState({ kind: "idle" });
+  function loadInspectionExample(variant: InspectionExampleVariant) {
+    const example = inspectionExample(evidenceType, variant);
+    if (example === undefined) return;
+    const inputsChanged = evidence !== example;
+    inspectionExampleBaselineRef.current = example;
+    setEvidence(example);
+    setInspectionRequiredError(false);
+    if (inputsChanged || !isInspectionComplete(inspection.state)) {
+      clearInspectionResult(inputsChanged);
+    }
   }
 
   function cancelVerification() {
@@ -113,6 +150,7 @@ export function App() {
 
   async function verifyObservation(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (verification.state.kind === "loading" || verification.state.kind === "completed") return;
 
     const requiredErrors: VerificationRequiredErrors = {};
 
@@ -153,6 +191,7 @@ export function App() {
 
 
     setVerificationRequiredErrors({});
+    if (verification.state.kind === "dirty") verificationHadResultRef.current = true;
     feedback.verificationTargets.pendingRef.current = true;
     feedback.setAnnouncement("Verifying observation…");
     await verification.run({ kind: "loading" }, signal => verifyObservationRequest(verificationInputs, signal));
@@ -160,6 +199,14 @@ export function App() {
 
   async function inspectEvidence(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (inspection.state.kind === "loading" || isInspectionComplete(inspection.state)) return;
+    if (!evidence.trim()) {
+      setInspectionRequiredError(true);
+      inspectionEvidenceInputRef.current?.focus();
+      return;
+    }
+    setInspectionRequiredError(false);
+    if (inspection.state.kind === "dirty") inspectionHadResultRef.current = true;
     setSequenceView({ page: 0, failuresOnly: false, expandedMembers: [], expandedContinuity: [] });
     feedback.inspectionTargets.pendingRef.current = true;
     feedback.setAnnouncement("Inspecting evidence…");
@@ -173,11 +220,20 @@ export function App() {
           <img src={orbirigMark} width="40" height="40" alt="" />
           <span>OrbiRig</span>
         </p>
-        <h1>Verify observations and inspect evidence</h1>
+        <h1>Check what a system reported against what it should have done</h1>
         <p>
-          Check recorded behaviour from simplified spacecraft tests against a
-          selected scenario, or inspect saved evidence.
+          OrbiRig compares recorded command results with a scenario you choose and
+          recomputes saved results instead of trusting them.
         </p>
+        <p className="field-hint">
+          JSON is processed on the server. Use synthetic, non-sensitive data in the public demo.
+        </p>
+        <ol className="check-flow" aria-label="How a check works">
+          <li><strong>Expected behaviour</strong><span>A scenario defined apart from the data.</span></li>
+          <li><strong>Recorded result</strong><span>What the system reported.</span></li>
+          <li><strong>Independent checks</strong><span>Each shows expected and actual values.</span></li>
+          <li><strong>Outcome</strong><span>PASS, FAIL or an input error.</span></li>
+        </ol>
       </header>
 
       <WorkflowHelp activeWorkflow={activeWorkflow} />
@@ -202,7 +258,7 @@ export function App() {
           onClick={() => setActiveWorkflow("verification")}
         >
           <span>Verify observation</span>
-          <small>Check if expectations are met.</small>
+          <small>Compare a recorded result with a scenario.</small>
         </button>
         <button
           type="button"
@@ -212,7 +268,7 @@ export function App() {
           onClick={() => setActiveWorkflow("inspection")}
         >
           <span>Inspect evidence</span>
-          <small>Review saved evidence.</small>
+          <small>Recheck a saved result.</small>
         </button>
       </div>
 
@@ -242,10 +298,12 @@ export function App() {
           evidenceType={evidenceType}
           evidence={evidence}
           state={inspection.state}
+          requiredError={inspectionRequiredError}
+          evidenceInputRef={inspectionEvidenceInputRef}
           sequenceView={sequenceView}
           onSequenceViewChange={setSequenceView}
           feedback={feedback.inspectionTargets}
-          requiresConfirmation={wouldReplaceEditedValue(evidence, inspectionExampleBaselineRef.current, INSPECTION_EXAMPLES[evidenceType])}
+          requiresConfirmation={inspectionNeedsConfirmation}
           onEvidenceTypeChange={selectEvidenceType}
           onEvidenceChange={changeInspectionEvidence}
           onLoadExample={loadInspectionExample}
@@ -253,6 +311,17 @@ export function App() {
           onCancel={cancelInspection}
         />
       )}
+
+      <footer className="page-footer">
+        <div>
+          <p>Example data uses a simplified spacecraft model. OrbiRig does not connect to or control real systems.</p>
+          <p>Built with a Python verification core, FastAPI, React and TypeScript.</p>
+        </div>
+        <p>
+          <DocLink href={LINKS.source}>Source code</DocLink>
+          <DocLink href={LINKS.documentation}>Documentation</DocLink>
+        </p>
+      </footer>
     </main>
   );
 }
