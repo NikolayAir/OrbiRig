@@ -228,7 +228,7 @@ describe("App help", () => {
     ]);
 
     expect(guidance.getByText(/OrbiRig checks whether a system/)).toHaveTextContent(
-      "OrbiRig checks whether a system did what it was asked to do. An observation is one recorded command: the request, whether it was accepted, the system's state before and after, and the state it reported separately (telemetry).",
+      "OrbiRig checks whether a system handled a command the way it should have. An observation is one recorded command: the request, whether it was accepted, the system's state before and after, and the state it reported separately (telemetry).",
     );
     expect(guidance.getByText(/The examples use a simplified spacecraft/)).toHaveTextContent(
       "The examples use a simplified spacecraft with 2 operating modes, NOMINAL and SAFE, but the approach suits any system that records what it did. The web interface only checks submitted records. It does not connect to real systems, send commands or collect live data.",
@@ -248,7 +248,7 @@ describe("App help", () => {
       within(inspectionSteps).getAllByRole("listitem").map((step) => step.textContent?.replace(/\s+/g, " ").trim()),
     ).toEqual([
       "Select the evidence type: observation, verified execution, or verified-execution sequence.",
-      "Paste its JSON or load an example. Load altered example shows how changed evidence is rejected.",
+      "Paste its JSON or load an example. Load altered example shows why evidence with repeated fields or outdated saved results is rejected.",
       "Choose Inspect evidence to see the recorded values and any saved verification results.",
     ]);
     const observationInspection = guidance.getByText(/Inspecting an observation checks/);
