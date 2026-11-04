@@ -315,6 +315,31 @@ def test_missing_state_is_an_error_instead_of_implicit_initialisation(tmp_path):
     assert not missing.exists()
 
 
+def test_linked_state_file_is_rejected_without_replacing_the_link(state_file, tmp_path):
+    link = tmp_path / "linked-state.json"
+    try:
+        link.symlink_to(state_file)
+    except OSError:
+        pytest.skip("symbolic links are unavailable")
+    before = state_file.read_bytes()
+
+    completed = _raw(link)
+
+    assert completed.returncode == 2
+    assert completed.stdout == b""
+    assert b"regular file" in completed.stderr
+    assert link.is_symlink()
+    assert state_file.read_bytes() == before
+
+
+def test_directory_state_path_is_rejected(tmp_path):
+    completed = _raw(tmp_path)
+
+    assert completed.returncode == 2
+    assert completed.stdout == b""
+    assert b"regular file" in completed.stderr
+
+
 @pytest.mark.parametrize("stage", ["write", "replace"])
 def test_failed_state_commit_preserves_state_and_returns_no_observation(state_file, monkeypatch, stage):
     target = runpy.run_path(str(TARGET))
