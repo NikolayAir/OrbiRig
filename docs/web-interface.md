@@ -108,6 +108,8 @@ All 4 endpoints use `POST`:
 | `/api/inspect/verified-execution` | `text/plain; charset=utf-8` | Raw verified-execution JSON text |
 | `/api/inspect/verified-execution-sequence` | `text/plain; charset=utf-8` | Raw verified-sequence JSON text |
 
+Request bodies must be UTF-8 without a byte-order mark (BOM). A verification request in another encoding, or with bytes that are not valid UTF-8, returns HTTP `422` with the `invalid_request` code.
+
 For verification, `scenario_id` is one of the [scenario string values](verification.md#supported-scenarios). `observation_evidence` contains JSON as a string, not a nested object. FastAPI passes this string unchanged to `deserialize_execution_evidence(...)`, then delegates verification to `build_verified_execution_record(...)`.
 
 For inspection, FastAPI decodes the submitted text and passes it to the matching evidence reader for validation. For both verification and inspection, the frontend submits the textarea value without parsing and re-serialising it, preserving duplicate keys for server-side rejection. The browser displays Python's results rather than defining its own verification rules.

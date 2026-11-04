@@ -33,7 +33,7 @@ def _reject_duplicate_object_members(
 
 
 def _load_strict_json(
-    serialized: str | bytes,
+    serialized: str,
     *,
     invalid_json_message: str,
 ) -> object:
