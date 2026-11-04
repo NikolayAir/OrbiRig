@@ -239,9 +239,11 @@ for (const viewport of [
         await expect(help.getByText(/OrbiRig can verify/)).toHaveCount(0);
         await expect(help.getByRole("link")).toHaveCount(3);
         const browserTabs = help.getByRole("tablist", { name: "Browser instructions" });
-        for (const tab of await browserTabs.getByRole("tab").all()) {
-          // The 2.75rem minimum is exactly 44px; Firefox on Linux can report it 2**-16 px short.
-          expect((await tab.boundingBox())!.height).toBeGreaterThanOrEqual(44 - 0.01);
+        // Read DOMRect heights: Firefox's protocol can report the 44px minimum a fraction short.
+        const browserTabHeights = await browserTabs.getByRole("tab").evaluateAll(elements => elements.map(element => element.getBoundingClientRect().height));
+        expect(browserTabHeights).toHaveLength(2);
+        for (const height of browserTabHeights) {
+          expect(height).toBeGreaterThanOrEqual(44);
         }
         await browserTabs.getByRole("tab", { name: "Inspect evidence" }).focus();
         for (const [key, name] of [
