@@ -610,10 +610,13 @@ def _verified_execution_document(
 def serialize_verified_execution_evidence(
     record: VerifiedExecutionRecord,
 ) -> str:
-    """Return deterministic versioned JSON for a verified execution."""
+    """Return deterministic JSON, rejecting noncanonical derived evidence."""
 
+    document = _verified_execution_document(record)
+    # Reuse the strict reader's canonical reconstruction; never repair supplied results.
+    _parse_verified_execution_document(document, path="")
     return json.dumps(
-        _verified_execution_document(record),
+        document,
         indent=2,
     ) + "\n"
 
@@ -686,6 +689,12 @@ def deserialize_verified_execution_sequence_evidence(
         ),
     )
 
+    return _parse_verified_execution_sequence_document(document)
+
+
+def _parse_verified_execution_sequence_document(document: object) -> VerifiedExecutionSequence:
+    """Reconstruct and compare sequence evidence for both readers and writers."""
+
     root = _require_object(
         document,
         path="verified execution sequence evidence",
@@ -747,7 +756,7 @@ def deserialize_verified_execution_sequence_evidence(
 def serialize_verified_execution_sequence_evidence(
     sequence: VerifiedExecutionSequence,
 ) -> str:
-    """Return deterministic versioned JSON for a verified sequence."""
+    """Return deterministic JSON, rejecting noncanonical records or continuity."""
 
     document = {
         "schema_version": VERIFIED_EXECUTION_SEQUENCE_SCHEMA_VERSION,
@@ -772,4 +781,5 @@ def serialize_verified_execution_sequence_evidence(
         "outcome": sequence.outcome.value,
     }
 
+    _parse_verified_execution_sequence_document(document)
     return json.dumps(document, indent=2) + "\n"

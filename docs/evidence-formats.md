@@ -24,6 +24,8 @@ Readers reject malformed JSON and repeated field names within any object, includ
 
 Serialisers return JSON text with 2-space indentation, a stable field and array order, and 1 final LF newline. The same input models produce the same text. Reading JSON does not require object fields in a particular order, but result arrays must follow the order defined below. See [saving and reopening evidence](python.md#reopen-saved-verified-evidence) to write the text to UTF-8 files.
 
+Verified-execution and sequence serialisers apply the reader's canonical reconstruction before returning JSON. They reject manually assembled models with inconsistent derived results rather than repairing those results. This includes stored invariant checks, continuity and aggregate outcomes; consistent `FAIL` evidence is supported. The schema versions remain independent of the package version.
+
 ## Observation evidence
 
 The complete structure of an observation v1 document is illustrated by [nominal-to-safe.json](examples/nominal-to-safe.json):

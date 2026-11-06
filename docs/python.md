@@ -189,3 +189,5 @@ sequence = deserialize_verified_execution_sequence_evidence(
 ```
 
 These readers recompute the checks and outcomes and reject saved values that disagree. This also allows saved `FAIL` results to be reopened when they match the recalculated results. See the [evidence reference](evidence-formats.md) for fields, versions, execution IDs and UTC timestamp rules.
+
+The verified-evidence writers apply the same reconstruction checks before returning JSON. A manually assembled record or sequence with inconsistent derived checks raises `ValueError`; its results are not silently repaired. Prefer `build_verified_execution_record(...)` and `verify_execution_sequence(...)` to construct canonical evidence.
