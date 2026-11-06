@@ -8,6 +8,8 @@ Use Python 3.12–3.15. Install the core from the repository root with `uv sync 
 
 For `scenario_id`, pass a `ScenarioId` member such as `ScenarioId.NOMINAL_TO_SAFE_MODE`. Convert a string explicitly first, for example with `ScenarioId("nominal_to_safe_mode")`. Passing a raw string raises `TypeError` before a command is executed or a subprocess is started.
 
+The 2 execution helpers default to `ScenarioId.NOMINAL_TO_SAFE_MODE` when omitted. This fixed convenience default never depends on observed behaviour. The observation verifier requires an explicit scenario; the examples supply it in every workflow.
+
 ## Verify an existing observation
 
 Load the [bundled observation](examples/nominal-to-safe.json) and explicitly choose the expected scenario:
@@ -123,6 +125,8 @@ print(serialize_verified_execution_evidence(record), end="")
 ```
 
 The result contains 4 passing checks and outcome `PASS`. To collect from your own program, pass a non-empty sequence in `argv`, with the program first and its arguments after it. An empty `argv` raises `ValueError` before a process starts.
+
+For both subprocess entry points, `timeout` must be a positive, finite number of seconds: an `int` or `float`, excluding booleans. Invalid values raise `ValueError`; other types raise `TypeError`. These caller errors occur before a process starts and are separate from `ObservationCollectionError`.
 
 OrbiRig starts 1 process for each submitted command, without interpreting `argv` as a shell command. The command and observation are exchanged through stdin and stdout, not HTTP. The protocol is:
 

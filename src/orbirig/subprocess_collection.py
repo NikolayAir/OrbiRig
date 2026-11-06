@@ -1,6 +1,7 @@
 """Run a separate program to collect 1 command observation."""
 
 import json
+import math
 import subprocess
 from collections.abc import Sequence
 
@@ -23,11 +24,21 @@ def collect_subprocess_observation(
 ) -> CommandExecutionObservation:
     """Run a target program and validate its returned observation JSON.
 
-    An empty argv raises ValueError before starting a process.
+    Invalid argv or timeout arguments are rejected before starting a process.
+    Timeout must be a positive, finite number of seconds (int or float, not bool).
     """
 
     if not argv:
         raise ValueError("argv must include the program to run")
+
+    if type(timeout) not in (int, float):
+        raise TypeError("timeout must be an int or float")
+    try:
+        finite = math.isfinite(timeout)
+    except OverflowError:
+        finite = False
+    if not finite or timeout <= 0:
+        raise ValueError("timeout must be positive and finite")
 
     command_document = (
         json.dumps(
