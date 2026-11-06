@@ -6,7 +6,7 @@ import type { Workflow } from "./workflowTypes";
 
 type HelpSection = "browser" | "cli";
 
-function scrollFocusedControlIntoView(dialog: HTMLDialogElement, element: HTMLElement) {
+function scrollFocusedControlIntoView(dialog: HTMLElement, element: HTMLElement) {
   const focused = element.getBoundingClientRect();
   const style = getComputedStyle(element);
   const outline = Math.max(0, parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset));
@@ -281,6 +281,22 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
           role="tabpanel"
           id="workflow-help-browser-panel"
           aria-labelledby="workflow-help-browser-tab"
+          onToggle={(event) => {
+            if (!(event.target instanceof HTMLDetailsElement) || !event.target.open) return;
+            const tabs = browserWorkflowsRef.current;
+            const panel = browserPanelRef.current;
+            const dialog = dialogRef.current;
+            if (tabs === null || panel === null || dialog === null) return;
+            if (scrollWholeDialog) {
+              dialog.scrollTop += tabs.getBoundingClientRect().top - dialog.getBoundingClientRect().top - dialog.clientTop;
+            } else {
+              panel.scrollTop += tabs.getBoundingClientRect().top - panel.getBoundingClientRect().top - panel.clientTop;
+            }
+            const focused = document.activeElement;
+            if (focused instanceof HTMLElement && event.target.contains(focused) && focused.matches(":focus-visible")) {
+              scrollFocusedControlIntoView(scrollWholeDialog ? dialog : panel, focused);
+            }
+          }}
           hidden={section !== "browser"}
           tabIndex={0}
         >
@@ -301,7 +317,6 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                 data in processing pipelines. The web interface only checks submitted records; it does not
                 connect to real systems, send commands or collect live data.
               </p>
-
 
               <div
                 ref={browserWorkflowsRef}
@@ -387,29 +402,32 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                   </p>
                   <p><DocLink href={LINKS.statefulTarget}>Reproduce the stateful-target example</DocLink></p>
                 </details>
-                <p>
-                  <strong>PASS</strong> means the recorded behaviour matches the selected
-                  scenario. This can include a rejected command if rejection was expected.
-                </p>
-                <p>
-                  <strong>FAIL</strong> means the observation is valid, but one or more verification
-                  checks do not meet their expectations. Invalid input, including a command that does not
-                  match the selected scenario, is reported as an error instead of FAIL.
-                </p>
-                <p>
-                  Choose the scenario based on the behaviour you intended to test, not on the
-                  values reported in the observation.
-                </p>
-                <p>
-                  Both <strong>PASS</strong> and <strong>FAIL</strong> are completed results.{" "}
-                  <strong>Verify observation</strong> stays unavailable until an input changes,
-                  since identical inputs produce the same result. Editing an input clears the previous
-                  result and prompts a new check.
-                </p>
-                <ul className="workflow-help-links">
-                  <li><DocLink href={LINKS.scenarios}>Supported scenarios and checks</DocLink></li>
-                  <li><DocLink href={LINKS.executionMetadata}>Execution ID and UTC time rules</DocLink></li>
-                </ul>
+                <details className="workflow-help-reference">
+                  <summary>Understanding results and further reading</summary>
+                  <p>
+                    <strong>PASS</strong> means the recorded behaviour matches the selected
+                    scenario. This can include a rejected command if rejection was expected.
+                  </p>
+                  <p>
+                    <strong>FAIL</strong> means the observation is valid, but one or more verification
+                    checks do not meet their expectations. Invalid input, including a command that does not
+                    match the selected scenario, is reported as an error instead of FAIL.
+                  </p>
+                  <p>
+                    Choose the scenario based on the behaviour you intended to test, not on the
+                    values reported in the observation.
+                  </p>
+                  <p>
+                    Both <strong>PASS</strong> and <strong>FAIL</strong> are completed results.{" "}
+                    <strong>Verify observation</strong> stays unavailable until an input changes,
+                    since identical inputs produce the same result. Editing an input clears the previous
+                    result and prompts a new check.
+                  </p>
+                  <ul className="workflow-help-links">
+                    <li><DocLink href={LINKS.scenarios}>Supported scenarios and checks</DocLink></li>
+                    <li><DocLink href={LINKS.executionMetadata}>Execution ID and UTC time rules</DocLink></li>
+                  </ul>
+                </details>
               </div>
               <div
                 className="workflow-help-instructions"
@@ -433,28 +451,32 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                     and any saved verification results.
                   </li>
                 </ol>
-                <p>
-                  Inspecting an observation checks its JSON structure and supported values.
-                  To compare the reported result with a scenario, use <strong>Verify observation</strong>.
-                </p>
-                <p>
-                  For saved verified executions and sequences, OrbiRig recalculates each
-                  record's checks and outcome from its scenario and observation, then compares
-                  them with the stored results. For sequences, it also checks continuity in
-                  the saved order. A record with a <strong>FAIL</strong> outcome can still be
-                  inspected when these results match.
-                </p>
-                <p>
-                  After a successful inspection, <strong>Inspect evidence</strong> stays unavailable until
-                  the JSON or evidence type changes, since identical inputs produce the same result.
-                  Editing either clears the result and prompts a new inspection.
-                </p>
-                <ul className="workflow-help-links">
-                  <li><DocLink href={LINKS.evidenceFormats}>Evidence formats and JSON rules</DocLink></li>
-                  <li><DocLink href={LINKS.savedEvidence}>How saved evidence is rechecked</DocLink></li>
-                  <li><DocLink href={LINKS.validationLimits}>What validation establishes</DocLink></li>
-                </ul>
+                <details className="workflow-help-reference">
+                  <summary>Understanding inspection and further reading</summary>
+                  <p>
+                    Inspecting an observation checks its JSON structure and supported values.
+                    To compare the reported result with a scenario, use <strong>Verify observation</strong>.
+                  </p>
+                  <p>
+                    For saved verified executions and sequences, OrbiRig recalculates each
+                    record's checks and outcome from its scenario and observation, then compares
+                    them with the stored results. For sequences, it also checks continuity in
+                    the saved order. A record with a <strong>FAIL</strong> outcome can still be
+                    inspected when these results match.
+                  </p>
+                  <p>
+                    After a successful inspection, <strong>Inspect evidence</strong> stays unavailable until
+                    the JSON or evidence type changes, since identical inputs produce the same result.
+                    Editing either clears the result and prompts a new inspection.
+                  </p>
+                  <ul className="workflow-help-links">
+                    <li><DocLink href={LINKS.evidenceFormats}>Evidence formats and JSON rules</DocLink></li>
+                    <li><DocLink href={LINKS.savedEvidence}>How saved evidence is rechecked</DocLink></li>
+                    <li><DocLink href={LINKS.validationLimits}>What validation establishes</DocLink></li>
+                  </ul>
+                </details>
               </div>
+
             </>
           )}
         </div>

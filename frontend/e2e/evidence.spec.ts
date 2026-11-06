@@ -237,6 +237,7 @@ for (const viewport of [
         await expect(help.getByRole("tabpanel", { name: "Inspect evidence" })).toBeVisible();
         await expect(help.getByRole("region", { name: "CLI verification command" })).toHaveCount(0);
         await expect(help.getByText(/OrbiRig can verify/)).toHaveCount(0);
+        await help.getByRole("tabpanel", { name: "Inspect evidence" }).locator(".workflow-help-reference summary").click();
         await expect(help.getByRole("link")).toHaveCount(3);
         const browserTabs = help.getByRole("tablist", { name: "Browser instructions" });
         // Read DOMRect heights: Firefox's protocol can report the 44px minimum a fraction short.

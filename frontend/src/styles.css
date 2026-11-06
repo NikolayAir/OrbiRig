@@ -162,8 +162,10 @@ h2 {
 
 .workflow-help-actions {
   display: flex;
+  flex: 1;
   flex-wrap: wrap;
   gap: 0.25rem 1.5rem;
+  min-width: 0;
 }
 
 .workflow-help-trigger {
@@ -180,11 +182,24 @@ h2 {
   text-underline-offset: 0.25em;
 }
 
+button.workflow-help-trigger {
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding-inline: 0.75rem;
+  text-decoration: none;
+}
+
+button.workflow-help-trigger:hover {
+  background: #eaf3fa;
+}
+
 a.workflow-help-trigger {
   align-items: center;
   box-sizing: border-box;
   display: inline-flex;
   font-weight: 650;
+  margin-left: auto;
 }
 
 .workflow-help-trigger:hover {
@@ -332,6 +347,9 @@ a.workflow-help-trigger {
 }
 
 .workflow-help-workflows {
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
   box-sizing: border-box;
   display: flex;
   margin: 1rem auto 0.75rem;
@@ -371,11 +389,31 @@ a.workflow-help-trigger {
 }
 
 .workflow-help-workflows [aria-selected="true"] {
-  color: var(--accent);
+  background: #daf2f8;
+  color: #155267;
   font-weight: 650;
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 0.4em;
+}
+
+.workflow-help-workflows [aria-selected="true"]:hover {
+  color: #155267;
+}
+
+.workflow-help-reference {
+  border-top: 1px solid var(--line);
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+}
+
+.workflow-help-reference summary {
+  cursor: pointer;
+  font-weight: 600;
+  scroll-margin: 0.5rem;
+}
+
+.workflow-help-reference summary:focus-visible {
+  box-shadow: var(--focus-ring);
+  outline: 1px solid var(--focus-edge);
+  outline-offset: 4px;
 }
 
 .workflow-help-instructions:focus-visible {
@@ -1792,12 +1830,24 @@ a[target="_blank"] {
   }
 
   .workflow-help {
-    align-items: flex-start;
-    flex-direction: column;
+    gap: 0.5rem 1rem;
+  }
+
+  .workflow-help > h2 {
+    flex: 1 1 calc(100% - 9rem);
   }
 
   .workflow-help-actions {
-    gap: 0 1rem;
+    display: contents;
+  }
+
+  .workflow-help-actions > a {
+    margin-left: auto;
+    order: 1;
+  }
+
+  .workflow-help-actions > button {
+    order: 2;
   }
 
   .workflow-help-heading {

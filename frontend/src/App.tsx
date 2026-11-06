@@ -230,7 +230,7 @@ export function App() {
         </p>
         <ol className="check-flow" aria-label="How a check works">
           <li><strong>Expected behaviour</strong><span>A scenario defined apart from the data.</span></li>
-          <li><strong>Recorded result</strong><span>What the system reported.</span></li>
+          <li><strong>Recorded result</strong><span>The command and its reported values.</span></li>
           <li><strong>Independent checks</strong><span>Each shows expected and actual values.</span></li>
           <li><strong>Outcome</strong><span>PASS or FAIL for valid input.</span></li>
         </ol>
@@ -319,7 +319,6 @@ export function App() {
         </div>
         <p>
           <DocLink href={LINKS.source}>Source code</DocLink>
-          <DocLink href={LINKS.documentation}>Documentation</DocLink>
         </p>
       </footer>
     </main>

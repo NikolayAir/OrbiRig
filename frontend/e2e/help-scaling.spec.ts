@@ -1,5 +1,23 @@
 import { expect, test, type Locator } from "@playwright/test";
 
+test("opening an explanation scrolls towards the workflow selector without moving page focus", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 800 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "In the browser", exact: true }).click();
+  const help = page.getByRole("dialog", { name: "How it works" });
+  const panel = help.getByRole("tabpanel", { name: "In the browser", exact: true });
+  const summary = help.locator(".workflow-help-example summary");
+  await summary.click();
+  await expect(summary.locator("..")).toHaveAttribute("open", "");
+  await expect.poll(() => panel.evaluate(node => node.scrollTop)).toBeGreaterThan(0);
+  await expect(help.getByRole("tablist", { name: "Browser instructions" })).toBeInViewport();
+  const scrollTop = await panel.evaluate(node => node.scrollTop);
+  await summary.click();
+  // Closing a section does not schedule another automatic scroll.
+  await expect(summary.locator("..")).not.toHaveAttribute("open", "");
+  expect(await panel.evaluate(node => node.scrollTop)).toBeLessThanOrEqual(scrollTop);
+});
+
 for (const { width, height, textScale, columns } of [
   { width: 1440, height: 900, textScale: 100, columns: 3 },
   { width: 1920, height: 1080, textScale: 100, columns: 3 },
@@ -22,6 +40,7 @@ for (const { width, height, textScale, columns } of [
     for (const [tab, count] of [["Verify observation", 2], ["Inspect evidence", 3]] as const) {
       await help.getByRole("tab", { name: tab, exact: true }).click();
       const panel = help.getByRole("tabpanel", { name: tab, exact: true });
+      await panel.locator(".workflow-help-reference summary").click();
       const list = panel.locator(".workflow-help-links");
       const items = list.getByRole("listitem");
       const links = list.getByRole("link");
@@ -132,7 +151,7 @@ for (const { height, textScale, fontFamily } of [
     // Wheel input must reach content even when the header exceeds the viewport.
     // scrollIntoView() alone could conceal an overflow:hidden regression.
     await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
-    await wheelTo(help.getByText(/Choose the scenario based on the behaviour/), 1);
+    await wheelTo(help.locator(".workflow-help-reference summary").first(), 1);
     await wheelTo(close, -1, 1);
     await expect(help.getByRole("heading", { name: "How it works" })).toBeInViewport();
     await expect(close).toBeInViewport({ ratio: 1 });
@@ -209,6 +228,10 @@ for (const { height, textScale, fontFamily } of [
     await summary.click();
     await expect(illustration).not.toHaveAttribute("open", "");
     await summary.focus();
+    await page.keyboard.press(tab);
+    const reference = verificationPanel.locator(".workflow-help-reference summary");
+    await expectFocusedTabInView(reference);
+    await page.keyboard.press("Enter");
     for (const name of ["Supported scenarios and checks", "Execution ID and UTC time rules"]) {
       await page.keyboard.press(tab);
       const link = help.getByRole("link", { name });
@@ -226,6 +249,7 @@ for (const { height, textScale, fontFamily } of [
       .evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
 
     await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+    await help.getByRole("tabpanel", { name: "Inspect evidence", exact: true }).locator(".workflow-help-reference summary").click();
     await wheelTo(help.getByText(/For saved verified executions and sequences/), 1);
     await wheelTo(close, -1, 1);
     await expect(close).toBeInViewport({ ratio: 1 });
@@ -259,6 +283,7 @@ test("ordinary scrolling clips workflow tabs at the content boundary below the f
   const header = help.locator(".workflow-help-header");
   const panel = help.getByRole("tabpanel", { name: "In the browser", exact: true });
   const tabs = help.getByRole("tablist", { name: "Browser instructions" });
+  await help.getByRole("tabpanel", { name: "Verify observation", exact: true }).locator(".workflow-help-reference summary").click();
   const initialHeader = (await header.boundingBox())!;
   const panelBounds = (await panel.boundingBox())!;
   await page.mouse.move(panelBounds.x + panelBounds.width / 2, panelBounds.y + panelBounds.height / 2);

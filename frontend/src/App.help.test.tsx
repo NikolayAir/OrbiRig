@@ -13,6 +13,25 @@ import {
 setupAppTests();
 
 describe("App help", () => {
+  it("shows the steps first and reveals explanations and documentation on demand", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "In the browser" }));
+    const help = within(screen.getByRole("dialog", { name: "How it works" }));
+    expect(help.getByText(/The examples use a simplified spacecraft/)).toBeVisible();
+    for (const name of ["Verify observation", "Inspect evidence"]) {
+      fireEvent.click(help.getByRole("tab", { name }));
+      const panel = help.getByRole("tabpanel", { name });
+      const details = panel.querySelector(".workflow-help-reference")!;
+      expect(details).not.toHaveAttribute("open");
+      expect(panel.querySelector("ol")).toBeVisible();
+      expect(details.querySelector("a")).not.toBeVisible();
+      fireEvent.click(details.querySelector("summary")!);
+      expect(details.querySelector("a")).toBeVisible();
+      fireEvent.click(details.querySelector("summary")!);
+      expect(details.querySelector("a")).not.toBeVisible();
+    }
+  });
+
   it.each(["In the browser", "From the command line"])("opens only the requested %s guidance", (name) => {
     render(<App />);
 
