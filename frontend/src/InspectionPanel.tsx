@@ -77,6 +77,7 @@ export function InspectionPanel({
           <LoadExampleButton
             label="Load long sequence"
             tone="negative"
+            tooltipClassName="long-sequence-example-hint"
             description="100 records across 4 pages, with failures to find. Replaces evidence JSON"
             disabled={inspection.kind === "loading"}
             requiresConfirmation={requiresConfirmation("long")}
@@ -87,6 +88,7 @@ export function InspectionPanel({
           <LoadExampleButton
             label="Load failing example"
             tone="negative"
+            tooltipClassName={evidenceType === "verified-execution-sequence" ? "sequence-continuity-example-hint" : undefined}
             description={`${evidenceType === "verified-execution"
               ? "Valid saved evidence with a FAIL outcome."
               : "Each record passes, but the next one starts in a different state."} Replaces evidence JSON`}
@@ -98,6 +100,7 @@ export function InspectionPanel({
         <LoadExampleButton
           label="Load altered example"
           tone="negative"
+          tooltipClassName={evidenceType === "observation" ? "observation-altered-example-hint" : undefined}
           description={`${evidenceType === "observation"
             ? "Repeats a field name, so the evidence is rejected."
             : "Saved checks no longer match the data, so recomputing rejects it."} Replaces evidence JSON`}

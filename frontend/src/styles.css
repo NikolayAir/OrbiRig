@@ -709,6 +709,19 @@ button {
   width: max-content;
 }
 
+.example-action.field-help .verification-failing-example-hint,
+.example-action.field-help .observation-altered-example-hint {
+  max-width: min(17rem, calc(100vw - 4.5rem));
+}
+
+.example-action.field-help .sequence-continuity-example-hint {
+  max-width: min(15rem, calc(100vw - 4.5rem));
+}
+
+.example-action.field-help .long-sequence-example-hint {
+  max-width: min(17.5rem, calc(100vw - 4.5rem));
+}
+
 .example-confirmation {
   overflow: auto;
   padding: 1.25rem;
@@ -861,8 +874,35 @@ label {
   z-index: 1;
 }
 
+#verification-help-description {
+  width: min(16rem, calc(100vw - 4rem));
+}
+
+#inspection-help-description {
+  width: min(16rem, calc(100vw - 4rem));
+}
+
+.verification-inputs [role="tooltip"] {
+  max-width: 25rem;
+  width: 100%;
+}
+
 #execution-id-help-description {
-  max-width: 15.375rem;
+  max-width: 20rem;
+}
+
+#execution-time-help-description {
+  max-width: 22.5rem;
+}
+
+#verification-observation-hint {
+  max-width: 28rem;
+  width: 100%;
+}
+
+#inspection-evidence-hint {
+  max-width: 26rem;
+  width: 100%;
 }
 
 .field-help:hover [role="tooltip"],

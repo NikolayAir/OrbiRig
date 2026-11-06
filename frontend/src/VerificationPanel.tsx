@@ -95,6 +95,7 @@ export function VerificationPanel({
         <LoadExampleButton
           label="Load failing example"
           tone="negative"
+          tooltipClassName="verification-failing-example-hint"
           description="Telemetry disagrees with the recorded state. Replaces current inputs"
           disabled={verification.kind === "loading"}
           requiresConfirmation={verificationNeedsConfirmation("failing")}
