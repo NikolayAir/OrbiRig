@@ -314,8 +314,11 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                 the mode before and after, and a separately reported mode (telemetry). OrbiRig currently
                 supports three such scenarios. This approach shares principles with software testing and
                 data-quality practices, such as checking API responses against expected values or validating
-                data in processing pipelines. The web interface only checks submitted records; it does not
-                connect to real systems, send commands or collect live data.
+                data in processing pipelines.
+              </p>
+              <p>
+                The web interface verifies submitted command results and inspects
+                saved records. It does not connect to external systems, send commands or collect live data.
               </p>
 
               <div

@@ -830,7 +830,7 @@ label {
   font-weight: 500;
   left: 0;
   line-height: 1.4;
-  max-width: 16rem;
+  max-width: 18rem;
   opacity: 0;
   padding: 0.55rem 0.65rem;
   pointer-events: none;
@@ -1642,7 +1642,7 @@ a[target="_blank"] {
 
 /*
  * Show controls beside the JSON editor only in wide windows.
- * Give JSON 2 shares of the width and controls 1, so nested JSON has more room.
+ * Give JSON more width while leaving room for the input fields and evidence types.
  * The 0 minimum in minmax(0, ...) lets columns shrink even when their content is long.
  */
 @media (min-width: 75rem) {
@@ -1664,7 +1664,7 @@ a[target="_blank"] {
     align-items: start;
     display: grid;
     gap: 2rem;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
   }
 
   .verification-form .metadata-fields {

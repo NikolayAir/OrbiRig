@@ -51,12 +51,16 @@ for (const viewport of [
     expect(editorBounds.height).toBeGreaterThanOrEqual(176);
     expect(actionBounds.y).toBeGreaterThanOrEqual(editorBounds.y + editorBounds.height);
     if (viewport.width >= 1200) {
+      const firstLabel = (await page.locator('label[for="verification-execution-id"]').boundingBox())!;
+      const evidenceLabel = (await page.locator('label[for="verification-observation-evidence"]').boundingBox())!;
+      expect(firstLabel.y).toBeCloseTo(evidenceLabel.y, 0);
       expect(actionBounds.x + actionBounds.width).toBeCloseTo(editorBounds.x + editorBounds.width, 0);
       expect(actionBounds.width).toBeLessThan(editorBounds.width);
       expect(actionBounds.y - (editorBounds.y + editorBounds.height)).toBeCloseTo(16, 0);
       expect(editorBounds.x).toBeGreaterThan(metadataBounds.x + metadataBounds.width);
       expect(editorBounds.y).toBeLessThan(metadataBounds.y + metadataBounds.height);
-      expect(editorBounds.width).toBeGreaterThanOrEqual(680);
+      expect(editorBounds.width).toBeGreaterThanOrEqual(580);
+      expect(editorBounds.width / metadataBounds.width).toBeCloseTo(1.35, 1);
       const idBounds = (await executionId.boundingBox())!;
       const timeBounds = (await page.getByLabel("Execution time (UTC)", { exact: true }).boundingBox())!;
       expect(timeBounds.y).toBeGreaterThan(idBounds.y + idBounds.height);
@@ -69,7 +73,7 @@ for (const viewport of [
       expect(editorBounds.width).toBeCloseTo(metadataBounds.width, 0);
       expect(editorBounds.y).toBeGreaterThan(metadataBounds.y + metadataBounds.height);
     }
-    for (const name of ["About Verify observation", "About Execution ID", "About Scenario"]) {
+    for (const name of ["About Verify observation", "About Execution ID", "About Scenario", "About Observation evidence JSON"]) {
       await page.getByRole("button", { name, exact: true }).focus();
       const tooltip = page.getByRole("tooltip");
       await expect(tooltip).toBeVisible();
@@ -145,8 +149,8 @@ for (const viewport of [
     if (viewport.width >= 1200) {
       expect(inspectionEditorBounds.x).toBeGreaterThan(types.x + types.width);
       expect(inspectionEditorBounds.y).toBeLessThan(types.y + types.height);
-      expect(inspectionEditorBounds.width).toBeGreaterThanOrEqual(680);
-      expect(inspectionEditorBounds.width / types.width).toBeCloseTo(2, 1);
+      expect(inspectionEditorBounds.width).toBeGreaterThanOrEqual(580);
+      expect(inspectionEditorBounds.width / types.width).toBeCloseTo(1.35, 1);
       expect(inspectionAction.x + inspectionAction.width).toBeCloseTo(inspectionEditorBounds.x + inspectionEditorBounds.width, 0);
       expect(inspectionAction.width).toBeLessThan(inspectionEditorBounds.width);
       expect(inspectionAction.y - (inspectionEditorBounds.y + inspectionEditorBounds.height)).toBeCloseTo(16, 0);
@@ -196,7 +200,7 @@ for (const viewport of [
     await expect(observation).toBeChecked();
     await observation.focus();
     for (const [name, description] of [
-      ["Verified execution", "1 execution with its scenario and checks."],
+      ["Verified execution", "One execution with its selected scenario and verification checks."],
       ["Verified execution sequence", "Ordered records; each should start where the last ended."],
     ]) {
       await page.keyboard.press("ArrowDown");
@@ -207,6 +211,8 @@ for (const viewport of [
       expect(await radio.locator("..").evaluate(element => getComputedStyle(element).outlineStyle)).toBe("solid");
       await expect(editor).toHaveValue(observationText);
     }
+    await page.keyboard.press(browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab");
+    await expect(page.getByRole("button", { name: "About Evidence JSON", exact: true })).toBeFocused();
     await page.keyboard.press(browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab");
     await expect(editor).toBeFocused();
     await editor.fill(sequence);
@@ -240,6 +246,7 @@ for (const viewport of [
       page.getByLabel("Execution time (UTC)", { exact: true }),
       page.getByRole("button", { name: "About Scenario", exact: true }),
       page.getByLabel("Scenario", { exact: true }),
+      page.getByRole("button", { name: "About Observation evidence JSON", exact: true }),
       page.getByLabel("Observation evidence JSON", { exact: true }),
       page.getByRole("button", { name: "Verify observation", exact: true }),
     ]) {
@@ -258,11 +265,14 @@ for (const viewport of [
 for (const [field, helpId] of [
   ["Execution ID", "execution-id-help-description"],
   ["Scenario", "scenario-help-description"],
+  ["Observation evidence JSON", "verification-observation-hint"],
+  ["Evidence JSON", "inspection-evidence-hint"],
 ]) {
   test(`${field} help dismisses with Escape under a stationary pointer and reopens deliberately`, async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/");
-    const input = page.getByLabel("Execution ID", { exact: true });
+    if (field === "Evidence JSON") await page.getByRole("button", { name: "Show Inspect evidence", exact: true }).click();
+    const input = page.getByLabel(field === "Evidence JSON" ? field : "Execution ID", { exact: true });
     await input.fill("preserved-through-help");
     const help = page.getByRole("button", { name: `About ${field}`, exact: true });
     const tooltip = page.locator(`#${helpId}`);
@@ -308,6 +318,7 @@ for (const [field, helpId] of [
   test(`${field} help dismisses and reopens by keyboard without losing focus`, async ({ page, browserName }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/");
+    if (field === "Evidence JSON") await page.getByRole("button", { name: "Show Inspect evidence", exact: true }).click();
     const help = page.getByRole("button", { name: `About ${field}`, exact: true });
     const tooltip = page.locator(`#${helpId}`);
     const optionTab = browserName === "webkit" && process.platform === "darwin";
@@ -345,6 +356,7 @@ for (const [field, helpId] of [
       try {
         const page = await context.newPage();
         await page.goto("/");
+        if (field === "Evidence JSON") await page.getByRole("button", { name: "Show Inspect evidence", exact: true }).click();
         const help = page.getByRole("button", { name: `About ${field}`, exact: true });
         const tooltip = page.locator(`#${helpId}`);
         await help.tap();

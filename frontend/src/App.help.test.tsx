@@ -254,7 +254,10 @@ describe("App help", () => {
       .toBe(browserPanel.getByText(/OrbiRig checks recorded command results/));
     expect(browserPanel.queryByText(/OrbiRig can verify recorded observations in two ways/)).not.toBeInTheDocument();
     expect(guidance.getByText(/The examples use a simplified spacecraft/)).toHaveTextContent(
-      "The examples use a simplified spacecraft model with two operating modes, NOMINAL and SAFE. A command requests a mode; an observation records the request, whether it was accepted, the mode before and after, and a separately reported mode (telemetry). OrbiRig currently supports three such scenarios. This approach shares principles with software testing and data-quality practices, such as checking API responses against expected values or validating data in processing pipelines. The web interface only checks submitted records; it does not connect to real systems, send commands or collect live data.",
+      "The examples use a simplified spacecraft model with two operating modes, NOMINAL and SAFE. A command requests a mode; an observation records the request, whether it was accepted, the mode before and after, and a separately reported mode (telemetry). OrbiRig currently supports three such scenarios. This approach shares principles with software testing and data-quality practices, such as checking API responses against expected values or validating data in processing pipelines.",
+    );
+    expect(browserPanel.getByText(/^The web interface verifies submitted/)).toHaveTextContent(
+      "The web interface verifies submitted command results and inspects saved records. It does not connect to external systems, send commands or collect live data.",
     );
     expect(guidance.getByText(/means the recorded behaviour matches/)).toHaveTextContent(
       "PASS means the recorded behaviour matches the selected scenario. This can include a rejected command if rejection was expected.",
@@ -616,11 +619,37 @@ describe("App help", () => {
     fireEvent.click(scenarioHelp);
     expect(executionIdHelp.parentElement).toHaveAttribute("data-open", "false");
     expect(scenarioHelp.parentElement).toHaveAttribute("data-open", "true");
+
+    const evidenceHelp = screen.getByRole("button", { name: "About Observation evidence JSON" });
+    fireEvent.click(evidenceHelp);
+    expect(scenarioHelp.parentElement).toHaveAttribute("data-open", "false");
+    expect(evidenceHelp.parentElement).toHaveAttribute("data-open", "true");
+  });
+
+  it("provides accessible Evidence JSON help and closes it when switching workflows", () => {
+    render(<App />);
+    selectInspectionWorkflow();
+    const help = screen.getByRole("button", { name: "About Evidence JSON" });
+    const input = screen.getByLabelText("Evidence JSON", { exact: true });
+    const description = "Paste the full JSON document matching the selected evidence type: observation, verified execution, or verified-execution sequence. Use Load example to see the expected structure.";
+    expect(help).toHaveAccessibleDescription(description);
+    expect(input).toHaveAccessibleDescription(description);
+    fireEvent.change(input, { target: { value: "preserved JSON" } });
+    fireEvent.click(help);
+    expect(help.parentElement).toHaveAttribute("data-open", "true");
+    fireEvent.keyDown(help, { key: "Escape" });
+    expect(help.parentElement).toHaveAttribute("data-open", "false");
+    fireEvent.click(help);
+    selectVerificationWorkflow();
+    selectInspectionWorkflow();
+    expect(screen.getByRole("button", { name: "About Evidence JSON" }).parentElement).toHaveAttribute("data-open", "false");
+    expect(screen.getByLabelText("Evidence JSON", { exact: true })).toHaveValue("preserved JSON");
   });
 
   it.each([
     ["About Execution ID", "Execution ID"],
     ["About Scenario", "Scenario"],
+    ["About Observation evidence JSON", "Observation evidence JSON"],
   ])(
     "dismisses pinned %s on outside pointer interaction",
     (helpName, outsideLabel) => {

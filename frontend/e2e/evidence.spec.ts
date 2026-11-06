@@ -227,7 +227,8 @@ for (const viewport of [
       await expect(help).toBeVisible();
       if (guide === "In the browser") {
         const webScope = help.getByText(/The examples use a simplified spacecraft/);
-        await expect(webScope).toHaveText("The examples use a simplified spacecraft model with two operating modes, NOMINAL and SAFE. A command requests a mode; an observation records the request, whether it was accepted, the mode before and after, and a separately reported mode (telemetry). OrbiRig currently supports three such scenarios. This approach shares principles with software testing and data-quality practices, such as checking API responses against expected values or validating data in processing pipelines. The web interface only checks submitted records; it does not connect to real systems, send commands or collect live data.");
+        await expect(webScope).toHaveText("The examples use a simplified spacecraft model with two operating modes, NOMINAL and SAFE. A command requests a mode; an observation records the request, whether it was accepted, the mode before and after, and a separately reported mode (telemetry). OrbiRig currently supports three such scenarios. This approach shares principles with software testing and data-quality practices, such as checking API responses against expected values or validating data in processing pipelines.");
+        await expect(help.getByText(/^The web interface verifies submitted/)).toHaveText("The web interface verifies submitted command results and inspects saved records. It does not connect to external systems, send commands or collect live data.");
         await webScope.scrollIntoViewIfNeeded();
         await expect(webScope).toBeInViewport();
         await expect(help.getByRole("tab", { name: "Verify observation", selected: true })).toBeVisible();
