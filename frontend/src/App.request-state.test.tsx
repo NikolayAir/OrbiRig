@@ -309,7 +309,7 @@ describe("request and edited-input states", () => {
     fetchMock.mockResolvedValue({ ok: false, status: 422 });
     submitEvidence("invalid evidence", type);
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("Check that the selected evidence type matches the document");
+    expect(alert).toHaveTextContent("Check the selected evidence type");
     if (savedResults) expect(alert).toHaveTextContent("Saved results must also match the checks OrbiRig recomputes.");
     else expect(alert).not.toHaveTextContent("Saved results");
   });

@@ -44,7 +44,7 @@ type Props = {
 
 export function VerificationPanel({
   input,
-  state: verification, errors: verificationRequiredErrors,
+  state: verification, errors,
   inputRefs,
   feedback,
   fieldHelp, requiresConfirmation: verificationNeedsConfirmation, onInputChange,
@@ -62,6 +62,11 @@ export function VerificationPanel({
     submitRef: verificationSubmitRef,
     cancelRef: verificationCancelRef,
   } = feedback;
+  const verificationRequiredErrors = { ...errors };
+  if (verification.kind === "validation-failure" && verification.code === "invalid_execution_metadata") {
+    if (verification.field === "execution_id") verificationRequiredErrors.executionId = verification.message ?? "Execution ID must be non-blank text without surrogate code points.";
+    if (verification.field === "executed_at") verificationRequiredErrors.executedAt = verification.message ?? "Enter a valid UTC date and time.";
+  }
   // A completed result already belongs to these inputs: the same check would repeat it exactly.
   const completed = verification.kind === "completed";
   const actionStatus = completed ? "Verification completed."
@@ -141,7 +146,7 @@ export function VerificationPanel({
               <p
                 className="field-error"
                 id="verification-execution-id-error"
-                role="alert"
+                role={verification.kind === "validation-failure" ? undefined : "alert"}
               >
                 {verificationRequiredErrors.executionId}
               </p>
@@ -149,13 +154,18 @@ export function VerificationPanel({
           </div>
 
           <div className="form-field">
-            <label htmlFor="verification-executed-at">
-              Execution time (UTC)
-            </label>
+            <div className="field-label">
+              <label htmlFor="verification-executed-at">Execution time (UTC)</label>
+              <FieldHelp control={fieldHelp.executedAt} label="Execution time (UTC)" helpId="execution-time-help-description">
+                Enter the recorded execution time in UTC, for example 2026-11-01T10:00:00Z.
+                The final Z means UTC.
+              </FieldHelp>
+            </div>
             <input
               id="verification-executed-at"
               ref={executedAtInputRef}
               aria-describedby={describedBy(
+                "execution-time-help-description",
                 verificationRequiredErrors.executedAt
                   ? "verification-executed-at-error"
                   : undefined,
@@ -172,7 +182,7 @@ export function VerificationPanel({
               <p
                 className="field-error"
                 id="verification-executed-at-error"
-                role="alert"
+                role={verification.kind === "validation-failure" ? undefined : "alert"}
               >
                 {verificationRequiredErrors.executedAt}
               </p>
@@ -294,7 +304,7 @@ export function VerificationPanel({
 
       {verification.kind === "validation-failure" && (
         <RequestError title="Input error" guidance={VERIFICATION_ERROR_GUIDANCE[verification.code]}>
-          {VERIFICATION_ERROR_MESSAGES[verification.code]}
+          {verification.message ?? VERIFICATION_ERROR_MESSAGES[verification.code]}
         </RequestError>
       )}
 

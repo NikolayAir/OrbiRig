@@ -33,7 +33,7 @@ export const VERIFICATION_ERROR_MESSAGES: Record<VerificationErrorCode, string> 
 
 // Say what to check next. The server decides validity; this text only guides correction.
 export const VERIFICATION_ERROR_GUIDANCE: Partial<Record<VerificationErrorCode, string>> = {
-  invalid_observation_evidence: "Check that it is complete JSON with every required field and no repeated field names.",
+  invalid_observation_evidence: "Check the document's required fields, value types and supported values. JSON field names must not repeat.",
   invalid_execution_metadata: "Use a non-blank ID and a UTC time such as 2026-08-26T08:30:00Z.",
   scenario_command_mismatch: "Check that this is the intended scenario and the matching observation.",
 };
@@ -102,7 +102,7 @@ export function invalidEvidenceMessage(evidenceType: EvidenceType): string {
 }
 
 export function invalidEvidenceGuidance(evidenceType: EvidenceType): string {
-  const structure = "Check that the selected evidence type matches the document and that it is complete JSON with no repeated field names.";
+  const structure = "Check the selected evidence type, required fields, value types and supported values. JSON field names must not repeat.";
   return evidenceType === "observation"
     ? structure
     : `${structure} Saved results must also match the checks OrbiRig recomputes.`;

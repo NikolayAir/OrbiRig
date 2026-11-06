@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 
 from orbirig._strict_json import _load_strict_json, _StrictJSONError
 from orbirig.evidence import (
+    EvidenceValidationError,
     deserialize_execution_evidence,
     deserialize_verified_execution_evidence,
     deserialize_verified_execution_sequence_evidence,
@@ -161,10 +162,29 @@ async def _decode_text_plain_evidence(request: Request) -> str:
         ) from None
 
 
-def _verification_error(code: str, message: str) -> HTTPException:
+def _evidence_error_message(summary: str, error: ValueError) -> str:
+    """Expose controlled diagnostics, never arbitrary exception text or input values."""
+
+    if isinstance(error, EvidenceValidationError):
+        return f"{summary}. {error.safe_message}"
+    if isinstance(error, _StrictJSONError):
+        # Every strict-loader message is controlled; keep an explicit allowlist.
+        reasons = {
+            "duplicate JSON object member name": "JSON contains a repeated field name",
+            "JSON integer exceeds the conversion limit": "JSON integer exceeds the supported digit limit",
+        }
+        reason = reasons.get(str(error), "JSON is malformed or nested too deeply")
+        return f"{summary}. {reason}"
+    return summary
+
+
+def _verification_error(code: str, message: str, *, field: str | None = None) -> HTTPException:
+    detail = {"code": code, "message": message}
+    if field is not None:
+        detail["field"] = field
     return HTTPException(
         status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
-        detail={"code": code, "message": message},
+        detail=detail,
     )
 
 
@@ -213,11 +233,11 @@ async def _decode_verification_request(
     scenario_id = document["scenario_id"]
     observation_evidence = document["observation_evidence"]
 
-    if type(execution_id) is not str or type(executed_at) is not str:
-        raise _verification_error(
-            "invalid_execution_metadata",
-            "execution ID and UTC execution timestamp must be strings",
-        )
+    for field, value in (("execution_id", execution_id), ("executed_at", executed_at)):
+        if type(value) is not str:
+            raise _verification_error(
+                "invalid_execution_metadata", f"{field} must be a string", field=field,
+            )
 
     if type(scenario_id) is not str:
         raise _verification_error(
@@ -244,10 +264,10 @@ async def inspect_observation_evidence(
 
     try:
         observation = deserialize_execution_evidence(serialized)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
-            detail="observation evidence is invalid",
+            detail=_evidence_error_message("observation evidence is invalid", exc),
         ) from None
 
     return _observation_presentation(observation)
@@ -276,10 +296,10 @@ async def verify_observation_evidence(
 
     try:
         observation = deserialize_execution_evidence(serialized_observation)
-    except ValueError:
+    except ValueError as exc:
         raise _verification_error(
             "invalid_observation_evidence",
-            "observation evidence is invalid",
+            _evidence_error_message("observation evidence is invalid", exc),
         ) from None
 
     try:
@@ -288,6 +308,7 @@ async def verify_observation_evidence(
         raise _verification_error(
             "invalid_execution_metadata",
             str(exc),
+            field="executed_at",
         ) from None
 
     try:
@@ -300,7 +321,8 @@ async def verify_observation_evidence(
     except InvalidExecutionMetadataError:
         raise _verification_error(
             "invalid_execution_metadata",
-            "execution ID or UTC execution timestamp is invalid",
+            "Execution ID must be non-blank text without surrogate code points.",
+            field="execution_id",
         ) from None
     except ScenarioCommandMismatchError:
         raise _verification_error(
@@ -321,10 +343,10 @@ async def inspect_verified_execution_evidence(
 
     try:
         record = deserialize_verified_execution_evidence(serialized)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
-            detail="verified execution evidence is invalid",
+            detail=_evidence_error_message("verified execution evidence is invalid", exc),
         ) from None
 
     return _verified_execution_presentation(record)
@@ -340,10 +362,10 @@ async def inspect_verified_execution_sequence_evidence(
 
     try:
         sequence = deserialize_verified_execution_sequence_evidence(serialized)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
-            detail="verified execution sequence evidence is invalid",
+            detail=_evidence_error_message("verified execution sequence evidence is invalid", exc),
         ) from None
 
     return _verified_execution_sequence_presentation(sequence)

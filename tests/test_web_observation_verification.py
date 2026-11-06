@@ -288,7 +288,8 @@ def test_surrogate_execution_id_has_no_verification_result(execution_id):
     assert response.json() == {
         "detail": {
             "code": "invalid_execution_metadata",
-            "message": "execution ID or UTC execution timestamp is invalid",
+            "message": "Execution ID must be non-blank text without surrogate code points.",
+            "field": "execution_id",
         },
     }
 
@@ -385,7 +386,7 @@ def test_invalid_timestamp_reports_the_controlled_reason(timestamp, message):
 
     assert response.status_code == 422
     assert response.json() == {
-        "detail": {"code": "invalid_execution_metadata", "message": message},
+        "detail": {"code": "invalid_execution_metadata", "message": message, "field": "executed_at"},
     }
 
 

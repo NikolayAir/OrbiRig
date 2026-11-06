@@ -68,6 +68,19 @@ const VERIFICATION_ERROR_CODES = [
 
 export type VerificationErrorCode = typeof VERIFICATION_ERROR_CODES[number];
 
+export function requestErrorDetails(payload: unknown): {
+  message?: string; field?: "execution_id" | "executed_at";
+} {
+  if (!isObject(payload)) return {};
+  const detail = payload.detail;
+  const message = typeof detail === "string" ? detail : isObject(detail) ? detail.message : undefined;
+  const field = isObject(detail) ? detail.field : undefined;
+  return {
+    message: typeof message === "string" && message.length > 0 && message.length <= 1024 ? message : undefined,
+    field: field === "execution_id" || field === "executed_at" ? field : undefined,
+  };
+}
+
 export function verificationErrorCode(
   payload: unknown,
 ): VerificationErrorCode | null {

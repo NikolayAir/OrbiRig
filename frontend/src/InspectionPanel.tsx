@@ -217,7 +217,7 @@ export function InspectionPanel({
 
       {inspection.kind === "invalid" && (
         <RequestError title="Invalid evidence" guidance={invalidEvidenceGuidance(inspection.evidenceType)}>
-          {invalidEvidenceMessage(inspection.evidenceType)}
+          {inspection.message ?? invalidEvidenceMessage(inspection.evidenceType)}
         </RequestError>
       )}
 

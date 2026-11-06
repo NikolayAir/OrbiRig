@@ -243,6 +243,7 @@ for (const viewport of [
     await page.getByLabel("Execution ID", { exact: true }).focus();
     const tab = browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab";
     for (const control of [
+      page.getByRole("button", { name: "About Execution time (UTC)", exact: true }),
       page.getByLabel("Execution time (UTC)", { exact: true }),
       page.getByRole("button", { name: "About Scenario", exact: true }),
       page.getByLabel("Scenario", { exact: true }),

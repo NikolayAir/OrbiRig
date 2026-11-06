@@ -1,5 +1,35 @@
 import { expect, test } from "@playwright/test";
 
+for (const [type, endpoint] of [
+  ["Observation", "observation"],
+  ["Verified execution", "verified-execution"],
+  ["Verified execution sequence", "verified-execution-sequence"],
+]) {
+  test(`the standard ${type} example is valid with the appropriate result meaning`, async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Show Inspect evidence", exact: true }).click();
+    await page.getByRole("radio", { name: type, exact: true }).check();
+    await page.getByRole("button", { name: "Load example", exact: true }).click();
+    const pending = page.waitForResponse(`**/api/inspect/${endpoint}`);
+    await page.getByRole("button", { name: "Inspect evidence", exact: true }).click();
+    const response = await pending;
+    expect(response.status()).toBe(200);
+    await expect(page.getByRole("alert")).toHaveCount(0);
+    if (type === "Observation") {
+      expect(await response.json()).not.toHaveProperty("outcome");
+      await expect(page.locator(".outcome-badge")).toHaveCount(0);
+      await expect(page.getByRole("region", { name: "Observation details", exact: true }))
+        .toContainText("No scenario verification has been performed.");
+      await expect(page.locator(".action-status")).toHaveText("Inspection completed. Evidence is valid.");
+    } else {
+      expect((await response.json()).outcome).toBe("PASS");
+      await expect(page.locator(".action-status")).toHaveText("Inspection completed. Evidence is valid. Saved outcome: PASS.");
+      const label = type === "Verified execution" ? "Verification outcome: PASS" : "Sequence outcome: PASS";
+      await expect(page.getByLabel(label, { exact: true })).toBeVisible();
+    }
+  });
+}
+
 // Expected results are written here, independently of the example data and API responses.
 for (const { scenario, label, reportedTelemetry, expectedTelemetry } of [
   { scenario: "nominal_to_safe_mode", label: "NOMINAL to SAFE", reportedTelemetry: "NOMINAL", expectedTelemetry: "SAFE" },
@@ -72,15 +102,33 @@ test("the long sequence is paged and its failures can be found across every page
   await expect(result.getByRole("heading", { level: 4, name: /^Member \d+$/ })).toHaveText(["Member 37", "Member 60", "Member 61", "Member 88"]);
 });
 
-for (const type of ["Observation", "Verified execution", "Verified execution sequence"]) {
-  test(`the altered ${type} example is rejected without a result`, async ({ page }) => {
+for (const [type, endpoint, message] of [
+  ["Observation", "observation", "observation evidence is invalid. JSON contains a repeated field name"],
+  ["Verified execution", "verified-execution", "verified execution evidence is invalid. invariant_results: stored checks do not match recomputed checks"],
+  ["Verified execution sequence", "verified-execution-sequence", "verified execution sequence evidence is invalid. records[0].invariant_results: stored checks do not match recomputed checks"],
+]) {
+  test(`the altered ${type} example is rejected without a result`, async ({ page }, testInfo) => {
     await page.goto("/");
     await page.getByRole("button", { name: "Show Inspect evidence" }).click();
     await page.getByRole("radio", { name: type, exact: true }).check();
-    await page.getByRole("button", { name: "Load altered example", exact: true }).click();
+    const load = page.getByRole("button", { name: "Load altered example", exact: true });
+    await expect(load).toHaveAccessibleDescription(type === "Observation"
+      ? "Repeats a field name, so the evidence is rejected. Replaces evidence JSON"
+      : "Saved checks no longer match the data, so recomputing rejects it. Replaces evidence JSON");
+    await load.click();
+    const pending = page.waitForResponse(`**/api/inspect/${endpoint}`);
     await page.locator("button[type=submit]").click();
+    const response = await pending;
+    expect(response.status()).toBe(422);
+    expect(await response.json()).toEqual({ detail: message });
     await expect(page.getByRole("alert").locator("strong")).toHaveText("Invalid evidence");
-    await expect(page.getByLabel(/Verification outcome:/)).toHaveCount(0);
+    await expect(page.getByRole("alert").locator("span")).toHaveText(message);
+    await expect(page.getByRole("alert")).not.toContainText("Check the reported field");
+    await expect(page.locator(".outcome-badge")).toHaveCount(0);
     await expect(page.locator("button[type=submit]")).toBeEnabled();
+    await testInfo.attach("Altered example diagnostic", {
+      body: JSON.stringify({ status: response.status(), body: await response.json(), uiMessage: await page.getByRole("alert").innerText() }, null, 2),
+      contentType: "application/json",
+    });
   });
 }
