@@ -201,7 +201,7 @@ describe("App verification", () => {
     expect(within(record).getByText("Verification result")).toBeInTheDocument();
     expect(within(record).getByText("The recorded behaviour matches this execution's scenario.")).toBeVisible();
     expect(
-      within(record).getByLabelText("Verification outcome: PASS"),
+      within(record).getByText("Verification outcome: PASS"),
     ).toBeInTheDocument();
     expect(
       within(record).getByText("2026-08-17T10:15:30Z"),
@@ -228,7 +228,7 @@ describe("App verification", () => {
       name: "Verified execution",
     });
     expect(
-      within(record).getByLabelText("Verification outcome: FAIL"),
+      within(record).getByText("Verification outcome: FAIL"),
     ).toBeInTheDocument();
     expect(within(record).getAllByText("FAIL")).toHaveLength(2);
     expect(within(record).getByText("The recorded behaviour does not meet the scenario's expectations. Review the failed checks below.")).toBeVisible();

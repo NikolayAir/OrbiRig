@@ -75,7 +75,7 @@ describe("request and edited-input states", () => {
     submitVerification();
     await screen.findByRole("region", { name: "Verified execution" });
     expect(screen.getByText("Verification completed.", { exact: true })).toBeVisible();
-    expect(screen.getByLabelText(`Verification outcome: ${record.outcome}`)).toBeVisible();
+    expect(screen.getByText(`Verification outcome: ${record.outcome}`)).toBeVisible();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 
     const retry = deferred<unknown>();
@@ -107,9 +107,9 @@ describe("request and edited-input states", () => {
     await screen.findByRole("region", { name: heading });
     const status = outcome ? `Inspection completed. Evidence is valid. Saved outcome: ${outcome}.` : "Inspection completed. Evidence is valid.";
     expect(screen.getByText(status, { exact: true })).toBeVisible();
-    if (outcome) expect(screen.getByLabelText("Verification outcome: FAIL")).toBeVisible();
+    if (outcome) expect(screen.getByText("Verification outcome: FAIL")).toBeVisible();
     else {
-      expect(screen.queryByLabelText(/Verification outcome:/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Verification outcome:/)).not.toBeInTheDocument();
       await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("No scenario verification was performed."));
     }
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();

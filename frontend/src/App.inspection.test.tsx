@@ -265,7 +265,7 @@ describe("App inspection", () => {
     expect(within(invariantItems[0]).getAllByText("NOMINAL")).toHaveLength(2);
     expect(within(invariantItems[0]).getByText("PASS")).toBeInTheDocument();
     expect(
-      within(invariantItems[0]).getByLabelText("Verification check: PASS"),
+      within(invariantItems[0]).getByText("Verification check: PASS"),
     ).toBeInTheDocument();
     expect(
       within(invariantItems[1]).getByRole("heading", {
@@ -275,10 +275,10 @@ describe("App inspection", () => {
     expect(
       within(invariantItems[1]).getByText("acknowledgement_is_accepted"),
     ).toBeInTheDocument();
-    expect(within(invariantItems[1]).getAllByText("true")).toHaveLength(2);
+    expect(within(invariantItems[1]).getAllByText("Accepted")).toHaveLength(2);
     expect(within(invariantItems[1]).getByText("PASS")).toBeInTheDocument();
     expect(
-      within(invariantItems[1]).getByLabelText("Verification check: PASS"),
+      within(invariantItems[1]).getByText("Verification check: PASS"),
     ).toBeInTheDocument();
     expect(within(invariantItems[2]).getByRole("heading", { name: "Post-state matches requested mode" })).toBeVisible();
     expect(within(invariantItems[3]).getByRole("heading", { name: "Telemetry matches post-state" })).toBeVisible();
@@ -450,7 +450,7 @@ describe("App inspection", () => {
       name: "Verified execution sequence",
     });
     expect(
-      within(sequence).getByLabelText("Sequence outcome: PASS"),
+      within(sequence).getByText("Sequence outcome: PASS"),
     ).toBeInTheDocument();
 
     const sequenceFlow = within(sequence).getByRole("list", {
@@ -498,7 +498,7 @@ describe("App inspection", () => {
       }),
     ).toBeInTheDocument();
     expect(
-      within(members[0]).getByLabelText("Verification outcome: PASS"),
+      within(members[0]).getByText("Verification outcome: PASS"),
     ).toBeInTheDocument();
 
     const boundaries = within(sequence).getAllByRole("article", {
@@ -510,13 +510,13 @@ describe("App inspection", () => {
     expect(boundaries[0]).toHaveTextContent("Next execution ID: exec-a");
     expect(within(boundaries[0]).getAllByText("SAFE")).toHaveLength(2);
     expect(
-      within(boundaries[0]).getByLabelText("Continuity outcome: PASS"),
+      within(boundaries[0]).getByText("Continuity outcome: PASS"),
     ).toBeInTheDocument();
     expect(boundaries[1]).toHaveTextContent("Previous execution ID: exec-a");
     expect(boundaries[1]).toHaveTextContent("Next execution ID: exec-c");
     expect(within(boundaries[1]).getAllByText("NOMINAL")).toHaveLength(2);
     expect(
-      within(boundaries[1]).getByLabelText("Continuity outcome: PASS"),
+      within(boundaries[1]).getByText("Continuity outcome: PASS"),
     ).toBeInTheDocument();
   });
 
@@ -545,7 +545,7 @@ describe("App inspection", () => {
       name: "Verified execution sequence",
     });
     expect(
-      within(sequence).getByLabelText("Sequence outcome: FAIL"),
+      within(sequence).getByText("Sequence outcome: FAIL"),
     ).toBeInTheDocument();
     expect(within(sequence).getByText("Valid saved evidence")).toBeVisible();
     expect(within(sequence).getByText("1 or more execution or continuity checks did not pass. Records stay in their original order.")).toBeVisible();
@@ -554,7 +554,7 @@ describe("App inspection", () => {
       name: "Continuity check 1",
     });
     expect(
-      within(boundary).getByLabelText("Continuity outcome: FAIL"),
+      within(boundary).getByText("Continuity outcome: FAIL"),
     ).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });

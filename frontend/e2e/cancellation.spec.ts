@@ -97,7 +97,7 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 320, height: 600 
         const result = page.getByRole("region", { name: example.heading, exact: true });
         await expect(result.getByRole("heading", { name: example.heading, exact: true }).first()).toBeFocused();
         await expect(page.getByRole("status")).toContainText("completed.");
-        if (example.outcome !== null) await expect(result.getByLabel(example.outcome, { exact: true })).toBeVisible();
+        if (example.outcome !== null) await expect(result.locator(".outcome-badge").filter({ hasText: example.outcome })).toBeVisible();
         if (example.workflow === "verification") await expect(result.getByText("retry-execution", { exact: true })).toBeVisible();
       } finally {
         release();

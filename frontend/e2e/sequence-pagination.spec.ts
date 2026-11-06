@@ -65,7 +65,7 @@ for (const [width, withFailures] of [[1280, false], [390, true]] as const) {
     await expect(first).toContainText("NOMINAL to NOMINAL rejection");
     await expect(result.locator(".verified-execution-fields, .continuity-boundary-fields")).toHaveCount(0);
     expect(await result.locator("*").count()).toBeLessThan(1400);
-    await expect(result.getByLabel(`Sequence outcome: ${withFailures ? "FAIL" : "PASS"}`, { exact: true })).toBeVisible();
+    await expect(result.locator(".outcome-badge").filter({ hasText: `Sequence outcome: ${withFailures ? "FAIL" : "PASS"}` })).toBeVisible();
     await expect(result.getByRole("article", { name: "Continuity check 25", exact: true })).toContainText("Members 25 → 26");
 
     // Real Enter/Space activation checks focus and aria-expanded, while two
@@ -84,7 +84,7 @@ for (const [width, withFailures] of [[1280, false], [390, true]] as const) {
     await expect(firstToggle).toBeFocused();
     expect(await firstToggle.evaluate(element => getComputedStyle(element).outlineStyle)).not.toBe("none");
     await expect(first).toContainText("2026-08-17T01:04:59Z");
-    await expect(first.getByLabel("Verification check: PASS", { exact: true })).toHaveCount(4);
+    await expect(first.locator(".outcome-badge").filter({ hasText: "Verification check: PASS" })).toHaveCount(4);
     const secondToggle = result.getByRole("button", { name: "Show details for member 2", exact: true });
     await secondToggle.focus();
     await secondToggle.press("Space");
@@ -124,7 +124,7 @@ for (const [width, withFailures] of [[1280, false], [390, true]] as const) {
     await navigation.screenshot({ path: testInfo.outputPath("page-controls.png") });
 
     const last = result.getByRole("article", { name: "Member 3900", exact: true });
-    await expect(last.getByLabel(`Verification outcome: ${withFailures ? "FAIL" : "PASS"}`, { exact: true })).toBeVisible();
+    await expect(last.locator(".outcome-badge").filter({ hasText: `Verification outcome: ${withFailures ? "FAIL" : "PASS"}` })).toBeVisible();
     await last.getByRole("button").click();
     await expect(last).toContainText("2026-08-17T00:00:00Z");
     await page.getByRole("button", { name: "Show Verify observation", exact: true }).click();
@@ -139,16 +139,16 @@ for (const [width, withFailures] of [[1280, false], [390, true]] as const) {
     if (withFailures) {
       await expect(result).toContainText("Failed members: 1. Failed continuity checks: 1.");
       await expect(result.locator(".sequence-member-heading h4")).toHaveText(["Member 25", "Member 26", "Member 3900"]);
-      await expect(result.getByRole("article", { name: "Continuity check 25", exact: true }).getByLabel("Continuity outcome: FAIL", { exact: true })).toBeVisible();
+      await expect(result.getByRole("article", { name: "Continuity check 25", exact: true }).locator(".outcome-badge").filter({ hasText: "Continuity outcome: FAIL" })).toBeVisible();
       await expect(result.getByRole("article", { name: "Continuity check 26", exact: true })).toContainText("Members 26 → 27");
       // Both members around the broken link pass their own checks. The link's
       // FAIL remains visible while all detailed values are still collapsed.
-      await expect(result.getByRole("article", { name: "Member 25", exact: true }).getByLabel("Verification outcome: PASS", { exact: true })).toBeVisible();
-      await expect(result.getByRole("article", { name: "Member 26", exact: true }).getByLabel("Verification outcome: PASS", { exact: true })).toBeVisible();
-      await expect(last.getByLabel("Verification outcome: FAIL", { exact: true })).toBeVisible();
+      await expect(result.getByRole("article", { name: "Member 25", exact: true }).locator(".outcome-badge").filter({ hasText: "Verification outcome: PASS" })).toBeVisible();
+      await expect(result.getByRole("article", { name: "Member 26", exact: true }).locator(".outcome-badge").filter({ hasText: "Verification outcome: PASS" })).toBeVisible();
+      await expect(last.locator(".outcome-badge").filter({ hasText: "Verification outcome: FAIL" })).toBeVisible();
       await boundary25.getByRole("button").click();
       await last.getByRole("button").click();
-      await expect(last.getByLabel("Verification check: FAIL", { exact: true })).toHaveCount(1);
+      await expect(last.locator(".outcome-badge").filter({ hasText: "Verification check: FAIL" })).toHaveCount(1);
       const failedCheck = last.locator('.invariant-results > li[data-outcome="FAIL"]');
       // At 200% text, mode names and value labels must remain readable on one
       // line rather than being split into fragments inside narrow columns.

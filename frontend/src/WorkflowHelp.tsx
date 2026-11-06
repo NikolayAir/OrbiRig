@@ -24,6 +24,7 @@ function scrollFocusedControlIntoView(dialog: HTMLElement, element: HTMLElement)
 
 export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const backdropPress = useRef(false);
   const headerRef = useRef<HTMLDivElement>(null);
   const browserTabRef = useRef<HTMLButtonElement>(null);
   const cliTabRef = useRef<HTMLButtonElement>(null);
@@ -196,7 +197,19 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
           }
         }}
         onClose={() => help?.trigger.focus({ preventScroll: true })}
+        onPointerDown={(event) => {
+          // A selection can start inside but produce a click outside on release.
+          const bounds = event.currentTarget.getBoundingClientRect();
+          backdropPress.current = event.target === event.currentTarget && event.isPrimary && event.button === 0 && (
+            event.clientX < bounds.left || event.clientX > bounds.right ||
+            event.clientY < bounds.top || event.clientY > bounds.bottom
+          );
+        }}
+        onPointerCancel={() => { backdropPress.current = false; }}
         onClick={(event) => {
+          const startedOnBackdrop = backdropPress.current;
+          backdropPress.current = false;
+          if (!startedOnBackdrop) return;
           if (event.target !== event.currentTarget) {
             return;
           }

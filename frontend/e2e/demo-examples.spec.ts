@@ -25,7 +25,7 @@ for (const [type, endpoint] of [
       expect((await response.json()).outcome).toBe("PASS");
       await expect(page.locator(".action-status")).toHaveText("Inspection completed. Evidence is valid. Saved outcome: PASS.");
       const label = type === "Verified execution" ? "Verification outcome: PASS" : "Sequence outcome: PASS";
-      await expect(page.getByLabel(label, { exact: true })).toBeVisible();
+      await expect(page.locator(".outcome-badge").filter({ hasText: label })).toBeVisible();
     }
   });
 }
@@ -42,9 +42,9 @@ for (const { scenario, label, reportedTelemetry, expectedTelemetry } of [
     await page.getByRole("button", { name: "Load failing example", exact: true }).click();
     await page.getByRole("button", { name: "Verify observation", exact: true }).click();
     const result = page.getByRole("region", { name: "Verified execution", exact: true });
-    await expect(result.getByLabel("Verification outcome: FAIL", { exact: true })).toBeVisible();
+    await expect(result.locator(".outcome-badge").filter({ hasText: "Verification outcome: FAIL" })).toBeVisible();
     await expect(result.locator(".invariant-results > li")).toHaveCount(4);
-    await expect(result.getByLabel("Verification check: FAIL", { exact: true })).toHaveCount(1);
+    await expect(result.locator(".outcome-badge").filter({ hasText: "Verification check: FAIL" })).toHaveCount(1);
     await expect(result.locator(".invariant-results > li").last()).toContainText(expectedTelemetry);
     await expect(result.locator(".invariant-results > li").last()).toContainText(reportedTelemetry);
   });
@@ -67,7 +67,7 @@ test("the failing saved execution stays valid evidence with a FAIL outcome", asy
   await page.getByRole("radio", { name: "Verified execution", exact: true }).check();
   await page.getByRole("button", { name: "Load failing example", exact: true }).click();
   await page.locator("button[type=submit]").click();
-  await expect(page.getByLabel("Verification outcome: FAIL", { exact: true })).toBeVisible();
+  await expect(page.locator(".outcome-badge").filter({ hasText: "Verification outcome: FAIL" })).toBeVisible();
   await expect(page.getByRole("alert")).toHaveCount(0);
   await expect(page.locator(".action-status")).toHaveText("Inspection completed. Evidence is valid. Saved outcome: FAIL.");
 });
@@ -92,7 +92,7 @@ test("the long sequence is paged and its failures can be found across every page
   await load.click();
   await page.locator("button[type=submit]").click();
   const result = page.getByRole("region", { name: "Verified execution sequence", exact: true });
-  await expect(result.getByLabel("Sequence outcome: FAIL", { exact: true })).toBeVisible();
+  await expect(result.locator(".outcome-badge").filter({ hasText: "Sequence outcome: FAIL" })).toBeVisible();
   await expect(result).toContainText("Sequence totals: 100 members. Failed members: 2. Failed continuity checks: 1.");
   await expect(result.locator(".sequence-page-status")).toHaveText("Showing members 1–25 of 100.");
   await result.getByRole("button", { name: "Next page" }).first().click();

@@ -254,21 +254,23 @@ export function App() {
           type="button"
           className="workflow-choice"
           aria-label="Show Verify observation"
+          aria-describedby="verification-workflow-description"
           aria-pressed={activeWorkflow === "verification"}
           onClick={() => { if (activeWorkflow !== "verification") fieldHelp.closePinned(); setActiveWorkflow("verification"); }}
         >
           <span>Verify observation</span>
-          <small>Compare a recorded result with a scenario.</small>
+          <small id="verification-workflow-description">Compare a recorded result with a scenario.</small>
         </button>
         <button
           type="button"
           className="workflow-choice"
           aria-label="Show Inspect evidence"
+          aria-describedby="inspection-workflow-description"
           aria-pressed={activeWorkflow === "inspection"}
           onClick={() => { if (activeWorkflow !== "inspection") fieldHelp.closePinned(); setActiveWorkflow("inspection"); }}
         >
           <span>Inspect evidence</span>
-          <small>Validate saved records and recheck any verification results they contain.</small>
+          <small id="inspection-workflow-description">Validate saved records and recheck any verification results they contain.</small>
         </button>
       </div>
 

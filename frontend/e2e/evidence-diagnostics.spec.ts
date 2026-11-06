@@ -64,3 +64,26 @@ for (const sequence of [false, true]) {
     await testInfo.attach("HTTP and UI diagnostic", { path: output, contentType: "application/json" });
   });
 }
+
+for (const [scenario, acknowledgement] of [
+  ["nominal_to_safe_mode", "Accepted"],
+  ["nominal_to_nominal_rejection", "Rejected"],
+  ["safe_to_nominal_mode", "Accepted"],
+]) {
+  test(`standard examples produce PASS with ${acknowledgement} acknowledgement: ${scenario}`, async ({ page }) => {
+    await page.goto("/");
+    await page.getByLabel("Scenario", { exact: true }).selectOption(scenario);
+    await page.getByRole("button", { name: "Load example", exact: true }).click();
+    const pending = page.waitForResponse("**/api/verify/observation");
+    await page.getByRole("button", { name: "Verify observation", exact: true }).click();
+    const response = await pending;
+    expect(response.status()).toBe(200);
+    expect((await response.json()).outcome).toBe("PASS");
+    await expect(page.locator(".result-heading .outcome-badge").filter({ hasText: "Verification outcome: PASS" })).toBeVisible();
+    await expect(page.locator(".invariant-results > li")).toHaveCount(4);
+    await expect(page.locator(".invariant-results > li[data-outcome=PASS]")).toHaveCount(4);
+    const values = page.locator(".invariant-results > li").nth(1).locator(".invariant-values dd");
+    await expect(values.nth(0)).toHaveText(acknowledgement);
+    await expect(values.nth(1)).toHaveText(acknowledgement);
+  });
+}
