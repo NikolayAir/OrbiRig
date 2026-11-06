@@ -418,6 +418,21 @@ a.workflow-help-trigger {
   color: var(--accent-strong);
 }
 
+.workflow-help-example {
+  border-top: 1px solid var(--line);
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+}
+
+.workflow-help-example h3 {
+  font-size: 1rem;
+  margin: 0;
+}
+
+.workflow-help-example ol {
+  margin-top: 0.75rem;
+}
+
 .workflow-help-command {
   background: var(--soft);
   border: 1px solid var(--line);

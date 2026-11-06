@@ -367,6 +367,34 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                   <li><DocLink href={LINKS.scenarios}>Supported scenarios and checks</DocLink></li>
                   <li><DocLink href={LINKS.executionMetadata}>Execution ID and UTC time rules</DocLink></li>
                 </ul>
+                <section className="workflow-help-example" aria-labelledby="missing-response-example-title">
+                  <h3 id="missing-response-example-title">When a command returns no result</h3>
+                  <p>
+                    Illustrative example from the Python API. The browser does not run the test target.
+                  </p>
+                  <ol>
+                    <li>A command requests a change from NOMINAL to SAFE.</li>
+                    <li>
+                      The independent test target saves SAFE, then exits before returning an observation.
+                    </li>
+                    <li>
+                      OrbiRig reports a <strong>collection error</strong>.
+                      No verification <strong>PASS</strong> or <strong>FAIL</strong> is produced.
+                    </li>
+                    <li>
+                      In this controlled example, a separate check of the target's state file
+                      confirms SAFE was saved.
+                    </li>
+                    <li>
+                      The next command starts from SAFE, changes to NOMINAL and produces <strong>PASS</strong>.
+                    </li>
+                  </ol>
+                  <p>
+                    A missing response does not prove that a command failed to execute.
+                    The collection error alone does not establish the state of an external system.
+                  </p>
+                  <p><DocLink href={LINKS.statefulTarget}>Reproduce the stateful-target example</DocLink></p>
+                </section>
               </div>
               <div
                 className="workflow-help-instructions"

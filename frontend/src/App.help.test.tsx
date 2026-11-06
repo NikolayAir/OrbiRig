@@ -48,7 +48,7 @@ describe("App help", () => {
       expect(guidance.queryByRole("tabpanel", { name: "Inspect evidence" })).not.toBeInTheDocument();
       expect(guidance.queryByText(/OrbiRig can verify/)).not.toBeInTheDocument();
       expect(guidance.queryByRole("region", { name: "CLI verification command" })).not.toBeInTheDocument();
-      expect(guidance.getAllByRole("link")).toHaveLength(2);
+      expect(guidance.getAllByRole("link")).toHaveLength(3);
     } else {
       expect(guidance.getByRole("region", { name: "CLI verification command" })).toBeVisible();
       expect(guidance.queryByText(/OrbiRig checks whether a system/)).not.toBeInTheDocument();
@@ -130,7 +130,7 @@ describe("App help", () => {
     fireEvent.click(help.getByRole("tab", { name: otherName }));
     expect(help.getByRole("tabpanel", { name: otherName })).toBeVisible();
     expect(help.queryByRole("tabpanel", { name: selectedName })).not.toBeInTheDocument();
-    expect(help.getAllByRole("list")).toHaveLength(2);
+    expect(help.getAllByRole("list")).toHaveLength(otherName === "Verify observation" ? 3 : 2);
     fireEvent.click(help.getByRole("button", { name: "Close" }));
     fireEvent.click(trigger);
     expect(help.getByRole("tab", { name: selectedName, selected: true })).toBeVisible();
@@ -259,6 +259,46 @@ describe("App help", () => {
     expect(guidance.getByText(/For saved verified executions and sequences/)).toHaveTextContent(
       "For saved verified executions and sequences, OrbiRig recalculates each record's checks and outcome from its scenario and observation, then compares them with the stored results. For sequences, it also checks continuity in the saved order. A record with a FAIL outcome can still be inspected when these results match.",
     );
+  });
+
+  it("illustrates a missing command response separately from a verified FAIL without executing anything", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "In the browser" }));
+    const help = within(screen.getByRole("dialog", { name: "How it works" }));
+    const example = help.getByRole("region", { name: "When a command returns no result" });
+    const illustration = within(example);
+
+    expect(illustration.getByRole("heading", { name: "When a command returns no result", level: 3 })).toBeVisible();
+    expect(illustration.getByText(/Illustrative example/)).toHaveTextContent(
+      "Illustrative example from the Python API. The browser does not run the test target.",
+    );
+    expect(illustration.getAllByRole("listitem").map((step) => step.textContent?.replace(/\s+/g, " ").trim())).toEqual([
+      "A command requests a change from NOMINAL to SAFE.",
+      "The independent test target saves SAFE, then exits before returning an observation.",
+      "OrbiRig reports a collection error. No verification PASS or FAIL is produced.",
+      "In this controlled example, a separate check of the target's state file confirms SAFE was saved.",
+      "The next command starts from SAFE, changes to NOMINAL and produces PASS.",
+    ]);
+    expect(illustration.getByText(/A missing response/)).toHaveTextContent(
+      "A missing response does not prove that a command failed to execute. The collection error alone does not establish the state of an external system.",
+    );
+    expect(help.getByText(/means the observation is valid/)).toHaveTextContent(
+      "FAIL means the observation is valid, but the recorded behaviour does not meet the scenario's expectations.",
+    );
+    const link = illustration.getByRole("link", { name: /^Reproduce the stateful-target example/ });
+    expect(link).toHaveAttribute("href", "https://github.com/NikolayAir/OrbiRig/blob/main/docs/stateful-target.md#simulate-a-response-failure-after-state-commit");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noreferrer");
+    expect(illustration.queryByRole("button")).not.toBeInTheDocument();
+    expect(help.queryByRole("alert")).not.toBeInTheDocument();
+    expect(help.queryByRole("status")).not.toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    fireEvent.click(help.getByRole("tab", { name: "Inspect evidence" }));
+    expect(help.queryByRole("region", { name: "When a command returns no result" })).not.toBeInTheDocument();
+    fireEvent.click(help.getByRole("tab", { name: "From the command line" }));
+    expect(help.queryByRole("region", { name: "When a command returns no result" })).not.toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("explains local CLI setup and shows a complete selectable command", () => {
@@ -550,7 +590,7 @@ describe("App help", () => {
   );
 
   it.each([
-    ["Verify observation", ["Supported scenarios and checks", "Execution ID and UTC time rules"]],
+    ["Verify observation", ["Supported scenarios and checks", "Execution ID and UTC time rules", "Reproduce the stateful-target example"]],
     ["Inspect evidence", ["Evidence formats and JSON rules", "How saved evidence is rechecked", "What validation establishes"]],
   ])("links %s guidance to its documentation without leaving the page", (tab, names) => {
     render(<App />);

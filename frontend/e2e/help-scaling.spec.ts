@@ -92,6 +92,19 @@ for (const { height, textScale, fontFamily } of [
     await expect(help.getByRole("tabpanel", { name: "In the browser", exact: true })).toBeFocused();
     await page.keyboard.press(tab);
     await expect(help.getByRole("tab", { name: "Verify observation", exact: true })).toBeFocused();
+    await page.keyboard.press(tab);
+    await expect(help.getByRole("tabpanel", { name: "Verify observation", exact: true })).toBeFocused();
+    for (const name of ["Supported scenarios and checks", "Execution ID and UTC time rules", "Reproduce the stateful-target example"]) {
+      await page.keyboard.press(tab);
+      const link = help.getByRole("link", { name });
+      await expect(link).toBeFocused();
+      await expect(link).toBeInViewport();
+      await expect(link).toHaveCSS("outline-style", "solid");
+    }
+    const illustration = help.getByRole("region", { name: "When a command returns no result" });
+    expect(await illustration.evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
+    await help.getByRole("tab", { name: "Verify observation", exact: true }).focus();
+    await expectFocusedTabInView(help.getByRole("tab", { name: "Verify observation", exact: true }));
     await page.keyboard.press("ArrowRight");
     const inspect = help.getByRole("tab", { name: "Inspect evidence", selected: true });
     await expect(inspect).toBeFocused();
