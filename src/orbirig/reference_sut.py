@@ -29,6 +29,9 @@ class ReferenceSpacecraft:
         Rejection and command handling errors leave state unchanged.
         """
 
+        if not isinstance(command.target_mode, OperatingMode):
+            raise TypeError("target_mode must be an OperatingMode member")
+
         # Keep rejection limited to the explicit NOMINAL-to-NOMINAL scenario.
         if (
             self._operating_mode is OperatingMode.NOMINAL

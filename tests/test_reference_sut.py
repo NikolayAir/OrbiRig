@@ -16,6 +16,22 @@ def test_reference_spacecraft_starts_in_nominal_mode():
     assert telemetry.operating_mode is OperatingMode.NOMINAL
 
 
+@pytest.mark.parametrize("initial_mode", tuple(OperatingMode))
+@pytest.mark.parametrize("target_mode", ["BOGUS", "SAFE", "NOMINAL", None, True, 1])
+def test_invalid_runtime_target_mode_preserves_state(initial_mode, target_mode):
+    spacecraft = ReferenceSpacecraft()
+    if initial_mode is OperatingMode.SAFE:
+        spacecraft.handle_command(SetOperatingModeCommand(target_mode=OperatingMode.SAFE))
+    before = spacecraft.read_state()
+    telemetry = spacecraft.read_telemetry()
+
+    with pytest.raises(TypeError, match="target_mode must be an OperatingMode member"):
+        spacecraft.handle_command(SetOperatingModeCommand(target_mode=target_mode))
+
+    assert spacecraft.read_state() == before
+    assert spacecraft.read_telemetry() == telemetry
+
+
 def test_reference_spacecraft_applies_safe_mode_command():
     spacecraft = ReferenceSpacecraft()
     command = SetOperatingModeCommand(
