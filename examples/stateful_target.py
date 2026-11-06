@@ -46,8 +46,12 @@ def _read_command(data: bytes) -> dict[str, str]:
 def _read_mode(state_file: Path) -> str:
     # Saving replaces the state file itself. Through a symbolic link, the link
     # would become a separate file while its original target kept the old mode.
-    if not stat.S_ISREG(os.lstat(state_file).st_mode):
+    status = os.lstat(state_file)
+    if not stat.S_ISREG(status.st_mode):
         raise ValueError("state file must be a regular file, not a link or directory")
+    # Atomic replacement would split hard-linked names into different states.
+    if status.st_nlink != 1:
+        raise ValueError("state file must have exactly 1 hard link")
     document = _read_json(state_file.read_bytes(), "stored state")
     if not isinstance(document, dict) or set(document) != {"operating_mode"}:
         raise ValueError("stored state must contain only operating_mode")

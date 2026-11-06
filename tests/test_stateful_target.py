@@ -2,6 +2,7 @@
 
 import errno
 import json
+import os
 import runpy
 import subprocess
 import sys
@@ -27,6 +28,26 @@ from orbirig.verification import verify_execution_sequence
 TARGET = Path(__file__).resolve().parents[1] / "examples/stateful_target.py"
 EXECUTED_AT = datetime(2026, 11, 1, tzinfo=UTC)
 SAFE_COMMAND = b'{"command_type":"SET_OPERATING_MODE","target_mode":"SAFE"}\n'
+
+
+@pytest.mark.parametrize("use_alias", [False, True])
+def test_hard_linked_state_is_rejected_without_side_effects(state_file, tmp_path, use_alias):
+    alias = tmp_path / "alias.json"
+    try:
+        os.link(state_file, alias)
+    except OSError:
+        pytest.skip("hard links are unavailable on this file system")
+    before = state_file.read_bytes()
+    inode = state_file.stat().st_ino
+
+    completed = _raw(alias if use_alias else state_file)
+
+    assert completed.returncode == 2
+    assert completed.stdout == b""
+    assert b"hard link" in completed.stderr
+    assert state_file.read_bytes() == alias.read_bytes() == before
+    assert state_file.stat().st_ino == alias.stat().st_ino == inode
+    assert set(tmp_path.iterdir()) == {state_file, alias}
 
 
 @pytest.fixture
