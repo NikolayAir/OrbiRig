@@ -451,92 +451,40 @@ describe("App help", () => {
   });
 
   it.each([
-    ["Verify observation", "Provide execution details, select a supported scenario, and submit observation evidence for verification."],
-    ["Inspect evidence", "Select an evidence type and paste its JSON to see the recorded values and any saved verification results."],
-  ])("moves the %s introduction into accessible contextual help", (title, text) => {
+    ["Verify observation", "observation-verification", "Compare a recorded result with a scenario."],
+    ["Inspect evidence", "evidence-inspection", "Validate saved records and recheck any verification results they contain."],
+  ])("keeps %s headings and instructions accessible without introduction help", (title, headingId, guidance) => {
     render(<App />);
     if (title === "Inspect evidence") selectInspectionWorkflow();
 
-    const heading = screen.getByRole("heading", { name: title, level: 2 });
-    const help = within(heading.parentElement!).getByRole("button", { name: `About ${title}` });
-    const description = screen.getByText(text);
+    const region = screen.getByRole("region", { name: title });
+    const heading = within(region).getByRole("heading", { name: title, level: 2 });
+    expect(heading).toHaveAttribute("id", headingId);
+    expect(region).toHaveAttribute("aria-labelledby", headingId);
+    expect(screen.queryByRole("button", { name: `About ${title}` })).not.toBeInTheDocument();
+    expect(within(screen.getByRole("button", { name: `Show ${title}` })).getByText(guidance)).toBeVisible();
 
-    expect(description).toHaveAttribute("role", "tooltip");
-    expect(description.tagName).toBe("SPAN");
-    expect(help).toHaveAccessibleDescription(description.textContent!);
-    expect(help).toHaveAttribute("aria-controls", description.id);
-    expect(help).toHaveTextContent("i");
-
-    help.focus();
-    fireEvent.click(help);
-    expect(help.parentElement).toHaveAttribute("data-open", "true");
-    fireEvent.keyDown(help, { key: "Escape" });
-    expect(help.parentElement).toHaveAttribute("data-open", "false");
-    expect(help.parentElement).toHaveAttribute("data-dismissed", "true");
-    expect(help).toHaveFocus();
-
-    fireEvent.click(help);
-    expect(help.parentElement).toHaveAttribute("data-open", "true");
-    expect(help.parentElement).toHaveAttribute("data-dismissed", "false");
-    fireEvent.click(help);
-    expect(help.parentElement).toHaveAttribute("data-open", "false");
-    expect(help.parentElement).toHaveAttribute("data-dismissed", "true");
-    expect(help).toHaveFocus();
+    fireEvent.click(screen.getByRole("button", { name: "In the browser" }));
+    const help = within(screen.getByRole("dialog", { name: "How it works" }));
+    fireEvent.click(help.getByRole("tab", { name: title }));
+    const instructions = help.getByRole("tabpanel", { name: title });
+    expect(instructions).toBeVisible();
+    const steps = instructions.querySelector(":scope > ol");
+    expect(steps).toBeVisible();
+    expect(steps).toHaveTextContent(`Choose ${title} to see`);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it.each([
-    ["Verify observation", "Execution ID"],
-    ["Inspect evidence", "Evidence JSON"],
-  ])("defers %s help dismissal through a pointer click but dismisses keyboard blur", (title, outsideLabel) => {
-    render(<App />);
-    if (title === "Inspect evidence") selectInspectionWorkflow();
-
-    const help = screen.getByRole("button", { name: `About ${title}` });
-    expect(help.parentElement).toHaveAttribute("data-dismissed", "true");
-    fireEvent.pointerEnter(help.parentElement!);
-    fireEvent.pointerLeave(help.parentElement!);
-    expect(help.parentElement).toHaveAttribute("data-open", "false");
-    expect(help.parentElement).toHaveAttribute("data-dismissed", "false");
-    fireEvent.click(screen.getByLabelText(outsideLabel));
-    expect(help.parentElement).toHaveAttribute("data-dismissed", "true");
-
-    for (const blurAfterRelease of [false, true]) {
-      act(() => help.focus());
-      fireEvent.click(help);
-      fireEvent.pointerDown(screen.getByLabelText(outsideLabel));
-      if (blurAfterRelease) fireEvent.pointerUp(screen.getByLabelText(outsideLabel));
-      act(() => screen.getByLabelText(outsideLabel).focus());
-      expect(help.parentElement).toHaveAttribute("data-open", "true");
-      expect(help.parentElement).toHaveAttribute("data-dismissed", "false");
-      if (!blurAfterRelease) fireEvent.pointerUp(screen.getByLabelText(outsideLabel));
-      expect(help.parentElement).toHaveAttribute("data-open", "true");
-      fireEvent.click(screen.getByLabelText(outsideLabel));
-      expect(help.parentElement).toHaveAttribute("data-open", "false");
-      expect(help.parentElement).toHaveAttribute("data-dismissed", "true");
-    }
-
-    fireEvent.pointerEnter(help.parentElement!);
-    expect(help.parentElement).toHaveAttribute("data-dismissed", "false");
-    act(() => help.focus());
-    fireEvent.click(help);
-    fireEvent.pointerDown(help);
-    fireEvent.pointerCancel(help);
-    act(() => screen.getByLabelText(outsideLabel).focus());
-    expect(help.parentElement).toHaveAttribute("data-open", "false");
-    expect(help.parentElement).toHaveAttribute("data-dismissed", "true");
-  });
-
-  it("dismisses workflow introductions on switching without changing inspection inputs", () => {
+  it("dismisses field help on switching without changing inspection inputs", () => {
     render(<App />);
     selectInspectionWorkflow();
     fireEvent.change(screen.getByLabelText("Evidence JSON"), { target: { value: "edited evidence" } });
     selectVerifiedExecutionSequence();
-    fireEvent.click(screen.getByRole("button", { name: "About Inspect evidence" }));
+    fireEvent.click(screen.getByRole("button", { name: "About Evidence JSON" }));
     selectVerificationWorkflow();
-    expect(screen.getByRole("button", { name: "About Verify observation" }).parentElement).toHaveAttribute("data-open", "false");
+    expect(screen.getByRole("button", { name: "About Execution ID" }).parentElement).toHaveAttribute("data-open", "false");
     selectInspectionWorkflow();
-    expect(screen.getByRole("button", { name: "About Inspect evidence" }).parentElement).toHaveAttribute("data-open", "false");
+    expect(screen.getByRole("button", { name: "About Evidence JSON" }).parentElement).toHaveAttribute("data-open", "false");
     expect(screen.getByLabelText("Evidence JSON")).toHaveValue("edited evidence");
     expect(screen.getByRole("radio", { name: "Verified execution sequence" })).toBeChecked();
     expect(fetchMock).not.toHaveBeenCalled();

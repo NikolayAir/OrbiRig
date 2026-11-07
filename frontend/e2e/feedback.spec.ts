@@ -113,7 +113,8 @@ for (const workflow of ["verification", "inspection"] as const) {
           await page.keyboard.press("Enter");
         }
       } else if (destination === "field help") {
-        await page.getByRole("button", { name: `About ${actionName(workflow)}`, exact: true }).focus();
+        const field = workflow === "verification" ? "Observation evidence JSON" : "Evidence JSON";
+        await page.getByRole("button", { name: `About ${field}`, exact: true }).focus();
       } else {
         await page.getByRole("button", { name: "In the browser", exact: true }).click();
         await expect(page.getByRole("dialog", { name: "How it works" })).toBeVisible();

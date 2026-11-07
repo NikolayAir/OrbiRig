@@ -14,17 +14,6 @@ async function expectWithinWidth(elements: Locator, width: number) {
   }
 }
 
-async function expectIntroductionLeavesInputsClear(tooltip: Locator) {
-  expect(await tooltip.evaluate(element => {
-    const help = element.getBoundingClientRect();
-    return [...element.closest(".workflow-panel")!.querySelectorAll("input, select, textarea")].every(input => {
-      const field = input.getBoundingClientRect();
-      return help.right <= field.left || help.left >= field.right ||
-        help.bottom <= field.top || help.top >= field.bottom;
-    });
-  })).toBe(true);
-}
-
 async function recordNextClick(input: Locator) {
   return input.evaluateHandle(element => {
     const hits: boolean[] = [];
@@ -92,7 +81,7 @@ for (const viewport of [
       expect(editorBounds.width).toBeCloseTo(metadataBounds.width, 0);
       expect(editorBounds.y).toBeGreaterThan(metadataBounds.y + metadataBounds.height);
     }
-    for (const name of ["About Verify observation", "About Execution ID", "About Scenario", "About Observation evidence JSON"]) {
+    for (const name of ["About Execution ID", "About Scenario", "About Observation evidence JSON"]) {
       await page.getByRole("button", { name, exact: true }).focus();
       const tooltip = page.getByRole("tooltip");
       await expect(tooltip).toBeVisible();
@@ -288,6 +277,8 @@ for (const { width, textScale } of [
   { width: 320, textScale: 200 },
 ]) {
   for (const [field, helpId] of [
+    ["Execution ID", "execution-id-help-description"],
+    ["Scenario", "scenario-help-description"],
     ["Observation evidence JSON", "verification-observation-hint"],
     ["Evidence JSON", "inspection-evidence-hint"],
   ]) {
@@ -297,11 +288,35 @@ for (const { width, textScale } of [
       if (field === "Evidence JSON") await page.getByRole("button", { name: "Show Inspect evidence", exact: true }).click();
       await page.locator("html").evaluate((element, scale) => { element.style.fontSize = `${scale}%`; }, textScale);
       const input = page.getByLabel(field, { exact: true });
-      await input.fill("preserved-through-hover");
+      const preserved = field === "Scenario" ? "nominal_to_safe_mode" : "preserved-through-hover";
+      if (field === "Scenario") {
+        await input.selectOption(preserved);
+        await input.focus();
+      } else {
+        await input.fill(preserved);
+      }
       const help = page.getByRole("button", { name: `About ${field}`, exact: true });
       const tooltip = page.locator(`#${helpId}`);
+      // Start reading from the middle of the viewport; edge positioning is a separate concern.
+      await help.evaluate(element => element.scrollIntoView({ block: "center" }));
+      const positions = () => page.locator(".workflow-panel input, .workflow-panel select, .workflow-panel textarea, .workflow-panel button").evaluateAll(elements => elements.map(element => {
+        const bounds = element.getBoundingClientRect();
+        return { x: bounds.x + window.scrollX, y: bounds.y + window.scrollY, width: bounds.width, height: bounds.height };
+      }));
+      const initialPositions = await positions();
+      const expectStablePositions = async () => {
+        const current = await positions();
+        expect(current).toHaveLength(initialPositions.length);
+        for (const [index, bounds] of current.entries()) {
+          for (const key of ["x", "y", "width", "height"] as const) {
+            // Scrolling can alter floating-point precision without moving the document layout.
+            expect(bounds[key]).toBeCloseTo(initialPositions[index][key], 2);
+          }
+        }
+      };
       await help.hover();
       await expect(tooltip).toBeVisible();
+      await expectStablePositions();
       await expect(help.locator("..")).toHaveAttribute("data-open", "false");
       await expect(input).toBeFocused();
       await expectWithinWidth(tooltip, width);
@@ -335,9 +350,24 @@ for (const { width, textScale } of [
       await expect(input).toBeFocused();
       await page.mouse.move(0, 0);
       await expect(tooltip).toBeHidden();
+      // Hover-only help must also let a normal click reach the editor or dropdown beneath it.
+      await input.scrollIntoViewIfNeeded();
+      await help.hover();
+      const hoverPoint = await input.evaluate(element => {
+        const bounds = element.getBoundingClientRect();
+        return { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
+      });
+      const hoverClicks = await recordNextClick(input);
+      await page.mouse.move(hoverPoint.x, hoverPoint.y);
+      await page.mouse.click(hoverPoint.x, hoverPoint.y);
+      expect(await hoverClicks.jsonValue()).toEqual([true]);
+      await expect(input).toBeFocused();
+      await expect(tooltip).toBeHidden();
+      await expectStablePositions();
+      if (field === "Scenario") await page.keyboard.press("Escape");
       await help.hover();
       await expect(tooltip).toBeVisible();
-      // The bridge must leave the lower edge of the trigger usable.
+      // The hover gap must leave the lower edge of the trigger usable.
       const clickBounds = (await help.boundingBox())!;
       const clickX = clickBounds.x + clickBounds.width / 2;
       await page.mouse.click(clickX, clickBounds.y + clickBounds.height - 2);
@@ -357,16 +387,46 @@ for (const { width, textScale } of [
       expect(await clicks.jsonValue()).toEqual([true]);
       await expect(input).toBeFocused();
       await expect(tooltip).toBeHidden();
+      if (field === "Scenario") await page.keyboard.press("Escape");
       await page.mouse.move(0, 0);
       await help.hover();
       await expect(tooltip).toBeVisible();
       await page.mouse.move(0, 0);
       await input.focus();
       await expect(tooltip).toBeHidden();
-      await expect(input).toHaveValue("preserved-through-hover");
+      await expect(input).toHaveValue(preserved);
     });
   }
 }
+
+test("reading enlarged help does not open another help button beneath its text", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.goto("/");
+  await page.locator("html").evaluate(element => { element.style.fontSize = "200%"; });
+  const help = page.getByRole("button", { name: "About Scenario", exact: true });
+  await help.evaluate(element => element.scrollIntoView({ block: "center" }));
+  await help.hover();
+  const description = page.locator("#scenario-help-description");
+  const otherHelp = page.getByRole("button", { name: "About Observation evidence JSON", exact: true });
+  await otherHelp.scrollIntoViewIfNeeded();
+  const point = await otherHelp.evaluate(element => {
+    const bounds = element.getBoundingClientRect();
+    return { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
+  });
+  expect(await description.evaluate((element, point) => {
+    const bounds = element.getBoundingClientRect();
+    return point.x >= bounds.left && point.x <= bounds.right && point.y >= bounds.top && point.y <= bounds.bottom;
+  }, point)).toBe(true);
+  await page.mouse.move(point.x, point.y);
+  await expect(description).toBeVisible();
+  await expect(page.locator("#verification-observation-hint")).toBeHidden();
+  // An intentional click still reaches the underlying button and switches help.
+  const clicks = await recordNextClick(otherHelp);
+  await page.mouse.click(point.x, point.y);
+  expect(await clicks.jsonValue()).toEqual([true]);
+  await expect(description).toBeHidden();
+  await expect(page.locator("#verification-observation-hint")).toBeVisible();
+});
 
 for (const [field, helpId] of [
   ["Execution ID", "execution-id-help-description"],
@@ -491,47 +551,45 @@ for (const [field, helpId] of [
   }
 }
 
-for (const width of [1440, 390, 320]) {
-  for (const [title, helpId, description, outsideLabel, reminder] of [
-    ["Verify observation", "verification-help-description", "Provide execution details, select a supported scenario, and submit observation evidence for verification.", "Execution ID", "Replaces current inputs"],
-    ["Inspect evidence", "inspection-help-description", "Select an evidence type and paste its JSON to see the recorded values and any saved verification results.", "Evidence JSON", "Replaces evidence JSON"],
+for (const { width, scale } of [
+  { width: 1440, scale: 100 },
+  { width: 390, scale: 100 },
+  { width: 320, scale: 100 },
+  { width: 320, scale: 200 },
+]) {
+  for (const [title, headingId, inputLabel] of [
+    ["Verify observation", "observation-verification", "Execution ID"],
+    ["Inspect evidence", "evidence-inspection", "Evidence JSON"],
   ]) {
-    test(`${title} introduction keeps a hovered field target in place at ${width}px`, async ({ page }) => {
-      await page.setViewportSize({ width, height: 800 });
+    test(`${title} heading leaves the form stable on hover at ${width}px with ${scale}% text`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
       await page.goto("/");
-      if (title === "Inspect evidence") await page.getByRole("button", { name: "Show Inspect evidence" }).click();
-      const input = page.getByLabel(outsideLabel, { exact: true });
-      await input.fill("preserved-through-hover");
-      await page.getByRole("button", { name: `About ${title}`, exact: true }).hover();
-      const tooltip = page.locator(`#${helpId}`);
-      await expect(tooltip).toBeVisible();
-      await expectIntroductionLeavesInputsClear(tooltip);
-      await input.scrollIntoViewIfNeeded();
-      const point = await input.evaluate(element => {
+      await page.locator("html").evaluate((element, scale) => { element.style.fontSize = `${scale}%`; }, scale);
+      if (title === "Inspect evidence") await page.getByRole("button", { name: "Show Inspect evidence", exact: true }).click();
+      const region = page.getByRole("region", { name: title, exact: true });
+      const heading = region.getByRole("heading", { name: title, level: 2, exact: true });
+      await expect(heading).toHaveAttribute("id", headingId);
+      await expect(region).toHaveAttribute("aria-labelledby", headingId);
+      const input = region.getByLabel(inputLabel, { exact: true });
+      await input.fill("preserved-through-heading-hover");
+      await heading.scrollIntoViewIfNeeded();
+      const fields = region.locator("input, select, textarea");
+      const fieldPositions = () => fields.evaluateAll(elements => elements.map(element => {
         const bounds = element.getBoundingClientRect();
-        return { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
-      });
-      // Keep the chosen point: a locator click could retry after the form moved.
-      await page.mouse.move(point.x, point.y);
-      expect(await input.evaluate((element, point) => document.elementFromPoint(point.x, point.y) === element, point)).toBe(true);
-      await page.mouse.click(point.x, point.y);
-      await expect(input).toBeFocused();
-      await expect(input).toHaveValue("preserved-through-hover");
-      await expect(tooltip).toBeHidden();
-    });
+        return { x: bounds.x + window.scrollX, y: bounds.y + window.scrollY, width: bounds.width, height: bounds.height };
+      }));
+      const initialPositions = await fieldPositions();
+      await heading.hover();
+      // Include the space beside the title where the introduction button used to appear.
+      const bounds = (await heading.boundingBox())!;
+      await page.mouse.move(Math.min(width - 1, bounds.x + bounds.width + 10), bounds.y + bounds.height / 2);
+      await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())));
+      expect(await fieldPositions()).toEqual(initialPositions);
+      await page.mouse.move(0, 0);
+      expect(await fieldPositions()).toEqual(initialPositions);
+      await expect(page.getByRole("button", { name: `About ${title}`, exact: true })).toHaveCount(0);
+      await expect(page.locator("#verification-help-description, #inspection-help-description")).toHaveCount(0);
 
-    test(`${title} introduction delivers a mouse click from focused help to its chosen input at ${width}px`, async ({ page, browserName }) => {
-      await page.setViewportSize({ width, height: 800 });
-      await page.goto("/");
-      if (title === "Inspect evidence") await page.getByRole("button", { name: "Show Inspect evidence" }).click();
-      const help = page.getByRole("button", { name: `About ${title}`, exact: true });
-      await help.click();
-      // macOS WebKit does not focus buttons on mouse click; exercise blur from focused help too.
-      if (browserName === "webkit" && process.platform === "darwin") await help.focus();
-      await expect(help).toBeFocused();
-      const tooltip = page.locator(`#${helpId}`);
-      await expect(tooltip).toBeVisible();
-      const input = page.getByLabel(outsideLabel, { exact: true });
       await input.scrollIntoViewIfNeeded();
       const point = await input.evaluate(element => {
         const bounds = element.getBoundingClientRect();
@@ -542,133 +600,9 @@ for (const width of [1440, 390, 320]) {
       await page.mouse.click(point.x, point.y);
       expect(await clicks.jsonValue()).toEqual([true]);
       await expect(input).toBeFocused();
-      await expect(tooltip).toBeHidden();
-    });
-
-    test(`${title} introduction supports hover, keyboard and touch at ${width}px`, async ({ browser, baseURL, browserName }) => {
-      const context = await browser.newContext({ baseURL, viewport: { width, height: 800 }, hasTouch: true });
-      const page = await context.newPage();
-      await page.goto("/");
-      if (title === "Inspect evidence") await page.getByRole("button", { name: "Show Inspect evidence" }).click();
-      const help = page.getByRole("button", { name: `About ${title}`, exact: true });
-      const tooltip = page.locator(`#${helpId}`);
-      const heading = page.getByRole("heading", { name: title, exact: true });
-      await expect(tooltip).toBeHidden();
-      await expect(help).toHaveAccessibleDescription(
-        description,
-      );
-      // Measure after scrolling: page content above the panel can place it below the fold.
-      await help.scrollIntoViewIfNeeded();
-      const headingBounds = (await heading.boundingBox())!;
-      const helpBounds = (await help.boundingBox())!;
-      expect(helpBounds.x).toBeGreaterThanOrEqual(headingBounds.x + headingBounds.width);
-      expect(Math.abs(helpBounds.y + helpBounds.height / 2 - headingBounds.y - headingBounds.height / 2)).toBeLessThan(1);
-
-      await help.hover();
-      await expect(tooltip).toBeVisible();
-      await expectWithinWidth(tooltip, width);
-      // The hover bridge must leave the lower edge of the button clickable.
-      await page.mouse.click(helpBounds.x + helpBounds.width / 2, helpBounds.y + helpBounds.height - 2);
-      await expect(help.locator("..")).toHaveAttribute("data-open", "true");
-      await page.mouse.move(0, 0);
-      await expect(tooltip).toBeVisible();
-      await tooltip.hover();
-      await expect(tooltip).toBeVisible();
-      await page.keyboard.press("Escape");
-      await expect(tooltip).toBeHidden();
-      await page.mouse.move(0, 0);
-
-      await help.focus();
-      const optionTab = browserName === "webkit" && process.platform === "darwin";
-      await page.keyboard.press(optionTab ? "Alt+Shift+Tab" : "Shift+Tab");
-      await page.keyboard.press(optionTab ? "Alt+Tab" : "Tab");
-      await expect(help).toBeFocused();
-      await expect(tooltip).toBeVisible();
-      await expect(help).toHaveCSS("outline-style", "solid");
-      await page.keyboard.press("Escape");
-      await expect(tooltip).toBeHidden();
-      await expect(help).toBeFocused();
-      await page.keyboard.press("Enter");
-      await expect(tooltip).toBeVisible();
-      await page.keyboard.press("Enter");
-      await expect(tooltip).toBeHidden();
-      await page.keyboard.press("Space");
-      await expect(tooltip).toBeVisible();
-      await page.keyboard.press("Tab");
-      await expect(tooltip).toBeHidden();
-
-      await help.tap();
-      await expect(tooltip).toBeVisible();
-      await help.tap();
-      await expect(tooltip).toBeHidden();
-      await help.tap();
-      await expect(tooltip).toBeVisible();
-      await expectIntroductionLeavesInputsClear(tooltip);
-      const outsideInput = page.getByLabel(outsideLabel, { exact: true });
-      await outsideInput.scrollIntoViewIfNeeded();
-      expect(await outsideInput.evaluate(element => {
-        const bounds = element.getBoundingClientRect();
-        return document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2) === element;
-      })).toBe(true);
-      const clicks = await recordNextClick(outsideInput);
-      await outsideInput.tap();
-      expect(await clicks.jsonValue()).toEqual([true]);
-      await expect(outsideInput).toBeFocused();
-      await expect(tooltip).toBeHidden();
-      await expect(page.getByText(reminder, { exact: true })).toBeHidden();
+      await expect(input).toHaveValue("preserved-through-heading-hover");
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
-
-      await page.setViewportSize({ width, height: 480 });
-      await page.mouse.move(0, 0);
-      await help.evaluate(element => {
-        window.scrollBy(0, element.getBoundingClientRect().bottom - window.innerHeight + 16);
-      });
-      await help.hover();
-      await expect(tooltip).toBeVisible();
-      const tooltipBounds = (await tooltip.boundingBox())!;
-      expect(tooltipBounds.y).toBeGreaterThanOrEqual(0);
-      expect(tooltipBounds.y + tooltipBounds.height).toBeLessThanOrEqual(480);
-      await expect(help.locator("..")).toHaveAttribute("data-above", "true");
-      await expectIntroductionLeavesInputsClear(tooltip);
-      // A tooltip above the heading must also leave the upper edge usable.
-      const aboveHelpBounds = (await help.boundingBox())!;
-      await page.mouse.click(aboveHelpBounds.x + aboveHelpBounds.width / 2, aboveHelpBounds.y + 2);
-      await expect(help.locator("..")).toHaveAttribute("data-open", "true");
-      await page.mouse.move(0, 0);
-      await expect(tooltip).toBeVisible();
-      await page.keyboard.press("Escape");
-      await expect(tooltip).toBeHidden();
-      await context.close();
     });
-
-    if (width !== 1440) {
-      test(`${title} introduction toggles with touch-only edge taps at ${width}px`, async ({ browser, baseURL, browserName }) => {
-        test.skip(browserName === "firefox", "Firefox does not support Playwright mobile emulation.");
-        const context = await browser.newContext({ baseURL, viewport: { width, height: 844 }, hasTouch: true, isMobile: true });
-        try {
-          const page = await context.newPage();
-          await page.goto("/");
-          if (title === "Inspect evidence") await page.getByRole("button", { name: "Show Inspect evidence" }).tap();
-          const input = page.getByLabel(outsideLabel, { exact: true });
-          await input.fill("preserved-through-edge-taps");
-          const help = page.getByRole("button", { name: `About ${title}`, exact: true });
-          const tooltip = page.locator(`#${helpId}`);
-          await help.scrollIntoViewIfNeeded();
-          const bounds = (await help.boundingBox())!;
-          const x = bounds.x + bounds.width / 2;
-          const y = bounds.y + bounds.height - 2;
-          await page.touchscreen.tap(x, y);
-          await expect(tooltip).toBeVisible();
-          await expect(help.locator("..")).toHaveAttribute("data-open", "true");
-          await page.touchscreen.tap(x, y);
-          await expect(tooltip).toBeHidden();
-          await expect(help.locator("..")).toHaveAttribute("data-open", "false");
-          await expect(input).toHaveValue("preserved-through-edge-taps");
-        } finally {
-          await context.close();
-        }
-      });
-    }
   }
 }
 
@@ -689,11 +623,11 @@ for (const font of ["", "monospace"]) {
     }
 
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
-    await page.getByRole("button", { name: "About Verify observation", exact: true }).focus();
+    await page.getByRole("button", { name: "About Observation evidence JSON", exact: true }).focus();
     await expectWithinWidth(page.getByRole("tooltip"), 320);
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Show Inspect evidence", exact: true }).click();
-    await page.getByRole("button", { name: "About Inspect evidence", exact: true }).focus();
+    await page.getByRole("button", { name: "About Evidence JSON", exact: true }).focus();
     await expectWithinWidth(page.getByRole("tooltip"), 320);
     await page.keyboard.press("Escape");
     await expectWithinWidth(page.locator(".evidence-types label"), 320);

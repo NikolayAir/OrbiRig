@@ -1,5 +1,4 @@
 import type { RefObject, SubmitEvent } from "react";
-import { WorkflowTitle } from "./WorkflowTitle";
 import { LoadExampleButton } from "./LoadExampleButton";
 import { EvidenceRequestSizeError, RequestError } from "./RequestFeedback";
 import { describedBy, preventRepeatedRequestAction } from "./formHelpers";
@@ -73,13 +72,7 @@ export function VerificationPanel({
     aria-labelledby="observation-verification"
   >
     <div className="workflow-heading">
-      <WorkflowTitle
-        headingId="observation-verification"
-        helpId="verification-help-description"
-        title="Verify observation"
-        description="Provide execution details, select a supported scenario, and submit observation evidence for verification."
-        onHelpOpen={fieldHelp.closePinned}
-      />
+      <h2 id="observation-verification">Verify observation</h2>
       <div className="example-actions">
         <LoadExampleButton
           description="Replaces current inputs"

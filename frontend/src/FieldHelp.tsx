@@ -13,8 +13,8 @@ export function FieldHelp({ control, label, helpId, children }: {
       className="field-help"
       data-open={control.open}
       data-dismissed={control.dismissed}
-      onPointerEnter={control.reveal}
-      onFocus={control.reveal}
+      onPointerEnter={event => control.reveal(event)}
+      onFocus={() => control.reveal()}
     >
       <button
         type="button"

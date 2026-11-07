@@ -628,47 +628,9 @@ button {
   padding-bottom: 0.75rem;
 }
 
-.workflow-heading > div:first-child {
-  min-width: 0;
-}
-
-.workflow-title {
-  align-items: center;
-  display: grid;
-  gap: 0 0.5rem;
-  grid-template-columns: minmax(0, 1fr) auto;
-  max-width: 100%;
-  position: relative;
-}
-
-.workflow-title h2 {
+.workflow-heading > h2 {
   min-width: 0;
   overflow-wrap: anywhere;
-}
-
-.workflow-title .field-help {
-  display: contents;
-}
-
-/* Reserve a row for visible help below the heading instead of covering form inputs.
- * Inline containment keeps opening the help from widening the title row.
- */
-.workflow-title .field-help[data-above="false"][data-dismissed="false"] [role="tooltip"] {
-  contain: inline-size;
-  grid-column: 1 / -1;
-  inset: auto;
-  margin-top: 0.4rem;
-  position: relative;
-}
-
-.workflow-title .field-help-button,
-.evidence-input .field-help-button {
-  /*
-   * The tooltip extends an invisible area across the gap to its button.
-   * Keep that area behind the button so it cannot block clicks.
-   */
-  position: relative;
-  z-index: 2;
 }
 
 .workflow-heading p {
@@ -813,7 +775,7 @@ label {
 }
 
 .evidence-input .field-help {
-  /* Keep the button next to the hover bridge when its label wraps. */
+  /* Align the button with the last line when its label wraps. */
   align-self: flex-end;
 }
 
@@ -866,7 +828,7 @@ label {
 .field-help:hover [role="tooltip"],
 .field-help:focus-within [role="tooltip"],
 .field-help[data-open="true"] [role="tooltip"],
-.workflow-title .field-help[data-dismissed="false"] [role="tooltip"] {
+.field-label .field-help[data-dismissed="false"] [role="tooltip"] {
   opacity: 1;
   visibility: visible;
 }
@@ -877,9 +839,6 @@ label {
   visibility: hidden;
 }
 
-/* Hover-only JSON help receives the pointer; pinned help does not block its editor. */
-.workflow-title [role="tooltip"],
-.evidence-input .field-help[data-open="false"] [role="tooltip"],
 .example-action [role="tooltip"] {
   pointer-events: auto;
 }
@@ -888,8 +847,6 @@ label {
  * Cover the gap between button and tooltip with an invisible area (hover bridge).
  * This keeps the tooltip open while the pointer crosses the gap.
  */
-.workflow-title [role="tooltip"]::before,
-.evidence-input .field-help [role="tooltip"]::before,
 .example-action [role="tooltip"]::before {
   bottom: 100%;
   content: "";
@@ -897,16 +854,6 @@ label {
   left: 0;
   position: absolute;
   width: 100%;
-}
-
-.workflow-title .field-help[data-above="true"] [role="tooltip"] {
-  bottom: calc(100% + 0.4rem);
-  top: auto;
-}
-
-.workflow-title .field-help[data-above="true"] [role="tooltip"]::before {
-  bottom: auto;
-  top: 100%;
 }
 
 input:not([type="radio"]),

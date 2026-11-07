@@ -296,7 +296,6 @@ export function App() {
       {activeWorkflow === "inspection" && (
         <InspectionPanel
           evidenceHelp={fieldHelp.inspectionEvidence}
-          closeFieldHelp={fieldHelp.closePinned}
           evidenceType={evidenceType}
           evidence={evidence}
           state={inspection.state}
