@@ -185,9 +185,12 @@ async def _decode_verification_request(
         )
 
     try:
+        # Decode explicitly: given bytes, json.loads also accepts UTF-16, UTF-32
+        # and encoded surrogates.
+        serialized = (await _read_evidence_body(request)).decode("utf-8")
         # The request wrapper must reject duplicate fields as well as the embedded evidence.
         document = _load_strict_json(
-            await _read_evidence_body(request),
+            serialized,
             invalid_json_message="verification request JSON is invalid",
         )
     except (UnicodeDecodeError, _StrictJSONError):

@@ -153,7 +153,7 @@ export function InspectionPanel({
           />
           <span>
             <span id="sequence-type-label">Verified execution sequence</span>
-            <small id="sequence-type-description">Ordered records, each starting where the last ended.</small>
+            <small id="sequence-type-description">Ordered records; each should start where the last ended.</small>
           </span>
         </label>
       </fieldset>

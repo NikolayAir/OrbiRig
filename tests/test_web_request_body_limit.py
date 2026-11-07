@@ -194,13 +194,13 @@ def test_stream_preserves_accepted_bytes_across_utf8_chunk_boundaries(
     assert received == [expected]
 
 
-def test_verification_request_bytes_reach_strict_json_loader_unchanged(monkeypatch):
+def test_verification_request_text_reaches_strict_json_loader_unchanged(monkeypatch):
     endpoint = ENDPOINTS[1]
     body = b"\r\n\t" + _submission(endpoint)[0] + b" \r\n"
-    received: list[str | bytes] = []
+    received: list[str] = []
     original = web._load_strict_json
 
-    def capture(serialized: str | bytes, *, invalid_json_message: str):
+    def capture(serialized: str, *, invalid_json_message: str):
         received.append(serialized)
         return original(serialized, invalid_json_message=invalid_json_message)
 
@@ -222,7 +222,7 @@ def test_verification_request_bytes_reach_strict_json_loader_unchanged(monkeypat
     response = asyncio.run(exercise())
     assert response.status_code == 200
     assert response.json()["outcome"] == "FAIL"
-    assert received == [body]
+    assert received == [body.decode("utf-8")]
 
 
 @pytest.mark.parametrize("endpoint", ENDPOINTS)

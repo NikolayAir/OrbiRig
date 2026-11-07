@@ -276,9 +276,10 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
           {section === "browser" && (
             <>
               <p>
-                OrbiRig checks whether a system did what it was asked to do. An observation
-                is one recorded command: the request, whether it was accepted, the system's
-                state before and after, and the state it reported separately (telemetry).
+                OrbiRig checks whether a system handled a command the way it should have.
+                An observation is one recorded command: the request, whether it was
+                accepted, the system's state before and after, and the state it reported
+                separately (telemetry).
               </p>
               <p>
                 The examples use a simplified spacecraft with 2 operating modes, NOMINAL
@@ -382,7 +383,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                   </li>
                   <li>
                     Paste its JSON or load an example. <strong>Load altered example</strong> shows
-                    how changed evidence is rejected.
+                    why evidence with repeated fields or outdated saved results is rejected.
                   </li>
                   <li>
                     Choose <strong>Inspect evidence</strong> to see the recorded values

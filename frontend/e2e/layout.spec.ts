@@ -197,7 +197,7 @@ for (const viewport of [
     await observation.focus();
     for (const [name, description] of [
       ["Verified execution", "1 execution with its scenario and checks."],
-      ["Verified execution sequence", "Ordered records, each starting where the last ended."],
+      ["Verified execution sequence", "Ordered records; each should start where the last ended."],
     ]) {
       await page.keyboard.press("ArrowDown");
       const radio = page.getByRole("radio", { name, exact: true });

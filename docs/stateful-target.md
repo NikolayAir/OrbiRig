@@ -121,7 +121,7 @@ The earlier stale-telemetry example returned a valid observation and a verified 
 
 ## State and failure boundaries
 
-Use a separate regular state file for each independent target or test session. Commands within that session must share the same file and run sequentially, with only 1 caller at a time. Missing files, malformed JSON, repeated field names, unsupported modes and invalid commands are errors; the target does not create or repair state automatically. It writes diagnostics to stderr and exits with code `2`, without an observation. The collector reports `ObservationCollectionError`, rather than a verification outcome.
+Use a separate regular state file for each independent target or test session. Commands within that session must share the same file and run sequentially, with only 1 caller at a time. Missing files, a symbolic link or directory in place of the file, malformed JSON, repeated field names, unsupported modes and invalid commands are errors; the target does not create or repair state automatically. It writes diagnostics to stderr and exits with code `2`, without an observation. The collector reports `ObservationCollectionError`, rather than a verification outcome.
 
 Commands and stored state are validated before any write. Rejected commands leave the original bytes unchanged. An accepted change is written to a temporary file beside the state file, then replaces it atomically; failed writes or replacements preserve the original file. This does not provide concurrent-writer coordination or protection against power loss. Once state is committed, a later reply or collection error does not establish rollback, as described in the [subprocess contract](python.md#collect-from-a-separate-program).
 

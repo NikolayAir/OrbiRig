@@ -21,7 +21,7 @@ Choose how to use it:
 3. Inspect the expected and actual values. The default example records an accepted change from `NOMINAL` to `SAFE` and produces `PASS`.
 4. Choose **Load failing example**, then **Verify observation**, to see a mismatch produce `FAIL`.
 
-To explore saved records, choose **Inspect evidence**, select an evidence type, load its example and choose **Inspect evidence**.
+To explore saved records, switch to **Inspect evidence**, select an evidence type, choose **Load example**, then submit it with the **Inspect evidence** button.
 
 ![Verification result showing 3 passing checks and a failed telemetry check: expected SAFE, actual NOMINAL](docs/images/orbirig-web-verification.png)
 
@@ -79,6 +79,8 @@ Rounded boxes show actions; square-cornered boxes show data or results. See the 
 The **Python core** validates inputs, defines scenario expectations, performs verification and reads or writes evidence. The React/TypeScript browser interface and CLI use this same core, so each interface applies the same verification rules. The core also works without the web application.
 
 The Python API can execute a command and collect an observation from the included `ReferenceSpacecraft` or a separate program, invoked as a subprocess. `ReferenceSpacecraft` is a simplified, deterministic **test double** used to produce repeatable observations. Scenario expectations are defined separately, so its reported behaviour does not determine what counts as correct.
+
+The [stateful test target](docs/stateful-target.md) is a separate program that keeps its mode between runs. With a simulated fault, it accepts a change to `SAFE` but its telemetry still reports `NOMINAL`. OrbiRig fails only the telemetry check, and the next command confirms that the program kept its new `SAFE` state.
 
 [Tests](CONTRIBUTING.md#python-checks) include deliberately incorrect observations and [browser-to-Python checks](CONTRIBUTING.md#browser-tests) with independently defined expected results.
 

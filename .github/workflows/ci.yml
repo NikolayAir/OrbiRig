@@ -239,7 +239,7 @@ jobs:
 
       - name: Run ${{ matrix.name }} browser tests
         working-directory: frontend
-        # The full WebKit suite can exceed the local 5-minute limit on CI runners.
+        # Bound each engine's suite separately; the local default covers all 3 engines.
         run: uv run --no-sync npm run test:e2e -- --project=${{ matrix.browser }} --global-timeout=600000
 
       - name: Upload browser reports, traces, screenshots and videos

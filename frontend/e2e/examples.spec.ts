@@ -185,7 +185,11 @@ for (const width of [1440, 768, 320]) {
       expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
       expect(bounds.y + bounds.height).toBeLessThanOrEqual(800);
       for (const button of [cancel, confirm]) {
-        const box = (await button.boundingBox())!;
+        // Read DOMRect dimensions: Firefox's protocol can report the 44px minimum a fraction short.
+        const box = await button.evaluate(element => {
+          const { width, height } = element.getBoundingClientRect();
+          return { width, height };
+        });
         expect(box.width).toBeGreaterThanOrEqual(44);
         expect(box.height).toBeGreaterThanOrEqual(44);
       }

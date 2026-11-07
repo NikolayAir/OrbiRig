@@ -18,8 +18,9 @@ export default defineConfig({
   workers: 1,
   retries: 0,
   // Bound local runs, including startup checks outside webServer timeouts.
-  // CI sets a longer limit on the command line for each browser's full suite.
-  globalTimeout: 300_000,
+  // All 3 engines took about 7 minutes on an Apple silicon Mac; slower machines need the margin.
+  // CI sets its own limit on the command line for each browser's full suite.
+  globalTimeout: 1_200_000,
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
     baseURL: E2E_FRONTEND_URL,

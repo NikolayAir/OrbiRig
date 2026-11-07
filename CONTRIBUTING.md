@@ -122,7 +122,7 @@ uv run --no-sync npm run test:e2e
 
 On Linux, use `npx playwright install --with-deps chromium firefox webkit` to install system dependencies as well. `uv run --no-sync` finds the project from `frontend/` and puts its Python environment on `PATH`, including for the FastAPI subprocess started by Playwright.
 
-Run 1 engine with `uv run --no-sync npm run test:e2e -- --project=firefox`, substituting `chromium` or `webkit` as needed. The default uses 1 worker, no automatic retries and a 5-minute timeout covering setup and tests across all 3 engines.
+Run 1 engine with `uv run --no-sync npm run test:e2e -- --project=firefox`, substituting `chromium` or `webkit` as needed. The default uses 1 worker, no automatic retries and a 20-minute timeout covering setup and tests across all 3 engines.
 
 ### Coverage and limits
 
@@ -155,10 +155,10 @@ The runner starts FastAPI at `127.0.0.1:18000` and Vite at `127.0.0.1:15173`, wa
 
 On macOS and Linux, `SIGTERM` sent to Playwright uses the same teardown as `SIGINT`. Vitest checks runner shutdown using temporary Node.js servers without Python or installed browsers.
 
-To check repeatability across all 3 engines, use a 15-minute timeout from `frontend/`:
+To check repeatability across all 3 engines, use a 60-minute timeout from `frontend/`:
 
 ```bash
-uv run --no-sync npm run test:e2e -- --repeat-each=3 --global-timeout=900000
+uv run --no-sync npm run test:e2e -- --repeat-each=3 --global-timeout=3600000
 ```
 
 The HTML report is saved in `frontend/playwright-report/`. Failed tests retain traces, screenshots and videos in `frontend/test-results/`. From `frontend/`, open the report with `npx playwright show-report`.
@@ -174,7 +174,7 @@ The [Checks workflow](.github/workflows/ci.yml) selects this matrix:
 | Manual `workflow_dispatch` | Python 3.12–3.15 on Ubuntu, macOS and Windows | 16 |
 | Push to `main` | Python 3.12–3.15 on Ubuntu | 8 |
 
-Totals include 3 Ubuntu browser jobs and the final `CI passed` job. Python jobs have a 10-minute timeout, browser jobs 30 minutes and `CI passed` 1 minute. Each CI browser invocation sets a separate 10-minute Playwright timeout; the local default remains 5 minutes. Individual test and assertion timeouts are unchanged.
+Totals include 3 Ubuntu browser jobs and the final `CI passed` job. Python jobs have a 10-minute timeout, browser jobs 30 minutes and `CI passed` 1 minute. Each CI browser invocation sets a separate 10-minute Playwright timeout; the local default covers all 3 engines in 20 minutes. Individual test and assertion timeouts are unchanged.
 
 Python setup uses `check-latest: true` to select the latest available patch in each chosen series. A newer patch is downloaded when the runner's cached version is older.
 

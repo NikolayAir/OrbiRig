@@ -168,6 +168,39 @@ def test_malformed_outer_request_has_stable_error_category() -> None:
     _assert_error(response, "invalid_request")
 
 
+def _request_text() -> str:
+    return json.dumps(_verification_request(), indent=2)
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        _request_text().encode("utf-8").replace(b"T", b"\xff", 1),
+        # An encoded surrogate in place of the timestamp's date-time separator.
+        _request_text().encode("utf-8").replace(b"25T18", b"25\xed\xa0\x8018", 1),
+        b"\xef\xbb\xbf" + _request_text().encode("utf-8"),
+        _request_text().encode("utf-16"),
+        _request_text().encode("utf-16-le"),
+        _request_text().encode("utf-32"),
+    ],
+    ids=["invalid-byte", "encoded-surrogate", "utf8-bom", "utf16", "utf16-le", "utf32"],
+)
+def test_outer_request_must_be_utf8_without_bom(body: bytes) -> None:
+    response = CLIENT.post(
+        ENDPOINT,
+        content=body,
+        headers={"Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "detail": {
+            "code": "invalid_request",
+            "message": "verification request JSON is invalid",
+        },
+    }
+
+
 def test_excessively_nested_outer_request_is_invalid_request() -> None:
     response = CLIENT.post(
         ENDPOINT,

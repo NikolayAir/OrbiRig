@@ -22,7 +22,7 @@ An expected command rejection can pass. Invalid input, including a command incom
 
 ## Inspect evidence
 
-Choose **Inspect evidence**, select its type and paste saved JSON or load an example. Then choose **Inspect evidence**. **Load example** provides valid evidence. For verified types, **Load failing example** provides valid evidence with a `FAIL` outcome; the sequence example fails continuity while each record passes. For sequences, **Load long sequence** provides 100 records with a `FAIL` outcome, which shows page controls and the failure filter. **Load altered example** provides evidence that is rejected: a repeated field name for an observation, and saved checks that no longer match the data for verified types.
+Switch to **Inspect evidence**, select the evidence type and paste saved JSON or load an example. Then submit it with the **Inspect evidence** button. **Load example** provides valid evidence. For verified types, **Load failing example** provides valid evidence with a `FAIL` outcome; the sequence example fails continuity while each record passes. For sequences, **Load long sequence** provides 100 records with a `FAIL` outcome, which shows page controls and the failure filter. **Load altered example** provides evidence that is rejected: a repeated field name for an observation, and saved checks that no longer match the data for verified types.
 
 | Type | What inspection shows and checks |
 | --- | --- |
@@ -107,6 +107,8 @@ All 4 endpoints use `POST`:
 | `/api/inspect/observation` | `text/plain; charset=utf-8` | Raw observation-evidence JSON text |
 | `/api/inspect/verified-execution` | `text/plain; charset=utf-8` | Raw verified-execution JSON text |
 | `/api/inspect/verified-execution-sequence` | `text/plain; charset=utf-8` | Raw verified-sequence JSON text |
+
+Request bodies must be UTF-8 without a byte-order mark (BOM). A verification request in another encoding, or with bytes that are not valid UTF-8, returns HTTP `422` with the `invalid_request` code.
 
 For verification, `scenario_id` is one of the [scenario string values](verification.md#supported-scenarios). `observation_evidence` contains JSON as a string, not a nested object. FastAPI passes this string unchanged to `deserialize_execution_evidence(...)`, then delegates verification to `build_verified_execution_record(...)`.
 
