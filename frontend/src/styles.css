@@ -661,7 +661,8 @@ button {
   position: relative;
 }
 
-.workflow-title .field-help-button {
+.workflow-title .field-help-button,
+.evidence-input .field-help-button {
   /*
    * The tooltip extends an invisible area across the gap to its button.
    * Keep that area behind the button so it cannot block clicks.
@@ -811,6 +812,11 @@ label {
   display: inline-flex;
 }
 
+.evidence-input .field-help {
+  /* Keep the button next to the hover bridge when its label wraps. */
+  align-self: flex-end;
+}
+
 .field-help-button {
   align-items: center;
   background: #eef3f6;
@@ -871,7 +877,9 @@ label {
   visibility: hidden;
 }
 
+/* Hover-only JSON help receives the pointer; pinned help does not block its editor. */
 .workflow-title [role="tooltip"],
+.evidence-input .field-help[data-open="false"] [role="tooltip"],
 .example-action [role="tooltip"] {
   pointer-events: auto;
 }
@@ -881,6 +889,7 @@ label {
  * This keeps the tooltip open while the pointer crosses the gap.
  */
 .workflow-title [role="tooltip"]::before,
+.evidence-input .field-help [role="tooltip"]::before,
 .example-action [role="tooltip"]::before {
   bottom: 100%;
   content: "";

@@ -670,10 +670,12 @@ describe("App help", () => {
     ["About Execution ID", "Execution ID"],
     ["About Scenario", "Scenario"],
     ["About Observation evidence JSON", "Observation evidence JSON"],
+    ["About Evidence JSON", "Evidence JSON"],
   ])(
     "dismisses pinned %s on outside pointer interaction",
     (helpName, outsideLabel) => {
       render(<App />);
+      if (helpName === "About Evidence JSON") selectInspectionWorkflow();
 
       const help = screen.getByRole("button", { name: helpName });
       const outsideControl = screen.getByLabelText(outsideLabel);
@@ -686,7 +688,10 @@ describe("App help", () => {
       fireEvent.pointerDown(outsideControl);
 
       expect(help.parentElement).toHaveAttribute("data-open", "false");
+      expect(help.parentElement).toHaveAttribute("data-dismissed", "true");
       expect(document.activeElement).not.toBe(help);
+      fireEvent.pointerEnter(help.parentElement!);
+      expect(help.parentElement).toHaveAttribute("data-dismissed", "false");
     },
   );
 

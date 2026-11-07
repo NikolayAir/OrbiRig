@@ -26,6 +26,8 @@ export function useVerificationFieldHelp() {
       const container = refs[openField].current;
       if (container?.contains(event.target)) return;
       setOpenField(null);
+      // Touch can retain :hover after an outside press.
+      setDismissed(current => ({ ...current, [openField]: true }));
       if (document.activeElement instanceof HTMLElement && container?.contains(document.activeElement)) {
         document.activeElement.blur();
       }

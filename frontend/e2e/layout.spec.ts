@@ -281,6 +281,93 @@ for (const viewport of [
   });
 }
 
+for (const { width, textScale } of [
+  { width: 1440, textScale: 100 },
+  { width: 390, textScale: 100 },
+  { width: 320, textScale: 100 },
+  { width: 320, textScale: 200 },
+]) {
+  for (const [field, helpId] of [
+    ["Observation evidence JSON", "verification-observation-hint"],
+    ["Evidence JSON", "inspection-evidence-hint"],
+  ]) {
+    test(`${field} help remains readable across the hover gap at ${width}px with ${textScale}% text`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto("/");
+      if (field === "Evidence JSON") await page.getByRole("button", { name: "Show Inspect evidence", exact: true }).click();
+      await page.locator("html").evaluate((element, scale) => { element.style.fontSize = `${scale}%`; }, textScale);
+      const input = page.getByLabel(field, { exact: true });
+      await input.fill("preserved-through-hover");
+      const help = page.getByRole("button", { name: `About ${field}`, exact: true });
+      const tooltip = page.locator(`#${helpId}`);
+      await help.hover();
+      await expect(tooltip).toBeVisible();
+      await expect(help.locator("..")).toHaveAttribute("data-open", "false");
+      await expect(input).toBeFocused();
+      await expectWithinWidth(tooltip, width);
+      const buttonBounds = (await help.boundingBox())!;
+      const textBounds = (await tooltip.boundingBox())!;
+      const x = buttonBounds.x + buttonBounds.width / 2;
+      // Cross the actual gap without a locator retry or focus pinning the help.
+      await page.mouse.move(x, (buttonBounds.y + buttonBounds.height + textBounds.y) / 2);
+      await expect(tooltip).toBeVisible();
+      const viewportHeight = page.viewportSize()!.height;
+      const visibleTop = Math.max(0, textBounds.y);
+      const visibleBottom = Math.min(viewportHeight, textBounds.y + textBounds.height);
+      expect(visibleBottom).toBeGreaterThan(visibleTop);
+      await page.mouse.move(textBounds.x + textBounds.width / 2, visibleTop + Math.min(20, (visibleBottom - visibleTop) / 2), { steps: 5 });
+      await expect(tooltip).toBeVisible();
+      const lastLine = () => tooltip.evaluate(element => {
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        const bounds = [...range.getClientRects()].at(-1)!;
+        return { top: bounds.top, bottom: bounds.bottom };
+      });
+      // Read long guidance using wheel input while the pointer stays over its text.
+      while ((await lastLine()).bottom > viewportHeight - 12) {
+        const scrollY = await page.evaluate(() => window.scrollY);
+        await page.mouse.wheel(0, 120);
+        await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(scrollY);
+        await expect(tooltip).toBeVisible();
+      }
+      expect((await lastLine()).top).toBeGreaterThanOrEqual(0);
+      await expect(help.locator("..")).toHaveAttribute("data-open", "false");
+      await expect(input).toBeFocused();
+      await page.mouse.move(0, 0);
+      await expect(tooltip).toBeHidden();
+      await help.hover();
+      await expect(tooltip).toBeVisible();
+      // The bridge must leave the lower edge of the trigger usable.
+      const clickBounds = (await help.boundingBox())!;
+      const clickX = clickBounds.x + clickBounds.width / 2;
+      await page.mouse.click(clickX, clickBounds.y + clickBounds.height - 2);
+      await expect(help.locator("..")).toHaveAttribute("data-open", "true");
+      await page.mouse.click(clickX, clickBounds.y + clickBounds.height - 2);
+      await expect(tooltip).toBeHidden();
+      await page.mouse.click(clickX, clickBounds.y + clickBounds.height - 2);
+      await expect(help.locator("..")).toHaveAttribute("data-open", "true");
+      await input.scrollIntoViewIfNeeded();
+      const point = await input.evaluate(element => {
+        const bounds = element.getBoundingClientRect();
+        return { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
+      });
+      const clicks = await recordNextClick(input);
+      await page.mouse.move(point.x, point.y);
+      await page.mouse.click(point.x, point.y);
+      expect(await clicks.jsonValue()).toEqual([true]);
+      await expect(input).toBeFocused();
+      await expect(tooltip).toBeHidden();
+      await page.mouse.move(0, 0);
+      await help.hover();
+      await expect(tooltip).toBeVisible();
+      await page.mouse.move(0, 0);
+      await input.focus();
+      await expect(tooltip).toBeHidden();
+      await expect(input).toHaveValue("preserved-through-hover");
+    });
+  }
+}
+
 for (const [field, helpId] of [
   ["Execution ID", "execution-id-help-description"],
   ["Scenario", "scenario-help-description"],
@@ -388,7 +475,14 @@ for (const [field, helpId] of [
         await expect(tooltip).toBeHidden();
         await help.tap();
         await expect(tooltip).toBeVisible();
-        await page.getByLabel(field, { exact: true }).tap();
+        const input = page.getByLabel(field, { exact: true });
+        await input.scrollIntoViewIfNeeded();
+        expect(await input.evaluate(element => {
+          const bounds = element.getBoundingClientRect();
+          return document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2) === element;
+        })).toBe(true);
+        await input.tap();
+        await expect(input).toBeFocused();
         await expect(tooltip).toBeHidden();
       } finally {
         await context.close();
