@@ -1,10 +1,11 @@
 import type { Dispatch, RefObject, SetStateAction, SubmitEvent } from "react";
-import { WorkflowTitle } from "./WorkflowTitle";
 import { LoadExampleButton } from "./LoadExampleButton";
+import { FieldHelp } from "./FieldHelp";
 import type { InspectionExampleVariant } from "./examples";
 import { EvidenceRequestSizeError, RequestError } from "./RequestFeedback";
 import { describedBy, preventRepeatedRequestAction } from "./formHelpers";
 import type { FeedbackTargets } from "./useWorkflowFeedback";
+import type { FieldHelpControl } from "./useVerificationFieldHelp";
 
 import {
   ObservationDetails,
@@ -24,6 +25,7 @@ type Props = {
   sequenceView: SequenceView;
   onSequenceViewChange: Dispatch<SetStateAction<SequenceView>>;
   feedback: FeedbackTargets;
+  evidenceHelp: FieldHelpControl;
   requiresConfirmation: (variant: InspectionExampleVariant) => boolean;
   onEvidenceTypeChange: (type: EvidenceType) => void;
   onEvidenceChange: (value: string) => void;
@@ -36,7 +38,7 @@ export function InspectionPanel({
   evidenceType, evidence, state: inspection,
   requiredError, evidenceInputRef,
   sequenceView, onSequenceViewChange,
-  feedback,
+  feedback, evidenceHelp,
   requiresConfirmation, onEvidenceTypeChange: selectEvidenceType, onEvidenceChange,
   onLoadExample: loadInspectionExample, onSubmit: inspectEvidence, onCancel: cancelInspection,
 }: Props) {
@@ -55,12 +57,7 @@ export function InspectionPanel({
     aria-labelledby="evidence-inspection"
   >
     <div className="workflow-heading">
-      <WorkflowTitle
-        headingId="evidence-inspection"
-        helpId="inspection-help-description"
-        title="Inspect evidence"
-        description="Select an evidence type and paste its JSON to see the recorded values and any saved verification results."
-      />
+      <h2 id="evidence-inspection">Inspect evidence</h2>
       <div className="example-actions">
         <LoadExampleButton
           description="Replaces evidence JSON"
@@ -136,7 +133,7 @@ export function InspectionPanel({
           />
           <span>
             <span id="execution-type-label">Verified execution</span>
-            <small id="execution-type-description">1 execution with its scenario and checks.</small>
+            <small id="execution-type-description">One execution with its selected scenario and verification checks.</small>
           </span>
         </label>
         <label>
@@ -160,10 +157,13 @@ export function InspectionPanel({
 
       <div className="inspection-evidence">
         <div className="form-field evidence-input">
-          <label htmlFor="evidence">Evidence JSON</label>
-          <p className="field-hint" id="inspection-evidence-hint">
-            Paste the complete document for the selected evidence type.
-          </p>
+          <div className="field-label">
+            <label htmlFor="evidence">Evidence JSON</label>
+            <FieldHelp control={evidenceHelp} label="Evidence JSON" helpId="inspection-evidence-hint">
+              Paste the full JSON document matching the selected evidence type: observation, verified execution,
+              or verified-execution sequence. Use Load example to see the expected structure.
+            </FieldHelp>
+          </div>
           <textarea
             id="evidence"
             name="evidence"

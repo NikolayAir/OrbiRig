@@ -82,6 +82,8 @@ The Python API can execute a command and collect an observation from the include
 
 The [stateful test target](docs/stateful-target.md) is a separate program that keeps its mode between runs. With a simulated fault, it accepts a change to `SAFE` but its telemetry still reports `NOMINAL`. OrbiRig fails only the telemetry check, and the next command confirms that the program kept its new `SAFE` state.
 
+Another fault makes the target save a mode change and then fail before returning an observation. OrbiRig reports a collection error for that run, without producing a verification result. The stateful-target guide includes a runnable example that checks the saved state and sends a subsequent command.
+
 [Tests](CONTRIBUTING.md#python-checks) include deliberately incorrect observations and [browser-to-Python checks](CONTRIBUTING.md#browser-tests) with independently defined expected results.
 
 Each verification check, called an **invariant**, retains the expected value, actual value and whether they match:

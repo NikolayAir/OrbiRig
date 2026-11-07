@@ -13,6 +13,25 @@ import {
 setupAppTests();
 
 describe("App help", () => {
+  it("shows the steps first and reveals explanations and documentation on demand", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "In the browser" }));
+    const help = within(screen.getByRole("dialog", { name: "How it works" }));
+    expect(help.getByText(/The examples use a simplified spacecraft/)).toBeVisible();
+    for (const name of ["Verify observation", "Inspect evidence"]) {
+      fireEvent.click(help.getByRole("tab", { name }));
+      const panel = help.getByRole("tabpanel", { name });
+      const details = panel.querySelector(".workflow-help-reference")!;
+      expect(details).not.toHaveAttribute("open");
+      expect(panel.querySelector("ol")).toBeVisible();
+      expect(details.querySelector("a")).not.toBeVisible();
+      fireEvent.click(details.querySelector("summary")!);
+      expect(details.querySelector("a")).toBeVisible();
+      fireEvent.click(details.querySelector("summary")!);
+      expect(details.querySelector("a")).not.toBeVisible();
+    }
+  });
+
   it.each(["In the browser", "From the command line"])("opens only the requested %s guidance", (name) => {
     render(<App />);
 
@@ -48,10 +67,10 @@ describe("App help", () => {
       expect(guidance.queryByRole("tabpanel", { name: "Inspect evidence" })).not.toBeInTheDocument();
       expect(guidance.queryByText(/OrbiRig can verify/)).not.toBeInTheDocument();
       expect(guidance.queryByRole("region", { name: "CLI verification command" })).not.toBeInTheDocument();
-      expect(guidance.getAllByRole("link")).toHaveLength(2);
+      expect(within(guidance.getByRole("tabpanel", { name: "Verify observation" }).querySelector(".workflow-help-links")!).getAllByRole("link")).toHaveLength(2);
     } else {
       expect(guidance.getByRole("region", { name: "CLI verification command" })).toBeVisible();
-      expect(guidance.queryByText(/OrbiRig checks whether a system/)).not.toBeInTheDocument();
+      expect(guidance.queryByText(/OrbiRig checks recorded command results/)).not.toBeInTheDocument();
       expect(guidance.queryByRole("list")).not.toBeInTheDocument();
     }
 
@@ -130,7 +149,7 @@ describe("App help", () => {
     fireEvent.click(help.getByRole("tab", { name: otherName }));
     expect(help.getByRole("tabpanel", { name: otherName })).toBeVisible();
     expect(help.queryByRole("tabpanel", { name: selectedName })).not.toBeInTheDocument();
-    expect(help.getAllByRole("list")).toHaveLength(2);
+    expect(within(help.getByRole("tabpanel", { name: otherName })).getAllByRole("list")).toHaveLength(otherName === "Verify observation" ? 3 : 2);
     fireEvent.click(help.getByRole("button", { name: "Close" }));
     fireEvent.click(trigger);
     expect(help.getByRole("tab", { name: selectedName, selected: true })).toBeVisible();
@@ -216,7 +235,7 @@ describe("App help", () => {
     fireEvent.click(screen.getByRole("button", { name: "In the browser" }));
 
     const guidance = within(screen.getByRole("dialog", { name: "How it works" }));
-    const [verificationSteps] = guidance.getAllByRole("list");
+    const verificationSteps = guidance.getByRole("tabpanel", { name: "Verify observation" }).querySelector<HTMLOListElement>(":scope > ol")!;
 
     expect(
       within(verificationSteps).getAllByRole("listitem").map((step) => step.textContent?.replace(/\s+/g, " ").trim()),
@@ -227,23 +246,33 @@ describe("App help", () => {
       "Choose Verify observation to see the individual checks and overall PASS or FAIL result.",
     ]);
 
-    expect(guidance.getByText(/OrbiRig checks whether a system/)).toHaveTextContent(
-      "OrbiRig checks whether a system handled a command the way it should have. An observation is one recorded command: the request, whether it was accepted, the system's state before and after, and the state it reported separately (telemetry).",
+    const browserPanel = within(guidance.getByRole("tabpanel", { name: "In the browser" }));
+    expect(browserPanel.getByText(/OrbiRig checks recorded command results/)).toHaveTextContent(
+      "OrbiRig checks recorded command results against expectations defined independently of the recorded data. When verification can proceed, it shows which checks pass or fail; invalid input is reported separately. It rechecks saved verification results for consistency with the recorded data.",
     );
+    expect(guidance.getByRole("tabpanel", { name: "In the browser" }).querySelector("p"))
+      .toBe(browserPanel.getByText(/OrbiRig checks recorded command results/));
+    expect(browserPanel.queryByText(/OrbiRig can verify recorded observations in two ways/)).not.toBeInTheDocument();
     expect(guidance.getByText(/The examples use a simplified spacecraft/)).toHaveTextContent(
-      "The examples use a simplified spacecraft with 2 operating modes, NOMINAL and SAFE, but the approach suits any system that records what it did. The web interface only checks submitted records. It does not connect to real systems, send commands or collect live data.",
+      "The examples use a simplified spacecraft model with two operating modes, NOMINAL and SAFE. A command requests a mode; an observation records the request, whether it was accepted, the mode before and after, and a separately reported mode (telemetry). OrbiRig currently supports three such scenarios. This approach shares principles with software testing and data-quality practices, such as checking API responses against expected values or validating data in processing pipelines.",
+    );
+    expect(browserPanel.getByText(/^The web interface verifies submitted/)).toHaveTextContent(
+      "The web interface verifies submitted command results and inspects saved records. It does not connect to external systems, send commands or collect live data.",
     );
     expect(guidance.getByText(/means the recorded behaviour matches/)).toHaveTextContent(
       "PASS means the recorded behaviour matches the selected scenario. This can include a rejected command if rejection was expected.",
     );
     expect(guidance.getByText(/means the observation is valid/)).toHaveTextContent(
-      "FAIL means the observation is valid, but the recorded behaviour does not meet the scenario's expectations. Invalid evidence is reported separately as an input error.",
+      "FAIL means the observation is valid, but one or more verification checks do not meet their expectations. Invalid input, including a command that does not match the selected scenario, is reported as an error instead of FAIL.",
     );
-    expect(guidance.getByText(/The scenario defines/)).toHaveTextContent(
-      "The scenario defines what should happen separately from the recorded data, so a result can never set its own expectations.",
+    expect(guidance.getByText(/Choose the scenario based/)).toHaveTextContent(
+      "Choose the scenario based on the behaviour you intended to test, not on the values reported in the observation.",
+    );
+    expect(guidance.getByText(/are completed results/)).toHaveTextContent(
+      "Both PASS and FAIL are completed results. Verify observation stays unavailable until an input changes, since identical inputs produce the same result. Editing an input clears the previous result and prompts a new check.",
     );
     fireEvent.click(guidance.getByRole("tab", { name: "Inspect evidence" }));
-    const [inspectionSteps] = guidance.getAllByRole("list");
+    const [inspectionSteps] = within(guidance.getByRole("tabpanel", { name: "Inspect evidence" })).getAllByRole("list");
     expect(
       within(inspectionSteps).getAllByRole("listitem").map((step) => step.textContent?.replace(/\s+/g, " ").trim()),
     ).toEqual([
@@ -259,6 +288,68 @@ describe("App help", () => {
     expect(guidance.getByText(/For saved verified executions and sequences/)).toHaveTextContent(
       "For saved verified executions and sequences, OrbiRig recalculates each record's checks and outcome from its scenario and observation, then compares them with the stored results. For sequences, it also checks continuity in the saved order. A record with a FAIL outcome can still be inspected when these results match.",
     );
+    expect(within(guidance.getByRole("tabpanel", { name: "Inspect evidence" })).getByText(/After a successful inspection/)).toHaveTextContent(
+      "After a successful inspection, Inspect evidence stays unavailable until the JSON or evidence type changes, since identical inputs produce the same result. Editing either clears the result and prompts a new inspection.",
+    );
+  });
+
+  it("illustrates a missing command response separately from a verified FAIL without executing anything", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "In the browser" }));
+    const help = within(screen.getByRole("dialog", { name: "How it works" }));
+    const summary = help.getByText("When a command returns no result (Python API example)", { selector: "summary" });
+    const example = summary.closest("details")!;
+    const illustration = within(example);
+
+    const verificationPanel = help.getByRole("tabpanel", { name: "Verify observation" });
+    const verificationSteps = verificationPanel.firstElementChild!;
+    expect(verificationSteps.tagName).toBe("OL");
+    expect(within(verificationSteps as HTMLElement).getAllByRole("listitem")).toHaveLength(4);
+    expect(verificationSteps.nextElementSibling).toBe(example);
+    expect(example.nextElementSibling).toHaveTextContent("PASS means the recorded behaviour matches the selected scenario.");
+    expect(example).not.toHaveAttribute("open");
+    expect(illustration.getByText(/Illustrative example/)).not.toBeVisible();
+    fireEvent.click(summary);
+    expect(example).toHaveAttribute("open");
+    expect(illustration.getByText(/Illustrative example/)).toBeVisible();
+    expect(illustration.getByText(/Illustrative example/)).toHaveTextContent(
+      "Illustrative example from the Python API. The browser does not run the test target.",
+    );
+    expect(illustration.getAllByRole("listitem").map((step) => step.textContent?.replace(/\s+/g, " ").trim())).toEqual([
+      "A command requests a change from NOMINAL to SAFE.",
+      "The independent test target saves SAFE, then exits before returning an observation.",
+      "OrbiRig reports a collection error. No verification PASS or FAIL is produced.",
+      "In this controlled example, a separate check of the target's state file confirms SAFE was saved.",
+      "The next command starts from SAFE, changes to NOMINAL and produces PASS.",
+    ]);
+    expect(illustration.getByText(/A missing response/)).toHaveTextContent(
+      "A missing response does not prove that a command failed to execute. The collection error alone does not establish the state of an external system.",
+    );
+    expect(help.getByText(/means the observation is valid/)).toHaveTextContent(
+      "FAIL means the observation is valid, but one or more verification checks do not meet their expectations.",
+    );
+    const link = illustration.getByRole("link", { name: /^Reproduce the stateful-target example/ });
+    expect(link).toHaveAttribute("href", "https://github.com/NikolayAir/OrbiRig/blob/main/docs/stateful-target.md#simulate-a-response-failure-after-state-commit");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noreferrer");
+    expect(illustration.queryByRole("button")).not.toBeInTheDocument();
+    expect(help.queryByRole("alert")).not.toBeInTheDocument();
+    expect(help.queryByRole("status")).not.toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    fireEvent.click(help.getByRole("tab", { name: "Inspect evidence" }));
+    expect(example).toHaveAttribute("open");
+    expect(example).not.toBeVisible();
+    expect(within(help.getByRole("tabpanel", { name: "Inspect evidence" })).queryByText("When a command returns no result (Python API example)")).not.toBeInTheDocument();
+    fireEvent.click(help.getByRole("tab", { name: "Verify observation" }));
+    expect(example).toBeVisible();
+    expect(example).toHaveAttribute("open");
+    fireEvent.click(summary);
+    expect(example).not.toHaveAttribute("open");
+    expect(illustration.getByText(/Illustrative example/)).not.toBeVisible();
+    fireEvent.click(help.getByRole("tab", { name: "From the command line" }));
+    expect(help.queryByText("When a command returns no result (Python API example)", { selector: "summary" })).not.toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("explains local CLI setup and shows a complete selectable command", () => {
@@ -272,21 +363,25 @@ describe("App help", () => {
     expect(guidance.getAllByRole("heading").map((heading) => heading.textContent)).toEqual([
       "How it works",
     ]);
-    expect(guidance.getByText(/OrbiRig can verify/)).toHaveTextContent(
-      "OrbiRig can verify a saved observation from a terminal, without opening the web interface. It uses the same Python verification core. The command runs locally on your computer and does not execute system commands or collect observations.",
+    const cliPanel = within(guidance.getByRole("tabpanel", { name: "From the command line" }));
+    expect(cliPanel.getByText(/OrbiRig can verify/)).toHaveTextContent(
+      "OrbiRig can verify recorded observations in two ways: by submitting JSON in the browser or by reading a local JSON file from the command line. Both interfaces use the same Python verification core. Neither interface sends commands to a target system (the software or device described in the records) or collects new observations from it.",
     );
-    expect(guidance.getByText(/For this command/)).toHaveTextContent(
-      "For this command, select NOMINAL to SAFE in Verify observation, choose Load example, and save the observation JSON to a UTF-8 file named observation.json. From an OrbiRig checkout, run uv sync --locked if needed, then:",
+    expect(guidance.getByRole("tabpanel", { name: "From the command line" }).querySelector("p"))
+      .toBe(cliPanel.getByText(/OrbiRig can verify/));
+    expect(cliPanel.queryByText(/OrbiRig checks recorded command results/)).not.toBeInTheDocument();
+    expect(guidance.getByText(/To try the included example/)).toHaveTextContent(
+      "To try the included example, open a terminal in an OrbiRig checkout. Run uv sync --locked if the Python environment is not yet installed, then:",
     );
     expect(command).toHaveAttribute("tabindex", "0");
     expect(command.querySelector("code")?.textContent).toBe([
-      "uv run --no-sync orbirig verify-observation observation.json \\",
+      "uv run --no-sync orbirig verify-observation docs/examples/nominal-to-safe.json \\",
       "  --scenario nominal_to_safe_mode \\",
       "  --execution-id demo-001 \\",
       "  --executed-at 2026-10-21T10:00:00Z",
     ].join("\n"));
-    expect(guidance.getByText(/The execution ID and timestamp/)).toHaveTextContent(
-      "The execution ID and timestamp above are examples. For recorded executions, use the ID and UTC time recorded for that execution.",
+    expect(guidance.getByText(/The execution ID and UTC timestamp/)).toHaveTextContent(
+      "The execution ID and UTC timestamp are example values. For your own recorded execution, replace the file path with a UTF-8 observation JSON file and use the recorded execution ID and time.",
     );
     expect(guidance.getByRole("link", { name: /^CLI setup and full instructions/ })).toHaveAttribute(
       "href",
@@ -302,7 +397,7 @@ describe("App help", () => {
     const cli = within(screen.getByRole("dialog", { name: "How it works" }));
     const results = cli.getByText(/The command prints JSON evidence/);
     expect(results).toHaveTextContent(
-      "The command prints JSON evidence in the terminal for both PASS and FAIL results. Exit code 0 means PASS and 1 means verification completed with FAIL. Invalid input returns 2, file or output errors return 3, and unexpected internal errors return 4.",
+      "The command prints JSON evidence containing the individual checks and overall PASS or FAIL result. Exit code 0 means PASS, while 1 means verification completed with FAIL. Invalid input returns 2, file or output errors return 3, and unexpected internal errors return 4.",
     );
     expect([...results.querySelectorAll("strong")].map((element) => element.textContent)).toEqual([
       "PASS", "FAIL", "PASS", "FAIL",
@@ -356,72 +451,40 @@ describe("App help", () => {
   });
 
   it.each([
-    ["Verify observation", "Provide execution details, select a supported scenario, and submit observation evidence for verification."],
-    ["Inspect evidence", "Select an evidence type and paste its JSON to see the recorded values and any saved verification results."],
-  ])("moves the %s introduction into accessible contextual help", (title, text) => {
+    ["Verify observation", "observation-verification", "Compare a recorded result with a scenario."],
+    ["Inspect evidence", "evidence-inspection", "Validate saved records and recheck any verification results they contain."],
+  ])("keeps %s headings and instructions accessible without introduction help", (title, headingId, guidance) => {
     render(<App />);
     if (title === "Inspect evidence") selectInspectionWorkflow();
 
-    const heading = screen.getByRole("heading", { name: title, level: 2 });
-    const help = within(heading.parentElement!).getByRole("button", { name: `About ${title}` });
-    const description = screen.getByText(text);
+    const region = screen.getByRole("region", { name: title });
+    const heading = within(region).getByRole("heading", { name: title, level: 2 });
+    expect(heading).toHaveAttribute("id", headingId);
+    expect(region).toHaveAttribute("aria-labelledby", headingId);
+    expect(screen.queryByRole("button", { name: `About ${title}` })).not.toBeInTheDocument();
+    expect(within(screen.getByRole("button", { name: `Show ${title}` })).getByText(guidance)).toBeVisible();
 
-    expect(description).toHaveAttribute("role", "tooltip");
-    expect(description.tagName).toBe("SPAN");
-    expect(help).toHaveAccessibleDescription(description.textContent!);
-    expect(help).toHaveAttribute("aria-controls", description.id);
-    expect(help).toHaveTextContent("i");
-
-    help.focus();
-    fireEvent.click(help);
-    expect(help.parentElement).toHaveAttribute("data-open", "true");
-    fireEvent.keyDown(help, { key: "Escape" });
-    expect(help.parentElement).toHaveAttribute("data-open", "false");
-    expect(help.parentElement).toHaveAttribute("data-dismissed", "true");
-    expect(help).toHaveFocus();
-
-    fireEvent.click(help);
-    expect(help.parentElement).toHaveAttribute("data-open", "true");
-    expect(help.parentElement).toHaveAttribute("data-dismissed", "false");
-    fireEvent.click(help);
-    expect(help.parentElement).toHaveAttribute("data-open", "false");
-    expect(help.parentElement).toHaveAttribute("data-dismissed", "true");
-    expect(help).toHaveFocus();
+    fireEvent.click(screen.getByRole("button", { name: "In the browser" }));
+    const help = within(screen.getByRole("dialog", { name: "How it works" }));
+    fireEvent.click(help.getByRole("tab", { name: title }));
+    const instructions = help.getByRole("tabpanel", { name: title });
+    expect(instructions).toBeVisible();
+    const steps = instructions.querySelector(":scope > ol");
+    expect(steps).toBeVisible();
+    expect(steps).toHaveTextContent(`Choose ${title} to see`);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it.each([
-    ["Verify observation", "Execution ID"],
-    ["Inspect evidence", "Evidence JSON"],
-  ])("dismisses %s help on outside interaction and when focus leaves", (title, outsideLabel) => {
-    render(<App />);
-    if (title === "Inspect evidence") selectInspectionWorkflow();
-
-    const help = screen.getByRole("button", { name: `About ${title}` });
-    help.focus();
-    fireEvent.click(help);
-    fireEvent.pointerDown(screen.getByLabelText(outsideLabel));
-    expect(help.parentElement).toHaveAttribute("data-open", "false");
-    expect(help.parentElement).toHaveAttribute("data-dismissed", "true");
-
-    fireEvent.pointerEnter(help.parentElement!);
-    expect(help.parentElement).toHaveAttribute("data-dismissed", "false");
-    fireEvent.click(help);
-    act(() => screen.getByLabelText(outsideLabel).focus());
-    expect(help.parentElement).toHaveAttribute("data-open", "false");
-    expect(help.parentElement).toHaveAttribute("data-dismissed", "true");
-  });
-
-  it("dismisses workflow introductions on switching without changing inspection inputs", () => {
+  it("dismisses field help on switching without changing inspection inputs", () => {
     render(<App />);
     selectInspectionWorkflow();
     fireEvent.change(screen.getByLabelText("Evidence JSON"), { target: { value: "edited evidence" } });
     selectVerifiedExecutionSequence();
-    fireEvent.click(screen.getByRole("button", { name: "About Inspect evidence" }));
+    fireEvent.click(screen.getByRole("button", { name: "About Evidence JSON" }));
     selectVerificationWorkflow();
-    expect(screen.getByRole("button", { name: "About Verify observation" }).parentElement).toHaveAttribute("data-open", "false");
+    expect(screen.getByRole("button", { name: "About Execution ID" }).parentElement).toHaveAttribute("data-open", "false");
     selectInspectionWorkflow();
-    expect(screen.getByRole("button", { name: "About Inspect evidence" }).parentElement).toHaveAttribute("data-open", "false");
+    expect(screen.getByRole("button", { name: "About Evidence JSON" }).parentElement).toHaveAttribute("data-open", "false");
     expect(screen.getByLabelText("Evidence JSON")).toHaveValue("edited evidence");
     expect(screen.getByRole("radio", { name: "Verified execution sequence" })).toBeChecked();
     expect(fetchMock).not.toHaveBeenCalled();
@@ -524,15 +587,43 @@ describe("App help", () => {
     fireEvent.click(scenarioHelp);
     expect(executionIdHelp.parentElement).toHaveAttribute("data-open", "false");
     expect(scenarioHelp.parentElement).toHaveAttribute("data-open", "true");
+
+    const evidenceHelp = screen.getByRole("button", { name: "About Observation evidence JSON" });
+    fireEvent.click(evidenceHelp);
+    expect(scenarioHelp.parentElement).toHaveAttribute("data-open", "false");
+    expect(evidenceHelp.parentElement).toHaveAttribute("data-open", "true");
+  });
+
+  it("provides accessible Evidence JSON help and closes it when switching workflows", () => {
+    render(<App />);
+    selectInspectionWorkflow();
+    const help = screen.getByRole("button", { name: "About Evidence JSON" });
+    const input = screen.getByLabelText("Evidence JSON", { exact: true });
+    const description = "Paste the full JSON document matching the selected evidence type: observation, verified execution, or verified-execution sequence. Use Load example to see the expected structure.";
+    expect(help).toHaveAccessibleDescription(description);
+    expect(input).toHaveAccessibleDescription(description);
+    fireEvent.change(input, { target: { value: "preserved JSON" } });
+    fireEvent.click(help);
+    expect(help.parentElement).toHaveAttribute("data-open", "true");
+    fireEvent.keyDown(help, { key: "Escape" });
+    expect(help.parentElement).toHaveAttribute("data-open", "false");
+    fireEvent.click(help);
+    selectVerificationWorkflow();
+    selectInspectionWorkflow();
+    expect(screen.getByRole("button", { name: "About Evidence JSON" }).parentElement).toHaveAttribute("data-open", "false");
+    expect(screen.getByLabelText("Evidence JSON", { exact: true })).toHaveValue("preserved JSON");
   });
 
   it.each([
     ["About Execution ID", "Execution ID"],
     ["About Scenario", "Scenario"],
+    ["About Observation evidence JSON", "Observation evidence JSON"],
+    ["About Evidence JSON", "Evidence JSON"],
   ])(
     "dismisses pinned %s on outside pointer interaction",
     (helpName, outsideLabel) => {
       render(<App />);
+      if (helpName === "About Evidence JSON") selectInspectionWorkflow();
 
       const help = screen.getByRole("button", { name: helpName });
       const outsideControl = screen.getByLabelText(outsideLabel);
@@ -545,7 +636,10 @@ describe("App help", () => {
       fireEvent.pointerDown(outsideControl);
 
       expect(help.parentElement).toHaveAttribute("data-open", "false");
+      expect(help.parentElement).toHaveAttribute("data-dismissed", "true");
       expect(document.activeElement).not.toBe(help);
+      fireEvent.pointerEnter(help.parentElement!);
+      expect(help.parentElement).toHaveAttribute("data-dismissed", "false");
     },
   );
 
@@ -557,7 +651,7 @@ describe("App help", () => {
     fireEvent.click(screen.getByRole("button", { name: "In the browser" }));
     const guidance = within(screen.getByRole("dialog", { name: "How it works" }));
     fireEvent.click(guidance.getByRole("tab", { name: tab }));
-    const links = guidance.getAllByRole("link");
+    const links = within(guidance.getByRole("tabpanel", { name: tab }).querySelector(".workflow-help-links")!).getAllByRole("link");
     expect(links.map(link => link.textContent)).toEqual(names.map(name => `${name} (opens in a new tab)`));
     for (const link of links) {
       expect(link).toHaveAttribute("target", "_blank");

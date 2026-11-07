@@ -93,10 +93,10 @@ describe("App inspection", () => {
     expect(verifiedExecutionOption).not.toBeChecked();
     expect(sequenceOption).not.toBeChecked();
     expect(observationOption).toHaveAccessibleDescription("Recorded behaviour without verification results.");
-    expect(verifiedExecutionOption).toHaveAccessibleDescription("1 execution with its scenario and checks.");
+    expect(verifiedExecutionOption).toHaveAccessibleDescription("One execution with its selected scenario and verification checks.");
     expect(sequenceOption).toHaveAccessibleDescription("Ordered records; each should start where the last ended.");
     expect(screen.getByRole("button", { name: "Load example" })).toHaveAccessibleDescription("Replaces evidence JSON");
-    expect(screen.getByLabelText("Evidence JSON")).toHaveAccessibleDescription("Paste the complete document for the selected evidence type.");
+    expect(screen.getByLabelText("Evidence JSON")).toHaveAccessibleDescription("Paste the full JSON document matching the selected evidence type: observation, verified execution, or verified-execution sequence. Use Load example to see the expected structure.");
 
     fireEvent.click(verifiedExecutionOption);
 

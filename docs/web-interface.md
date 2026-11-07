@@ -48,6 +48,10 @@ While either request is pending, **Cancel request** stops waiting in the browser
 
 **How it works** provides browser and command-line instructions. Browser guidance covers verification and inspection, with links to the relevant scenario, evidence-format and validation documentation; command-line guidance explains local CLI use and exit codes. **Documentation** beside these controls opens the guide index. Documentation and source links open in a new tab so your current inputs and results stay in place.
 
+Browser guidance shows the selected workflow's steps first. Result explanations and documentation links expand under **Understanding results and further reading** or **Understanding inspection and further reading**. These sections start closed so the main instructions remain easy to find. Opening a section brings the workflow selector towards the top of the content; keyboard focus stays visible when space is limited.
+
+Under **In the browser → Verify observation**, the expandable **When a command returns no result (Python API example)** illustrates a [response failure after saving state](stateful-target.md#simulate-a-response-failure-after-state-commit). This is a static example from the Python API; the browser does not run the target. It shows why a collection error produces no verification outcome and why confirming the saved state requires a separate check in this controlled example.
+
 ## Run locally
 
 Install [Git](https://git-scm.com/downloads), [uv](https://docs.astral.sh/uv/getting-started/installation/) and Node.js 26 LTS. [`.node-version`](../.node-version) pins Node.js 26.13.0. See the [frontend environment](../CONTRIBUTING.md#frontend-environment) for selecting this version and platform requirements. Python 3.12–3.15 is supported; uv selects the local default from [`.python-version`](../.python-version).

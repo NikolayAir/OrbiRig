@@ -1,5 +1,4 @@
 import type { RefObject, SubmitEvent } from "react";
-import { WorkflowTitle } from "./WorkflowTitle";
 import { LoadExampleButton } from "./LoadExampleButton";
 import { EvidenceRequestSizeError, RequestError } from "./RequestFeedback";
 import { describedBy, preventRepeatedRequestAction } from "./formHelpers";
@@ -73,13 +72,7 @@ export function VerificationPanel({
     aria-labelledby="observation-verification"
   >
     <div className="workflow-heading">
-      <WorkflowTitle
-        headingId="observation-verification"
-        helpId="verification-help-description"
-        title="Verify observation"
-        description="Provide execution details, select a supported scenario, and submit observation evidence for verification."
-        onHelpOpen={fieldHelp.closePinned}
-      />
+      <h2 id="observation-verification">Verify observation</h2>
       <div className="example-actions">
         <LoadExampleButton
           description="Replaces current inputs"
@@ -108,7 +101,7 @@ export function VerificationPanel({
         className="verification-inputs"
         disabled={verification.kind === "loading"}
       >
-        <legend>Verification input</legend>
+        <legend className="visually-hidden">Verification input</legend>
 
         <div className="metadata-fields">
           <div className="form-field">
@@ -225,13 +218,13 @@ export function VerificationPanel({
 
       <div className="verification-evidence">
         <div className="form-field evidence-input">
-          <label htmlFor="verification-observation-evidence">
-            Observation evidence JSON
-          </label>
-          <p className="field-hint" id="verification-observation-hint">
-            Include the command, acknowledgement, states and telemetry from
-            the recorded execution.
-          </p>
+          <div className="field-label">
+            <label htmlFor="verification-observation-evidence">Observation evidence JSON</label>
+            <FieldHelp control={fieldHelp.observationEvidence} label="Observation evidence JSON" helpId="verification-observation-hint">
+              Include the command, whether it was accepted (acknowledgement), the operating mode before and after
+              the command was handled, and the separately reported mode (telemetry).
+            </FieldHelp>
+          </div>
           <textarea
             id="verification-observation-evidence"
             ref={observationEvidenceInputRef}

@@ -75,12 +75,15 @@ Next command: PASS
 
 The `FAIL` record has 3 passing checks and 1 failed telemetry check. The following process reads the committed `SAFE` state and successfully changes it back to `NOMINAL`. Existing [evidence functions](python.md#reopen-saved-verified-evidence) can save and reopen these records and sequences without a new format.
 
-## See a collection error
+## Simulate a response failure after state commit
 
-From the repository root, run this as a separate example with the same Python environment. It deliberately leaves the state file missing:
+The optional `--fail-after-commit` flag simulates a response failure after an accepted change has been saved. The target exits with code `3`, leaves stdout empty and writes `stateful target: simulated response failure after state commit` to stderr. For a rejected command, no state is committed: the flag is ignored and the target returns its usual rejection observation with code `0` and no failure diagnostic. If both fault flags are supplied, an accepted change is saved but no observation is returned.
+
+From the repository root, run this as a separate example with the same Python environment:
 
 ```bash
 uv run --no-sync python - <<'PY'
+import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -92,32 +95,53 @@ from orbirig.subprocess_collection import ObservationCollectionError
 
 target = Path("examples/stateful_target.py").resolve(strict=True)
 
-with TemporaryDirectory(prefix="orbirig-missing-state-") as directory:
-    state_file = Path(directory) / "missing.json"
+with TemporaryDirectory(prefix="orbirig-response-failure-") as directory:
+    state_file = Path(directory) / "state.json"
+    state_file.write_text('{"operating_mode":"NOMINAL"}\n', encoding="utf-8")
+    argv = [sys.executable, "-I", "-S", str(target), "--state-file", str(state_file)]
+    executed_at = datetime(2026, 11, 1, tzinfo=timezone.utc)
     record = None
     try:
         record = execute_verified_subprocess_workflow(
-            argv=[sys.executable, "-I", "-S", str(target), "--state-file", str(state_file)],
-            timeout=5.0, execution_id="missing-state",
-            executed_at=datetime(2026, 11, 1, tzinfo=timezone.utc),
+            argv=[*argv, "--fail-after-commit"],
+            timeout=5.0, execution_id="response-failure", executed_at=executed_at,
             scenario_id=ScenarioId.NOMINAL_TO_SAFE_MODE,
         )
     except ObservationCollectionError as error:
         print("Collection error:", error)
     else:
-        raise AssertionError("missing state must cause a collection error")
+        raise AssertionError("response failure must cause a collection error")
     print("Verified record returned:", record is not None)
+    print("State after collection error:", json.loads(state_file.read_text(encoding="utf-8"))["operating_mode"])
+
+    following = execute_verified_subprocess_workflow(
+        argv=argv, timeout=5.0, execution_id="after-response-failure",
+        executed_at=executed_at, scenario_id=ScenarioId.SAFE_TO_NOMINAL_MODE,
+    )
+    print("Next command:", following.outcome.value)
 PY
 ```
 
 Expected output:
 
 ```text
-Collection error: observation subprocess exited with status 2
+Collection error: observation subprocess exited with status 3
 Verified record returned: False
+State after collection error: SAFE
+Next command: PASS
 ```
 
-The earlier stale-telemetry example returned a valid observation and a verified `FAIL` record. Here the target exits with code `2` without an observation, so collection raises an error and no verified record is returned. In general, a collection error does not establish whether an external target changed state.
+The target emits no observation for the failed response, and OrbiRig creates no verification result or evidence. The collector checks the non-zero exit before verification and raises the existing `ObservationCollectionError`. It reports the exit status; the target's diagnostic is on stderr, which the collector captures rather than forwarding.
+
+The examples distinguish 3 outcomes:
+
+| Target behaviour | OrbiRig result | Target state |
+| --- | --- | --- |
+| A valid observation reports incorrect telemetry (`--stale-telemetry`) | Verified `FAIL` | The accepted change is saved. |
+| Failure before commit, such as an invalid command or stored state, or a failed state write or replacement | Collection error; no verified record | Unchanged where this target's tested failure path guarantees it. |
+| Failure after commit (`--fail-after-commit`) | Collection error; no verified record | The accepted change is already saved. |
+
+In general, the state of an external system is unknown after a collection error without an additional observation. OrbiRig does not automatically determine that state or establish rollback after an arbitrary error. In this controlled example, we check the saved mode directly through the state file and confirm it with a subsequent command in a separate process.
 
 ## State and failure boundaries
 
@@ -125,4 +149,4 @@ Use a separate regular state file for each independent target or test session. C
 
 Commands and stored state are validated before any write. Rejected commands leave the original bytes unchanged. An accepted change is written to a temporary file beside the state file, then replaces it atomically; failed writes or replacements preserve the original file. This does not provide concurrent-writer coordination or protection against power loss. Once state is committed, a later reply or collection error does not establish rollback, as described in the [subprocess contract](python.md#collect-from-a-separate-program).
 
-This example models only 2 operating modes and 1 controlled stale-telemetry fault. It does not represent operational spacecraft behaviour.
+This example models only 2 operating modes and 2 controlled faults: stale telemetry and a response failure after state commit. It does not represent operational spacecraft behaviour.

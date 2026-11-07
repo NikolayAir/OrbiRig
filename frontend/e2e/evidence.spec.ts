@@ -227,7 +227,8 @@ for (const viewport of [
       await expect(help).toBeVisible();
       if (guide === "In the browser") {
         const webScope = help.getByText(/The examples use a simplified spacecraft/);
-        await expect(webScope).toHaveText("The examples use a simplified spacecraft with 2 operating modes, NOMINAL and SAFE, but the approach suits any system that records what it did. The web interface only checks submitted records. It does not connect to real systems, send commands or collect live data.");
+        await expect(webScope).toHaveText("The examples use a simplified spacecraft model with two operating modes, NOMINAL and SAFE. A command requests a mode; an observation records the request, whether it was accepted, the mode before and after, and a separately reported mode (telemetry). OrbiRig currently supports three such scenarios. This approach shares principles with software testing and data-quality practices, such as checking API responses against expected values or validating data in processing pipelines.");
+        await expect(help.getByText(/^The web interface verifies submitted/)).toHaveText("The web interface verifies submitted command results and inspects saved records. It does not connect to external systems, send commands or collect live data.");
         await webScope.scrollIntoViewIfNeeded();
         await expect(webScope).toBeInViewport();
         await expect(help.getByRole("tab", { name: "Verify observation", selected: true })).toBeVisible();
@@ -237,6 +238,7 @@ for (const viewport of [
         await expect(help.getByRole("tabpanel", { name: "Inspect evidence" })).toBeVisible();
         await expect(help.getByRole("region", { name: "CLI verification command" })).toHaveCount(0);
         await expect(help.getByText(/OrbiRig can verify/)).toHaveCount(0);
+        await help.getByRole("tabpanel", { name: "Inspect evidence" }).locator(".workflow-help-reference summary").click();
         await expect(help.getByRole("link")).toHaveCount(3);
         const browserTabs = help.getByRole("tablist", { name: "Browser instructions" });
         // Read DOMRect heights: Firefox's protocol can report the 44px minimum a fraction short.
@@ -269,7 +271,7 @@ for (const viewport of [
       } else {
         await expect(help.getByRole("heading", { name: "Verify observation" })).toHaveCount(0);
         await expect(help.getByRole("heading", { name: "Inspect evidence" })).toHaveCount(0);
-        await expect(help.getByText(/OrbiRig checks whether a system/)).toHaveCount(0);
+        await expect(help.getByText(/OrbiRig checks recorded command results/)).toHaveCount(0);
 
         if (viewport.width === 1280) {
           const lastCodeOffset = await help.getByText(/The command prints JSON evidence/)
@@ -297,7 +299,7 @@ for (const viewport of [
         await expect(command).toHaveCSS("outline-style", "solid");
         await expect(command).toHaveCSS("white-space", "pre-wrap");
         expect(await command.locator("code").textContent()).toBe([
-          "uv run --no-sync orbirig verify-observation observation.json \\",
+          "uv run --no-sync orbirig verify-observation docs/examples/nominal-to-safe.json \\",
           "  --scenario nominal_to_safe_mode \\",
           "  --execution-id demo-001 \\",
           "  --executed-at 2026-10-21T10:00:00Z",

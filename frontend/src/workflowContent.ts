@@ -60,6 +60,7 @@ export const LINKS = {
   evidenceFormats: `${DOCS_URL}/evidence-formats.md`,
   executionMetadata: `${DOCS_URL}/evidence-formats.md#execution-ids`,
   validationLimits: `${DOCS_URL}/evidence-formats.md#what-validation-establishes`,
+  statefulTarget: `${DOCS_URL}/stateful-target.md#simulate-a-response-failure-after-state-commit`,
 };
 
 export const DEFAULT_VERIFICATION_SCENARIO: ScenarioId = "nominal_to_safe_mode";

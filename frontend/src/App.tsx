@@ -230,7 +230,7 @@ export function App() {
         </p>
         <ol className="check-flow" aria-label="How a check works">
           <li><strong>Expected behaviour</strong><span>A scenario defined apart from the data.</span></li>
-          <li><strong>Recorded result</strong><span>What the system reported.</span></li>
+          <li><strong>Recorded result</strong><span>The command and its reported values.</span></li>
           <li><strong>Independent checks</strong><span>Each shows expected and actual values.</span></li>
           <li><strong>Outcome</strong><span>PASS or FAIL for valid input.</span></li>
         </ol>
@@ -255,7 +255,7 @@ export function App() {
           className="workflow-choice"
           aria-label="Show Verify observation"
           aria-pressed={activeWorkflow === "verification"}
-          onClick={() => setActiveWorkflow("verification")}
+          onClick={() => { if (activeWorkflow !== "verification") fieldHelp.closePinned(); setActiveWorkflow("verification"); }}
         >
           <span>Verify observation</span>
           <small>Compare a recorded result with a scenario.</small>
@@ -265,10 +265,10 @@ export function App() {
           className="workflow-choice"
           aria-label="Show Inspect evidence"
           aria-pressed={activeWorkflow === "inspection"}
-          onClick={() => setActiveWorkflow("inspection")}
+          onClick={() => { if (activeWorkflow !== "inspection") fieldHelp.closePinned(); setActiveWorkflow("inspection"); }}
         >
           <span>Inspect evidence</span>
-          <small>Recheck a saved result.</small>
+          <small>Validate saved records and recheck any verification results they contain.</small>
         </button>
       </div>
 
@@ -295,6 +295,7 @@ export function App() {
 
       {activeWorkflow === "inspection" && (
         <InspectionPanel
+          evidenceHelp={fieldHelp.inspectionEvidence}
           evidenceType={evidenceType}
           evidence={evidence}
           state={inspection.state}
@@ -314,12 +315,11 @@ export function App() {
 
       <footer className="page-footer">
         <div>
-          <p>Example data uses a simplified spacecraft model. OrbiRig does not connect to or control real systems.</p>
+          <p>Example data uses a simplified spacecraft model.</p>
           <p>Built with a Python verification core, FastAPI, React and TypeScript.</p>
         </div>
         <p>
           <DocLink href={LINKS.source}>Source code</DocLink>
-          <DocLink href={LINKS.documentation}>Documentation</DocLink>
         </p>
       </footer>
     </main>

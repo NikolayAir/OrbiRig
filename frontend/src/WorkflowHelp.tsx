@@ -6,7 +6,7 @@ import type { Workflow } from "./workflowTypes";
 
 type HelpSection = "browser" | "cli";
 
-function scrollFocusedControlIntoView(dialog: HTMLDialogElement, element: HTMLElement) {
+function scrollFocusedControlIntoView(dialog: HTMLElement, element: HTMLElement) {
   const focused = element.getBoundingClientRect();
   const style = getComputedStyle(element);
   const outline = Math.max(0, parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset));
@@ -55,6 +55,9 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
           panel.scrollTop = 0;
           if (help.scrollToWorkflow && tabs !== null) {
             dialogRef.current.scrollTop = tabs.offsetTop;
+            if (document.activeElement instanceof HTMLElement && tabs.contains(document.activeElement)) {
+              scrollFocusedControlIntoView(dialogRef.current, document.activeElement);
+            }
           } else if (document.activeElement instanceof HTMLElement && headerRef.current?.contains(document.activeElement)) {
             scrollFocusedControlIntoView(dialogRef.current, document.activeElement);
           }
@@ -184,6 +187,14 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
         className="workflow-help-dialog"
         data-scroll-whole={scrollWholeDialog}
         aria-labelledby="workflow-help-title"
+        onFocus={(event) => {
+          if (
+            scrollWholeDialog && dialogRef.current !== null &&
+            event.target instanceof HTMLAnchorElement && event.target.closest(".workflow-help-content") !== null
+          ) {
+            scrollFocusedControlIntoView(dialogRef.current, event.target);
+          }
+        }}
         onClose={() => help?.trigger.focus({ preventScroll: true })}
         onClick={(event) => {
           if (event.target !== event.currentTarget) {
@@ -270,22 +281,44 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
           role="tabpanel"
           id="workflow-help-browser-panel"
           aria-labelledby="workflow-help-browser-tab"
+          onToggle={(event) => {
+            if (!(event.target instanceof HTMLDetailsElement) || !event.target.open) return;
+            const tabs = browserWorkflowsRef.current;
+            const panel = browserPanelRef.current;
+            const dialog = dialogRef.current;
+            if (tabs === null || panel === null || dialog === null) return;
+            if (scrollWholeDialog) {
+              dialog.scrollTop += tabs.getBoundingClientRect().top - dialog.getBoundingClientRect().top - dialog.clientTop;
+            } else {
+              panel.scrollTop += tabs.getBoundingClientRect().top - panel.getBoundingClientRect().top - panel.clientTop;
+            }
+            const focused = document.activeElement;
+            if (focused instanceof HTMLElement && event.target.contains(focused) && focused.matches(":focus-visible")) {
+              scrollFocusedControlIntoView(scrollWholeDialog ? dialog : panel, focused);
+            }
+          }}
           hidden={section !== "browser"}
           tabIndex={0}
         >
           {section === "browser" && (
             <>
               <p>
-                OrbiRig checks whether a system handled a command the way it should have.
-                An observation is one recorded command: the request, whether it was
-                accepted, the system's state before and after, and the state it reported
-                separately (telemetry).
+                OrbiRig checks recorded command results against expectations defined independently
+                of the recorded data. When verification can proceed, it shows which checks pass or
+                fail; invalid input is reported separately. It rechecks saved verification results
+                for consistency with the recorded data.
               </p>
               <p>
-                The examples use a simplified spacecraft with 2 operating modes, NOMINAL
-                and SAFE, but the approach suits any system that records what it did. The web
-                interface only checks submitted records. It does not connect to real systems,
-                send commands or collect live data.
+                The examples use a simplified spacecraft model with two operating modes, NOMINAL and SAFE.
+                A command requests a mode; an observation records the request, whether it was accepted,
+                the mode before and after, and a separately reported mode (telemetry). OrbiRig currently
+                supports three such scenarios. This approach shares principles with software testing and
+                data-quality practices, such as checking API responses against expected values or validating
+                data in processing pipelines.
+              </p>
+              <p>
+                The web interface verifies submitted command results and inspects
+                saved records. It does not connect to external systems, send commands or collect live data.
               </p>
 
               <div
@@ -344,29 +377,60 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                     and overall <strong>PASS</strong> or <strong>FAIL</strong> result.
                   </li>
                 </ol>
-                <p>
-                  <strong>PASS</strong> means the recorded behaviour matches the selected
-                  scenario. This can include a rejected command if rejection was expected.
-                </p>
-                <p>
-                  <strong>FAIL</strong> means the observation is valid, but the recorded
-                  behaviour does not meet the scenario's expectations. Invalid evidence is
-                  reported separately as an input error.
-                </p>
-                <p>
-                  The scenario defines what should happen separately from the recorded data,
-                  so a result can never set its own expectations.
-                </p>
-                <p>
-                  Both <strong>PASS</strong> and <strong>FAIL</strong> are completed results.
-                  The same inputs always give the same result, so <strong>Verify observation</strong> stays
-                  unavailable until you change an input. Editing any input clears the result
-                  and prompts you to check the current values.
-                </p>
-                <ul className="workflow-help-links">
-                  <li><DocLink href={LINKS.scenarios}>Supported scenarios and checks</DocLink></li>
-                  <li><DocLink href={LINKS.executionMetadata}>Execution ID and UTC time rules</DocLink></li>
-                </ul>
+                <details className="workflow-help-example">
+                  <summary>When a command returns no result (Python API example)</summary>
+                  <p>
+                    Illustrative example from the Python API. The browser does not run the test target.
+                  </p>
+                  <ol>
+                    <li>A command requests a change from NOMINAL to SAFE.</li>
+                    <li>
+                      The independent test target saves SAFE, then exits before returning an observation.
+                    </li>
+                    <li>
+                      OrbiRig reports a <strong>collection error</strong>.
+                      No verification <strong>PASS</strong> or <strong>FAIL</strong> is produced.
+                    </li>
+                    <li>
+                      In this controlled example, a separate check of the target's state file
+                      confirms SAFE was saved.
+                    </li>
+                    <li>
+                      The next command starts from SAFE, changes to NOMINAL and produces <strong>PASS</strong>.
+                    </li>
+                  </ol>
+                  <p>
+                    A missing response does not prove that a command failed to execute.
+                    The collection error alone does not establish the state of an external system.
+                  </p>
+                  <p><DocLink href={LINKS.statefulTarget}>Reproduce the stateful-target example</DocLink></p>
+                </details>
+                <details className="workflow-help-reference">
+                  <summary>Understanding results and further reading</summary>
+                  <p>
+                    <strong>PASS</strong> means the recorded behaviour matches the selected
+                    scenario. This can include a rejected command if rejection was expected.
+                  </p>
+                  <p>
+                    <strong>FAIL</strong> means the observation is valid, but one or more verification
+                    checks do not meet their expectations. Invalid input, including a command that does not
+                    match the selected scenario, is reported as an error instead of FAIL.
+                  </p>
+                  <p>
+                    Choose the scenario based on the behaviour you intended to test, not on the
+                    values reported in the observation.
+                  </p>
+                  <p>
+                    Both <strong>PASS</strong> and <strong>FAIL</strong> are completed results.{" "}
+                    <strong>Verify observation</strong> stays unavailable until an input changes,
+                    since identical inputs produce the same result. Editing an input clears the previous
+                    result and prompts a new check.
+                  </p>
+                  <ul className="workflow-help-links">
+                    <li><DocLink href={LINKS.scenarios}>Supported scenarios and checks</DocLink></li>
+                    <li><DocLink href={LINKS.executionMetadata}>Execution ID and UTC time rules</DocLink></li>
+                  </ul>
+                </details>
               </div>
               <div
                 className="workflow-help-instructions"
@@ -390,28 +454,32 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                     and any saved verification results.
                   </li>
                 </ol>
-                <p>
-                  Inspecting an observation checks its JSON structure and supported values.
-                  To compare the reported result with a scenario, use <strong>Verify observation</strong>.
-                </p>
-                <p>
-                  For saved verified executions and sequences, OrbiRig recalculates each
-                  record's checks and outcome from its scenario and observation, then compares
-                  them with the stored results. For sequences, it also checks continuity in
-                  the saved order. A record with a <strong>FAIL</strong> outcome can still be
-                  inspected when these results match.
-                </p>
-                <p>
-                  The same evidence always gives the same result, so <strong>Inspect evidence</strong> stays
-                  unavailable until you change the JSON or evidence type. Changing either
-                  clears the result and prompts you to inspect the current evidence.
-                </p>
-                <ul className="workflow-help-links">
-                  <li><DocLink href={LINKS.evidenceFormats}>Evidence formats and JSON rules</DocLink></li>
-                  <li><DocLink href={LINKS.savedEvidence}>How saved evidence is rechecked</DocLink></li>
-                  <li><DocLink href={LINKS.validationLimits}>What validation establishes</DocLink></li>
-                </ul>
+                <details className="workflow-help-reference">
+                  <summary>Understanding inspection and further reading</summary>
+                  <p>
+                    Inspecting an observation checks its JSON structure and supported values.
+                    To compare the reported result with a scenario, use <strong>Verify observation</strong>.
+                  </p>
+                  <p>
+                    For saved verified executions and sequences, OrbiRig recalculates each
+                    record's checks and outcome from its scenario and observation, then compares
+                    them with the stored results. For sequences, it also checks continuity in
+                    the saved order. A record with a <strong>FAIL</strong> outcome can still be
+                    inspected when these results match.
+                  </p>
+                  <p>
+                    After a successful inspection, <strong>Inspect evidence</strong> stays unavailable until
+                    the JSON or evidence type changes, since identical inputs produce the same result.
+                    Editing either clears the result and prompts a new inspection.
+                  </p>
+                  <ul className="workflow-help-links">
+                    <li><DocLink href={LINKS.evidenceFormats}>Evidence formats and JSON rules</DocLink></li>
+                    <li><DocLink href={LINKS.savedEvidence}>How saved evidence is rechecked</DocLink></li>
+                    <li><DocLink href={LINKS.validationLimits}>What validation establishes</DocLink></li>
+                  </ul>
+                </details>
               </div>
+
             </>
           )}
         </div>
@@ -427,17 +495,15 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
           {section === "cli" && (
             <>
               <p>
-                OrbiRig can verify a saved observation from a terminal, without
-                opening the web interface. It uses the same Python verification core.
-                The command runs locally on your computer and does not execute
-                system commands or collect observations.
+                OrbiRig can verify recorded observations in two ways: by submitting JSON
+                in the browser or by reading a local JSON file from the command line.
+                Both interfaces use the same Python verification core. Neither interface
+                sends commands to a target system (the software or device described in
+                the records) or collects new observations from it.
               </p>
               <p>
-                For this command, select <strong>NOMINAL to SAFE</strong> in{" "}
-                <strong>Verify observation</strong>, choose <strong>Load example</strong>,
-                and save the observation JSON to a UTF-8 file named{" "}
-                <code>observation.json</code>. From an OrbiRig checkout, run{" "}
-                <code>uv sync --locked</code> if needed, then:
+                To try the included example, open a terminal in an OrbiRig checkout. Run{" "}
+                <code>uv sync --locked</code> if the Python environment is not yet installed, then:
               </p>
               <pre
                 className="workflow-help-command"
@@ -445,18 +511,19 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                 aria-label="CLI verification command"
                 tabIndex={0}
               >
-                <code>{`uv run --no-sync orbirig verify-observation observation.json \\
+                <code>{`uv run --no-sync orbirig verify-observation docs/examples/nominal-to-safe.json \\
   --scenario nominal_to_safe_mode \\
   --execution-id demo-001 \\
   --executed-at 2026-10-21T10:00:00Z`}</code>
               </pre>
               <p>
-                The execution ID and timestamp above are examples. For recorded
-                executions, use the ID and UTC time recorded for that execution.
+                The execution ID and UTC timestamp are example values. For your own recorded
+                execution, replace the file path with a UTF-8 observation JSON file and use
+                the recorded execution ID and time.
               </p>
               <p>
-                The command prints JSON evidence in the terminal for both <strong>PASS</strong> and <strong>FAIL</strong> results.
-                Exit code <code>0</code> means <strong>PASS</strong> and <code>1</code> means
+                The command prints JSON evidence containing the individual checks and overall <strong>PASS</strong> or <strong>FAIL</strong> result.
+                Exit code <code>0</code> means <strong>PASS</strong>, while <code>1</code> means
                 verification completed with <strong>FAIL</strong>. Invalid input returns <code>2</code>,
                 file or output errors return <code>3</code>, and unexpected internal
                 errors <span className="keep-together">return <code>4</code></span>.

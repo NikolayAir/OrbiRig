@@ -128,8 +128,9 @@ describe("App examples", () => {
     expect(screen.getByRole("button", { name: "Load example" })).toHaveAccessibleDescription(
       "Replaces current inputs",
     );
+    expect(screen.getByRole("group", { name: "Verification input" })).toBeInTheDocument();
     expect(screen.getByLabelText("Observation evidence JSON")).toHaveAccessibleDescription(
-      "Include the command, acknowledgement, states and telemetry from the recorded execution.",
+      "Include the command, whether it was accepted (acknowledgement), the operating mode before and after the command was handled, and the separately reported mode (telemetry).",
     );
     fireEvent.click(screen.getByRole("button", { name: "Load example" }));
 

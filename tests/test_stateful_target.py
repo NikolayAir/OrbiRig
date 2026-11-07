@@ -36,25 +36,30 @@ def state_file(tmp_path):
     return path
 
 
-def _argv(state_file: Path, *, stale: bool = False) -> list[str]:
+def _argv(state_file: Path, *, stale: bool = False, fail_after_commit: bool = False) -> list[str]:
     # Run the real target without project import paths or installed site packages.
     # It must handle commands using only Python's standard library.
     return [
         sys.executable, "-I", "-S", str(TARGET), "--state-file", str(state_file),
         *(["--stale-telemetry"] if stale else []),
+        *(["--fail-after-commit"] if fail_after_commit else []),
     ]
 
 
-def _execute(state_file: Path, scenario: ScenarioId, execution_id: str, *, stale: bool = False):
+def _execute(
+    state_file: Path, scenario: ScenarioId, execution_id: str, *,
+    stale: bool = False, fail_after_commit: bool = False,
+):
     return execute_verified_subprocess_workflow(
-        argv=_argv(state_file, stale=stale), timeout=5.0,
+        argv=_argv(state_file, stale=stale, fail_after_commit=fail_after_commit), timeout=5.0,
         execution_id=execution_id, executed_at=EXECUTED_AT, scenario_id=scenario,
     )
 
 
-def _raw(state_file: Path, command: bytes = SAFE_COMMAND):
+def _raw(state_file: Path, command: bytes = SAFE_COMMAND, *, fail_after_commit: bool = False):
     return subprocess.run(
-        _argv(state_file), input=command, capture_output=True, timeout=5.0, check=False,
+        _argv(state_file, fail_after_commit=fail_after_commit),
+        input=command, capture_output=True, timeout=5.0, check=False,
     )
 
 
@@ -93,9 +98,13 @@ def test_separate_processes_preserve_state_and_produce_a_continuous_passing_sequ
 
 
 @pytest.mark.parametrize("stale", [False, True])
-def test_expected_rejection_passes_without_rewriting_state(state_file, stale):
+@pytest.mark.parametrize("fail_after_commit", [False, True])
+def test_expected_rejection_passes_without_rewriting_state(state_file, stale, fail_after_commit):
     before = state_file.read_bytes()
-    record = _execute(state_file, ScenarioId.NOMINAL_TO_NOMINAL_REJECTION, "reject-no-change", stale=stale)
+    record = _execute(
+        state_file, ScenarioId.NOMINAL_TO_NOMINAL_REJECTION, "reject-no-change",
+        stale=stale, fail_after_commit=fail_after_commit,
+    )
 
     assert record.observation.command.target_mode is OperatingMode.NOMINAL
     assert record.observation.pre_state.operating_mode is OperatingMode.NOMINAL
@@ -105,6 +114,83 @@ def test_expected_rejection_passes_without_rewriting_state(state_file, stale):
     assert record.outcome is ExecutionOutcome.PASS
     assert all(result.passed for result in record.invariant_results)
     assert state_file.read_bytes() == before
+
+
+@pytest.mark.parametrize(("initial", "command", "committed"), [
+    ("NOMINAL", SAFE_COMMAND, "SAFE"),
+    ("SAFE", b'{"command_type":"SET_OPERATING_MODE","target_mode":"NOMINAL"}\n', "NOMINAL"),
+])
+def test_post_commit_failure_returns_no_observation_but_preserves_the_new_mode(
+    state_file, initial, command, committed,
+):
+    state_file.write_text(json.dumps({"operating_mode": initial}), encoding="utf-8")
+    completed = _raw(state_file, command, fail_after_commit=True)
+
+    assert completed.returncode == 3
+    assert completed.stdout == b""
+    assert completed.stderr.decode("utf-8").splitlines() == [
+        "stateful target: simulated response failure after state commit",
+    ]
+    assert json.loads(state_file.read_bytes()) == {"operating_mode": committed}
+    assert list(state_file.parent.iterdir()) == [state_file]
+
+
+@pytest.mark.parametrize(("mode", "command"), [
+    ("NOMINAL", b'{"command_type":"SET_OPERATING_MODE","target_mode":"NOMINAL"}\n'),
+    ("SAFE", SAFE_COMMAND),
+])
+def test_fail_after_commit_is_ignored_on_rejection_without_a_failure_diagnostic(state_file, mode, command):
+    state_file.write_bytes(f'{{ "operating_mode" : "{mode}" }}\n'.encode("utf-8"))
+    before = state_file.read_bytes()
+    completed = _raw(state_file, command, fail_after_commit=True)
+
+    assert completed.returncode == 0
+    assert completed.stderr == b""
+    assert json.loads(completed.stdout) == {
+        "evidence_format_version": 1,
+        "command": {"command_type": "SET_OPERATING_MODE", "target_mode": mode},
+        "pre_state": {"operating_mode": mode},
+        "acknowledgement": {"accepted": False},
+        "post_state": {"operating_mode": mode},
+        "telemetry": {"operating_mode": mode},
+    }
+    assert state_file.read_bytes() == before
+
+
+@pytest.mark.parametrize("stale", [False, True])
+@pytest.mark.parametrize(("initial", "scenario", "following", "committed"), [
+    ("NOMINAL", ScenarioId.NOMINAL_TO_SAFE_MODE, ScenarioId.SAFE_TO_NOMINAL_MODE, "SAFE"),
+    ("SAFE", ScenarioId.SAFE_TO_NOMINAL_MODE, ScenarioId.NOMINAL_TO_SAFE_MODE, "NOMINAL"),
+])
+def test_post_commit_collection_error_builds_no_record_and_the_next_process_passes(
+    state_file, monkeypatch, stale, initial, scenario, following, committed,
+):
+    state_file.write_text(json.dumps({"operating_mode": initial}), encoding="utf-8")
+
+    def unexpected_record(**kwargs):
+        raise AssertionError("a response failure must not produce a PASS or FAIL record")
+
+    with monkeypatch.context() as verification:
+        verification.setattr(execution_module, "build_verified_execution_record", unexpected_record)
+        with pytest.raises(ObservationCollectionError, match="exited with status 3"):
+            _execute(
+                state_file, scenario, "response-failure",
+                stale=stale, fail_after_commit=True,
+            )
+    assert json.loads(state_file.read_bytes()) == {"operating_mode": committed}
+
+    record = _execute(state_file, following, "after-response-failure")
+    observation = record.observation
+    assert (
+        observation.pre_state.operating_mode, observation.acknowledgement.accepted,
+        observation.post_state.operating_mode, observation.telemetry.operating_mode,
+    ) == (committed, True, initial, initial)
+    assert record.outcome is ExecutionOutcome.PASS
+    assert tuple((result.expected, result.actual, result.passed) for result in record.invariant_results) == (
+        (committed, committed, True), (True, True, True),
+        (initial, initial, True), (initial, initial, True),
+    )
+    assert json.loads(state_file.read_bytes()) == {"operating_mode": initial}
 
 
 @pytest.mark.parametrize(("initial", "scenario", "following", "expected", "actual"), [
@@ -274,15 +360,17 @@ def test_valid_long_state_filename_does_not_overflow_the_temporary_filename(tmp_
     b'{"command_type":"SET_OPERATING_MODE","target_mode":"NOMINAL","target_\\u006dode":"SAFE"}',
     b"\xff",
 ])
-def test_invalid_command_produces_no_observation_and_preserves_state(state_file, command):
+@pytest.mark.parametrize("fail_after_commit", [False, True])
+def test_invalid_command_produces_no_observation_and_preserves_state(state_file, command, fail_after_commit):
     # Use SAFE so an erroneous reset to the initial NOMINAL mode is detected too.
     state_file.write_bytes(b'{ "operating_mode" : "SAFE" }\n')
     before = state_file.read_bytes()
-    completed = _raw(state_file, command)
+    completed = _raw(state_file, command, fail_after_commit=fail_after_commit)
 
     assert completed.returncode == 2
     assert completed.stdout == b""
     assert b"stateful target:" in completed.stderr
+    assert b"after state commit" not in completed.stderr
     assert state_file.read_bytes() == before
 
 
@@ -292,19 +380,26 @@ def test_invalid_command_produces_no_observation_and_preserves_state(state_file,
     b'{"operating_mode":"SAFE","operating_mode":"NOMINAL"}',
     b'{"operating_mode":"SAFE","operating_\\u006dode":"NOMINAL"}', b"\xff",
 ])
-def test_corrupt_state_is_not_repaired_and_cannot_produce_a_verified_record(state_file, data, monkeypatch):
+@pytest.mark.parametrize("fail_after_commit", [False, True])
+def test_corrupt_state_is_not_repaired_and_cannot_produce_a_verified_record(
+    state_file, data, monkeypatch, fail_after_commit,
+):
     state_file.write_bytes(data)
-    completed = _raw(state_file)
+    completed = _raw(state_file, fail_after_commit=fail_after_commit)
     assert completed.returncode == 2
     assert completed.stdout == b""
     assert b"stored" in completed.stderr
+    assert b"after state commit" not in completed.stderr
 
     def unexpected_record(**kwargs):
         raise AssertionError("a target error must not produce a PASS or FAIL record")
 
     monkeypatch.setattr(execution_module, "build_verified_execution_record", unexpected_record)
     with pytest.raises(ObservationCollectionError, match="exited with status 2"):
-        _execute(state_file, ScenarioId.NOMINAL_TO_SAFE_MODE, "corrupt-state")
+        _execute(
+            state_file, ScenarioId.NOMINAL_TO_SAFE_MODE, "corrupt-state",
+            fail_after_commit=fail_after_commit,
+        )
     assert state_file.read_bytes() == data
 
 
@@ -341,7 +436,10 @@ def test_directory_state_path_is_rejected(tmp_path):
 
 
 @pytest.mark.parametrize("stage", ["write", "replace"])
-def test_failed_state_commit_preserves_state_and_returns_no_observation(state_file, monkeypatch, stage):
+@pytest.mark.parametrize("fail_after_commit", [False, True])
+def test_failed_state_commit_preserves_state_and_returns_no_observation(
+    state_file, monkeypatch, stage, fail_after_commit,
+):
     target = runpy.run_path(str(TARGET))
     before = state_file.read_bytes()
 
@@ -373,7 +471,7 @@ def test_failed_state_commit_preserves_state_and_returns_no_observation(state_fi
     stdout = SimpleNamespace(buffer=BytesIO())
     stderr = StringIO()
     with monkeypatch.context() as process:
-        process.setattr(sys, "argv", [str(TARGET), "--state-file", str(state_file)])
+        process.setattr(sys, "argv", _argv(state_file, fail_after_commit=fail_after_commit)[3:])
         process.setattr(sys, "stdin", SimpleNamespace(buffer=BytesIO(SAFE_COMMAND)))
         process.setattr(sys, "stdout", stdout)
         process.setattr(sys, "stderr", stderr)
@@ -382,5 +480,6 @@ def test_failed_state_commit_preserves_state_and_returns_no_observation(state_fi
     assert status == 2
     assert stdout.buffer.getvalue() == b""
     assert "stateful target: simulated" in stderr.getvalue()
+    assert "after state commit" not in stderr.getvalue()
     assert state_file.read_bytes() == before
     assert list(state_file.parent.iterdir()) == [state_file]
