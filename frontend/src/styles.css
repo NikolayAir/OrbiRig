@@ -634,8 +634,9 @@ button {
 
 .workflow-title {
   align-items: center;
-  display: flex;
-  gap: 0.5rem;
+  display: grid;
+  gap: 0 0.5rem;
+  grid-template-columns: minmax(0, 1fr) auto;
   max-width: 100%;
   position: relative;
 }
@@ -646,7 +647,18 @@ button {
 }
 
 .workflow-title .field-help {
-  flex: 0 0 auto;
+  display: contents;
+}
+
+/* Reserve a row for visible help below the heading instead of covering form inputs.
+ * Inline containment keeps opening the help from widening the title row.
+ */
+.workflow-title .field-help[data-above="false"][data-dismissed="false"] [role="tooltip"] {
+  contain: inline-size;
+  grid-column: 1 / -1;
+  inset: auto;
+  margin-top: 0.4rem;
+  position: relative;
 }
 
 .workflow-title .field-help-button {
@@ -847,7 +859,8 @@ label {
 
 .field-help:hover [role="tooltip"],
 .field-help:focus-within [role="tooltip"],
-.field-help[data-open="true"] [role="tooltip"] {
+.field-help[data-open="true"] [role="tooltip"],
+.workflow-title .field-help[data-dismissed="false"] [role="tooltip"] {
   opacity: 1;
   visibility: visible;
 }

@@ -488,20 +488,40 @@ describe("App help", () => {
   it.each([
     ["Verify observation", "Execution ID"],
     ["Inspect evidence", "Evidence JSON"],
-  ])("dismisses %s help on outside interaction and when focus leaves", (title, outsideLabel) => {
+  ])("defers %s help dismissal through a pointer click but dismisses keyboard blur", (title, outsideLabel) => {
     render(<App />);
     if (title === "Inspect evidence") selectInspectionWorkflow();
 
     const help = screen.getByRole("button", { name: `About ${title}` });
-    help.focus();
-    fireEvent.click(help);
-    fireEvent.pointerDown(screen.getByLabelText(outsideLabel));
-    expect(help.parentElement).toHaveAttribute("data-open", "false");
     expect(help.parentElement).toHaveAttribute("data-dismissed", "true");
+    fireEvent.pointerEnter(help.parentElement!);
+    fireEvent.pointerLeave(help.parentElement!);
+    expect(help.parentElement).toHaveAttribute("data-open", "false");
+    expect(help.parentElement).toHaveAttribute("data-dismissed", "false");
+    fireEvent.click(screen.getByLabelText(outsideLabel));
+    expect(help.parentElement).toHaveAttribute("data-dismissed", "true");
+
+    for (const blurAfterRelease of [false, true]) {
+      act(() => help.focus());
+      fireEvent.click(help);
+      fireEvent.pointerDown(screen.getByLabelText(outsideLabel));
+      if (blurAfterRelease) fireEvent.pointerUp(screen.getByLabelText(outsideLabel));
+      act(() => screen.getByLabelText(outsideLabel).focus());
+      expect(help.parentElement).toHaveAttribute("data-open", "true");
+      expect(help.parentElement).toHaveAttribute("data-dismissed", "false");
+      if (!blurAfterRelease) fireEvent.pointerUp(screen.getByLabelText(outsideLabel));
+      expect(help.parentElement).toHaveAttribute("data-open", "true");
+      fireEvent.click(screen.getByLabelText(outsideLabel));
+      expect(help.parentElement).toHaveAttribute("data-open", "false");
+      expect(help.parentElement).toHaveAttribute("data-dismissed", "true");
+    }
 
     fireEvent.pointerEnter(help.parentElement!);
     expect(help.parentElement).toHaveAttribute("data-dismissed", "false");
+    act(() => help.focus());
     fireEvent.click(help);
+    fireEvent.pointerDown(help);
+    fireEvent.pointerCancel(help);
     act(() => screen.getByLabelText(outsideLabel).focus());
     expect(help.parentElement).toHaveAttribute("data-open", "false");
     expect(help.parentElement).toHaveAttribute("data-dismissed", "true");

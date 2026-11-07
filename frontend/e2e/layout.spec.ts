@@ -14,6 +14,25 @@ async function expectWithinWidth(elements: Locator, width: number) {
   }
 }
 
+async function expectIntroductionLeavesInputsClear(tooltip: Locator) {
+  expect(await tooltip.evaluate(element => {
+    const help = element.getBoundingClientRect();
+    return [...element.closest(".workflow-panel")!.querySelectorAll("input, select, textarea")].every(input => {
+      const field = input.getBoundingClientRect();
+      return help.right <= field.left || help.left >= field.right ||
+        help.bottom <= field.top || help.top >= field.bottom;
+    });
+  })).toBe(true);
+}
+
+async function recordNextClick(input: Locator) {
+  return input.evaluateHandle(element => {
+    const hits: boolean[] = [];
+    document.addEventListener("click", event => hits.push(event.target === element), { capture: true, once: true });
+    return hits;
+  });
+}
+
 for (const viewport of [
   { width: 1440, height: 900 },
   { width: 1366, height: 768 },
@@ -383,6 +402,55 @@ for (const width of [1440, 390, 320]) {
     ["Verify observation", "verification-help-description", "Provide execution details, select a supported scenario, and submit observation evidence for verification.", "Execution ID", "Replaces current inputs"],
     ["Inspect evidence", "inspection-help-description", "Select an evidence type and paste its JSON to see the recorded values and any saved verification results.", "Evidence JSON", "Replaces evidence JSON"],
   ]) {
+    test(`${title} introduction keeps a hovered field target in place at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto("/");
+      if (title === "Inspect evidence") await page.getByRole("button", { name: "Show Inspect evidence" }).click();
+      const input = page.getByLabel(outsideLabel, { exact: true });
+      await input.fill("preserved-through-hover");
+      await page.getByRole("button", { name: `About ${title}`, exact: true }).hover();
+      const tooltip = page.locator(`#${helpId}`);
+      await expect(tooltip).toBeVisible();
+      await expectIntroductionLeavesInputsClear(tooltip);
+      await input.scrollIntoViewIfNeeded();
+      const point = await input.evaluate(element => {
+        const bounds = element.getBoundingClientRect();
+        return { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
+      });
+      // Keep the chosen point: a locator click could retry after the form moved.
+      await page.mouse.move(point.x, point.y);
+      expect(await input.evaluate((element, point) => document.elementFromPoint(point.x, point.y) === element, point)).toBe(true);
+      await page.mouse.click(point.x, point.y);
+      await expect(input).toBeFocused();
+      await expect(input).toHaveValue("preserved-through-hover");
+      await expect(tooltip).toBeHidden();
+    });
+
+    test(`${title} introduction delivers a mouse click from focused help to its chosen input at ${width}px`, async ({ page, browserName }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto("/");
+      if (title === "Inspect evidence") await page.getByRole("button", { name: "Show Inspect evidence" }).click();
+      const help = page.getByRole("button", { name: `About ${title}`, exact: true });
+      await help.click();
+      // macOS WebKit does not focus buttons on mouse click; exercise blur from focused help too.
+      if (browserName === "webkit" && process.platform === "darwin") await help.focus();
+      await expect(help).toBeFocused();
+      const tooltip = page.locator(`#${helpId}`);
+      await expect(tooltip).toBeVisible();
+      const input = page.getByLabel(outsideLabel, { exact: true });
+      await input.scrollIntoViewIfNeeded();
+      const point = await input.evaluate(element => {
+        const bounds = element.getBoundingClientRect();
+        return { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
+      });
+      const clicks = await recordNextClick(input);
+      await page.mouse.move(point.x, point.y);
+      await page.mouse.click(point.x, point.y);
+      expect(await clicks.jsonValue()).toEqual([true]);
+      await expect(input).toBeFocused();
+      await expect(tooltip).toBeHidden();
+    });
+
     test(`${title} introduction supports hover, keyboard and touch at ${width}px`, async ({ browser, baseURL, browserName }) => {
       const context = await browser.newContext({ baseURL, viewport: { width, height: 800 }, hasTouch: true });
       const page = await context.newPage();
@@ -441,7 +509,17 @@ for (const width of [1440, 390, 320]) {
       await expect(tooltip).toBeHidden();
       await help.tap();
       await expect(tooltip).toBeVisible();
-      await page.getByLabel(outsideLabel, { exact: true }).tap();
+      await expectIntroductionLeavesInputsClear(tooltip);
+      const outsideInput = page.getByLabel(outsideLabel, { exact: true });
+      await outsideInput.scrollIntoViewIfNeeded();
+      expect(await outsideInput.evaluate(element => {
+        const bounds = element.getBoundingClientRect();
+        return document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2) === element;
+      })).toBe(true);
+      const clicks = await recordNextClick(outsideInput);
+      await outsideInput.tap();
+      expect(await clicks.jsonValue()).toEqual([true]);
+      await expect(outsideInput).toBeFocused();
       await expect(tooltip).toBeHidden();
       await expect(page.getByText(reminder, { exact: true })).toBeHidden();
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
@@ -457,6 +535,7 @@ for (const width of [1440, 390, 320]) {
       expect(tooltipBounds.y).toBeGreaterThanOrEqual(0);
       expect(tooltipBounds.y + tooltipBounds.height).toBeLessThanOrEqual(480);
       await expect(help.locator("..")).toHaveAttribute("data-above", "true");
+      await expectIntroductionLeavesInputsClear(tooltip);
       // A tooltip above the heading must also leave the upper edge usable.
       const aboveHelpBounds = (await help.boundingBox())!;
       await page.mouse.click(aboveHelpBounds.x + aboveHelpBounds.width / 2, aboveHelpBounds.y + 2);
