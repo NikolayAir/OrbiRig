@@ -78,9 +78,17 @@ def test_verified_subprocess_workflow_rejects_empty_argv_without_launch_or_recor
 @pytest.mark.parametrize("timeout,error", [
     (float("nan"), ValueError), (float("inf"), ValueError),
     (-float("inf"), ValueError), (0, ValueError), (-1.0, ValueError),
+    (2_147_484, ValueError), (2_147_483.5, ValueError),
+    (3_000_000, ValueError), (3_000_000.0, ValueError),
+    (10**20, ValueError), (1e20, ValueError), (sys.float_info.max, ValueError),
     (10**1000, ValueError), (True, TypeError), (False, TypeError),
     ("2", TypeError), (None, TypeError), ([], TypeError), (2j, TypeError),
-], ids=["nan", "infinity", "negative-infinity", "zero", "negative", "overflow", "true", "false", "string", "none", "list", "complex"])
+], ids=[
+    "nan", "infinity", "negative-infinity", "zero", "negative",
+    "above-maximum-integer", "above-maximum-float", "large-integer", "large-float",
+    "large-finite-integer", "large-finite-float", "largest-float",
+    "overflow", "true", "false", "string", "none", "list", "complex",
+])
 @pytest.mark.parametrize("verified", [False, True])
 def test_invalid_timeout_never_launches_or_builds_a_record(monkeypatch, timeout, error, verified):
     def unexpected_operation(*args, **kwargs):
@@ -96,6 +104,28 @@ def test_invalid_timeout_never_launches_or_builds_a_record(monkeypatch, timeout,
             )
         else:
             collect_subprocess_observation(argv=_argv("pass"), command=SAFE_COMMAND, timeout=timeout)
+
+
+@pytest.mark.parametrize("timeout", [1, 2_147_483, 2_147_483.0], ids=[
+    "ordinary-integer", "maximum-integer", "maximum-float",
+])
+@pytest.mark.parametrize("verified", [False, True])
+def test_supported_timeout_collects_through_both_entry_points(timeout, verified):
+    if verified:
+        record = execute_verified_subprocess_workflow(
+            argv=_argv("pass"), timeout=timeout,
+            execution_id="supported-timeout", executed_at=EXECUTED_AT,
+        )
+        assert record.outcome is ExecutionOutcome.PASS
+        observation = record.observation
+    else:
+        observation = collect_subprocess_observation(
+            argv=_argv("pass"), command=SAFE_COMMAND, timeout=timeout,
+        )
+
+    assert observation.command == SAFE_COMMAND
+    assert observation.post_state.operating_mode is OperatingMode.SAFE
+    assert observation.telemetry.operating_mode is OperatingMode.SAFE
 
 
 @pytest.mark.parametrize("target_mode", tuple(OperatingMode))

@@ -126,7 +126,7 @@ print(serialize_verified_execution_evidence(record), end="")
 
 The result contains 4 passing checks and outcome `PASS`. To collect from your own program, pass a non-empty sequence in `argv`, with the program first and its arguments after it. An empty `argv` raises `ValueError` before a process starts.
 
-For both subprocess entry points, `timeout` must be a positive, finite number of seconds: an `int` or `float`, excluding booleans. Invalid values raise `ValueError`; other types raise `TypeError`. These caller errors occur before a process starts and are separate from `ObservationCollectionError`.
+For both subprocess entry points, `timeout` must be a positive, finite number of seconds no greater than `2_147_483`: an `int` or `float`, excluding booleans. This upper bound stays within the signed 32-bit millisecond range used by poll-based waits, with room for rounding. Values outside the range raise `ValueError`; other types raise `TypeError`. These caller errors occur before a process starts and are separate from `ObservationCollectionError`.
 
 OrbiRig starts 1 process for each submitted command, without interpreting `argv` as a shell command. The command and observation are exchanged through stdin and stdout, not HTTP. The protocol is:
 
