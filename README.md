@@ -16,6 +16,8 @@ Choose how to use it:
 
 ### Try it in the browser
 
+The hosted demo runs on Render's free plan. After 15 minutes of inactivity, the service spins down, so the next visit may take about a minute to load.
+
 1. Open the [web interface](https://orbirig-evidence-inspector.onrender.com/) and choose **Verify observation**.
 2. Choose **Load example**, then **Verify observation**.
 3. Inspect the expected and actual values. The default example records an accepted change from `NOMINAL` to `SAFE` and produces `PASS`.

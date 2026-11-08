@@ -340,4 +340,7 @@ def test_empty_body_remains_invalid_input(endpoint, detail):
         endpoint, content=b"", headers={"content-type": _content_type(endpoint)},
     )
     assert response.status_code == 422
-    assert response.json() == {"detail": detail}
+    if isinstance(detail, str):
+        assert response.json()["detail"].startswith(detail + ". ")
+    else:
+        assert response.json() == {"detail": detail}

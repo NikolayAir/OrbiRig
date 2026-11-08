@@ -12,21 +12,21 @@ type Check = readonly [id: string, expected: string, actual: string, outcome: st
 
 const acceptedChecks: readonly Check[] = [
   ["pre_state_matches_expected", "NOMINAL", "NOMINAL", "PASS"],
-  ["acknowledgement_is_accepted", "true", "true", "PASS"],
+  ["acknowledgement_is_accepted", "Accepted", "Accepted", "PASS"],
   ["post_state_matches_requested_mode", "SAFE", "SAFE", "PASS"],
   ["telemetry_matches_post_state", "SAFE", "SAFE", "PASS"],
 ];
 
 const rejectedChecks: readonly Check[] = [
   ["pre_state_matches_expected", "NOMINAL", "NOMINAL", "PASS"],
-  ["acknowledgement_is_rejected", "false", "false", "PASS"],
+  ["acknowledgement_is_rejected", "Rejected", "Rejected", "PASS"],
   ["post_state_matches_pre_state", "NOMINAL", "NOMINAL", "PASS"],
   ["telemetry_matches_post_state", "NOMINAL", "NOMINAL", "PASS"],
 ];
 
 const mixedChecks: readonly Check[] = [
   ["pre_state_matches_expected", "NOMINAL", "NOMINAL", "PASS"],
-  ["acknowledgement_is_accepted", "true", "true", "PASS"],
+  ["acknowledgement_is_accepted", "Accepted", "Accepted", "PASS"],
   ["post_state_matches_requested_mode", "SAFE", "NOMINAL", "FAIL"],
   ["telemetry_matches_post_state", "NOMINAL", "SAFE", "FAIL"],
 ];
@@ -36,9 +36,9 @@ function field(scope: Locator, label: string): Locator {
 }
 
 async function expectOutcome(scope: Locator, label: string, outcome: string) {
-  const badge = scope.getByLabel(`${label}: ${outcome}`, { exact: true });
+  const badge = scope.locator(".outcome-badge").filter({ hasText: `${label}: ${outcome}` });
   await expect(badge).toBeVisible();
-  await expect(badge).toHaveText(outcome);
+  await expect(badge.locator('[aria-hidden="true"]')).toHaveText(outcome);
 }
 
 async function expectChecks(scope: Locator, expected: readonly Check[]) {
@@ -450,7 +450,7 @@ for (const guide of ["In the browser", "From the command line"] as const) {
     await page.getByRole("button", { name: "Inspect evidence", exact: true }).click();
     const inspection = page.getByRole("region", { name: "Observation details", exact: true });
     await expect(field(inspection, "Acknowledgement")).toHaveText("Accepted");
-    await expect(page.getByLabel(/^Verification (outcome|check):/)).toHaveCount(0);
+    await expect(page.locator(".outcome-badge").filter({ hasText: /^Verification (outcome|check):/ })).toHaveCount(0);
     await browseInstructions("Inspect evidence");
     await expect(inspection).toBeVisible();
 
@@ -476,7 +476,7 @@ for (const example of [
     acknowledgement: "Rejected",
     checks: [
       ["pre_state_matches_expected", "SAFE", "NOMINAL", "FAIL"],
-      ["acknowledgement_is_accepted", "true", "false", "FAIL"],
+      ["acknowledgement_is_accepted", "Accepted", "Rejected", "FAIL"],
       ["post_state_matches_requested_mode", "NOMINAL", "NOMINAL", "PASS"],
       ["telemetry_matches_post_state", "NOMINAL", "NOMINAL", "PASS"],
     ] satisfies readonly Check[],
@@ -505,7 +505,7 @@ for (const example of [
     acknowledgement: "Rejected",
     checks: [
       ["pre_state_matches_expected", "NOMINAL", "SAFE", "FAIL"],
-      ["acknowledgement_is_accepted", "true", "false", "FAIL"],
+      ["acknowledgement_is_accepted", "Accepted", "Rejected", "FAIL"],
       ["post_state_matches_requested_mode", "SAFE", "NOMINAL", "FAIL"],
       ["telemetry_matches_post_state", "NOMINAL", "SAFE", "FAIL"],
     ] satisfies readonly Check[],
@@ -573,7 +573,7 @@ test("verification reports HTTP 413 for an oversized wrapped request and allows 
   await expect(page.getByLabel("Scenario", { exact: true })).toHaveValue("nominal_to_nominal_rejection");
   await expect(page.getByLabel("Observation evidence JSON", { exact: true })).toHaveValue(submittedText);
   await expect(page.getByRole("button", { name: "Show Verify observation" })).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByLabel(/^Verification (outcome|check):/)).toHaveCount(0);
+  await expect(page.locator(".outcome-badge").filter({ hasText: /^Verification (outcome|check):/ })).toHaveCount(0);
 
   await page.getByLabel("Observation evidence JSON", { exact: true }).fill(document);
   await expect(page.getByRole("alert")).toHaveCount(0);
@@ -613,7 +613,7 @@ for (const inspection of [
     await expect(page.getByRole("radio", { name: inspection.type, exact: true })).toBeChecked();
     await expect(page.getByRole("button", { name: "Show Inspect evidence" })).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByRole("region", { name: inspection.result, exact: true })).toHaveCount(0);
-    await expect(page.getByLabel(/^(Verification (outcome|check)|Sequence outcome|Continuity outcome):/)).toHaveCount(0);
+    await expect(page.locator(".outcome-badge").filter({ hasText: /^(Verification (outcome|check)|Sequence outcome|Continuity outcome):/ })).toHaveCount(0);
 
     await page.getByLabel("Evidence JSON", { exact: true }).fill(document);
     await expect(page.getByRole("alert")).toHaveCount(0);
@@ -630,10 +630,10 @@ for (const inspection of [
 const duplicateKeyEvidence = evidenceFile("duplicate-keys.json.txt").replace(/\r\n?/g, "\n");
 
 for (const invalid of [
-  { name: "malformed JSON", text: '{"evidence_format_version":' },
+  { name: "malformed JSON", text: '{"evidence_format_version":', reason: "JSON is malformed or nested too deeply" },
   // Test both LF and CRLF, even when Git changes line endings during checkout.
-  { name: "nested duplicate keys with LF line endings", text: duplicateKeyEvidence },
-  { name: "nested duplicate keys with CRLF line endings", text: duplicateKeyEvidence.replace(/\n/g, "\r\n") },
+  { name: "nested duplicate keys with LF line endings", text: duplicateKeyEvidence, reason: "JSON contains a repeated field name" },
+  { name: "nested duplicate keys with CRLF line endings", text: duplicateKeyEvidence.replace(/\n/g, "\r\n"), reason: "JSON contains a repeated field name" },
 ]) {
   test(`verification reports an input error for ${invalid.name} and preserves the submitted text`, async ({ page }) => {
     const submittedText = await fillVerification(page, "nominal_to_safe_mode", invalid.text);
@@ -644,9 +644,9 @@ for (const invalid of [
     expect(response.status()).toBe(422);
     expect(response.request().postDataJSON().observation_evidence).toBe(submittedText);
     await expect(page.getByRole("alert").locator("strong")).toHaveText("Input error");
-    await expect(page.getByRole("alert").locator("span")).toHaveText("The observation evidence is invalid.");
+    await expect(page.getByRole("alert").locator("span")).toHaveText(`observation evidence is invalid. ${invalid.reason}`);
     await expect(page.getByRole("region", { name: "Verified execution", exact: true })).toHaveCount(0);
-    await expect(page.getByLabel(/^Verification (outcome|check):/)).toHaveCount(0);
+    await expect(page.locator(".outcome-badge").filter({ hasText: /^Verification (outcome|check):/ })).toHaveCount(0);
   });
 
   test(`inspection reports an input error for ${invalid.name} and preserves the submitted text`, async ({ page }) => {
@@ -660,9 +660,9 @@ for (const invalid of [
     expect(response.request().postData()).toBe(submittedText);
     expect(response.request().headers()["content-type"]).toBe("text/plain; charset=utf-8");
     await expect(page.getByRole("alert").locator("strong")).toHaveText("Invalid evidence");
-    await expect(page.getByRole("alert").locator("span")).toHaveText("The observation evidence is invalid.");
+    await expect(page.getByRole("alert").locator("span")).toHaveText(`observation evidence is invalid. ${invalid.reason}`);
     await expect(page.getByRole("region", { name: "Observation details", exact: true })).toHaveCount(0);
-    await expect(page.getByLabel(/^Verification (outcome|check):/)).toHaveCount(0);
+    await expect(page.locator(".outcome-badge").filter({ hasText: /^Verification (outcome|check):/ })).toHaveCount(0);
   });
 }
 
@@ -745,7 +745,7 @@ test("observation inspection shows reported behaviour without claiming verificat
   ]) {
     await expect(field(observation, label)).toHaveText(value);
   }
-  await expect(page.getByLabel(/^Verification (outcome|check):/)).toHaveCount(0);
+  await expect(page.locator(".outcome-badge").filter({ hasText: /^Verification (outcome|check):/ })).toHaveCount(0);
   await expect(page.getByRole("alert")).toHaveCount(0);
 });
 
@@ -777,13 +777,13 @@ for (const invalid of [
     type: "Verified execution",
     endpoint: "verified-execution",
     fixture: "failed-execution.json",
-    error: "The verified-execution evidence is invalid.",
+    error: "verified execution evidence is invalid. outcome: stored outcome does not match recomputed outcome",
   },
   {
     type: "Verified execution sequence",
     endpoint: "verified-execution-sequence",
     fixture: "discontinuous-sequence.json",
-    error: "The verified-execution-sequence evidence is invalid.",
+    error: "verified execution sequence evidence is invalid. outcome: stored outcome does not match recomputed sequence outcome",
   },
 ]) {
   test(`${invalid.endpoint} inspection rejects a stored outcome that contradicts the evidence`, async ({ page }) => {
@@ -804,6 +804,6 @@ for (const invalid of [
     await expect(page.getByRole("alert").locator("strong")).toHaveText("Invalid evidence");
     await expect(page.getByRole("alert").locator("span")).toHaveText(invalid.error);
     await expect(page.getByRole("region", { name: invalid.type, exact: true })).toHaveCount(0);
-    await expect(page.getByLabel(/^(Verification (outcome|check)|Sequence outcome|Continuity outcome):/)).toHaveCount(0);
+    await expect(page.locator(".outcome-badge").filter({ hasText: /^(Verification (outcome|check)|Sequence outcome|Continuity outcome):/ })).toHaveCount(0);
   });
 }

@@ -12,8 +12,8 @@ for (const inspection of [false, true]) {
     await page.getByRole("button", { name: inspection ? "Inspect evidence" : "Verify observation", exact: true }).click();
     const result = page.getByRole("region", { name: inspection ? "Observation details" : "Verified execution", exact: true });
     await expect(result).toBeVisible();
-    if (inspection) await expect(page.getByLabel(/Verification outcome:/)).toHaveCount(0);
-    else await expect(result.getByLabel("Verification outcome: PASS", { exact: true })).toBeVisible();
+    if (inspection) await expect(page.locator(".outcome-badge").filter({ hasText: /Verification outcome:/ })).toHaveCount(0);
+    else await expect(result.locator(".outcome-badge").filter({ hasText: "Verification outcome: PASS" })).toBeVisible();
 
     await load.focus();
     await page.keyboard.press("Enter");
@@ -160,7 +160,7 @@ for (const width of [1440, 768, 320]) {
         : page.getByRole("region", { name: "Observation details", exact: true });
       await expect(result).toBeVisible();
       if (workflow === "Verify observation") {
-        await expect(result.getByLabel("Verification outcome: PASS", { exact: true })).toBeVisible();
+        await expect(result.locator(".outcome-badge").filter({ hasText: "Verification outcome: PASS" })).toBeVisible();
       } else {
         await expect(result).toContainText("Accepted");
       }

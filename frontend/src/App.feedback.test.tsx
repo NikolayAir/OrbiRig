@@ -90,7 +90,7 @@ describe("App feedback", () => {
     expect(within(activeResult).getByText("exec-b")).toBeInTheDocument();
     expect(within(activeResult).getByRole("heading", { name: "Verified execution sequence" })).toHaveFocus();
     expect(screen.getByRole("status")).toHaveTextContent("Inspection completed. Valid verified execution sequence evidence. Sequence outcome: PASS.");
-    expect(within(activeResult).getByLabelText("Sequence outcome: PASS")).toBeInTheDocument();
+    expect(within(activeResult).getByText("Sequence outcome: PASS")).toBeInTheDocument();
     expect(screen.getByLabelText("Evidence JSON")).toHaveValue("independent inspection evidence");
     expect(screen.getByRole("radio", { name: "Verified execution sequence" })).toBeChecked();
     expect(screen.getByRole("button", { name: "Show Inspect evidence" })).toHaveAttribute("aria-pressed", "true");
@@ -167,7 +167,7 @@ describe("App feedback", () => {
     expect(within(activeResult).getByText("exec-web-001")).toBeInTheDocument();
     expect(within(activeResult).getByRole("heading", { name: "Verified execution" })).toHaveFocus();
     expect(screen.getByRole("status")).toHaveTextContent("Verification completed. Outcome: PASS.");
-    expect(within(activeResult).getByLabelText("Verification outcome: PASS")).toBeInTheDocument();
+    expect(within(activeResult).getByText("Verification outcome: PASS")).toBeInTheDocument();
     for (const [label, value] of activeInputs) {
       expect(screen.getByLabelText(label)).toHaveValue(value);
     }

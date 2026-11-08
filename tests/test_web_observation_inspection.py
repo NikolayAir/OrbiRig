@@ -96,7 +96,7 @@ def test_malformed_observation_evidence_is_rejected():
     response = _post_evidence('{"evidence_format_version": 1')
 
     assert response.status_code == 422
-    assert response.json() == {"detail": "observation evidence is invalid"}
+    assert response.json()["detail"].startswith("observation evidence is invalid. ")
 
 
 @pytest.mark.parametrize(
@@ -128,7 +128,7 @@ def test_excessive_json_nesting_is_rejected_as_invalid_evidence(
     )
 
     assert response.status_code == 422
-    assert response.json() == {"detail": detail}
+    assert response.json()["detail"].startswith(detail + ". ")
 
 
 def test_duplicate_root_member_is_rejected_without_json_normalisation():
@@ -142,7 +142,7 @@ def test_duplicate_root_member_is_rejected_without_json_normalisation():
     response = _post_evidence(serialized)
 
     assert response.status_code == 422
-    assert response.json() == {"detail": "observation evidence is invalid"}
+    assert response.json()["detail"].startswith("observation evidence is invalid. ")
 
 
 def test_duplicate_nested_member_is_rejected_without_json_normalisation():
@@ -156,7 +156,7 @@ def test_duplicate_nested_member_is_rejected_without_json_normalisation():
     response = _post_evidence(serialized)
 
     assert response.status_code == 422
-    assert response.json() == {"detail": "observation evidence is invalid"}
+    assert response.json()["detail"].startswith("observation evidence is invalid. ")
 
 
 def test_invalid_utf8_is_rejected_before_deserialisation(monkeypatch):
@@ -198,3 +198,22 @@ def test_successful_response_contains_no_verification_classification():
     assert "scenario_id" not in rendered
     assert "PASS" not in rendered
     assert "FAIL" not in rendered
+
+
+def test_incorrect_telemetry_is_valid_observation_without_scenario_verification(monkeypatch):
+    def unexpected_verification(**_kwargs):
+        raise AssertionError("observation inspection must not perform scenario verification")
+
+    monkeypatch.setattr(web, "build_verified_execution_record", unexpected_verification)
+    document = _observation_document()
+    document["telemetry"] = {"operating_mode": "NOMINAL"}
+
+    response = _post_evidence(json.dumps(document))
+
+    assert response.status_code == 200
+    assert response.json() == {
+        name: document[name]
+        for name in ("command", "pre_state", "acknowledgement", "post_state", "telemetry")
+    }
+    assert response.json()["post_state"] == {"operating_mode": "SAFE"}
+    assert response.json()["telemetry"] == {"operating_mode": "NOMINAL"}

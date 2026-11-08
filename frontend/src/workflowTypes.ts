@@ -41,7 +41,7 @@ export type InspectionState =
     kind: "valid-verified-execution-sequence";
     sequence: VerifiedExecutionSequencePresentation;
   }
-  | { kind: "invalid"; evidenceType: EvidenceType }
+  | { kind: "invalid"; evidenceType: EvidenceType; message?: string }
   | { kind: "request-too-large" }
   | { kind: "transport-failure" };
 
@@ -51,7 +51,7 @@ export type VerificationState =
   | { kind: "loading" }
   | { kind: "cancelled" }
   | { kind: "completed"; record: VerifiedExecutionPresentation }
-  | { kind: "validation-failure"; code: VerificationErrorCode }
+  | { kind: "validation-failure"; code: VerificationErrorCode; message?: string; field?: "execution_id" | "executed_at" }
   | { kind: "request-too-large" }
   | { kind: "network-failure" }
   | { kind: "server-failure" };

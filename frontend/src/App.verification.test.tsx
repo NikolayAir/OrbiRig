@@ -201,7 +201,7 @@ describe("App verification", () => {
     expect(within(record).getByText("Verification result")).toBeInTheDocument();
     expect(within(record).getByText("The recorded behaviour matches this execution's scenario.")).toBeVisible();
     expect(
-      within(record).getByLabelText("Verification outcome: PASS"),
+      within(record).getByText("Verification outcome: PASS"),
     ).toBeInTheDocument();
     expect(
       within(record).getByText("2026-08-17T10:15:30Z"),
@@ -228,7 +228,7 @@ describe("App verification", () => {
       name: "Verified execution",
     });
     expect(
-      within(record).getByLabelText("Verification outcome: FAIL"),
+      within(record).getByText("Verification outcome: FAIL"),
     ).toBeInTheDocument();
     expect(within(record).getAllByText("FAIL")).toHaveLength(2);
     expect(within(record).getByText("The recorded behaviour does not meet the scenario's expectations. Review the failed checks below.")).toBeVisible();
@@ -269,7 +269,7 @@ describe("App verification", () => {
     fetchMock.mockResolvedValue({
       ok: false,
       status: 422,
-      json: async () => ({ detail: { code, message: "server message" } }),
+      json: async () => ({ detail: { code } }),
     });
 
     submitVerification();
@@ -281,14 +281,14 @@ describe("App verification", () => {
   });
 
   it.each([
-    ["invalid_observation_evidence", "Check that it is complete JSON with every required field and no repeated field names."],
+    ["invalid_observation_evidence", "Check the document's required fields, value types and supported values. JSON field names must not repeat."],
     ["invalid_execution_metadata", "Use a non-blank ID and a UTC time such as 2026-08-26T08:30:00Z."],
     ["scenario_command_mismatch", "Check that this is the intended scenario and the matching observation."],
   ])("explains what to check after %s", async (code, guidance) => {
     fetchMock.mockResolvedValue({
       ok: false,
       status: 422,
-      json: async () => ({ detail: { code, message: "server message" } }),
+      json: async () => ({ detail: { code } }),
     });
 
     submitVerification();

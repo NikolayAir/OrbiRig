@@ -3,6 +3,7 @@ import {
   isVerifiedExecutionPresentation,
   isVerifiedExecutionSequencePresentation,
   verificationErrorCode,
+  requestErrorDetails,
 } from "./apiResponses";
 import type {
   EvidenceType,
@@ -46,8 +47,9 @@ export async function verifyObservationRequest(
   if (response.status === 413) return { kind: "request-too-large" };
   if (response.status === 422) {
     try {
-      const code = verificationErrorCode(await response.json());
-      if (code !== null) return { kind: "validation-failure", code };
+      const payload: unknown = await response.json();
+      const code = verificationErrorCode(payload);
+      if (code !== null) return { kind: "validation-failure", code, ...requestErrorDetails(payload) };
     } catch {
       // A malformed error response is a server failure, not invalid user input.
     }
@@ -78,7 +80,12 @@ export async function inspectEvidenceRequest(
     });
     if (signal.aborted) return null;
     if (response.status === 413) return { kind: "request-too-large" };
-    if (response.status === 422) return { kind: "invalid", evidenceType };
+    if (response.status === 422) {
+      // Retain the input-error category if an older server has no diagnostic body.
+      let message: string | undefined;
+      try { message = requestErrorDetails(await response.json()).message; } catch { /* Use the local guidance. */ }
+      return { kind: "invalid", evidenceType, message };
+    }
     if (!response.ok) return { kind: "transport-failure" };
 
     const payload: unknown = await response.json();

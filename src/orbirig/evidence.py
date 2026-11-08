@@ -15,6 +15,7 @@ from orbirig.models import (
     InvariantResult,
     InvariantValue,
     OperatingMode,
+    ScenarioCommandMismatchError,
     ScenarioId,
     SetOperatingModeCommand,
     SpacecraftState,
@@ -47,6 +48,23 @@ _ACKNOWLEDGEMENT_INVARIANT_IDS = frozenset(
 )
 
 
+class EvidenceValidationError(ValueError):
+    """Invalid evidence with a diagnostic containing only trusted field paths and text."""
+
+    def __init__(self, message: str, *, path: str, problem: str) -> None:
+        super().__init__(message)
+        # Paths come from schema fields and array indices, never submitted keys.
+        self.safe_message = f"{path}: {problem}"
+
+
+class _EvidenceMetadataError(EvidenceValidationError, InvalidExecutionMetadataError):
+    """Retain the metadata exception contract while attaching an evidence path."""
+
+
+class _EvidenceScenarioMismatchError(EvidenceValidationError, ScenarioCommandMismatchError):
+    """Retain the scenario mismatch exception contract while attaching an evidence path."""
+
+
 def _require_object(
     value: object,
     *,
@@ -58,7 +76,9 @@ def _require_object(
     if not isinstance(value, dict):
         # All evidence readers report invalid input with ValueError.
         # Keep that error type here, even when the JSON value has the wrong type.
-        raise ValueError(f"{path} must be a JSON object")  # noqa: TRY004
+        raise EvidenceValidationError(
+            f"{path} must be a JSON object", path=path, problem="must be a JSON object",
+        )
 
     actual_fields = set(value)
     expected = set(expected_fields)
@@ -67,20 +87,26 @@ def _require_object(
 
     if missing_fields or unexpected_fields:
         details = []
+        safe_details = []
 
         if missing_fields:
             details.append(
                 f"missing fields: {', '.join(missing_fields)}",
             )
+            # Missing names come from the supported schema, not submitted keys.
+            safe_details.append(f"missing required fields: {', '.join(missing_fields)}")
 
         if unexpected_fields:
             # Quote untrusted names so control characters stay escaped in diagnostics.
             details.append(
                 f"unexpected fields: {', '.join(map(repr, unexpected_fields))}",
             )
+            # HTTP diagnostics must not echo unknown names from the submitted JSON.
+            safe_details.append("unexpected fields are present")
 
-        raise ValueError(
+        raise EvidenceValidationError(
             f"{path} has invalid fields ({'; '.join(details)})",
+            path=path, problem="; ".join(safe_details),
         )
 
     return value
@@ -94,7 +120,9 @@ def _require_string(
     """Validate one JSON string value."""
 
     if type(value) is not str:
-        raise ValueError(f"{path} must be a string")
+        raise EvidenceValidationError(
+            f"{path} must be a string", path=path, problem="must be a string",
+        )
 
     return value
 
@@ -107,7 +135,9 @@ def _require_boolean(
     """Validate one JSON boolean value."""
 
     if type(value) is not bool:
-        raise ValueError(f"{path} must be a boolean")
+        raise EvidenceValidationError(
+            f"{path} must be a boolean", path=path, problem="must be a boolean",
+        )
 
     return value
 
@@ -120,7 +150,9 @@ def _require_array(
     """Validate one JSON array."""
 
     if type(value) is not list:
-        raise ValueError(f"{path} must be a JSON array")
+        raise EvidenceValidationError(
+            f"{path} must be a JSON array", path=path, problem="must be a JSON array",
+        )
 
     return value
 
@@ -149,8 +181,9 @@ def _parse_operating_mode(
     try:
         return OperatingMode(serialized_mode)
     except ValueError:
-        raise ValueError(
+        raise EvidenceValidationError(
             f"{path} has unsupported value: {serialized_mode!r}",
+            path=path, problem="unsupported value",
         ) from None
 
 
@@ -166,8 +199,9 @@ def _parse_scenario_id(
     try:
         return ScenarioId(serialized_scenario_id)
     except ValueError:
-        raise ValueError(
+        raise EvidenceValidationError(
             f"{path} has unsupported value: {serialized_scenario_id!r}",
+            path=path, problem="unsupported value",
         ) from None
 
 
@@ -183,8 +217,9 @@ def _parse_invariant_id(
     try:
         return InvariantId(serialized_invariant_id)
     except ValueError:
-        raise ValueError(
+        raise EvidenceValidationError(
             f"{path} has unsupported value: {serialized_invariant_id!r}",
+            path=path, problem="unsupported value",
         ) from None
 
 
@@ -200,8 +235,9 @@ def _parse_execution_outcome(
     try:
         return ExecutionOutcome(serialized_outcome)
     except ValueError:
-        raise ValueError(
+        raise EvidenceValidationError(
             f"{path} has unsupported value: {serialized_outcome!r}",
+            path=path, problem="unsupported value",
         ) from None
 
 
@@ -217,7 +253,10 @@ def _parse_utc_datetime(
     try:
         return parse_utc_timestamp(serialized_timestamp)
     except InvalidExecutionMetadataError as exc:
-        raise ValueError(f"{path}: {exc}") from None
+        # parse_utc_timestamp uses controlled messages without submitted values.
+        raise EvidenceValidationError(
+            f"{path}: {exc}", path=path, problem=str(exc),
+        ) from None
 
 
 def _parse_observation_document(
@@ -250,10 +289,11 @@ def _parse_observation_document(
     # Evidence format v1 accepts only SET_OPERATING_MODE.
     # Adding another CommandType must not automatically make v1 accept it.
     if command_type != CommandType.SET_OPERATING_MODE.value:
-        raise ValueError(
+        raise EvidenceValidationError(
             f"{_nested_path(command_path, 'command_type')} "
             "has unsupported value: "
             f"{command_type!r}",
+            path=_nested_path(command_path, "command_type"), problem="unsupported command type",
         )
 
     pre_state_path = _nested_path(path, "pre_state")
@@ -342,13 +382,15 @@ def deserialize_execution_evidence(
 
     # Exact type checking rejects JSON booleans, which are Python int subclasses.
     if type(version) is not int:
-        raise ValueError(
+        raise EvidenceValidationError(
             "evidence_format_version must be an integer",
+            path="evidence_format_version", problem="must be an integer",
         )
 
     if version != EXECUTION_EVIDENCE_FORMAT_VERSION:
-        raise ValueError(
+        raise EvidenceValidationError(
             f"unsupported evidence_format_version: {version!r}",
+            path="evidence_format_version", problem="unsupported version",
         )
 
     return _parse_observation_document(
@@ -445,11 +487,15 @@ def _parse_verified_execution_document(
     schema_version_path = _nested_path(path, "schema_version")
 
     if type(schema_version) is not int:
-        raise ValueError(f"{schema_version_path} must be an integer")
+        raise EvidenceValidationError(
+            f"{schema_version_path} must be an integer",
+            path=schema_version_path, problem="must be an integer",
+        )
 
     if schema_version != VERIFIED_EXECUTION_SCHEMA_VERSION:
-        raise ValueError(
+        raise EvidenceValidationError(
             f"unsupported {schema_version_path}: {schema_version!r}",
+            path=schema_version_path, problem="unsupported version",
         )
 
     execution_path = _nested_path(path, "execution")
@@ -489,24 +535,38 @@ def _parse_verified_execution_document(
         path=outcome_path,
     )
 
-    canonical_record = build_verified_execution_record(
-        execution_id=execution_id,
-        executed_at=executed_at,
-        scenario_id=scenario_id,
-        observation=observation,
-    )
+    try:
+        canonical_record = build_verified_execution_record(
+            execution_id=execution_id,
+            executed_at=executed_at,
+            scenario_id=scenario_id,
+            observation=observation,
+        )
+    except InvalidExecutionMetadataError as exc:
+        # The timestamp was already validated; only the execution ID can fail here.
+        raise _EvidenceMetadataError(
+            str(exc), path=_nested_path(execution_path, "execution_id"),
+            problem="must be non-blank text without surrogate code points",
+        ) from None
+    except ScenarioCommandMismatchError as exc:
+        raise _EvidenceScenarioMismatchError(
+            str(exc), path=_nested_path(path, "observation.command"),
+            problem="does not match the saved scenario",
+        ) from None
 
     # Compare the full ordered checks, not just the outcome. Matching FAIL evidence is valid.
     if persisted_results != canonical_record.invariant_results:
-        raise ValueError(
+        raise EvidenceValidationError(
             f"{invariant_results_path} do not match the checks recomputed "
             "from the saved scenario and observation",
+            path=invariant_results_path, problem="stored checks do not match recomputed checks",
         )
 
     if persisted_outcome is not canonical_record.outcome:
-        raise ValueError(
+        raise EvidenceValidationError(
             f"{outcome_path} does not match the outcome recomputed "
             "from the saved scenario and observation",
+            path=outcome_path, problem="stored outcome does not match recomputed outcome",
         )
 
     return canonical_record
@@ -610,10 +670,13 @@ def _verified_execution_document(
 def serialize_verified_execution_evidence(
     record: VerifiedExecutionRecord,
 ) -> str:
-    """Return deterministic versioned JSON for a verified execution."""
+    """Return deterministic JSON, rejecting noncanonical derived evidence."""
 
+    document = _verified_execution_document(record)
+    # Reuse the strict reader's canonical reconstruction; never repair supplied results.
+    _parse_verified_execution_document(document, path="")
     return json.dumps(
-        _verified_execution_document(record),
+        document,
         indent=2,
     ) + "\n"
 
@@ -665,8 +728,9 @@ def _parse_continuity_results(
         )
 
         if persisted_passed is not result.passed:
-            raise ValueError(
+            raise EvidenceValidationError(
                 f"{result_path} does not match its derived continuity result",
+                path=f"{result_path}.passed", problem="stored result does not match its modes",
             )
 
         results.append(result)
@@ -686,6 +750,12 @@ def deserialize_verified_execution_sequence_evidence(
         ),
     )
 
+    return _parse_verified_execution_sequence_document(document)
+
+
+def _parse_verified_execution_sequence_document(document: object) -> VerifiedExecutionSequence:
+    """Reconstruct and compare sequence evidence for both readers and writers."""
+
     root = _require_object(
         document,
         path="verified execution sequence evidence",
@@ -699,17 +769,25 @@ def deserialize_verified_execution_sequence_evidence(
     schema_version = root["schema_version"]
 
     if type(schema_version) is not int:
-        raise ValueError("schema_version must be an integer")
+        raise EvidenceValidationError(
+            "schema_version must be an integer", path="schema_version", problem="must be an integer",
+        )
 
     if schema_version != VERIFIED_EXECUTION_SEQUENCE_SCHEMA_VERSION:
-        raise ValueError(
+        raise EvidenceValidationError(
             f"unsupported sequence schema_version: {schema_version!r}",
+            path="schema_version", problem="unsupported version",
         )
 
     serialized_records = _require_array(
         root["records"],
         path="records",
     )
+    if len(serialized_records) < 2:
+        raise EvidenceValidationError(
+            "verified execution sequence requires at least 2 records",
+            path="records", problem="requires at least 2 records",
+        )
     records = tuple(
         _parse_verified_execution_document(
             serialized_record,
@@ -730,15 +808,17 @@ def deserialize_verified_execution_sequence_evidence(
     canonical_sequence = verify_execution_sequence(records)
 
     if persisted_results != canonical_sequence.continuity_results:
-        raise ValueError(
+        raise EvidenceValidationError(
             "continuity_results do not match the continuity checks "
             "recomputed from the saved records",
+            path="continuity_results", problem="stored boundaries do not match recomputed continuity",
         )
 
     if persisted_outcome is not canonical_sequence.outcome:
-        raise ValueError(
+        raise EvidenceValidationError(
             "outcome does not match the sequence outcome "
             "recomputed from the saved records",
+            path="outcome", problem="stored outcome does not match recomputed sequence outcome",
         )
 
     return canonical_sequence
@@ -747,7 +827,7 @@ def deserialize_verified_execution_sequence_evidence(
 def serialize_verified_execution_sequence_evidence(
     sequence: VerifiedExecutionSequence,
 ) -> str:
-    """Return deterministic versioned JSON for a verified sequence."""
+    """Return deterministic JSON, rejecting noncanonical records or continuity."""
 
     document = {
         "schema_version": VERIFIED_EXECUTION_SEQUENCE_SCHEMA_VERSION,
@@ -772,4 +852,5 @@ def serialize_verified_execution_sequence_evidence(
         "outcome": sequence.outcome.value,
     }
 
+    _parse_verified_execution_sequence_document(document)
     return json.dumps(document, indent=2) + "\n"

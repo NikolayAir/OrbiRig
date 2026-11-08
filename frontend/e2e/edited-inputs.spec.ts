@@ -47,7 +47,7 @@ for (const field of ["Execution ID", "Execution time (UTC)", "Scenario", "Observ
     await page.getByRole("button", { name: inspection ? "Inspect evidence" : "Verify observation", exact: true }).click();
     await expect(result).toBeVisible();
     await expect(page.locator(".action-status")).toHaveText(inspection ? "Inspection completed. Evidence is valid." : "Verification completed.");
-    if (!inspection) await expect(result.getByLabel("Verification outcome: PASS", { exact: true })).toBeVisible();
+    if (!inspection) await expect(result.locator(".outcome-badge").filter({ hasText: "Verification outcome: PASS" })).toBeVisible();
     expect(requests).toBe(2);
   });
 }
@@ -84,14 +84,14 @@ test("edited and completed states stay independent when switching tasks", async 
   await page.getByRole("radio", { name: "Verified execution", exact: true }).check();
   await page.getByLabel("Evidence JSON", { exact: true }).fill(savedFail);
   await page.locator("button[type=submit]").click();
-  await expect(page.getByLabel("Verification outcome: FAIL", { exact: true })).toBeVisible();
+  await expect(page.locator(".outcome-badge").filter({ hasText: "Verification outcome: FAIL" })).toBeVisible();
   await expect(page.locator(".action-status")).toHaveText("Inspection completed. Evidence is valid. Saved outcome: FAIL.");
   await page.getByRole("button", { name: "Show Verify observation" }).click();
   await expect(page.locator(".action-status")).toHaveText(verificationChanged);
   await expect(page.getByLabel("Execution ID", { exact: true })).toHaveValue("edited-execution");
   await expect(page.locator(".workflow-feedback h2")).toHaveCount(0);
   await page.getByRole("button", { name: "Show Inspect evidence" }).click();
-  await expect(page.getByLabel("Verification outcome: FAIL", { exact: true })).toBeVisible();
+  await expect(page.locator(".outcome-badge").filter({ hasText: "Verification outcome: FAIL" })).toBeVisible();
   await page.getByLabel("Evidence JSON", { exact: true }).fill(`${savedFail}\n`);
   await expect(page.locator(".action-status")).toHaveText(inspectionChanged);
   await page.getByRole("button", { name: "Show Verify observation" }).click();
@@ -149,7 +149,7 @@ for (const width of [320, 1280]) {
     await page.addStyleTag({ content: ':root { font-family: Verdana, "DejaVu Sans", sans-serif; font-size: 200%; }' });
     await page.getByLabel("Observation evidence JSON", { exact: true }).fill(failed);
     await page.locator("button[type=submit]").click();
-    await expect(page.getByLabel("Verification outcome: FAIL", { exact: true })).toBeVisible();
+    await expect(page.locator(".outcome-badge").filter({ hasText: "Verification outcome: FAIL" })).toBeVisible();
     await expect(page.locator(".action-status")).toHaveText("Verification completed.");
     await testInfo.attach("completed-fail", { body: await page.locator("#verification-workflow").screenshot(), contentType: "image/png" });
     await page.getByLabel("Execution ID", { exact: true }).fill("edited");
@@ -167,7 +167,7 @@ for (const width of [320, 1280]) {
     await page.getByRole("radio", { name: "Verified execution", exact: true }).check();
     await page.getByLabel("Evidence JSON", { exact: true }).fill(savedFail);
     await page.locator("button[type=submit]").click();
-    await expect(page.getByLabel("Verification outcome: FAIL", { exact: true })).toBeVisible();
+    await expect(page.locator(".outcome-badge").filter({ hasText: "Verification outcome: FAIL" })).toBeVisible();
     await expect(page.locator(".action-status")).toHaveText("Inspection completed. Evidence is valid. Saved outcome: FAIL.");
     // "Valid saved evidence" may wrap between its 3 words, but not between letters.
     expect(await page.locator(".result-context").evaluate(label => label.getBoundingClientRect().height / parseFloat(getComputedStyle(label).lineHeight))).toBeLessThanOrEqual(3);

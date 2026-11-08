@@ -197,7 +197,7 @@ def test_malformed_or_structurally_invalid_evidence_is_rejected(
     )
 
     assert response.status_code == 422
-    assert response.json() == {"detail": "verified execution evidence is invalid"}
+    assert response.json()["detail"].startswith("verified execution evidence is invalid. ")
 
 
 @pytest.mark.parametrize("timestamp", [
@@ -219,7 +219,7 @@ def test_invalid_timestamp_is_invalid_evidence(timestamp):
     )
 
     assert response.status_code == 422
-    assert response.json() == {"detail": "verified execution evidence is invalid"}
+    assert response.json()["detail"].startswith("verified execution evidence is invalid. ")
 
 
 @pytest.mark.parametrize("execution_id", ["before\ud800after", "before\udfffafter"])
@@ -236,7 +236,7 @@ def test_surrogate_execution_id_is_invalid_evidence(execution_id):
     )
 
     assert response.status_code == 422
-    assert response.json() == {"detail": "verified execution evidence is invalid"}
+    assert response.json()["detail"].startswith("verified execution evidence is invalid. ")
 
 
 def test_unicode_execution_id_is_preserved_in_inspection():

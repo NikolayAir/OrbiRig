@@ -3,13 +3,14 @@ import { useEffect, useId, useRef, useState } from "react";
 type Props = {
   label?: string;
   tone?: "negative";
+  tooltipClassName?: string;
   description: string;
   disabled: boolean;
   requiresConfirmation: boolean;
   onLoad: () => void;
 };
 
-export function LoadExampleButton({ label = "Load example", tone, description, disabled, requiresConfirmation, onLoad }: Props) {
+export function LoadExampleButton({ label = "Load example", tone, tooltipClassName, description, disabled, requiresConfirmation, onLoad }: Props) {
   const id = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -53,7 +54,7 @@ export function LoadExampleButton({ label = "Load example", tone, description, d
       >
         {label}
       </button>
-      <span id={`${id}-hint`} role="tooltip">{description}</span>
+      <span id={`${id}-hint`} className={tooltipClassName} role="tooltip">{description}</span>
       {confirming && (
         <dialog
           ref={dialogRef}

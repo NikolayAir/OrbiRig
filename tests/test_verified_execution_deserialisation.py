@@ -23,6 +23,7 @@ from orbirig.models import (
     ExecutionOutcome,
     InvalidExecutionMetadataError,
     OperatingMode,
+    ScenarioCommandMismatchError,
     ScenarioId,
     SetOperatingModeCommand,
     SpacecraftState,
@@ -319,6 +320,14 @@ def test_invalid_execution_ids_are_rejected(execution_id, message):
     cast(dict[str, object], document["execution"])["execution_id"] = execution_id
 
     with pytest.raises(InvalidExecutionMetadataError, match=message):
+        deserialize_verified_execution_evidence(_serialized(document))
+
+
+def test_incompatible_saved_command_retains_scenario_mismatch_error():
+    document = _valid_document()
+    cast(dict[str, object], document["execution"])["scenario_id"] = "nominal_to_nominal_rejection"
+
+    with pytest.raises(ScenarioCommandMismatchError, match="does not match the selected scenario"):
         deserialize_verified_execution_evidence(_serialized(document))
 
 

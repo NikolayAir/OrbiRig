@@ -66,7 +66,7 @@ describe("sequence inspection pages", () => {
     const second = within(screen.getByRole("article", { name: "Member 2" }));
     expect(first.getByText("repeated-id")).toBeVisible();
     expect(first.getByText("NOMINAL to NOMINAL rejection")).toBeVisible();
-    expect(first.getByLabelText("Verification outcome: PASS")).toBeVisible();
+    expect(first.getByText("Verification outcome: PASS")).toBeVisible();
     expect(container.querySelectorAll(".verified-execution-fields, .continuity-boundary-fields")).toHaveLength(0);
 
     const toggle = first.getByRole("button", { name: "Show details for member 1" });
@@ -81,7 +81,7 @@ describe("sequence inspection pages", () => {
     expect(first.getByText("2026-08-17T10:00:00Z")).toBeVisible();
     expect(first.getByText("SET_OPERATING_MODE")).toBeVisible();
     expect(first.getByText("nominal_to_nominal_rejection")).toBeVisible();
-    expect(first.getAllByLabelText("Verification check: PASS")).toHaveLength(4);
+    expect(first.getAllByText("Verification check: PASS")).toHaveLength(4);
     expect(first.getByText("Telemetry operating mode")).toBeVisible();
     expect(scrollIntoViewMock).not.toHaveBeenCalled();
 
@@ -99,11 +99,11 @@ describe("sequence inspection pages", () => {
   it("keeps a member's FAIL visible while its reported values and checks are collapsed", () => {
     render(<SequenceViewer sequence={sequenceOf(2, true)} />);
     const member = within(screen.getByRole("article", { name: "Member 1" }));
-    expect(member.getByLabelText("Verification outcome: FAIL")).toBeVisible();
+    expect(member.getByText("Verification outcome: FAIL")).toBeVisible();
     expect(member.queryByText("Verification checks")).not.toBeInTheDocument();
     fireEvent.click(member.getByRole("button", { name: "Show details for member 1" }));
-    expect(member.getAllByLabelText("Verification check: PASS")).toHaveLength(3);
-    expect(member.getByLabelText("Verification check: FAIL")).toBeVisible();
+    expect(member.getAllByText("Verification check: PASS")).toHaveLength(3);
+    expect(member.getByText("Verification check: FAIL")).toBeVisible();
     const check = member.getByRole("heading", { name: "Telemetry matches post-state" }).closest("li")!;
     expect(within(check).getByText("NOMINAL")).toBeVisible();
     expect(within(check).getByText("SAFE")).toBeVisible();
@@ -176,9 +176,9 @@ describe("sequence inspection pages", () => {
       "Member 25", "Continuity check 25", "Member 26", "Continuity check 26", "Member 3900",
     ]);
     expect(within(flow).getByRole("article", { name: "Continuity check 26" })).toHaveTextContent("Members 26 → 27");
-    expect(within(within(flow).getByRole("article", { name: "Continuity check 25" })).getByLabelText("Continuity outcome: FAIL")).toBeInTheDocument();
-    expect(within(within(flow).getByRole("article", { name: "Member 3900" })).getByLabelText("Verification outcome: FAIL")).toBeInTheDocument();
-    expect(within(result()).getByLabelText("Sequence outcome: FAIL")).toBeInTheDocument();
+    expect(within(within(flow).getByRole("article", { name: "Continuity check 25" })).getByText("Continuity outcome: FAIL")).toBeInTheDocument();
+    expect(within(within(flow).getByRole("article", { name: "Member 3900" })).getByText("Verification outcome: FAIL")).toBeInTheDocument();
+    expect(within(result()).getByText("Sequence outcome: FAIL")).toBeInTheDocument();
     const boundary = within(screen.getByRole("article", { name: "Continuity check 25" }));
     expect(boundary.getByText("Members 25 → 26")).toBeVisible();
     expect(boundary.queryByText("Expected operating mode")).not.toBeInTheDocument();
@@ -192,7 +192,7 @@ describe("sequence inspection pages", () => {
     expect(boundary.getByText("NOMINAL")).toBeVisible();
     fireEvent.click(toggle);
     expect(boundary.queryByText("Expected operating mode")).not.toBeInTheDocument();
-    expect(boundary.getByLabelText("Continuity outcome: FAIL")).toBeVisible();
+    expect(boundary.getByText("Continuity outcome: FAIL")).toBeVisible();
     expect(sequence).toEqual(original);
     fireEvent.click(screen.getByRole("checkbox"));
     expect(screen.getByRole("article", { name: "Member 1" })).toBeInTheDocument();
@@ -216,11 +216,11 @@ describe("sequence inspection pages", () => {
     render(<SequenceViewer sequence={sequence} />);
     expect(result()).toHaveTextContent("Failed members: 0. Failed continuity checks: 1.");
     fireEvent.click(screen.getByRole("checkbox"));
-    expect(within(result()).getAllByLabelText("Verification outcome: PASS")).toHaveLength(2);
+    expect(within(result()).getAllByText("Verification outcome: PASS")).toHaveLength(2);
     expect(screen.getByRole("article", { name: "Member 50" })).toBeInTheDocument();
     expect(screen.getByRole("article", { name: "Member 51" })).toBeInTheDocument();
-    expect(within(result()).getByLabelText("Continuity outcome: FAIL")).toBeInTheDocument();
-    expect(within(result()).getByLabelText("Sequence outcome: FAIL")).toBeInTheDocument();
+    expect(within(result()).getByText("Continuity outcome: FAIL")).toBeInTheDocument();
+    expect(within(result()).getByText("Sequence outcome: FAIL")).toBeInTheDocument();
   });
 
   it("bounds the failure view too and supports direct page jumps in both navigators", () => {
@@ -243,7 +243,7 @@ describe("sequence inspection pages", () => {
     fireEvent.click(screen.getByRole("checkbox"));
     expect(within(result()).getByText("No failed members or continuity checks.")).toHaveAttribute("aria-live", "polite");
     expect(screen.queryByRole("article")).not.toBeInTheDocument();
-    expect(within(result()).getByLabelText("Sequence outcome: PASS")).toBeInTheDocument();
+    expect(within(result()).getByText("Sequence outcome: PASS")).toBeInTheDocument();
   });
 
   it.each(["0", "4", "1.5", ""])("ignores an invalid page submission (%s)", value => {

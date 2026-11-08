@@ -116,11 +116,11 @@ function VerifiedExecutionFields({
               <dl className="invariant-values">
                 <div>
                   <dt>Expected</dt>
-                  <dd>{formatInvariantValue(result.expected)}</dd>
+                  <dd>{formatInvariantValue(result.expected, result.invariant_id)}</dd>
                 </div>
                 <div>
                   <dt>Actual</dt>
-                  <dd>{formatInvariantValue(result.actual)}</dd>
+                  <dd>{formatInvariantValue(result.actual, result.invariant_id)}</dd>
                 </div>
                 <div>
                   <dt>Result</dt>
@@ -151,9 +151,9 @@ function OutcomeBadge({
     <span
       className="outcome-badge"
       data-outcome={outcome}
-      aria-label={`${label}: ${outcome}`}
     >
-      {outcome}
+      <span className="visually-hidden">{label}: {outcome}</span>
+      <span aria-hidden="true">{outcome}</span>
     </span>
   );
 }
@@ -458,8 +458,11 @@ function ContinuityBoundaryDetails({
   );
 }
 
-function formatInvariantValue(value: boolean | string): string {
+function formatInvariantValue(value: boolean | string, invariantId: string): string {
   if (typeof value === "boolean") {
+    if (invariantId === "acknowledgement_is_accepted" || invariantId === "acknowledgement_is_rejected") {
+      return value ? "Accepted" : "Rejected";
+    }
     return value ? "true" : "false";
   }
   return value;

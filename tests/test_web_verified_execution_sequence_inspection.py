@@ -214,9 +214,7 @@ def test_invalid_sequence_evidence_is_rejected() -> None:
     response = _post_evidence('{"schema_version": 1}')
 
     assert response.status_code == 422
-    assert response.json() == {
-        "detail": "verified execution sequence evidence is invalid",
-    }
+    assert response.json()["detail"].startswith("verified execution sequence evidence is invalid. ")
 
 
 @pytest.mark.parametrize("timestamp", [
@@ -232,9 +230,7 @@ def test_invalid_member_timestamp_is_invalid_sequence_evidence(timestamp):
     response = _post_evidence(json.dumps(document))
 
     assert response.status_code == 422
-    assert response.json() == {
-        "detail": "verified execution sequence evidence is invalid",
-    }
+    assert response.json()["detail"].startswith("verified execution sequence evidence is invalid. ")
 
 
 @pytest.mark.parametrize("execution_id", ["before\ud800after", "before\udfffafter"])
@@ -253,9 +249,7 @@ def test_surrogate_member_execution_id_is_invalid_evidence(execution_id):
     )
 
     assert response.status_code == 422
-    assert response.json() == {
-        "detail": "verified execution sequence evidence is invalid",
-    }
+    assert response.json()["detail"].startswith("verified execution sequence evidence is invalid. ")
 
 
 def test_invalid_utf8_is_rejected_before_sequence_deserialisation(

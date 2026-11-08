@@ -10,6 +10,9 @@ from orbirig.models import (
     SetOperatingModeCommand,
 )
 
+# Poll-based waits use signed 32-bit milliseconds; whole seconds leave room for rounding.
+_MAX_TIMEOUT_SECONDS = 2_147_483
+
 
 class ObservationCollectionError(RuntimeError):
     """Raised when no valid subprocess observation was collected."""
@@ -23,11 +26,19 @@ def collect_subprocess_observation(
 ) -> CommandExecutionObservation:
     """Run a target program and validate its returned observation JSON.
 
-    An empty argv raises ValueError before starting a process.
+    Invalid argv or timeout arguments are rejected before starting a process.
+    Timeout must be a positive, finite int or float (not bool), no greater than
+    2_147_483 seconds.
     """
 
     if not argv:
         raise ValueError("argv must include the program to run")
+
+    if type(timeout) not in (int, float):
+        raise TypeError("timeout must be an int or float")
+    # Negate the valid range so NaN is rejected too.
+    if not 0 < timeout <= _MAX_TIMEOUT_SECONDS:
+        raise ValueError("timeout must be positive, finite and at most 2147483 seconds")
 
     command_document = (
         json.dumps(
