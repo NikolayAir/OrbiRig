@@ -57,49 +57,78 @@ test("native scenario select matches the other input heights", async ({ page }) 
   expect(Math.abs(selectHeight - inputHeight)).toBeLessThanOrEqual(2);
 });
 
-for (const width of [1440, 390, 320]) {
-  test(`information controls have separate 44px targets at ${width}px`, async ({ page }) => {
+for (const { width, textScale } of [
+  { width: 1440, textScale: 100 },
+  { width: 390, textScale: 100 },
+  { width: 320, textScale: 100 },
+  { width: 320, textScale: 200 },
+]) {
+  test(`information controls have separate 44px targets at ${width}px with ${textScale}% text`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/");
+    await page.locator("html").evaluate((element, scale) => { element.style.fontSize = `${scale}%`; }, textScale);
     for (const [label, id] of [
       ["Execution ID", "execution-id-help-description"],
-      ["Execution time (UTC)", "execution-time-help-description"],
       ["Scenario", "scenario-help-description"],
       ["Observation evidence JSON", "verification-observation-hint"],
+      ["Evidence JSON", "inspection-evidence-hint"],
     ]) {
+      if (label === "Evidence JSON") await page.getByRole("button", { name: "Show Inspect evidence", exact: true }).click();
       const button = page.getByRole("button", { name: `About ${label}`, exact: true });
       await button.scrollIntoViewIfNeeded();
       const geometry = await button.evaluate(element => {
         const rect = element.getBoundingClientRect();
-        const input = element.closest(".form-field")!.querySelector("input, select, textarea")!.getBoundingClientRect();
+        const field = element.closest(".form-field")!;
+        const input = field.querySelector("input, select, textarea")!.getBoundingClientRect();
+        const label = field.querySelector("label")!.getBoundingClientRect();
         const hit = document.elementFromPoint(rect.left + 1, rect.top + rect.height / 2);
-        return { width: rect.width, height: rect.height, bottom: rect.bottom, inputTop: input.top, hit: hit !== null && element.contains(hit) };
+        return {
+          width: rect.width, height: rect.height, bottom: rect.bottom, inputTop: input.top,
+          hit: hit !== null && element.contains(hit),
+          separate: rect.right <= label.left || rect.left >= label.right || rect.bottom <= label.top || rect.top >= label.bottom,
+        };
       });
       expect(geometry.width).toBeGreaterThanOrEqual(44);
       expect(geometry.height).toBeGreaterThanOrEqual(44);
       expect(geometry.bottom).toBeLessThanOrEqual(geometry.inputTop);
       expect(geometry.hit).toBe(true);
+      expect(geometry.separate).toBe(true);
+      if (label.endsWith("JSON")) {
+        // The short format name must not break into individual letters beside a larger touch target.
+        expect(await page.getByLabel(label, { exact: true }).evaluate(element => {
+          const label = document.querySelector(`label[for="${element.id}"]`)!;
+          const text = label.firstChild!;
+          const start = text.textContent!.lastIndexOf("JSON");
+          const range = document.createRange();
+          range.setStart(text, start);
+          range.setEnd(text, start + 4);
+          return range.getClientRects().length;
+        })).toBe(1);
+      }
+      const positions = () => page.locator(".workflow-panel input, .workflow-panel select, .workflow-panel textarea").evaluateAll(elements => elements.map(element => {
+        const rect = element.getBoundingClientRect();
+        return { x: rect.x + window.scrollX, y: rect.y + window.scrollY, width: rect.width, height: rect.height };
+      }));
+      const before = await positions();
       await button.hover();
       const tooltip = page.locator(`#${id}`);
       await expect(tooltip).toBeVisible();
       const bounds = (await tooltip.boundingBox())!;
       expect(bounds.x).toBeGreaterThanOrEqual(0);
       expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
-      expect(await tooltip.evaluate(element => {
-        const help = element.getBoundingClientRect();
-        return [...document.querySelectorAll("input, select, textarea")].every(input => {
-          const field = input.getBoundingClientRect();
-          return help.right <= field.left || help.left >= field.right || help.bottom <= field.top || help.top >= field.bottom;
-        });
-      })).toBe(true);
+      const after = await positions();
+      expect(after).toHaveLength(before.length);
+      for (const [index, rect] of after.entries()) {
+        for (const key of ["x", "y", "width", "height"] as const) expect(rect[key]).toBeCloseTo(before[index][key], 2);
+      }
       await page.keyboard.press("Escape");
+      await expect(tooltip).toBeHidden();
     }
-    const information = page.getByRole("button", { name: "About Verify observation", exact: true });
-    const size = await information.evaluate(element => ({ width: element.getBoundingClientRect().width, height: element.getBoundingClientRect().height }));
-    expect(size.width).toBeGreaterThanOrEqual(44);
-    expect(size.height).toBeGreaterThanOrEqual(44);
+    for (const name of ["About Verify observation", "About Inspect evidence", "About Execution time (UTC)"]) {
+      await expect(page.getByRole("button", { name, exact: true })).toHaveCount(0);
+    }
     await page.mouse.move(0, 0);
-    await page.screenshot({ path: `/tmp/orbirig-audit-${width}.png`, fullPage: true });
+    await testInfo.attach("information controls", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
   });
 }
 
@@ -116,12 +145,12 @@ test("touch dismisses help only after an intentional backdrop tap", async ({ bro
     await page.touchscreen.tap(2, 2);
     await expect(dialog).toBeHidden();
     await expect(trigger).toBeFocused();
-    const help = page.getByRole("button", { name: "About Execution time (UTC)", exact: true });
+    const help = page.getByRole("button", { name: "About Observation evidence JSON", exact: true });
     await help.scrollIntoViewIfNeeded();
     await help.tap({ position: { x: 1, y: 22 } });
-    await expect(page.locator("#execution-time-help-description")).toBeVisible();
+    await expect(page.locator("#verification-observation-hint")).toBeVisible();
     await help.tap();
-    await expect(page.locator("#execution-time-help-description")).toBeHidden();
+    await expect(page.locator("#verification-observation-hint")).toBeHidden();
   } finally {
     await context.close();
   }

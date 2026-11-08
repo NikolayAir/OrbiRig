@@ -1,5 +1,4 @@
 import type { Dispatch, RefObject, SetStateAction, SubmitEvent } from "react";
-import { WorkflowTitle } from "./WorkflowTitle";
 import { LoadExampleButton } from "./LoadExampleButton";
 import { FieldHelp } from "./FieldHelp";
 import type { InspectionExampleVariant } from "./examples";
@@ -27,7 +26,6 @@ type Props = {
   onSequenceViewChange: Dispatch<SetStateAction<SequenceView>>;
   feedback: FeedbackTargets;
   evidenceHelp: FieldHelpControl;
-  closeFieldHelp: () => void;
   requiresConfirmation: (variant: InspectionExampleVariant) => boolean;
   onEvidenceTypeChange: (type: EvidenceType) => void;
   onEvidenceChange: (value: string) => void;
@@ -40,7 +38,7 @@ export function InspectionPanel({
   evidenceType, evidence, state: inspection,
   requiredError, evidenceInputRef,
   sequenceView, onSequenceViewChange,
-  feedback, evidenceHelp, closeFieldHelp,
+  feedback, evidenceHelp,
   requiresConfirmation, onEvidenceTypeChange: selectEvidenceType, onEvidenceChange,
   onLoadExample: loadInspectionExample, onSubmit: inspectEvidence, onCancel: cancelInspection,
 }: Props) {
@@ -59,13 +57,7 @@ export function InspectionPanel({
     aria-labelledby="evidence-inspection"
   >
     <div className="workflow-heading">
-      <WorkflowTitle
-        headingId="evidence-inspection"
-        helpId="inspection-help-description"
-        title="Inspect evidence"
-        description="Select an evidence type and paste its JSON to see the recorded values and any saved verification results."
-        onHelpOpen={closeFieldHelp}
-      />
+      <h2 id="evidence-inspection">Inspect evidence</h2>
       <div className="example-actions">
         <LoadExampleButton
           description="Replaces evidence JSON"

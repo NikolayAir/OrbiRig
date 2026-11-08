@@ -167,7 +167,7 @@ Invalid inspection evidence returns a string in `detail`. Where available, it id
 
 Missing-field diagnostics name only fields required by the selected schema. A document submitted under a different evidence type is rejected against that selected schema; the server does not detect or switch its type automatically. JSON parsing errors, such as repeated field names, may identify the problem without a field path.
 
-Verification errors retain their `code` and `message` structure. Invalid observation messages include the same safe diagnostics. Metadata errors also include `field: "execution_id"` or `field: "executed_at"`, which the browser uses to highlight and describe the affected input. The execution-time help gives a UTC example without relying on its placeholder. Invalid evidence produces no verification outcome; canonically consistent `FAIL` evidence remains valid.
+Verification errors retain their `code` and `message` structure. Invalid observation messages include the same safe diagnostics. Metadata errors also include `field: "execution_id"` or `field: "executed_at"`, which the browser uses to highlight and describe the affected input. Invalid evidence produces no verification outcome; canonically consistent `FAIL` evidence remains valid.
 
 ### Request size limit
 

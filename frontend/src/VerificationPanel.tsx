@@ -1,5 +1,4 @@
 import type { RefObject, SubmitEvent } from "react";
-import { WorkflowTitle } from "./WorkflowTitle";
 import { LoadExampleButton } from "./LoadExampleButton";
 import { EvidenceRequestSizeError, RequestError } from "./RequestFeedback";
 import { describedBy, preventRepeatedRequestAction } from "./formHelpers";
@@ -78,13 +77,7 @@ export function VerificationPanel({
     aria-labelledby="observation-verification"
   >
     <div className="workflow-heading">
-      <WorkflowTitle
-        headingId="observation-verification"
-        helpId="verification-help-description"
-        title="Verify observation"
-        description="Provide execution details, select a supported scenario, and submit observation evidence for verification."
-        onHelpOpen={fieldHelp.closePinned}
-      />
+      <h2 id="observation-verification">Verify observation</h2>
       <div className="example-actions">
         <LoadExampleButton
           description="Replaces current inputs"
@@ -155,18 +148,11 @@ export function VerificationPanel({
           </div>
 
           <div className="form-field">
-            <div className="field-label">
-              <label htmlFor="verification-executed-at">Execution time (UTC)</label>
-              <FieldHelp control={fieldHelp.executedAt} label="Execution time (UTC)" helpId="execution-time-help-description">
-                Enter the recorded execution time in UTC, for example 2026-11-01T10:00:00Z.
-                The final Z means UTC.
-              </FieldHelp>
-            </div>
+            <label htmlFor="verification-executed-at">Execution time (UTC)</label>
             <input
               id="verification-executed-at"
               ref={executedAtInputRef}
               aria-describedby={describedBy(
-                "execution-time-help-description",
                 verificationRequiredErrors.executedAt
                   ? "verification-executed-at-error"
                   : undefined,

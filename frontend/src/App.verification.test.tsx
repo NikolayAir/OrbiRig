@@ -107,7 +107,7 @@ describe("App verification", () => {
     );
     expect(executedAt).toHaveAttribute(
       "aria-describedby",
-      "execution-time-help-description verification-executed-at-error",
+      "verification-executed-at-error",
     );
     expect(scenario).toHaveAttribute(
       "aria-describedby",

@@ -628,34 +628,9 @@ button {
   padding-bottom: 0.75rem;
 }
 
-.workflow-heading > div:first-child {
-  min-width: 0;
-}
-
-.workflow-title {
-  align-items: center;
-  display: flex;
-  gap: 0.5rem;
-  max-width: 100%;
-  position: relative;
-}
-
-.workflow-title h2 {
+.workflow-heading > h2 {
   min-width: 0;
   overflow-wrap: anywhere;
-}
-
-.workflow-title .field-help {
-  flex: 0 0 auto;
-}
-
-.workflow-title .field-help-button {
-  /*
-   * The tooltip extends an invisible area across the gap to its button.
-   * Keep that area behind the button so it cannot block clicks.
-   */
-  position: relative;
-  z-index: 2;
 }
 
 .workflow-heading p {
@@ -798,9 +773,9 @@ label {
 
 .field-label {
   align-items: center;
-  display: grid;
-  grid-template-columns: minmax(0, max-content) 2.75rem minmax(0, 1fr);
-  /* Keep edge taps on the help button away from the neighbouring label. */
+  display: flex;
+  flex-wrap: wrap;
+  /* Keep touch targets separate without squeezing a wrapped label into a narrow column. */
   gap: 0.4rem 0.75rem;
   margin-bottom: 0.4rem;
   position: relative;
@@ -812,6 +787,12 @@ label {
 
 .field-help {
   display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.evidence-input .field-help {
+  /* Align the button with the last line when its label wraps. */
+  align-self: flex-end;
 }
 
 .field-help-button {
@@ -866,20 +847,12 @@ label {
   max-width: 18rem;
   opacity: 0;
   padding: 0.55rem 0.65rem;
-  pointer-events: auto;
+  pointer-events: none;
   position: absolute;
   top: calc(100% + 0.4rem);
   visibility: hidden;
   width: min(18rem, 100%);
   z-index: 1;
-}
-
-#verification-help-description {
-  width: min(16rem, calc(100vw - 4rem));
-}
-
-#inspection-help-description {
-  width: min(16rem, calc(100vw - 4rem));
 }
 
 .verification-inputs [role="tooltip"] {
@@ -889,10 +862,6 @@ label {
 
 #execution-id-help-description {
   max-width: 20rem;
-}
-
-#execution-time-help-description {
-  max-width: 22.5rem;
 }
 
 #verification-observation-hint {
@@ -907,27 +876,10 @@ label {
 
 .field-help:hover [role="tooltip"],
 .field-help:focus-within [role="tooltip"],
-.field-help[data-open="true"] [role="tooltip"] {
+.field-help[data-open="true"] [role="tooltip"],
+.field-label .field-help[data-dismissed="false"] [role="tooltip"] {
   opacity: 1;
   visibility: visible;
-}
-
-/* Field explanations reserve space while open so they cannot cover an input. */
-.field-label > .field-help {
-  display: contents;
-}
-
-.field-label [role="tooltip"] {
-  display: none;
-  grid-column: 1 / -1;
-  position: relative;
-  top: auto;
-}
-
-.field-label .field-help:hover [role="tooltip"],
-.field-label .field-help:focus-within [role="tooltip"],
-.field-label .field-help[data-open="true"] [role="tooltip"] {
-  display: block;
 }
 
 /* Escape must hide the tooltip even while its trigger still matches :hover or :focus-within. */
@@ -936,31 +888,21 @@ label {
   visibility: hidden;
 }
 
-.field-label .field-help[data-dismissed="true"] [role="tooltip"] {
-  display: none;
+.example-action [role="tooltip"] {
+  pointer-events: auto;
 }
 
 /*
  * Cover the gap between button and tooltip with an invisible area (hover bridge).
  * This keeps the tooltip open while the pointer crosses the gap.
  */
-.field-help [role="tooltip"]::before {
+.example-action [role="tooltip"]::before {
   bottom: 100%;
   content: "";
-  height: 0.4rem;
+  height: 1rem;
   left: 0;
   position: absolute;
   width: 100%;
-}
-
-.workflow-title .field-help[data-above="true"] [role="tooltip"] {
-  bottom: calc(100% + 0.4rem);
-  top: auto;
-}
-
-.workflow-title .field-help[data-above="true"] [role="tooltip"]::before {
-  bottom: auto;
-  top: 100%;
 }
 
 input:not([type="radio"]),

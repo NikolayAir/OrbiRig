@@ -32,6 +32,9 @@ describe("pre-release regressions", () => {
       .toHaveAccessibleDescription("Compare a recorded result with a scenario.");
     expect(screen.getByRole("button", { name: "Show Inspect evidence" }))
       .toHaveAccessibleDescription("Validate saved records and recheck any verification results they contain.");
+    for (const name of ["About Verify observation", "About Inspect evidence", "About Execution time (UTC)"]) {
+      expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
+    }
     render(<VerifiedExecutionDetails record={{ ...verifiedExecution, outcome: "PASS" }} />);
     const badge = screen.getByText("Verification outcome: PASS").closest(".outcome-badge");
     expect(badge).not.toHaveAttribute("aria-label");
