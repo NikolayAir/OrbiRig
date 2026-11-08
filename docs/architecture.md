@@ -40,6 +40,8 @@ Rounded boxes show actions; square-cornered boxes show data or results. The call
 
 The Python API builds reference observations directly from `ReferenceSpacecraft` state, acknowledgement and telemetry. For subprocesses, collection validates the returned JSON with the same reader used for saved observations; invalid output follows the collection-error path.
 
+Execution helpers validate the scenario, execution ID and UTC timestamp before handling a reference command or starting a target. Subprocess timeout arguments are also validated before launch, as described in the [Python collection guide](python.md#collect-from-a-separate-program).
+
 A valid observation can produce `FAIL`; an expected command rejection can produce `PASS`. Invalid input, a command incompatible with the selected scenario or a collection failure produces no verified record. A collection or verification error does not establish whether an external target changed state. See [verification concepts](verification.md) for the checks and their meaning, and the [Python collection guide](python.md#collect-from-a-separate-program) for the subprocess protocol.
 
 ## Component responsibilities
@@ -49,7 +51,7 @@ A valid observation can produce `FAIL`; an expected command rejection can produc
 | [Models](../src/orbirig/models.py) | Define the supported scenarios, commands, observations, execution metadata and result structures. |
 | [Verification](../src/orbirig/verification.py) | Compare observations with explicit scenario expectations and check continuity between adjacent records without changing their order. |
 | [Command execution and observation collection](../src/orbirig/execution.py) | Select the scenario's command, collect its observation from [ReferenceSpacecraft](../src/orbirig/reference_sut.py) or a [separate program](../src/orbirig/subprocess_collection.py), then request verification. |
-| [Evidence JSON](../src/orbirig/evidence.py) | Validate JSON structures and values, serialise evidence and recompute the checks and outcomes when reopening saved verified records. |
+| [Evidence JSON](../src/orbirig/evidence.py) | Validate JSON structures and values, reconstruct and compare derived results before serialising verified evidence, and recompute checks and outcomes when reopening it. |
 | [Strict JSON reader](../src/orbirig/_strict_json.py) | Read evidence documents and the HTTP request wrapper. Reject repeated field names, malformed JSON, excessive nesting and integers exceeding Python's configured digit limit. |
 | [Command line](../src/orbirig/cli.py) and [HTTP API](../src/orbirig/web.py) | Read input, call the Python core and return results or errors. These interfaces check recorded data without executing spacecraft commands. |
 | [Browser interface](../frontend/src/App.tsx) | Submit observations or saved evidence to the HTTP API and display results, request errors and cancellation status. |

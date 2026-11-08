@@ -4,3 +4,5 @@ include scripts/check_installed_core.py
 include tests/fixtures/subprocess_observation_peer.py
 # Stateful integration tests also run the independent example target from the archive.
 include examples/stateful_target.py
+# Evidence diagnostics tests read these JSON examples from the source archive.
+include docs/examples/*.json

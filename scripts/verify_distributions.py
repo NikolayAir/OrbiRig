@@ -185,6 +185,9 @@ def check_sdist(path: Path, project: dict) -> None:
         "scripts/verify_distributions.py", "scripts/check_installed_core.py",
         "tests/fixtures/subprocess_observation_peer.py",
         "examples/stateful_target.py",
+        "docs/examples/nominal-to-safe.json",
+        "docs/examples/verified-execution.json",
+        "docs/examples/verified-sequence.json",
     ):
         assert files.get(prefix + name), f"Missing or empty sdist file: {name}"
     assert tomllib.loads(files[prefix + "pyproject.toml"].decode())["project"] == project
