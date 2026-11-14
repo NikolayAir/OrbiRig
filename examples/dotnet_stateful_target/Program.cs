@@ -14,7 +14,7 @@ static class StatefulTarget
     {
         try
         {
-            var (stateFile, staleTelemetry) = ReadArguments(args);
+            var (stateFile, staleTelemetry, failAfterCommit) = ReadArguments(args);
             using var input = new MemoryStream();
             Console.OpenStandardInput().CopyTo(input);
             using var command = ReadJson(input.ToArray(), "command");
@@ -46,6 +46,12 @@ static class StatefulTarget
             if (accepted)
                 SaveMode(stateFile, after);
 
+            if (accepted && failAfterCommit)
+            {
+                Console.Error.WriteLine("dotnet stateful target: simulated response failure after state commit");
+                return 3;
+            }
+
             // The commit precedes delivery. A later stdout error cannot establish
             // rollback; OrbiRig must treat it as a collection error.
             using var stdout = Console.OpenStandardOutput();
@@ -63,10 +69,11 @@ static class StatefulTarget
         }
     }
 
-    static (string StateFile, bool StaleTelemetry) ReadArguments(string[] args)
+    static (string StateFile, bool StaleTelemetry, bool FailAfterCommit) ReadArguments(string[] args)
     {
         string? stateFile = null;
         var staleTelemetry = false;
+        var failAfterCommit = false;
         for (var index = 0; index < args.Length; index++)
         {
             switch (args[index])
@@ -77,13 +84,16 @@ static class StatefulTarget
                 case "--stale-telemetry" when !staleTelemetry:
                     staleTelemetry = true;
                     break;
+                case "--fail-after-commit" when !failAfterCommit:
+                    failAfterCommit = true;
+                    break;
                 default:
                     throw new ArgumentException($"unknown, repeated or incomplete argument: {args[index]}");
             }
         }
         if (string.IsNullOrWhiteSpace(stateFile))
             throw new ArgumentException("--state-file requires an existing JSON state file");
-        return (Path.GetFullPath(stateFile), staleTelemetry);
+        return (Path.GetFullPath(stateFile), staleTelemetry, failAfterCommit);
     }
 
     static JsonDocument ReadJson(byte[] data, string source)
