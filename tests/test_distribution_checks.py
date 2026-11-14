@@ -412,6 +412,9 @@ def sdist_files(wheel_files):
         "scripts/check_installed_core.py": b"Installed core checker",
         "tests/fixtures/subprocess_observation_peer.py": b"Subprocess observation peer",
         "examples/stateful_target.py": b"Independent stateful target",
+        "examples/dotnet_stateful_target/Program.cs": b"Independent C# target",
+        "examples/dotnet_stateful_target/StatefulTarget.csproj": b".NET project",
+        "examples/dotnet_stateful_target/README.md": b".NET example guide",
         "docs/examples/nominal-to-safe.json": b"{}",
         "docs/examples/verified-execution.json": b"{}",
         "docs/examples/verified-sequence.json": b"{}",
@@ -442,6 +445,9 @@ def test_sdist_checker_accepts_required_files(sdist_files, tmp_path):
     "scripts/verify_distributions.py", "scripts/check_installed_core.py",
     "tests/fixtures/subprocess_observation_peer.py",
     "examples/stateful_target.py",
+    "examples/dotnet_stateful_target/Program.cs",
+    "examples/dotnet_stateful_target/StatefulTarget.csproj",
+    "examples/dotnet_stateful_target/README.md",
     "docs/examples/nominal-to-safe.json",
     "docs/examples/verified-execution.json",
     "docs/examples/verified-sequence.json",
@@ -462,6 +468,16 @@ def test_sdist_checker_rejects_missing_or_empty_required_files(
 def test_sdist_checker_rejects_bundled_frontend(sdist_files, tmp_path):
     sdist_files["src/orbirig/static/index.html"] = b"frontend"
     with pytest.raises(AssertionError, match="frontend assets"):
+        CHECKS["check_sdist"](write_sdist(tmp_path, sdist_files), PROJECT)
+
+
+@pytest.mark.parametrize("name", [
+    "bin/Release/net10.0/StatefulTarget.dll", "obj/project.assets.json",
+    "artifacts/bin/StatefulTarget.dll", "state.json",
+])
+def test_sdist_checker_rejects_dotnet_build_output_and_local_state(sdist_files, tmp_path, name):
+    sdist_files[f"examples/dotnet_stateful_target/{name}"] = b"local artefact"
+    with pytest.raises(AssertionError, match="Unexpected .NET example file"):
         CHECKS["check_sdist"](write_sdist(tmp_path, sdist_files), PROJECT)
 
 
