@@ -2,6 +2,8 @@
 
 This non-operational console program handles one operating-mode command per process. It uses C# and .NET 10 independently of OrbiRig's Python implementation. It contains no scenario expectations or verification outcomes.
 
+See the [.NET interoperability guide](../../docs/dotnet-stateful-target.md) for a complete Python API example producing `PASS`, deliberate `FAIL` and a collection error after state commit.
+
 Prerequisites: the .NET 10 SDK and macOS with `/usr/bin/stat`, or Linux with GNU `/usr/bin/stat`. No NuGet packages are required. From the repository root:
 
 ```bash

@@ -4,6 +4,8 @@
 
 The [stateful target](../examples/stateful_target.py) is a non-operational test program. It handles operating-mode commands independently of OrbiRig, using only Python's standard library. It does not import `ReferenceSpacecraft`, scenario expectations or verification rules.
 
+For an independent implementation in another language, see the optional [C#/.NET 10 example](dotnet-stateful-target.md). It uses the same subprocess protocol and Python verifier, including both controlled faults described here.
+
 Each command starts a new process through the existing stdin/stdout protocol. The processes share an explicitly created state file containing `{"operating_mode": "NOMINAL"}` or `{"operating_mode": "SAFE"}`. This is the target's local state, separate from OrbiRig's versioned evidence.
 
 The target accepts a change to the other supported mode and rejects a request for its current mode. It reports pre-state, acknowledgement, post-state and telemetry separately. The optional `--stale-telemetry` flag reports the pre-command mode as telemetry. After an accepted change, this disagrees with the post-state while the actual change is still saved. OrbiRig then checks the observation against the scenario chosen by the caller.

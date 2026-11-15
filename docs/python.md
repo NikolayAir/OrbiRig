@@ -147,6 +147,8 @@ For collection without verification, `collect_subprocess_observation(...)` takes
 
 For actual command handling across separate launches, see the [stateful test target](stateful-target.md). It keeps operating-mode state in an isolated file and can deliberately report stale telemetry, allowing the same Python API to demonstrate a continuous sequence and detect a valid observation that fails verification.
 
+The optional [C#/.NET 10 target](dotnet-stateful-target.md) implements that behaviour independently in another language. Its guide uses `execute_verified_subprocess_workflow(...)` to verify transitions, detect stale telemetry and distinguish a collection error after state commit. No Python core changes or new evidence formats are needed.
+
 ## Reopen saved verified evidence
 
 The serialisation functions return JSON text; your script writes that text to a file. To save the sequence and its first record, add this code to the [sequence example](#verify-an-ordered-sequence):
