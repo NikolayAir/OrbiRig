@@ -5,8 +5,13 @@ This non-operational console program handles one operating-mode command per proc
 Prerequisites: the .NET 10 SDK and macOS with `/usr/bin/stat`, or Linux with GNU `/usr/bin/stat`. No NuGet packages are required. From the repository root:
 
 ```bash
-dotnet build examples/dotnet_stateful_target/StatefulTarget.csproj --configuration Release --disable-build-servers
+(
+  cd examples/dotnet_stateful_target
+  dotnet build StatefulTarget.csproj --configuration Release --disable-build-servers
+)
 ```
+
+The local `global.json` selects the latest installed stable .NET 10 feature band. Build from this directory so a newer SDK elsewhere does not override that choice.
 
 Supply one UTF-8 JSON command on stdin and an existing state file explicitly:
 

@@ -43,7 +43,8 @@ def target(tmp_path_factory):
         [dotnet, "build", str(PROJECT), "--configuration", "Release", "--nologo",
          "--disable-build-servers", "--artifacts-path", str(build_dir / "artifacts"),
          "--output", str(output)],
-        capture_output=True, text=True, timeout=120, check=False,
+        # Resolve the example's global.json even if a newer SDK is installed.
+        cwd=PROJECT.parent, capture_output=True, text=True, timeout=120, check=False,
     )
     assert completed.returncode == 0, completed.stdout + completed.stderr
     dll = output / "StatefulTarget.dll"
