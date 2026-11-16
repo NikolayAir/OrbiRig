@@ -460,3 +460,30 @@ def test_invalid_arguments_cannot_change_state(target, state_file, arguments):
     )
     _assert_error(completed)
     assert state_file.read_bytes() == before
+
+
+@pytest.mark.parametrize("filename", [
+    "--stale-telemetry", "--fail-after-commit", "--state-file", "--unknown",
+])
+def test_state_path_cannot_consume_an_option_even_when_that_file_exists(target, tmp_path, filename):
+    state = tmp_path / filename
+    before = b'{ "operating_mode" : "NOMINAL" }\n'
+    state.write_bytes(before)
+    completed = subprocess.run(
+        [*target, "--state-file", filename], cwd=tmp_path, input=SAFE_COMMAND,
+        capture_output=True, timeout=10.0, check=False,
+    )
+    _assert_error(completed)
+    assert b"requires a pathname" in completed.stderr
+    assert state.read_bytes() == before
+    assert list(tmp_path.iterdir()) == [state]
+
+    # An explicit relative path still supports legitimate names beginning with '-'.
+    explicit = subprocess.run(
+        [*target, "--state-file", f"./{filename}"], cwd=tmp_path, input=SAFE_COMMAND,
+        capture_output=True, timeout=10.0, check=False,
+    )
+    assert explicit.returncode == 0
+    assert explicit.stderr == b""
+    assert json.loads(explicit.stdout)["post_state"] == {"operating_mode": "SAFE"}
+    assert json.loads(state.read_bytes()) == {"operating_mode": "SAFE"}

@@ -78,7 +78,11 @@ static class StatefulTarget
         {
             switch (args[index])
             {
-                case "--state-file" when stateFile is null && index + 1 < args.Length:
+                case "--state-file" when stateFile is null:
+                    // A following option means the pathname is missing. A file
+                    // whose name starts with '-' can be given as ./name instead.
+                    if (index + 1 == args.Length || args[index + 1].StartsWith('-'))
+                        throw new ArgumentException("--state-file requires a pathname; prefix a name beginning with '-' with ./");
                     stateFile = args[++index];
                     break;
                 case "--stale-telemetry" when !staleTelemetry:

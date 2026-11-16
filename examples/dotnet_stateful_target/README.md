@@ -27,6 +27,8 @@ printf '%s\n' '{"command_type":"SET_OPERATING_MODE","target_mode":"SAFE"}' | \
 
 Exit `0` returns observation-evidence v1 JSON followed by LF. `--stale-telemetry` persists the accepted change but reports the previous mode as telemetry. A same-mode request is rejected without rewriting the state file. Invalid arguments, commands, JSON, state or file operations produce stderr diagnostics and exit `2`.
 
+`--state-file` requires a separate pathname argument. For a filename beginning with `-`, use an explicit relative path such as `./--state.json`, or an absolute path, so it cannot be mistaken for another option.
+
 `--fail-after-commit` saves an accepted transition, then exits `3` with a stderr diagnostic and empty stdout. OrbiRig raises `ObservationCollectionError` and creates no verification record. The next process sees the committed state. On rejection, the flag is ignored and the normal rejection observation is returned. Combining both fault flags saves an accepted transition without returning an observation.
 
 Use separate regular files with exactly one hard link and one caller at a time. Missing state is never initialised or repaired. Symbolic links, hard-linked aliases, directories and special files are rejected. The OS `stat` utility supplies file type and hard-link count unavailable through the public .NET file APIs; an inspection failure stops processing before a write.
