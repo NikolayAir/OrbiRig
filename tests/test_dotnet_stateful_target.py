@@ -447,6 +447,27 @@ def test_partial_temporary_write_is_cleaned_up_without_truncating_state(target, 
     assert list(state_file.parent.iterdir()) == [state_file]
 
 
+@pytest.mark.skipif(sys.platform != "darwin", reason="requires macOS immutable file flags")
+@pytest.mark.parametrize("flags", [(), ("--fail-after-commit",)])
+def test_failed_replacement_preserves_the_original_and_removes_the_temporary_file(target, state_file, flags):
+    import stat
+
+    before = state_file.read_bytes()
+    status = state_file.stat()
+    try:
+        # The directory permits temporary writes, but the immutable destination
+        # forbids replacement. This exercises a real rename error after writing.
+        os.chflags(state_file, status.st_flags | stat.UF_IMMUTABLE)
+        completed = _raw(target, state_file, SAFE_COMMAND, *flags)
+        _assert_error(completed)
+        assert b"after state commit" not in completed.stderr
+        assert state_file.read_bytes() == before
+        assert state_file.stat().st_ino == status.st_ino
+        assert list(state_file.parent.iterdir()) == [state_file]
+    finally:
+        os.chflags(state_file, status.st_flags)
+
+
 @pytest.mark.parametrize("arguments", [
     [], ["--state-file"], ["--state-file", ""], ["--unknown"],
     ["--stale"], ["--stale-telemetry", "--stale-telemetry"],
