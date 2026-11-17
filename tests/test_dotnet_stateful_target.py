@@ -86,6 +86,8 @@ def _reported(record):
 
 
 def _assert_error(completed):
+    # Status 2 and the prefix come only from the target's own error handling, so
+    # a runtime start-up failure or an unhandled exception cannot pass as one.
     assert completed.returncode == 2
     assert completed.stdout == b""
     assert b"dotnet stateful target:" in completed.stderr
@@ -180,6 +182,7 @@ def test_post_commit_collection_error_builds_no_record_and_the_next_command_pass
     def unexpected_record(**kwargs):
         raise AssertionError("a response failure must not produce a PASS or FAIL record")
 
+    # Fail if collection reaches verification at all, not only if a record is returned.
     with monkeypatch.context() as verification:
         verification.setattr(execution_module, "build_verified_execution_record", unexpected_record)
         with pytest.raises(ObservationCollectionError, match="exited with status 3"):
@@ -458,8 +461,7 @@ def test_partial_temporary_write_is_cleaned_up_without_truncating_state(target, 
     # On Linux the .NET runtime sizes its executable memory from RLIMIT_FSIZE, so
     # an 8-byte limit stops it starting ("Failed to create CoreCLR", exit 137)
     # before any C# code runs. Disabling write-xor-execute for this child only
-    # lets the failure occur in the target's own temporary-file write. The error
-    # assertion would fail on a startup failure, which has another exit status.
+    # lets the failure occur in the target's own temporary-file write.
     environment = {**os.environ, "DOTNET_EnableWriteXorExecute": "0"}
     before = state_file.read_bytes()
     _assert_error(_raw(target, state_file, preexec_fn=limit_file_writes, env=environment))

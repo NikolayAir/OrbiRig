@@ -30,9 +30,13 @@ static class StatefulTarget
             using var state = ReadJson(File.ReadAllBytes(stateFile), "stored state");
             RequireFields(state.RootElement, "operating_mode");
             var before = ReadMode(state.RootElement.GetProperty("operating_mode"));
+            // A request for the current mode is rejected and leaves the file untouched.
             var accepted = requested != before;
             var after = accepted ? requested : before;
+            // The telemetry fault reports the previous mode while the change is still saved.
             var telemetry = staleTelemetry ? before : after;
+            // Prepare the whole observation before saving, so that apart from the
+            // simulated fault only delivery can fail after the change is committed.
             var response = JsonSerializer.SerializeToUtf8Bytes(new
             {
                 evidence_format_version = 1,
@@ -52,14 +56,18 @@ static class StatefulTarget
                 return 3;
             }
 
-            // The commit precedes delivery. A later stdout error cannot establish
-            // rollback; OrbiRig must treat it as a collection error.
+            // State is saved before the observation is written. If writing to stdout
+            // fails, the change stays saved: OrbiRig sees a collection error, which
+            // is not evidence of rollback.
             using var stdout = Console.OpenStandardOutput();
             stdout.Write(response);
             stdout.WriteByte((byte)'\n');
             stdout.Flush();
             return 0;
         }
+        // Expected input, file and process errors exit 2 with a diagnostic. Other
+        // exceptions are programming errors and stay unhandled, so the runtime
+        // ends with a different status instead of imitating a handled error.
         catch (Exception error) when (error is ArgumentException or JsonException
             or IOException or UnauthorizedAccessException or InvalidOperationException
             or Win32Exception or NotSupportedException or FormatException or OverflowException)
@@ -105,7 +113,8 @@ static class StatefulTarget
         try
         {
             // Reject invalid UTF-8 instead of silently replacing bytes. .NET 10
-            // rejects duplicate decoded names at every depth, including escapes.
+            // rejects duplicate names at every depth, comparing them after
+            // decoding escapes, so "x" and "\u0078" count as the same name.
             var text = new UTF8Encoding(false, true).GetString(data);
             return JsonDocument.Parse(text, new JsonDocumentOptions { AllowDuplicateProperties = false });
         }
@@ -163,6 +172,7 @@ static class StatefulTarget
         if (fields.Length != 2)
             throw new IOException("unexpected stat output");
         var mode = Convert.ToUInt32(fields[0], OperatingSystem.IsMacOS() ? 8 : 16);
+        // The file-type bits (S_IFMT, 0xF000) must denote a regular file (S_IFREG).
         if ((mode & 0xF000) != 0x8000)
             throw new ArgumentException("state file must be a regular file, not a link, directory or special file");
         if (!ulong.TryParse(fields[1], NumberStyles.None, CultureInfo.InvariantCulture, out var links) || links != 1)
@@ -198,6 +208,8 @@ static class StatefulTarget
         }
         finally
         {
+            // After a successful move the temporary name no longer exists and
+            // Delete does nothing; after a failure it removes the leftover file.
             if (created)
                 File.Delete(temporary);
         }

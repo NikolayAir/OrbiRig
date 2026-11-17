@@ -28,6 +28,7 @@ for (const { width, height, textScale } of [
     const guide = details.getByRole("link", { name: /^Build and verify the C#\/\.NET example/ });
     await expect(details).not.toHaveAttribute("open");
     await expect(guide).toBeHidden();
+    // WebKit on macOS uses Option-Tab to include links and disclosures in keyboard navigation.
     const tab = browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab";
     // Reach the disclosure through the dialog's real keyboard order.
     for (let index = 0; index < 8 && !await summary.evaluate(node => node === document.activeElement); index++) {
