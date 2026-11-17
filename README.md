@@ -86,6 +86,8 @@ The [stateful test target](docs/stateful-target.md) is a separate program that k
 
 Another fault makes the target save a mode change and then fail before returning an observation. OrbiRig reports a collection error for that run, without producing a verification result. The stateful-target guide includes a runnable example that checks the saved state and sends a subsequent command.
 
+The optional [C#/.NET 10 target](docs/dotnet-stateful-target.md) demonstrates the same verification and error boundaries with an independently implemented program. It uses the existing Python subprocess API and requires .NET only to build and run that example.
+
 [Tests](CONTRIBUTING.md#python-checks) include deliberately incorrect observations and [browser-to-Python checks](CONTRIBUTING.md#browser-tests) with independently defined expected results.
 
 Each verification check, called an **invariant**, retains the expected value, actual value and whether they match:
@@ -124,6 +126,7 @@ See [verification concepts](docs/verification.md) for the 3 supported scenarios,
 | Verify a saved observation in a terminal | [Command-line use](docs/cli.md) |
 | Use the Python API or collect from a separate program | [Using the Python API](docs/python.md) |
 | Check command results from a program that preserves state between runs | [Stateful test target](docs/stateful-target.md) |
+| Verify a real C#/.NET program and detect its deliberately incorrect telemetry | [.NET interoperability example](docs/dotnet-stateful-target.md) |
 | Use or run the browser interface and HTTP endpoints | [Web interface](docs/web-interface.md) |
 | Check JSON formats, execution IDs and timestamps | [Evidence format reference](docs/evidence-formats.md) |
 | Set up development and run tests | [Contributing and development](CONTRIBUTING.md) |

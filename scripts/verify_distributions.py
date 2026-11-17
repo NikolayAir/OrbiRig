@@ -185,11 +185,20 @@ def check_sdist(path: Path, project: dict) -> None:
         "scripts/verify_distributions.py", "scripts/check_installed_core.py",
         "tests/fixtures/subprocess_observation_peer.py",
         "examples/stateful_target.py",
+        "examples/dotnet_stateful_target/Program.cs",
+        "examples/dotnet_stateful_target/StatefulTarget.csproj",
+        "examples/dotnet_stateful_target/global.json",
+        "examples/dotnet_stateful_target/README.md",
         "docs/examples/nominal-to-safe.json",
         "docs/examples/verified-execution.json",
         "docs/examples/verified-sequence.json",
     ):
         assert files.get(prefix + name), f"Missing or empty sdist file: {name}"
+    dotnet_directory = prefix + "examples/dotnet_stateful_target/"
+    assert all(
+        name.removeprefix(dotnet_directory) in {"Program.cs", "StatefulTarget.csproj", "global.json", "README.md"}
+        for name in files if name.startswith(dotnet_directory)
+    ), "Unexpected .NET example file in source archive; include only sources and README"
     assert tomllib.loads(files[prefix + "pyproject.toml"].decode())["project"] == project
     check_metadata(files[prefix + "PKG-INFO"], project)
 

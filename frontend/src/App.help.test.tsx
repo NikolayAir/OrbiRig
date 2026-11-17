@@ -293,6 +293,38 @@ describe("App help", () => {
     );
   });
 
+  it("offers the optional .NET guide in CLI help without executing a target or changing inputs", () => {
+    render(<App />);
+    const input = screen.getByLabelText("Execution ID", { exact: true });
+    fireEvent.change(input, { target: { value: "keep-during-dotnet-help" } });
+    const trigger = screen.getByRole("button", { name: "From the command line" });
+    fireEvent.click(trigger);
+    const help = within(screen.getByRole("dialog", { name: "How it works" }));
+    const panel = within(help.getByRole("tabpanel", { name: "From the command line" }));
+    const summary = panel.getByText("Verify a C#/.NET program (optional)", { selector: "summary" });
+    const details = summary.closest("details")!;
+    const link = within(details).getByRole("link", { name: /^Build and verify the C#\/\.NET example/, hidden: true });
+    expect(details).not.toHaveAttribute("open");
+    expect(link).not.toBeVisible();
+    expect(panel.getByRole("region", { name: "CLI verification command" })).toBeVisible();
+
+    fireEvent.click(summary);
+
+    expect(link).toBeVisible();
+    expect(details).toHaveTextContent("The C#/.NET example shows how OrbiRig's existing scenarios can check command results from a program written in another language.");
+    expect(details).toHaveTextContent("The .NET 10 SDK is needed only to build and run this example.");
+    expect(details).toHaveTextContent("The browser does not run the target, and verifying JSON files with the CLI does not require .NET.");
+    expect(link).toHaveAttribute("href", "https://github.com/NikolayAir/OrbiRig/blob/main/docs/dotnet-stateful-target.md");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noreferrer");
+    fireEvent.click(help.getByRole("tab", { name: "In the browser" }));
+    expect(help.queryByText("Verify a C#/.NET program (optional)")).not.toBeInTheDocument();
+    fireEvent.click(help.getByRole("button", { name: "Close" }));
+    expect(trigger).toHaveFocus();
+    expect(input).toHaveValue("keep-during-dotnet-help");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("illustrates a missing command response separately from a verified FAIL without executing anything", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "In the browser" }));

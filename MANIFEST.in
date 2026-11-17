@@ -4,5 +4,10 @@ include scripts/check_installed_core.py
 include tests/fixtures/subprocess_observation_peer.py
 # Stateful integration tests also run the independent example target from the archive.
 include examples/stateful_target.py
+# Optional cross-language tests need source files, never .NET build output.
+include examples/dotnet_stateful_target/Program.cs
+include examples/dotnet_stateful_target/StatefulTarget.csproj
+include examples/dotnet_stateful_target/global.json
+include examples/dotnet_stateful_target/README.md
 # Evidence diagnostics tests read these JSON examples from the source archive.
 include docs/examples/*.json

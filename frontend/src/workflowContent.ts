@@ -61,6 +61,7 @@ export const LINKS = {
   executionMetadata: `${DOCS_URL}/evidence-formats.md#execution-ids`,
   validationLimits: `${DOCS_URL}/evidence-formats.md#what-validation-establishes`,
   statefulTarget: `${DOCS_URL}/stateful-target.md#simulate-a-response-failure-after-state-commit`,
+  dotnetTarget: `${DOCS_URL}/dotnet-stateful-target.md`,
 };
 
 export const DEFAULT_VERIFICATION_SCENARIO: ScenarioId = "nominal_to_safe_mode";

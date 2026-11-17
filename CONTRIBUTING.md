@@ -92,7 +92,7 @@ The script builds a wheel and source distribution (sdist), checks metadata and r
 
 The installed-package checks execute a reference scenario with explicit expected results. They also verify observations that pass or deliberately fail the checks and reopen saved evidence. The real installed `orbirig` command is checked for `PASS` and `FAIL` results and the expected JSON content and formatting. Error cases cover malformed input, invalid UTF-8, unsupported scenarios, file errors and a closed output pipe; help is checked too. Temporary environments and distributions are removed afterwards.
 
-Python distributions include the core and optional web adapter module; the sdist also includes distribution-check scripts. Built React assets under `src/orbirig/static` are excluded. CI runs the distribution check after the frontend build so accidentally bundled assets are detected. The complete browser interface requires the [checkout-based frontend build](docs/web-interface.md#serve-a-production-build-locally).
+Python distributions include the core and optional web adapter module; the sdist also includes distribution-check scripts and the independent example targets. The .NET example is included as source and its local README, with no SDK requirement for building or installing the Python distributions. The checker rejects .NET build output and local state in that example directory. Built React assets under `src/orbirig/static` are excluded. CI runs the distribution check after the frontend build so accidentally bundled assets are detected. The complete browser interface requires the [checkout-based frontend build](docs/web-interface.md#serve-a-production-build-locally).
 
 ## Frontend checks
 
@@ -169,24 +169,26 @@ The [Checks workflow](.github/workflows/ci.yml) selects this matrix:
 
 | Trigger | Python versions and operating systems | Total jobs |
 | --- | --- | --- |
-| Ordinary pull request | Python 3.12–3.15 on Ubuntu; Python 3.12 on macOS and Windows | 10 |
-| Pull request from `release/*` | Python 3.12–3.15 on Ubuntu, macOS and Windows | 16 |
-| Manual `workflow_dispatch` | Python 3.12–3.15 on Ubuntu, macOS and Windows | 16 |
-| Push to `main` | Python 3.12–3.15 on Ubuntu | 8 |
+| Ordinary pull request | Python 3.12–3.15 on Ubuntu; Python 3.12 on macOS and Windows | 11 |
+| Pull request from `release/*` | Python 3.12–3.15 on Ubuntu, macOS and Windows | 17 |
+| Manual `workflow_dispatch` | Python 3.12–3.15 on Ubuntu, macOS and Windows | 17 |
+| Push to `main` | Python 3.12–3.15 on Ubuntu | 9 |
 
-Totals include 3 Ubuntu browser jobs and the final `CI passed` job. Python jobs have a 10-minute timeout, browser jobs 30 minutes and `CI passed` 1 minute. Each CI browser invocation sets a separate 10-minute Playwright timeout; the local default covers all 3 engines in 20 minutes. Individual test and assertion timeouts are unchanged.
+Totals include 3 Ubuntu browser jobs, 1 .NET interoperability job and the final `CI passed` job. Python and .NET jobs have a 10-minute timeout, browser jobs 30 minutes and `CI passed` 1 minute. Each CI browser invocation sets a separate 10-minute Playwright timeout; the local default covers all 3 engines in 20 minutes. Individual test and assertion timeouts are unchanged.
 
 Python setup uses `check-latest: true` to select the latest available patch in each chosen series. A newer patch is downloaded when the runner's cached version is older.
 
 Python test and browser jobs use uv 0.13.4 and install Python dependencies with `uv sync --locked --no-editable`. uv receives the exact interpreter path from `actions/setup-python`, overriding the local `.python-version`. The `Python 3.12` job selects `test`, `dev` and `web`; compatibility jobs select `test` and `web`; browser jobs select only `web`. Subsequent commands use `uv run --no-sync`.
 
-Every Python test job checks dependency consistency and package imports, then runs the complete pytest suite and Behave scenarios. Compatibility jobs use `--no-cov` to avoid duplicate coverage reports.
+Every Python test job checks dependency consistency and package imports, then runs the complete pytest suite and Behave scenarios. Compatibility jobs use `--no-cov` to avoid duplicate coverage reports. These jobs skip the optional .NET tests without requiring an SDK.
 
 The Ubuntu `Python 3.12` job also runs Ruff, Pyright and branch coverage. It type-checks, tests and builds the frontend, checks isolated distributions and verifies that FastAPI serves the built page and favicon.
 
 `Chromium / Ubuntu`, `Firefox / Ubuntu` and `WebKit / Ubuntu` each install Python 3.12, the Node.js version from `.node-version` and the selected browser with system dependencies. They type-check the frontend and browser tests, then run that engine's full E2E suite with 1 worker. Chromium uses the headless shell. These jobs run for every listed trigger, independently of the Python compatibility matrix. One failure does not cancel the others. Available failure diagnostics are uploaded as `<browser>-failure-diagnostics` and retained for 7 days.
 
-`CI passed` waits for the Python 3.12 job, compatibility matrix and browser matrix. Every selected job must succeed; failures, cancellations and skipped jobs make the gate fail. This includes all 4 Ubuntu Python versions on pushes to `main`.
+`.NET 10 interoperability / Ubuntu` installs Python 3.12, the .NET 10 SDK and the `test` extra. It runs only the [real-target interoperability tests](tests/test_dotnet_stateful_target.py) with `ORBIRIG_TEST_DOTNET=1`, making missing SDKs and failed builds errors rather than skips. The fixture builds the console program once. Some tests verify it through the Python subprocess API; others run the compiled DLL directly to check exit status, output and state files. See the [.NET guide](docs/dotnet-stateful-target.md#automated-checks) for the same optional local command. This job does not extend the Python compatibility matrix or add .NET to the deployed runtime. Its result participates in `CI passed`, so a failure also prevents that deployment prerequisite from succeeding.
+
+`CI passed` waits for the Python 3.12 job, compatibility matrix, browser matrix and .NET interoperability job. Every selected job must succeed; failures, cancellations and skipped jobs make the gate fail. This includes all 4 Ubuntu Python versions and .NET interoperability on pushes to `main`.
 
 The repository's active [Protect main ruleset](https://github.com/NikolayAir/OrbiRig/rules/20544719) requires pull requests and the `Python 3.12` and `CI passed` checks. Required checks are GitHub settings, separate from the workflow; verify the live rules and the checked commit before merging. The `macos-latest` runner does not establish compatibility with older macOS versions.
 

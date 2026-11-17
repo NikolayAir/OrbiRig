@@ -191,7 +191,8 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
         onFocus={(event) => {
           if (
             scrollWholeDialog && dialogRef.current !== null &&
-            event.target instanceof HTMLAnchorElement && event.target.closest(".workflow-help-content") !== null
+            event.target instanceof HTMLElement && event.target.matches("a, summary") &&
+            event.target.closest(".workflow-help-content") !== null
           ) {
             scrollFocusedControlIntoView(dialogRef.current, event.target);
           }
@@ -544,6 +545,20 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
               <p>
                 <DocLink href={LINKS.cli}>CLI setup and full instructions</DocLink>
               </p>
+              <details className="workflow-help-example">
+                <summary>Verify a C#/.NET program (optional)</summary>
+                <p>
+                  The C#/.NET example shows how OrbiRig&apos;s existing scenarios can check command
+                  results from a program written in another language. It runs locally through the
+                  Python API, keeps its state between launches
+                  and demonstrates stale telemetry and a missing response after saving a change.
+                </p>
+                <p>
+                  The .NET 10 SDK is needed only to build and run this example. The browser does
+                  not run the target, and verifying JSON files with the CLI does not require .NET.
+                </p>
+                <p><DocLink href={LINKS.dotnetTarget}>Build and verify the C#/.NET example</DocLink></p>
+              </details>
             </>
           )}
         </div>

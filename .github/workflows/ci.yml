@@ -176,6 +176,46 @@ jobs:
       - name: Run Behave scenarios
         run: uv run --no-sync python -m behave
 
+  # Isolate SDK setup from Python checks; this job opts into real-target tests.
+  dotnet:
+    name: .NET 10 interoperability / Ubuntu
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python 3.12
+        id: python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          check-latest: true
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.13.4"
+          python-version: ${{ steps.python.outputs.python-path }}
+
+      - name: Set up .NET 10 SDK
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Install project and test dependencies
+        run: uv sync --locked --no-editable --extra test
+
+      - name: Build and verify the real .NET target through Python
+        env:
+          # Explicit opt-in makes a missing SDK or failed build fail this job.
+          ORBIRIG_TEST_DOTNET: "1"
+        run: uv run --no-sync python -m pytest -q --no-cov tests/test_dotnet_stateful_target.py
+
   browser:
     name: ${{ matrix.name }} / Ubuntu
     runs-on: ubuntu-latest
@@ -254,7 +294,8 @@ jobs:
 
   ci-passed:
     name: CI passed
-    needs: [checks, compatibility, browser]
+    # Optional locally, the .NET example must still pass its dedicated CI check.
+    needs: [checks, compatibility, browser, dotnet]
     # Report a failing summary even when an earlier job fails, is cancelled or is skipped.
     if: ${{ always() }}
     runs-on: ubuntu-latest
@@ -266,6 +307,7 @@ jobs:
           CHECKS_RESULT: ${{ needs.checks.result }}
           COMPATIBILITY_RESULT: ${{ needs.compatibility.result }}
           BROWSER_RESULT: ${{ needs.browser.result }}
+          DOTNET_RESULT: ${{ needs.dotnet.result }}
         run: |
           if [[ "$CHECKS_RESULT" != "success" ]]; then
             echo "::error::Python 3.12 checks ended with $CHECKS_RESULT"
@@ -279,6 +321,11 @@ jobs:
 
           if [[ "$COMPATIBILITY_RESULT" != "success" ]]; then
             echo "::error::Compatibility checks ended with $COMPATIBILITY_RESULT"
+            exit 1
+          fi
+
+          if [[ "$DOTNET_RESULT" != "success" ]]; then
+            echo "::error::.NET interoperability checks ended with $DOTNET_RESULT"
             exit 1
           fi
 
