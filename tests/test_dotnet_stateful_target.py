@@ -539,12 +539,8 @@ def test_failed_replacement_preserves_the_original_and_removes_the_temporary_fil
         os.chflags(state_file, status.st_flags)  # pyright: ignore[reportAttributeAccessIssue]
 
 
-@pytest.mark.parametrize("arguments", [
-    [], ["--state-file"], ["--state-file", ""], ["--unknown"],
-    ["--stale"], ["--stale-telemetry", "--stale-telemetry"],
-    ["--fail-after-commit", "--fail-after-commit"],
-])
-def test_invalid_arguments_cannot_change_state(target, state_file, arguments):
+@pytest.mark.parametrize("arguments", [[], ["--state-file"], ["--state-file", ""]])
+def test_missing_state_file_argument_cannot_change_state(target, state_file, arguments):
     before = state_file.read_bytes()
     completed = subprocess.run(
         [*target, *arguments], input=SAFE_COMMAND,
@@ -552,6 +548,21 @@ def test_invalid_arguments_cannot_change_state(target, state_file, arguments):
     )
     _assert_error(completed)
     assert state_file.read_bytes() == before
+
+
+@pytest.mark.parametrize("extra", [
+    ["--unknown"], ["--stale"], ["--stale-telemetry", "--stale-telemetry"],
+    ["--fail-after-commit", "--fail-after-commit"], ["--state-file", "other.json"],
+])
+def test_unknown_and_repeated_options_are_rejected_before_any_change(target, state_file, extra):
+    # A valid state file and an accepted command are supplied, so only the option
+    # itself can explain the error. The state would change if it were ignored.
+    before = state_file.read_bytes()
+    completed = _raw(target, state_file, SAFE_COMMAND, *extra)
+    _assert_error(completed)
+    assert b"unknown, repeated or incomplete argument" in completed.stderr
+    assert state_file.read_bytes() == before
+    assert list(state_file.parent.iterdir()) == [state_file]
 
 
 @pytest.mark.parametrize("filename", [
