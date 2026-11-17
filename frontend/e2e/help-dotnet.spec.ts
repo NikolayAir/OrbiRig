@@ -1,6 +1,23 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
 
 const GUIDE = "https://github.com/NikolayAir/OrbiRig/blob/main/docs/dotnet-stateful-target.md";
+
+// Touching the viewport is not enough: the whole control and its focus outline must lie
+// inside the dialog and its scrolling panel, as in the other help layout tests.
+async function expectFocusedControlFullyVisible(control: Locator) {
+  await expect(control).toBeInViewport({ ratio: 1 });
+  const visible = await control.evaluate(node => {
+    const rect = node.getBoundingClientRect();
+    const dialog = node.closest("dialog")!.getBoundingClientRect();
+    const panel = node.closest(".workflow-help-content")!.getBoundingClientRect();
+    const style = getComputedStyle(node);
+    const outline = parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset);
+    return rect.left - outline >= dialog.left && rect.right + outline <= dialog.right &&
+      rect.top - outline >= Math.max(dialog.top, panel.top) &&
+      rect.bottom + outline <= Math.min(dialog.bottom, panel.bottom);
+  });
+  expect(visible).toBe(true);
+}
 
 for (const { width, height, textScale } of [
   { width: 1440, height: 900, textScale: 100 },
@@ -35,7 +52,7 @@ for (const { width, height, textScale } of [
       await page.keyboard.press(tab);
     }
     await expect(summary).toBeFocused();
-    await expect(summary).toBeInViewport();
+    await expectFocusedControlFullyVisible(summary);
     await page.keyboard.press("Enter");
     await expect(details).toHaveAttribute("open", "");
     await expect(details).toContainText("results from a program written in another language");
@@ -43,7 +60,7 @@ for (const { width, height, textScale } of [
     await expect(details).toContainText("The browser does not run the target");
     await page.keyboard.press(tab);
     await expect(guide).toBeFocused();
-    await expect(guide).toBeInViewport();
+    await expectFocusedControlFullyVisible(guide);
     await expect(guide).toHaveCSS("outline-style", "solid");
     for (const element of [help, panel, details]) {
       expect(await element.evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
