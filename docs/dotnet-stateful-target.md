@@ -47,6 +47,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from orbirig.evidence import serialize_verified_execution_evidence
 from orbirig.execution import execute_verified_subprocess_workflow
 from orbirig.models import ScenarioId
 from orbirig.subprocess_collection import ObservationCollectionError
@@ -81,6 +82,11 @@ with TemporaryDirectory(prefix="orbirig-dotnet-") as directory:
         if not check.passed:
             print(f"{check.invariant_id.value}: expected {check.expected}, actual {check.actual}")
     print("State after telemetry fault:", json.loads(state_file.read_bytes())["operating_mode"])
+    Path("dotnet-stale-telemetry.json").write_text(
+        serialize_verified_execution_evidence(faulty),
+        encoding="utf-8",
+        newline="\n",  # Keep LF endings on Windows too.
+    )
     recovered = run(ScenarioId.SAFE_TO_NOMINAL_MODE, "after-stale")
     print("Next command:", recovered.outcome.value)
 
@@ -121,6 +127,12 @@ The round trip has two passing records and a passing continuity check in the sup
 `--fail-after-commit` saves an accepted change, then exits with code `3`, an explanatory stderr diagnostic and empty stdout. OrbiRig raises `ObservationCollectionError` and creates no verification record. The saved file and subsequent process independently confirm the committed state in this controlled example. An arbitrary collection error does not establish the state of an external system or imply rollback. The collector captures stderr rather than forwarding it; its exception reports the exit status.
 
 On rejection, `--fail-after-commit` is ignored. Combining both fault flags saves an accepted transition and exits `3` without returning an observation. There are only these two controlled faults.
+
+## Inspect the failed record in the browser
+
+The example also saves the stale-telemetry record as `dotnet-stale-telemetry.json` in the current directory. You can look at it in OrbiRig's browser interface, which only reads saved JSON and never runs the .NET program. [Run the interface locally](web-interface.md#run-locally), switch to **Inspect evidence**, select **Verified execution**, paste the file's contents into **Evidence JSON** and press **Inspect evidence**.
+
+Python reconstructs the record and recomputes its checks. The result shows the outcome `FAIL` with three passing checks, and `telemetry_matches_post_state` failing with expected `SAFE` and actual `NOMINAL`. The record is still valid evidence: a saved `FAIL` is accepted when it matches the recomputed results. Delete the file when you have finished.
 
 ## Input, persistence and limits
 
