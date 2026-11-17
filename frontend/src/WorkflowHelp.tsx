@@ -1,10 +1,45 @@
-import { type KeyboardEvent, useEffect, useRef, useState } from "react";
+import { type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from "react";
 
 import { DocLink } from "./DocLink";
 import { LINKS } from "./workflowContent";
 import type { Workflow } from "./workflowTypes";
 
 type HelpSection = "browser" | "cli";
+type ExpandableSection = "python-example" | "verification-results" | "inspection-results" | "dotnet-example";
+
+// The component, not the browser, decides which section is open. Opening one closes
+// the others in the same update, so two sections are never expanded together.
+function ExpandableHelpSection({ id, className, title, openSection, onOpenChange, children }: {
+  id: ExpandableSection;
+  className: string;
+  title: string;
+  openSection: ExpandableSection | null;
+  onOpenChange: (id: ExpandableSection, open: boolean) => void;
+  children: ReactNode;
+}) {
+  const open = openSection === id;
+  return (
+    <details
+      className={className}
+      data-help-section={id}
+      open={open}
+      onToggle={(event) => {
+        // The browser can open a section without a click, for example when it finds searched text.
+        if (event.currentTarget.open !== open) onOpenChange(id, event.currentTarget.open);
+      }}
+    >
+      <summary
+        onClick={(event) => {
+          event.preventDefault();
+          onOpenChange(id, !open);
+        }}
+      >
+        {title}
+      </summary>
+      {children}
+    </details>
+  );
+}
 
 function scrollFocusedControlIntoView(dialog: HTMLElement, element: HTMLElement) {
   const focused = element.getBoundingClientRect();
@@ -40,6 +75,8 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
     trigger: HTMLButtonElement;
   } | null>(null);
   const [scrollWholeDialog, setScrollWholeDialog] = useState(false);
+  // Kept apart from `help` because changing `help` resets the scroll position.
+  const [openSection, setOpenSection] = useState<ExpandableSection | null>(null);
   const section = help?.section;
   const browserWorkflow = help?.browserWorkflow;
 
@@ -100,18 +137,26 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
     // This reruns the code that calls showModal() (useEffect), even if the previous
     // close event has not been delivered yet.
     setHelp({ section, trigger, browserWorkflow: activeWorkflow, scrollToWorkflow: false });
+    setOpenSection(null);
   }
 
   function selectHelp(section: HelpSection) {
     setHelp((current) => current === null || current.section === section
       ? current
       : { ...current, section, scrollToWorkflow: false });
+    // Switching tabs starts from the main instructions, not from earlier expanded text.
+    if (help !== null && help.section !== section) setOpenSection(null);
   }
 
   function selectBrowserWorkflow(browserWorkflow: Workflow) {
     setHelp((current) => current === null || current.browserWorkflow === browserWorkflow
       ? current
       : { ...current, browserWorkflow, scrollToWorkflow: true });
+    if (help !== null && help.browserWorkflow !== browserWorkflow) setOpenSection(null);
+  }
+
+  function changeOpenSection(id: ExpandableSection, open: boolean) {
+    setOpenSection((current) => open ? id : current === id ? null : current);
   }
 
   function navigateBrowserTabs(event: KeyboardEvent<HTMLButtonElement>, current: Workflow) {
@@ -391,8 +436,13 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                     and overall <strong>PASS</strong> or <strong>FAIL</strong> result.
                   </li>
                 </ol>
-                <details className="workflow-help-example">
-                  <summary>When a command returns no result (Python API example)</summary>
+                <ExpandableHelpSection
+                  id="python-example"
+                  className="workflow-help-example"
+                  title="When a command returns no result (Python API example)"
+                  openSection={openSection}
+                  onOpenChange={changeOpenSection}
+                >
                   <p>
                     Illustrative example from the Python API. The browser does not run the test target.
                   </p>
@@ -418,9 +468,14 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                     The collection error alone does not establish the state of an external system.
                   </p>
                   <p><DocLink href={LINKS.statefulTarget}>Reproduce the stateful-target example</DocLink></p>
-                </details>
-                <details className="workflow-help-reference">
-                  <summary>Understanding results and further reading</summary>
+                </ExpandableHelpSection>
+                <ExpandableHelpSection
+                  id="verification-results"
+                  className="workflow-help-reference"
+                  title="Understanding results and further reading"
+                  openSection={openSection}
+                  onOpenChange={changeOpenSection}
+                >
                   <p>
                     <strong>PASS</strong> means the recorded behaviour matches the selected
                     scenario. This can include a rejected command if rejection was expected.
@@ -444,7 +499,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                     <li><DocLink href={LINKS.scenarios}>Supported scenarios and checks</DocLink></li>
                     <li><DocLink href={LINKS.executionMetadata}>Execution ID and UTC time rules</DocLink></li>
                   </ul>
-                </details>
+                </ExpandableHelpSection>
               </div>
               <div
                 className="workflow-help-instructions"
@@ -468,8 +523,13 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                     and any saved verification results.
                   </li>
                 </ol>
-                <details className="workflow-help-reference">
-                  <summary>Understanding inspection and further reading</summary>
+                <ExpandableHelpSection
+                  id="inspection-results"
+                  className="workflow-help-reference"
+                  title="Understanding inspection and further reading"
+                  openSection={openSection}
+                  onOpenChange={changeOpenSection}
+                >
                   <p>
                     Inspecting an observation checks its JSON structure and supported values.
                     To compare the reported result with a scenario, use <strong>Verify observation</strong>.
@@ -491,7 +551,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                     <li><DocLink href={LINKS.savedEvidence}>How saved evidence is rechecked</DocLink></li>
                     <li><DocLink href={LINKS.validationLimits}>What validation establishes</DocLink></li>
                   </ul>
-                </details>
+                </ExpandableHelpSection>
               </div>
 
             </>
@@ -545,8 +605,13 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
               <p>
                 <DocLink href={LINKS.cli}>CLI setup and full instructions</DocLink>
               </p>
-              <details className="workflow-help-example">
-                <summary>Verify a C#/.NET program (optional)</summary>
+              <ExpandableHelpSection
+                id="dotnet-example"
+                className="workflow-help-example"
+                title="Verify a C#/.NET program (optional)"
+                openSection={openSection}
+                onOpenChange={changeOpenSection}
+              >
                 <p>
                   The C#/.NET example shows how OrbiRig&apos;s existing scenarios can check command
                   results from a program written in another language. It runs locally through the
@@ -558,7 +623,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                   not run the target, and verifying JSON files with the CLI does not require .NET.
                 </p>
                 <p><DocLink href={LINKS.dotnetTarget}>Build and verify the C#/.NET example</DocLink></p>
-              </details>
+              </ExpandableHelpSection>
             </>
           )}
         </div>

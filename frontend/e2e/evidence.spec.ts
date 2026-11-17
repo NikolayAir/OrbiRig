@@ -266,6 +266,9 @@ for (const viewport of [
         await page.keyboard.press("Tab");
         await expect(help.getByRole("tabpanel", { name: "Inspect evidence" })).toBeFocused();
         const inspectionGuidance = help.getByText(/For saved verified executions and sequences/);
+        // Moving between the workflow tabs closed the section; it must be opened again to be read.
+        await expect(inspectionGuidance).toBeHidden();
+        await help.getByRole("tabpanel", { name: "Inspect evidence" }).locator(".workflow-help-reference summary").click();
         await inspectionGuidance.scrollIntoViewIfNeeded();
         await expect(inspectionGuidance).toBeInViewport();
       } else {

@@ -18,6 +18,70 @@ test("opening an explanation scrolls towards the workflow selector without movin
   expect(await panel.evaluate(node => node.scrollTop)).toBeLessThanOrEqual(scrollTop);
 });
 
+test("only one help section stays open across workflows and command-line guidance", async ({ page }) => {
+  const apiRequests: string[] = [];
+  page.on("request", request => {
+    if (new URL(request.url()).pathname.startsWith("/api/")) apiRequests.push(request.url());
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  const input = page.getByLabel("Execution ID", { exact: true });
+  await input.fill("keep-during-sections");
+  const trigger = page.getByRole("button", { name: "In the browser", exact: true });
+  await trigger.click();
+  const help = page.getByRole("dialog", { name: "How it works" });
+  const summary = (title: string) => help.locator("summary", { hasText: title });
+  const example = { summary: summary("When a command returns no result"), text: help.getByText("Illustrative example from the Python API.") };
+  const results = { summary: summary("Understanding results and further reading"), text: help.getByText(/^PASS means the recorded behaviour matches/) };
+  const inspection = { summary: summary("Understanding inspection and further reading"), text: help.getByText(/^Inspecting an observation checks/) };
+  const dotnet = { summary: summary("Verify a C#/.NET program"), text: help.getByText(/^The C#\/\.NET example shows/) };
+  const tab = (name: string) => help.getByRole("tab", { name, exact: true });
+
+  await example.summary.click();
+  await expect(example.text).toBeVisible();
+  await results.summary.click();
+  await expect(results.text).toBeVisible();
+  await expect(example.text).toBeHidden();
+
+  // The keyboard behaves like the pointer: Enter and Space open and close a section.
+  await results.summary.focus();
+  await page.keyboard.press("Enter");
+  await expect(results.text).toBeHidden();
+  await page.keyboard.press("Space");
+  await expect(results.text).toBeVisible();
+  await example.summary.focus();
+  await page.keyboard.press("Enter");
+  await expect(example.text).toBeVisible();
+  await expect(results.text).toBeHidden();
+
+  // Another workflow starts closed, and so does the first one when the reader returns.
+  await tab("Inspect evidence").click();
+  await expect(example.text).toBeHidden();
+  await inspection.summary.click();
+  await expect(inspection.text).toBeVisible();
+  await tab("Verify observation").click();
+  await expect(example.text).toBeHidden();
+  await tab("Inspect evidence").click();
+  await expect(inspection.text).toBeHidden();
+
+  await tab("From the command line").click();
+  await dotnet.summary.click();
+  await expect(dotnet.text).toBeVisible();
+  await tab("In the browser").click();
+  await tab("From the command line").click();
+  await expect(dotnet.text).toBeHidden();
+
+  await dotnet.summary.click();
+  await expect(dotnet.text).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(help).toBeHidden();
+  await trigger.click();
+  await expect(help).toBeVisible();
+  await expect(example.text).toBeHidden();
+  await expect(input).toHaveValue("keep-during-sections");
+  expect(apiRequests).toEqual([]);
+});
+
 for (const { width, height, textScale, columns } of [
   { width: 1440, height: 900, textScale: 100, columns: 3 },
   { width: 1920, height: 1080, textScale: 100, columns: 3 },

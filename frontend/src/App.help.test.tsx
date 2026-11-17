@@ -370,18 +370,93 @@ describe("App help", () => {
     expect(fetchMock).not.toHaveBeenCalled();
 
     fireEvent.click(help.getByRole("tab", { name: "Inspect evidence" }));
-    expect(example).toHaveAttribute("open");
     expect(example).not.toBeVisible();
     expect(within(help.getByRole("tabpanel", { name: "Inspect evidence" })).queryByText("When a command returns no result (Python API example)")).not.toBeInTheDocument();
+    // Returning does not bring back the text that was open before leaving.
     fireEvent.click(help.getByRole("tab", { name: "Verify observation" }));
-    expect(example).toBeVisible();
+    expect(summary).toBeVisible();
+    expect(example).not.toHaveAttribute("open");
+    expect(illustration.getByText(/Illustrative example/)).not.toBeVisible();
+    fireEvent.click(summary);
     expect(example).toHaveAttribute("open");
     fireEvent.click(summary);
     expect(example).not.toHaveAttribute("open");
-    expect(illustration.getByText(/Illustrative example/)).not.toBeVisible();
     fireEvent.click(help.getByRole("tab", { name: "From the command line" }));
     expect(help.queryByText("When a command returns no result (Python API example)", { selector: "summary" })).not.toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  describe("expandable sections", () => {
+    const EXAMPLE = "When a command returns no result (Python API example)";
+    const RESULTS = "Understanding results and further reading";
+    const INSPECTION = "Understanding inspection and further reading";
+    const DOTNET = "Verify a C#/.NET program (optional)";
+
+    function openGuide(name: "In the browser" | "From the command line") {
+      render(<App />);
+      fireEvent.click(screen.getByRole("button", { name }));
+      const dialog = screen.getByRole("dialog", { name: "How it works" });
+      const help = within(dialog);
+      return {
+        dialog,
+        help,
+        toggle: (title: string) => fireEvent.click(help.getByText(title, { selector: "summary" })),
+        // Reads every open section, including those in panels that are not shown.
+        opened: () => [...dialog.querySelectorAll("details[open] > summary")].map((summary) => summary.textContent),
+      };
+    }
+
+    it("closes the open section when another one is opened, and when it is selected again", () => {
+      const { toggle, opened } = openGuide("In the browser");
+
+      toggle(EXAMPLE);
+      expect(opened()).toEqual([EXAMPLE]);
+      toggle(RESULTS);
+      expect(opened()).toEqual([RESULTS]);
+      toggle(RESULTS);
+      expect(opened()).toEqual([]);
+    });
+
+    it("starts closed after switching workflow or tab, and after the guide is reopened", () => {
+      const { help, toggle, opened } = openGuide("In the browser");
+
+      toggle(EXAMPLE);
+      fireEvent.click(help.getByRole("tab", { name: "Inspect evidence" }));
+      expect(opened()).toEqual([]);
+      toggle(INSPECTION);
+      // Selecting the tab that is already shown does not discard what the reader opened.
+      fireEvent.click(help.getByRole("tab", { name: "Inspect evidence" }));
+      fireEvent.click(help.getByRole("tab", { name: "In the browser" }));
+      expect(opened()).toEqual([INSPECTION]);
+      fireEvent.click(help.getByRole("tab", { name: "From the command line" }));
+      expect(opened()).toEqual([]);
+      toggle(DOTNET);
+      expect(opened()).toEqual([DOTNET]);
+      fireEvent.click(help.getByRole("tab", { name: "In the browser" }));
+      fireEvent.click(help.getByRole("tab", { name: "From the command line" }));
+      expect(opened()).toEqual([]);
+
+      toggle(DOTNET);
+      fireEvent.click(help.getByRole("button", { name: "Close" }));
+      fireEvent.click(screen.getByRole("button", { name: "From the command line" }));
+      expect(opened()).toEqual([]);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("follows the browser when it opens or closes a section without a click", () => {
+      const { dialog, toggle, opened } = openGuide("In the browser");
+      const section = (title: string) => within(dialog).getByText(title, { selector: "summary" }).closest("details")!;
+
+      toggle(EXAMPLE);
+      // Searching for text on the page makes the browser expand the section that contains it.
+      const results = section(RESULTS);
+      results.open = true;
+      fireEvent(results, new Event("toggle"));
+      expect(opened()).toEqual([RESULTS]);
+      results.open = false;
+      fireEvent(results, new Event("toggle"));
+      expect(opened()).toEqual([]);
+    });
   });
 
   it("explains local CLI setup and shows a complete selectable command", () => {
