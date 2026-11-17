@@ -441,8 +441,14 @@ def test_partial_temporary_write_is_cleaned_up_without_truncating_state(target, 
         resource.setrlimit(resource.RLIMIT_FSIZE, (8, 8))
         signal.signal(signal.SIGXFSZ, signal.SIG_IGN)
 
+    # On Linux the .NET runtime sizes its executable memory from RLIMIT_FSIZE, so
+    # an 8-byte limit stops it starting ("Failed to create CoreCLR", exit 137)
+    # before any C# code runs. Disabling write-xor-execute for this child only
+    # lets the failure occur in the target's own temporary-file write. The error
+    # assertion would fail on a startup failure, which has another exit status.
+    environment = {**os.environ, "DOTNET_EnableWriteXorExecute": "0"}
     before = state_file.read_bytes()
-    _assert_error(_raw(target, state_file, preexec_fn=limit_file_writes))
+    _assert_error(_raw(target, state_file, preexec_fn=limit_file_writes, env=environment))
     assert state_file.read_bytes() == before
     assert list(state_file.parent.iterdir()) == [state_file]
 
