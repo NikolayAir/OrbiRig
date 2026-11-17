@@ -31,13 +31,14 @@ Exit `0` returns observation-evidence v1 JSON followed by LF. `--stale-telemetry
 
 `--fail-after-commit` saves an accepted transition, then exits `3` with a stderr diagnostic and empty stdout. OrbiRig raises `ObservationCollectionError` and creates no verification record. The next process sees the committed state. On rejection, the flag is ignored and the normal rejection observation is returned. Combining both fault flags saves an accepted transition without returning an observation.
 
-Use separate regular files with exactly one hard link and one caller at a time. Missing state is never initialised or repaired. Symbolic links, hard-linked aliases, directories and special files are rejected. The OS `stat` utility supplies file type and hard-link count unavailable through the public .NET file APIs; an inspection failure stops processing before a write.
+Use separate regular files with exactly one hard link and one caller at a time. Missing state is never initialised or repaired. Symbolic links, hard-linked aliases, directories and special files are rejected. The OS `stat` utility supplies file type and hard-link count unavailable through the public .NET file APIs; an inspection failure prevents state replacement.
 
 Accepted changes use a private temporary file beside the state file and then a replacement rename. The original is never opened for writing; a failed temporary write preserves its bytes. Temporary files are removed on ordinary errors. This is not concurrent-writer coordination, protection from filesystem races or power-loss durability. Replacement does not preserve the original permissions, ownership, ACLs or extended attributes. Network filesystems and Windows are outside this example's scope. A failure after replacement does not establish rollback.
 
-The optional real-target tests build once into pytest's temporary directory and run the compiled DLL through OrbiRig's subprocess APIs:
+The optional real-target tests build once into pytest's temporary directory and run the compiled DLL through OrbiRig's subprocess APIs. From the repository root, install the Python `test` extra and opt in:
 
 ```bash
+uv sync --locked --extra test
 ORBIRIG_TEST_DOTNET=1 uv run --no-sync python -m pytest -q --no-cov tests/test_dotnet_stateful_target.py
 ```
 

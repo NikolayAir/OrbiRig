@@ -6,9 +6,19 @@ The [.NET target](../examples/dotnet_stateful_target/) is a non-operational cons
 
 OrbiRig sends one command to the compiled program through its existing subprocess API. The program validates the input and stored state, handles the command and returns [observation-evidence v1](evidence-formats.md#observation-evidence). Python independently checks that observation against the scenario selected by the caller. This demonstrates cross-language verification without a second verification implementation or a new evidence format. The example is optional: Python installation, CLI, HTTP API, browser interface and deployment do not require .NET.
 
+The subprocess API already supports external programs. This example exercises that boundary with a separately compiled implementation, real state between process launches and deliberately incorrect reports. The same Python expectations detect a C# telemetry defect, while a delivery failure remains a collection error. It adds an example target, with the existing scenarios and verification rules unchanged.
+
 ## Prerequisites and build
 
-Use a repository checkout and the [Python environment](../CONTRIBUTING.md#python-environment), with Python 3.12–3.15. Install the **.NET 10 SDK**, which includes the runtime, following Microsoft's instructions for [macOS](https://learn.microsoft.com/en-us/dotnet/core/install/macos) or [Linux](https://learn.microsoft.com/en-us/dotnet/core/install/linux). Use an OS version and architecture supported by that SDK; Python's platform support does not establish .NET compatibility.
+Use a repository checkout, [uv](https://docs.astral.sh/uv/getting-started/installation/) and Python 3.12–3.15. From the repository root, install the Python core and CLI:
+
+```bash
+uv sync --locked
+```
+
+No Python extras are needed for the runnable example below. See the [Python environment guide](../CONTRIBUTING.md#python-environment) to select another supported interpreter or restore a full development environment. Each sync installs only the requested extras.
+
+Install the **.NET 10 SDK**, which includes the runtime, following Microsoft's instructions for [macOS](https://learn.microsoft.com/en-us/dotnet/core/install/macos) or [Linux](https://learn.microsoft.com/en-us/dotnet/core/install/linux). Use an OS version and architecture supported by that SDK; Python's platform support does not establish .NET compatibility.
 
 The target also requires `/usr/bin/stat`: the standard macOS utility, or GNU Coreutils `stat` on Linux. This narrow OS dependency provides file type and hard-link count unavailable through the public .NET file APIs. It avoids a NuGet dependency or native `stat` structure layouts that vary by OS and architecture. The program invokes the absolute executable with separate arguments and no shell. Unsupported platforms, a missing utility or failed inspection are errors before state is written.
 
@@ -116,6 +126,8 @@ On rejection, `--fail-after-commit` is ignored. Combining both fault flags saves
 
 The stdin command must contain exactly `command_type` and `target_mode`, with values `SET_OPERATING_MODE` and either `NOMINAL` or `SAFE`. The existing state file must contain exactly `operating_mode` with one of those modes. Both inputs must be UTF-8 JSON. Malformed JSON, repeated decoded field names at any depth, missing or extra fields, incorrect types and unsupported values are rejected before writing. Object field order and whitespace do not matter. The parser rejects comments, trailing commas and a UTF-8 byte-order mark. It uses .NET's default JSON nesting limit; input and output have no application size limit.
 
+`--state-file` takes a separate pathname argument. If a filename begins with `-`, give it as `./filename` or an absolute path; a following option is rejected as a missing pathname.
+
 Use a separate regular state file with exactly one hard link for each independent target, and only one caller at a time. The target never initialises missing state or repairs malformed state. Final symbolic links, hard-linked aliases, directories, FIFOs and sockets are rejected before reading. Ancestor directories must be trusted; this is not protection against concurrent filesystem changes or a sandbox for untrusted programs.
 
 An accepted transition is written to an exclusively created temporary file beside the state file. Its Unix creation permissions are `0600`, subject to the caller's umask. After closing that file and rechecking the destination's type and link count, the program replaces the destination using `File.Move(..., overwrite: true)`. This relies on same-filesystem rename behaviour on the supported local filesystems. It never truncates the original file during a write. Ordinary error handling attempts to remove the temporary file; abrupt termination can leave it behind. File operations or validation errors exit `2` with stderr diagnostics and no completed observation. A response error can occur after replacement, so exit `2` alone does not establish rollback either.
@@ -124,12 +136,13 @@ Replacement does not preserve the original permissions, ownership, ACLs or exten
 
 ## Automated checks
 
-With the [test dependencies](../CONTRIBUTING.md#python-environment) installed, opt in explicitly:
+To run the optional integration tests, install the `test` extra and opt in explicitly:
 
 ```bash
+uv sync --locked --extra test
 ORBIRIG_TEST_DOTNET=1 uv run --no-sync python -m pytest -q --no-cov tests/test_dotnet_stateful_target.py
 ```
 
-The fixture builds the real target once into pytest's temporary directory. Every execution uses isolated state and the compiled DLL, with independent expected modes, acknowledgements, checks and outcomes. Coverage includes both transitions, sequence continuity, rejection, stale telemetry, response failure after commit, validation errors, linked and special files, long filenames, directory permissions, partial-write cleanup and repeatability. The partial-write test uses the OS file-size resource limit, without adding a fault mode to the target. An explicitly enabled run fails if the SDK is absent or the build fails. Ordinary Python test runs skip this module without probing .NET.
+The fixture builds the real target once into pytest's temporary directory. Every execution uses isolated state and the compiled DLL, with independent expected modes, acknowledgements, checks and outcomes. Coverage includes both transitions, sequence continuity, rejection, stale telemetry, response failure after commit, validation errors, linked and special files, long filenames, directory permissions, partial-write cleanup and repeatability. The partial-write test uses the OS file-size resource limit. A macOS-only test uses immutable file flags to exercise failed replacement after the temporary write; that case is skipped on Linux. Neither test adds a fault mode to the target. An explicitly enabled run fails if the SDK is absent or the build fails. Ordinary Python test runs skip this module without probing .NET.
 
 The dedicated `.NET 10 interoperability / Ubuntu` CI job enables these tests on Python 3.12 and .NET 10, independently of the Python compatibility matrix. The final `CI passed` job also requires its success. This configuration does not establish a passing CI run until the workflow has actually completed on the candidate revision.

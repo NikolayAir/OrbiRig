@@ -176,6 +176,7 @@ jobs:
       - name: Run Behave scenarios
         run: uv run --no-sync python -m behave
 
+  # Isolate SDK setup from Python checks; this job opts into real-target tests.
   dotnet:
     name: .NET 10 interoperability / Ubuntu
     runs-on: ubuntu-latest
@@ -293,6 +294,7 @@ jobs:
 
   ci-passed:
     name: CI passed
+    # Optional locally, the .NET example must still pass its dedicated CI check.
     needs: [checks, compatibility, browser, dotnet]
     # Report a failing summary even when an earlier job fails, is cancelled or is skipped.
     if: ${{ always() }}
