@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Win32.SafeHandles;
 
 // This is an independent system under test. It reports what happened; only
 // OrbiRig's Python verifier knows scenarios, invariant expectations and outcomes.
@@ -59,7 +60,7 @@ static class StatefulTarget
             // State is saved before the observation is written. If writing to stdout
             // fails, the change stays saved: OrbiRig sees a collection error, which
             // is not evidence of rollback.
-            using var stdout = Console.OpenStandardOutput();
+            using var stdout = OpenOutput();
             stdout.Write(response);
             stdout.WriteByte((byte)'\n');
             stdout.Flush();
@@ -75,6 +76,21 @@ static class StatefulTarget
             Console.Error.WriteLine($"dotnet stateful target: {error.Message}");
             return 2;
         }
+    }
+
+    static Stream OpenOutput()
+    {
+        // On Unix the console stream ignores a closed pipe (EPIPE), so an observation
+        // that nobody receives would still end with status 0. A FileStream on
+        // descriptor 1 reports that error instead. A seekable output (a file) keeps
+        // the console stream: on macOS a FileStream writes at its own offset and
+        // replaces earlier content when the output is appended to with >>. A file has
+        // no reader that can disappear, so only pipes and terminals need the new stream.
+        var stream = new FileStream(new SafeFileHandle(1, ownsHandle: false), FileAccess.Write, bufferSize: 0);
+        if (!stream.CanSeek)
+            return stream;
+        stream.Dispose();
+        return Console.OpenStandardOutput();
     }
 
     static (string StateFile, bool StaleTelemetry, bool FailAfterCommit) ReadArguments(string[] args)

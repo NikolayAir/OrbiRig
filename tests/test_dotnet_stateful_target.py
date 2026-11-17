@@ -167,6 +167,50 @@ def test_response_fault_returns_no_observation_after_committing(target, state_fi
     assert list(state_file.parent.iterdir()) == [state_file]
 
 
+def test_closed_output_pipe_is_reported_after_the_change_is_saved(target, state_file):
+    # A real delivery failure, unlike the simulated --fail-after-commit fault. The
+    # reader is gone before the target writes, as when a collecting process exits early.
+    read_end, write_end = os.pipe()
+    os.close(read_end)
+    try:
+        completed = subprocess.run(
+            _argv(target, state_file), input=SAFE_COMMAND, stdout=write_end,
+            stderr=subprocess.PIPE, timeout=10.0, check=False,
+        )
+    finally:
+        os.close(write_end)
+
+    assert completed.returncode == 2
+    assert b"dotnet stateful target:" in completed.stderr
+    # The change was committed before delivery, and the error does not undo it.
+    assert json.loads(state_file.read_bytes()) == {"operating_mode": "SAFE"}
+    assert list(state_file.parent.iterdir()) == [state_file]
+
+
+def test_output_appended_to_a_file_keeps_the_earlier_content(target, state_file, tmp_path):
+    # On macOS a FileStream on a file writes at its own offset and replaces the earlier
+    # line; Linux appends regardless, so only macOS can fail here. Open the descriptor
+    # as a shell does for >>: Python's open(..., "ab") would first move the shared
+    # offset to the end of the file and hide that mistake.
+    output = tmp_path / "output.txt"
+    output.write_bytes(b"earlier\n")
+    descriptor = os.open(output, os.O_WRONLY | os.O_APPEND)
+    try:
+        completed = subprocess.run(
+            _argv(target, state_file), input=SAFE_COMMAND, stdout=descriptor,
+            stderr=subprocess.PIPE, timeout=10.0, check=False,
+        )
+    finally:
+        os.close(descriptor)
+
+    assert completed.returncode == 0
+    assert completed.stderr == b""
+    earlier, observation = output.read_bytes().splitlines()
+    assert earlier == b"earlier"
+    assert json.loads(observation)["post_state"] == {"operating_mode": "SAFE"}
+    assert set(tmp_path.iterdir()) == {state_file, output}
+
+
 @pytest.mark.parametrize("flags", [
     ("--fail-after-commit",), ("--stale-telemetry", "--fail-after-commit"),
 ])
