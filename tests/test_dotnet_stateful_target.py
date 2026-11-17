@@ -330,6 +330,7 @@ def test_invalid_command_preserves_the_exact_state(target, state_file, command):
     b'{"operating_mode":{"x":1,"x":2}}', b'{"operating_mode":"NOMINAL",}',
     b'{"operating_mode":"NO\xffMINAL"}', b'{"operating_mode":"\\ud800"}',
     b'{"operating_mode":"NOMINAL"} {}',
+    b"\xef\xbb\xbf" + b'{"operating_mode":"NOMINAL"}', b'{/* comment */"operating_mode":"NOMINAL"}',
 ])
 def test_invalid_state_is_a_collection_error_without_a_verification_record(
     target, state_file, data, monkeypatch,
