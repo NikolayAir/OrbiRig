@@ -2,7 +2,7 @@
 
 This non-operational console program handles one operating-mode command per process. It uses C# and .NET 10 independently of OrbiRig's Python implementation. It contains no scenario expectations or verification outcomes.
 
-See the [.NET interoperability guide](../../docs/dotnet-stateful-target.md) for a complete Python API example producing `PASS`, deliberate `FAIL` and a collection error after state commit.
+See the [.NET interoperability guide](../../docs/dotnet-stateful-target.md) for a complete Python API example producing `PASS`, deliberate `FAIL` and a collection error after state commit. The guide is part of the repository; Python source archives contain only this README and the program sources.
 
 Prerequisites: the .NET 10 SDK and macOS with `/usr/bin/stat`, or Linux with GNU `/usr/bin/stat`. No NuGet packages are required. From the repository root:
 
@@ -35,7 +35,7 @@ Use separate regular files with exactly one hard link and one caller at a time. 
 
 Accepted changes use a private temporary file beside the state file and then a replacement rename. The original is never opened for writing; a failed temporary write preserves its bytes. Temporary files are removed on ordinary errors. This is not concurrent-writer coordination, protection from filesystem races or power-loss durability. Replacement does not preserve the original permissions, ownership, ACLs or extended attributes. Network filesystems and Windows are outside this example's scope. A failure after replacement does not establish rollback.
 
-The optional real-target tests build once into pytest's temporary directory. Some verify the compiled DLL through OrbiRig's subprocess workflow; others run it directly to check exit status, output and state files. From the repository root, install the Python `test` extra and opt in:
+The optional real-target tests build once into pytest's temporary directory. Some verify the compiled DLL through OrbiRig's subprocess workflow; others run it directly to check exit status, output and state files. From a repository checkout (source archives have no `uv.lock`), install the Python `test` extra and opt in:
 
 ```bash
 uv sync --locked --extra test
