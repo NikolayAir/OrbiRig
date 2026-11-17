@@ -85,7 +85,7 @@ with TemporaryDirectory(prefix="orbirig-dotnet-") as directory:
     Path("dotnet-stale-telemetry.json").write_text(
         serialize_verified_execution_evidence(faulty),
         encoding="utf-8",
-        newline="\n",  # Keep LF endings on Windows too.
+        newline="\n",
     )
     recovered = run(ScenarioId.SAFE_TO_NOMINAL_MODE, "after-stale")
     print("Next command:", recovered.outcome.value)
@@ -144,7 +144,7 @@ Use a separate regular state file with exactly one hard link for each independen
 
 An accepted transition is written to an exclusively created temporary file beside the state file. Its Unix creation permissions are `0600`, subject to the caller's umask. After closing that file and rechecking the destination's type and link count, the program replaces the destination using `File.Move(..., overwrite: true)`. This relies on same-filesystem rename behaviour on the supported local filesystems. It never truncates the original file during a write. Ordinary error handling attempts to remove the temporary file; abrupt termination can leave it behind. File operations or validation errors exit `2` with stderr diagnostics and no completed observation. A response error, such as a closed output pipe, can occur after replacement, so exit `2` alone does not establish rollback either.
 
-Replacement does not preserve the original permissions, ownership, ACLs or extended attributes. The example provides no concurrent-writer coordination, crash recovery or power-loss durability, and performs no directory synchronisation. Windows support is not implemented. Do not infer compatibility with Big Sur, network filesystems or other OS/architecture combinations from these tests. The two operating modes do not model operational spacecraft behaviour, and the observations are neither signed nor authenticated.
+Replacement does not preserve the original permissions, ownership, ACLs or extended attributes. The example provides no concurrent-writer coordination, crash recovery or power-loss durability, and performs no directory synchronisation. Windows support is not implemented. The target relies on POSIX file behaviour that its tests check on macOS and Linux: hard-link counts from `stat`, owner-only creation modes and same-directory replacement. Windows would need different mechanisms for each of these and its own CI job. Do not infer compatibility with Big Sur, network filesystems or other OS/architecture combinations from these tests. The two operating modes do not model operational spacecraft behaviour, and the observations are neither signed nor authenticated.
 
 ## Automated checks
 
