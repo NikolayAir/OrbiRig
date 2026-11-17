@@ -480,7 +480,9 @@ def test_failed_replacement_preserves_the_original_and_removes_the_temporary_fil
     try:
         # The directory permits temporary writes, but the immutable destination
         # forbids replacement. This exercises a real rename error after writing.
-        os.chflags(state_file, status.st_flags | stat.UF_IMMUTABLE)
+        # os.chflags exists only on macOS and BSD, while CI runs Pyright for Linux,
+        # so both calls to it in this test need a Pyright suppression.
+        os.chflags(state_file, status.st_flags | stat.UF_IMMUTABLE)  # pyright: ignore[reportAttributeAccessIssue]
         completed = _raw(target, state_file, SAFE_COMMAND, *flags)
         _assert_error(completed)
         assert b"after state commit" not in completed.stderr
@@ -488,7 +490,9 @@ def test_failed_replacement_preserves_the_original_and_removes_the_temporary_fil
         assert state_file.stat().st_ino == status.st_ino
         assert list(state_file.parent.iterdir()) == [state_file]
     finally:
-        os.chflags(state_file, status.st_flags)
+        # Always restore the original flags: an immutable file could not be
+        # deleted when the temporary directory is removed.
+        os.chflags(state_file, status.st_flags)  # pyright: ignore[reportAttributeAccessIssue]
 
 
 @pytest.mark.parametrize("arguments", [
