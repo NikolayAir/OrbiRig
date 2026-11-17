@@ -1,23 +1,8 @@
-import { expect, test, type Locator } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+
+import { expectFocusedControlFullyVisible } from "./help-support";
 
 const GUIDE = "https://github.com/NikolayAir/OrbiRig/blob/main/docs/dotnet-stateful-target.md";
-
-// Touching the viewport is not enough: the whole control and its focus outline must lie
-// inside the dialog and its scrolling panel, as in the other help layout tests.
-async function expectFocusedControlFullyVisible(control: Locator) {
-  await expect(control).toBeInViewport({ ratio: 1 });
-  const visible = await control.evaluate(node => {
-    const rect = node.getBoundingClientRect();
-    const dialog = node.closest("dialog")!.getBoundingClientRect();
-    const panel = node.closest(".workflow-help-content")!.getBoundingClientRect();
-    const style = getComputedStyle(node);
-    const outline = parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset);
-    return rect.left - outline >= dialog.left && rect.right + outline <= dialog.right &&
-      rect.top - outline >= Math.max(dialog.top, panel.top) &&
-      rect.bottom + outline <= Math.min(dialog.bottom, panel.bottom);
-  });
-  expect(visible).toBe(true);
-}
 
 for (const { width, height, textScale } of [
   { width: 1440, height: 900, textScale: 100 },
