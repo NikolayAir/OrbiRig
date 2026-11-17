@@ -35,7 +35,7 @@ Use separate regular files with exactly one hard link and one caller at a time. 
 
 Accepted changes use a private temporary file beside the state file and then a replacement rename. The original is never opened for writing; a failed temporary write preserves its bytes. Temporary files are removed on ordinary errors. This is not concurrent-writer coordination, protection from filesystem races or power-loss durability. Replacement does not preserve the original permissions, ownership, ACLs or extended attributes. Network filesystems and Windows are outside this example's scope. A failure after replacement does not establish rollback.
 
-The optional real-target tests build once into pytest's temporary directory and run the compiled DLL through OrbiRig's subprocess APIs. From the repository root, install the Python `test` extra and opt in:
+The optional real-target tests build once into pytest's temporary directory. Some verify the compiled DLL through OrbiRig's subprocess workflow; others run it directly to check exit status, output and state files. From the repository root, install the Python `test` extra and opt in:
 
 ```bash
 uv sync --locked --extra test
