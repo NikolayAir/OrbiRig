@@ -412,8 +412,22 @@ def test_long_and_shell_sensitive_filenames_work_without_a_shell(target, tmp_pat
     record = _execute(target, state, ScenarioId.NOMINAL_TO_SAFE_MODE)
     assert record.outcome is ExecutionOutcome.PASS
     assert json.loads(state.read_bytes()) == {"operating_mode": "SAFE"}
-    assert state.stat().st_mode & 0o777 == 0o600
     assert list(tmp_path.iterdir()) == [state]
+
+
+@pytest.mark.parametrize(("umask", "expected_mode"), [(0o000, 0o600), (0o200, 0o400)])
+def test_replacement_file_is_created_with_owner_only_permissions_subject_to_the_umask(
+    target, state_file, umask, expected_mode,
+):
+    import stat
+
+    # The caller's umask is set explicitly. Under a typical umask such as 077, a
+    # target that stopped requesting owner-only permissions would still pass.
+    completed = _raw(target, state_file, preexec_fn=lambda: os.umask(umask))
+    assert completed.returncode == 0
+    assert json.loads(state_file.read_bytes()) == {"operating_mode": "SAFE"}
+    assert stat.S_IMODE(state_file.stat().st_mode) == expected_mode
+    assert list(state_file.parent.iterdir()) == [state_file]
 
 
 def test_unwritable_state_directory_preserves_state(target, state_file):
