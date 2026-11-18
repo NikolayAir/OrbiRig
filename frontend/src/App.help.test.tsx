@@ -592,7 +592,7 @@ describe("App help", () => {
     const summary = cli.getByText("Understanding CLI results and exit codes", { selector: "summary" });
     const section = summary.closest("details")!;
 
-    // Setup, the command and a short account of its output stay in view.
+    // Setup, the command and a short description of its output stay in view.
     expect(cli.getByText(/To try the included example/)).toBeVisible();
     expect(cli.getByRole("region", { name: "CLI verification command" })).toBeVisible();
     const output = cli.getByText(/The command prints JSON evidence/);

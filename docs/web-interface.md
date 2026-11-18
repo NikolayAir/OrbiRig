@@ -48,7 +48,7 @@ While either request is pending, **Cancel request** stops waiting in the browser
 
 **How it works** provides browser and command-line instructions. Browser guidance covers verification and inspection, with links to the relevant scenario, evidence-format and validation documentation; command-line guidance explains local CLI use and exit codes. **Documentation** beside these controls opens the guide index. Documentation and source links open in a new tab so your current inputs and results stay in place.
 
-**From the command line** keeps the setup, the runnable command and a short account of its output in view. The meaning of each exit code and the link to the [CLI guide](cli.md) are under **Understanding CLI results and exit codes**, which starts closed. The exit codes keep completed verification (`0` for `PASS`, `1` for `FAIL`) apart from invalid input, file or output errors and unexpected internal errors.
+**From the command line** keeps the setup, the runnable command and a short description of its output in view. The meaning of each exit code and the link to the [CLI guide](cli.md) are under **Understanding CLI results and exit codes**, which starts closed. The exit codes keep completed verification (`0` for `PASS`, `1` for `FAIL`) apart from invalid input, file or output errors and unexpected internal errors.
 
 **Verify a C#/.NET program (optional)** in the same guide expands a short explanation and a link to the [.NET guide](dotnet-stateful-target.md). It distinguishes local target execution through the Python API from browser or CLI verification of recorded JSON. The .NET SDK is required only to build and run that optional example.
 
