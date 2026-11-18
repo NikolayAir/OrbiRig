@@ -6,7 +6,7 @@ import { LINKS } from "./workflowContent";
 import type { Workflow } from "./workflowTypes";
 
 type HelpSection = "browser" | "cli";
-type ExpandableSection = "python-example" | "verification-results" | "inspection-results" | "dotnet-example";
+type ExpandableSection = "python-example" | "verification-results" | "inspection-results" | "cli-results" | "dotnet-example";
 
 // The component, not the browser, decides which section is open. Opening one closes
 // the others in the same update, so two sections are never expanded together.
@@ -607,14 +607,24 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
               </p>
               <p>
                 The command prints JSON evidence containing the individual checks and overall <strong>PASS</strong> or <strong>FAIL</strong> result.
-                Exit code <code>0</code> means <strong>PASS</strong>, while <code>1</code> means
-                verification completed with <strong>FAIL</strong>. Invalid input returns <code>2</code>,
-                file or output errors return <code>3</code>, and unexpected internal
-                errors <span className="keep-together">return <code>4</code></span>.
               </p>
-              <p>
-                <DocLink href={LINKS.cli}>CLI setup and full instructions</DocLink>
-              </p>
+              <ExpandableHelpSection
+                id="cli-results"
+                className="workflow-help-reference"
+                title="Understanding CLI results and exit codes"
+                openSection={openSection}
+                onOpenChange={changeOpenSection}
+              >
+                <p>
+                  Exit code <code>0</code> means <strong>PASS</strong>, while <code>1</code> means
+                  verification completed with <strong>FAIL</strong>. Invalid input returns <code>2</code>,
+                  file or output errors return <code>3</code>, and unexpected internal
+                  errors <span className="keep-together">return <code>4</code></span>.
+                </p>
+                <p>
+                  <DocLink href={LINKS.cli}>CLI setup and full instructions</DocLink>
+                </p>
+              </ExpandableHelpSection>
               <ExpandableHelpSection
                 id="dotnet-example"
                 className="workflow-help-example"

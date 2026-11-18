@@ -390,6 +390,7 @@ describe("App help", () => {
     const EXAMPLE = "When a command returns no result (Python API example)";
     const RESULTS = "Understanding results and further reading";
     const INSPECTION = "Understanding inspection and further reading";
+    const CLI_RESULTS = "Understanding CLI results and exit codes";
     const DOTNET = "Verify a C#/.NET program (optional)";
 
     function openGuide(name: "In the browser" | "From the command line") {
@@ -430,6 +431,8 @@ describe("App help", () => {
       expect(opened()).toEqual([INSPECTION]);
       fireEvent.click(help.getByRole("tab", { name: "From the command line" }));
       expect(opened()).toEqual([]);
+      toggle(CLI_RESULTS);
+      expect(opened()).toEqual([CLI_RESULTS]);
       toggle(DOTNET);
       expect(opened()).toEqual([DOTNET]);
       fireEvent.click(help.getByRole("tab", { name: "In the browser" }));
@@ -553,28 +556,59 @@ describe("App help", () => {
     expect(guidance.getByText(/The execution ID and UTC timestamp/)).toHaveTextContent(
       "The execution ID and UTC timestamp are example values. For your own recorded execution, replace the file path with a UTF-8 observation JSON file and use the recorded execution ID and time.",
     );
-    expect(guidance.getByRole("link", { name: /^CLI setup and full instructions/ })).toHaveAttribute(
-      "href",
-      "https://github.com/NikolayAir/OrbiRig/blob/main/docs/cli.md",
+    expect(guidance.getByText(/The command prints JSON evidence/)).toHaveTextContent(
+      "The command prints JSON evidence containing the individual checks and overall PASS or FAIL result.",
     );
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("distinguishes completed CLI PASS and FAIL from input, file and internal errors", () => {
+  it("keeps the CLI essentials visible and puts exit codes and documentation in their own section", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "From the command line" }));
 
     const cli = within(screen.getByRole("dialog", { name: "How it works" }));
-    const results = cli.getByText(/The command prints JSON evidence/);
-    expect(results).toHaveTextContent(
-      "The command prints JSON evidence containing the individual checks and overall PASS or FAIL result. Exit code 0 means PASS, while 1 means verification completed with FAIL. Invalid input returns 2, file or output errors return 3, and unexpected internal errors return 4.",
+    const summary = cli.getByText("Understanding CLI results and exit codes", { selector: "summary" });
+    const section = summary.closest("details")!;
+
+    // Setup, the command and a short account of its output stay in view.
+    expect(cli.getByText(/To try the included example/)).toBeVisible();
+    expect(cli.getByRole("region", { name: "CLI verification command" })).toBeVisible();
+    const output = cli.getByText(/The command prints JSON evidence/);
+    expect(output).toBeVisible();
+    expect(output).toHaveTextContent(
+      "The command prints JSON evidence containing the individual checks and overall PASS or FAIL result.",
     );
-    expect([...results.querySelectorAll("strong")].map((element) => element.textContent)).toEqual([
-      "PASS", "FAIL", "PASS", "FAIL",
-    ]);
-    expect([...results.querySelectorAll("code")].map((element) => element.textContent)).toEqual([
+    expect(output).not.toHaveTextContent(/exit code/i);
+
+    // Exit codes and the documentation link wait in a section that starts closed.
+    expect(section).not.toHaveAttribute("open");
+    const codes = within(section).getByText(/^Exit code/);
+    expect(codes).not.toBeVisible();
+    fireEvent.click(summary);
+    expect(section).toHaveAttribute("open");
+    expect(codes).toBeVisible();
+    // Completed PASS and FAIL stay apart from input, file and internal errors.
+    expect(codes).toHaveTextContent(
+      "Exit code 0 means PASS, while 1 means verification completed with FAIL. Invalid input returns 2, file or output errors return 3, and unexpected internal errors return 4.",
+    );
+    expect([...codes.querySelectorAll("strong")].map((element) => element.textContent)).toEqual(["PASS", "FAIL"]);
+    expect([...codes.querySelectorAll("code")].map((element) => element.textContent)).toEqual([
       "0", "1", "2", "3", "4",
     ]);
+    const link = within(section).getByRole("link", { name: /^CLI setup and full instructions/ });
+    expect(link).toBeVisible();
+    expect(link).toHaveAttribute("href", "https://github.com/NikolayAir/OrbiRig/blob/main/docs/cli.md");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noreferrer");
+
+    // The optional C#/.NET example is a separate section, and opening it replaces this one.
+    const dotnetSummary = cli.getByText("Verify a C#/.NET program (optional)", { selector: "summary" });
+    const dotnet = dotnetSummary.closest("details")!;
+    expect(section.contains(dotnet)).toBe(false);
+    fireEvent.click(dotnetSummary);
+    expect(dotnet).toHaveAttribute("open");
+    expect(section).not.toHaveAttribute("open");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it.each(["In the browser", "From the command line"])("preserves verification inputs through %s help and workflow switches", (name) => {

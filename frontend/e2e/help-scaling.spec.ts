@@ -6,6 +6,7 @@ const SECTIONS = [
   { guide: "In the browser", workflow: "Verify observation", title: "When a command returns no result" },
   { guide: "In the browser", workflow: "Verify observation", title: "Understanding results and further reading" },
   { guide: "In the browser", workflow: "Inspect evidence", title: "Understanding inspection and further reading" },
+  { guide: "From the command line", workflow: null, title: "Understanding CLI results and exit codes" },
   { guide: "From the command line", workflow: null, title: "Verify a C#/.NET program" },
 ] as const;
 
@@ -106,6 +107,7 @@ test("only one help section stays open across workflows and command-line guidanc
   const example = { summary: summary("When a command returns no result"), text: help.getByText("Illustrative example from the Python API.") };
   const results = { summary: summary("Understanding results and further reading"), text: help.getByText(/^PASS means the recorded behaviour matches/) };
   const inspection = { summary: summary("Understanding inspection and further reading"), text: help.getByText(/^Inspecting an observation checks/) };
+  const cliResults = { summary: summary("Understanding CLI results and exit codes"), text: help.getByText(/^Exit code/) };
   const dotnet = { summary: summary("Verify a C#/.NET program"), text: help.getByText(/^The C#\/\.NET example shows/) };
   const tab = (name: string) => help.getByRole("tab", { name, exact: true });
 
@@ -137,8 +139,11 @@ test("only one help section stays open across workflows and command-line guidanc
   await expect(inspection.text).toBeHidden();
 
   await tab("From the command line").click();
+  await cliResults.summary.click();
+  await expect(cliResults.text).toBeVisible();
   await dotnet.summary.click();
   await expect(dotnet.text).toBeVisible();
+  await expect(cliResults.text).toBeHidden();
   await tab("In the browser").click();
   await tab("From the command line").click();
   await expect(dotnet.text).toBeHidden();
@@ -322,6 +327,11 @@ for (const { height, textScale, fontFamily } of [
       await expect(command).toBeFocused();
       await expect(command).toBeInViewport();
       await page.keyboard.press(tab);
+      // The exit codes and the documentation link wait in a section that starts closed.
+      const cliResults = help.locator("summary", { hasText: "Understanding CLI results and exit codes" });
+      await expectFocusedTabInView(cliResults);
+      await page.keyboard.press("Enter");
+      await page.keyboard.press(tab);
       const readme = help.getByRole("link", { name: "CLI setup and full instructions" });
       await expect(readme).toBeFocused();
       await expect(readme).toBeInViewport();
@@ -435,7 +445,7 @@ for (const { height, textScale, fontFamily } of [
       await expect(close).toBeFocused();
 
       const command = help.getByRole("region", { name: "CLI verification command" });
-      const readme = help.getByRole("link", { name: "CLI setup and full instructions" });
+      const lastSection = help.locator("summary", { hasText: "Verify a C#/.NET program" });
       await expect(help).toHaveAttribute("data-scroll-whole", "true");
 
       // Restoring space also restores the usual independently scrolling panel.
@@ -444,7 +454,7 @@ for (const { height, textScale, fontFamily } of [
       await help.getByRole("tab", { name: "From the command line", exact: true }).click();
       await expect(help).toHaveAttribute("data-scroll-whole", "false");
       await command.hover();
-      await wheelTo(page, readme, 1);
+      await wheelTo(page, lastSection, 1);
       await expect(close).toBeInViewport({ ratio: 1 });
       expect(await help.getByRole("tabpanel", { name: "From the command line", exact: true }).evaluate(panel => panel.scrollTop)).toBeGreaterThan(0);
       expect(await help.evaluate(dialog => dialog.scrollTop)).toBe(0);

@@ -277,7 +277,10 @@ for (const viewport of [
         await expect(help.getByText(/OrbiRig checks recorded command results/)).toHaveCount(0);
 
         if (viewport.width === 1280) {
-          const lastCodeOffset = await help.getByText(/The command prints JSON evidence/)
+          // The exit codes are in a section that starts closed; open it to measure, then close it again.
+          const results = help.locator("summary", { hasText: "Understanding CLI results and exit codes" });
+          await results.click();
+          const lastCodeOffset = await help.getByText(/^Exit code/)
             .locator("code").last().evaluate((element) => {
               const previousText = element.previousSibling!;
               const range = document.createRange();
@@ -287,6 +290,7 @@ for (const viewport of [
             });
           // Keep the final exit code on the same line as the preceding word.
           expect(lastCodeOffset).toBeLessThan(6);
+          await results.click();
         }
 
         // The selected tab and its panel precede the command in the tab order.
@@ -319,7 +323,11 @@ for (const viewport of [
         });
         expect(selectedCommand).toBe(await command.textContent());
 
-        // WebKit on macOS uses Option-Tab to include links in keyboard navigation.
+        // WebKit on macOS uses Option-Tab to include links and disclosures in keyboard navigation.
+        await page.keyboard.press(browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab");
+        const results = help.locator("summary", { hasText: "Understanding CLI results and exit codes" });
+        await expect(results).toBeFocused();
+        await page.keyboard.press("Enter");
         await page.keyboard.press(browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab");
         const readme = help.getByRole("link", { name: "CLI setup and full instructions" });
         await expect(readme).toBeFocused();
