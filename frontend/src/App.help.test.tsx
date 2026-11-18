@@ -459,6 +459,69 @@ describe("App help", () => {
     });
   });
 
+  describe("revealing an opened section", () => {
+    // jsdom has no layout, so each element reports the geometry the test gives it.
+    function placeAt(element: HTMLElement, { top, height, clientHeight = height }: { top: number; height: number; clientHeight?: number }) {
+      element.getBoundingClientRect = () => ({
+        top, height, bottom: top + height, y: top, left: 0, right: 0, x: 0, width: 0, toJSON: () => ({}),
+      });
+      Object.defineProperty(element, "clientHeight", { configurable: true, value: clientHeight });
+    }
+
+    function openExample() {
+      render(<App />);
+      fireEvent.click(screen.getByRole("button", { name: "In the browser" }));
+      const dialog = screen.getByRole("dialog", { name: "How it works" }) as HTMLDialogElement;
+      const panel = within(dialog).getByRole("tabpanel", { name: "In the browser" });
+      const summary = within(dialog).getByText("When a command returns no result (Python API example)", { selector: "summary" });
+      return { dialog, panel, summary, details: summary.closest("details")! };
+    }
+
+    it("scrolls the content panel just far enough to show a section that fits", () => {
+      const { panel, summary, details } = openExample();
+      const pageScroll = vi.spyOn(window, "scrollTo");
+      placeAt(panel, { top: 100, height: 400 });
+      placeAt(details, { top: 450, height: 300 });
+      panel.scrollTop = 40;
+
+      fireEvent.click(summary);
+
+      // The section ends 250px below the visible area, so the panel moves by that distance.
+      expect(panel.scrollTop).toBe(290);
+      // Closing it leaves the position alone.
+      fireEvent.click(summary);
+      expect(panel.scrollTop).toBe(290);
+      expect(pageScroll).not.toHaveBeenCalled();
+      expect(scrollIntoViewMock).not.toHaveBeenCalled();
+    });
+
+    it("scrolls the whole dialog, not the panel, when the dialog scrolls as one", () => {
+      const { dialog, panel, summary, details } = openExample();
+      // The rendered switch to whole-dialog scrolling is checked in the browser tests.
+      dialog.dataset.scrollWhole = "true";
+      placeAt(dialog, { top: 0, height: 500 });
+      placeAt(panel, { top: 160, height: 2000 });
+      // A section longer than the dialog is shown from its heading, not from its end.
+      placeAt(details, { top: 700, height: 900 });
+
+      fireEvent.click(summary);
+
+      expect(dialog.scrollTop).toBe(700);
+      expect(panel.scrollTop).toBe(0);
+    });
+
+    it("leaves the position alone when the whole section is already visible", () => {
+      const { panel, summary, details } = openExample();
+      placeAt(panel, { top: 100, height: 400 });
+      placeAt(details, { top: 120, height: 200 });
+      panel.scrollTop = 75;
+
+      fireEvent.click(summary);
+
+      expect(panel.scrollTop).toBe(75);
+    });
+  });
+
   it("explains local CLI setup and shows a complete selectable command", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "From the command line" }));

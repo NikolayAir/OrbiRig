@@ -1,6 +1,7 @@
-import { type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from "react";
+import { type KeyboardEvent, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { DocLink } from "./DocLink";
+import { scrollDeltaToReveal } from "./helpSectionScroll";
 import { LINKS } from "./workflowContent";
 import type { Workflow } from "./workflowTypes";
 
@@ -108,6 +109,31 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
       }
     }
   }, [help, scrollWholeDialog]);
+
+  // Runs after the sections have opened and closed, so it measures the final layout, and
+  // before the browser paints, so the reader never sees the section in the wrong place.
+  // Closing a section leaves the scroll position alone.
+  useLayoutEffect(() => {
+    const dialog = dialogRef.current;
+    const details = openSection === null
+      ? null
+      : dialog?.querySelector<HTMLElement>(`details[data-help-section="${openSection}"]`);
+    const summary = details?.querySelector("summary");
+    if (!dialog || !details || !summary) return;
+    // The dialog scrolls as a whole in short windows; otherwise only the content panel does.
+    const scroller = dialog.dataset.scrollWhole === "true"
+      ? dialog
+      : details.closest<HTMLElement>(".workflow-help-content");
+    if (scroller === null) return;
+    scroller.scrollTop += scrollDeltaToReveal({
+      areaTop: scroller.getBoundingClientRect().top + scroller.clientTop,
+      areaHeight: scroller.clientHeight,
+      sectionTop: details.getBoundingClientRect().top,
+      sectionHeight: details.getBoundingClientRect().height,
+      // The summary keeps room for its focus outline through its scroll margin.
+      margin: parseFloat(getComputedStyle(summary).scrollMarginTop) || 0,
+    });
+  }, [openSection]);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -340,22 +366,6 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
           role="tabpanel"
           id="workflow-help-browser-panel"
           aria-labelledby="workflow-help-browser-tab"
-          onToggle={(event) => {
-            if (!(event.target instanceof HTMLDetailsElement) || !event.target.open) return;
-            const tabs = browserWorkflowsRef.current;
-            const panel = browserPanelRef.current;
-            const dialog = dialogRef.current;
-            if (tabs === null || panel === null || dialog === null) return;
-            if (scrollWholeDialog) {
-              dialog.scrollTop += tabs.getBoundingClientRect().top - dialog.getBoundingClientRect().top - dialog.clientTop;
-            } else {
-              panel.scrollTop += tabs.getBoundingClientRect().top - panel.getBoundingClientRect().top - panel.clientTop;
-            }
-            const focused = document.activeElement;
-            if (focused instanceof HTMLElement && event.target.contains(focused) && focused.matches(":focus-visible")) {
-              scrollFocusedControlIntoView(scrollWholeDialog ? dialog : panel, focused);
-            }
-          }}
           hidden={section !== "browser"}
           tabIndex={0}
         >

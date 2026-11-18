@@ -1,21 +1,93 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-test("opening an explanation scrolls towards the workflow selector without moving page focus", async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 800 });
+import { expectFocusedControlFullyVisible, sectionPosition } from "./help-support";
+
+const SECTIONS = [
+  { guide: "In the browser", workflow: "Verify observation", title: "When a command returns no result" },
+  { guide: "In the browser", workflow: "Verify observation", title: "Understanding results and further reading" },
+  { guide: "In the browser", workflow: "Inspect evidence", title: "Understanding inspection and further reading" },
+  { guide: "From the command line", workflow: null, title: "Verify a C#/.NET program" },
+] as const;
+
+for (const { width, height, textScale } of [
+  { width: 1440, height: 900, textScale: 100 },
+  { width: 390, height: 844, textScale: 100 },
+  { width: 320, height: 480, textScale: 200 },
+  // A short window, as with browser zoom at 400%, where the whole dialog scrolls.
+  { width: 320, height: 200, textScale: 100 },
+]) {
+  for (const input of ["mouse", "keyboard"] as const) {
+    test(`opening a help section by ${input} shows its heading and beginning at ${width}x${height} with ${textScale}% text`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await page.goto("/");
+      await page.locator("html").evaluate((element, scale) => { element.style.fontSize = `${scale}%`; }, textScale);
+      // Scroll the page behind the dialog where it can scroll, to see that it stays put.
+      await page.evaluate(() => window.scrollTo(0, 100));
+
+      for (const { guide, workflow, title } of SECTIONS) {
+        await page.getByRole("button", { name: guide, exact: true }).click();
+        const help = page.getByRole("dialog", { name: "How it works" });
+        await expect(help).toBeVisible();
+        // Playwright may scroll the page to reach the button, so measure from here.
+        const pageScroll = await page.evaluate(() => window.scrollY);
+        if (workflow) await help.getByRole("tab", { name: workflow, exact: true }).click();
+        const summary = help.locator("summary", { hasText: title });
+        const details = summary.locator("..");
+        const toggle = async () => {
+          if (input === "keyboard") {
+            await summary.focus();
+            await page.keyboard.press("Enter");
+          } else {
+            await summary.click();
+          }
+        };
+
+        await toggle();
+        await expect(details).toHaveAttribute("open", "");
+        const opened = await sectionPosition(details);
+        // The heading is never cut off at the top; one pixel allows for rounding.
+        expect(opened.above).toBeGreaterThanOrEqual(-1);
+        if (opened.height <= opened.areaHeight - 2 * opened.margin) {
+          // A section that fits is shown whole.
+          expect(opened.below).toBeGreaterThanOrEqual(-1);
+        } else {
+          // A longer one starts at the top margin instead of jumping to its end.
+          expect(Math.abs(opened.above - opened.margin)).toBeLessThanOrEqual(1.5);
+          expect(opened.below).toBeLessThan(0);
+        }
+        if (input === "keyboard") {
+          await expect(summary).toBeFocused();
+          await expectFocusedControlFullyVisible(summary);
+        }
+        expect(await page.evaluate(() => window.scrollY)).toBe(pageScroll);
+
+        await toggle();
+        await expect(details).not.toHaveAttribute("open");
+        // Closing moves nothing, apart from the limit that the shorter content imposes.
+        const closed = await sectionPosition(details);
+        expect(closed.scrollTop).toBe(Math.min(opened.scrollTop, closed.maxScrollTop));
+        expect(await page.evaluate(() => window.scrollY)).toBe(pageScroll);
+        await page.keyboard.press("Escape");
+        await expect(help).toBeHidden();
+      }
+    });
+  }
+}
+
+test("opening a help section moves without animation when reduced motion is requested", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await page.getByRole("button", { name: "In the browser", exact: true }).click();
-  const help = page.getByRole("dialog", { name: "How it works" });
-  const panel = help.getByRole("tabpanel", { name: "In the browser", exact: true });
-  const summary = help.locator(".workflow-help-example summary");
+  const summary = page.getByRole("dialog", { name: "How it works" }).locator("summary", { hasText: "Understanding results and further reading" });
+  const details = summary.locator("..");
   await summary.click();
-  await expect(summary.locator("..")).toHaveAttribute("open", "");
-  await expect.poll(() => panel.evaluate(node => node.scrollTop)).toBeGreaterThan(0);
-  await expect(help.getByRole("tablist", { name: "Browser instructions" })).toBeInViewport();
-  const scrollTop = await panel.evaluate(node => node.scrollTop);
-  await summary.click();
-  // Closing a section does not schedule another automatic scroll.
-  await expect(summary.locator("..")).not.toHaveAttribute("open", "");
-  expect(await panel.evaluate(node => node.scrollTop)).toBeLessThanOrEqual(scrollTop);
+  await expect(details).toHaveAttribute("open", "");
+  const settled = (await sectionPosition(details)).scrollTop;
+  expect(settled).toBeGreaterThan(0);
+  // Smooth scrolling would still be moving after the click has finished.
+  await page.waitForTimeout(300);
+  expect((await sectionPosition(details)).scrollTop).toBe(settled);
 });
 
 test("only one help section stays open across workflows and command-line guidance", async ({ page }) => {
@@ -393,7 +465,10 @@ test("ordinary scrolling clips workflow tabs at the content boundary below the f
   const header = help.locator(".workflow-help-header");
   const panel = help.getByRole("tabpanel", { name: "In the browser", exact: true });
   const tabs = help.getByRole("tablist", { name: "Browser instructions" });
+  // An open section gives the panel room to scroll. Opening it moves the content to the
+  // section, so return to the start and let ordinary wheel scrolling bring the tabs to the edge.
   await help.getByRole("tabpanel", { name: "Verify observation", exact: true }).locator(".workflow-help-reference summary").click();
+  await panel.evaluate(node => { node.scrollTop = 0; });
   const initialHeader = (await header.boundingBox())!;
   const panelBounds = (await panel.boundingBox())!;
   await page.mouse.move(panelBounds.x + panelBounds.width / 2, panelBounds.y + panelBounds.height / 2);
