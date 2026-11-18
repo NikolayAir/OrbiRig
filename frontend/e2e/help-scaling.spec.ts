@@ -75,6 +75,32 @@ for (const { width, height, textScale } of [
   }
 }
 
+test.describe("on a touch screen", () => {
+  test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
+
+  test("help sections open, switch and close by touch", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "In the browser", exact: true }).tap();
+    const help = page.getByRole("dialog", { name: "How it works" });
+    const example = help.locator("summary", { hasText: "When a command returns no result" });
+    const results = help.locator("summary", { hasText: "Understanding results and further reading" });
+    const exampleText = help.getByText("Illustrative example from the Python API.");
+    const resultsText = help.getByText(/^PASS means the recorded behaviour matches/);
+
+    await example.tap();
+    await expect(exampleText).toBeVisible();
+    await expect(exampleText).toBeInViewport();
+    await results.tap();
+    await expect(resultsText).toBeVisible();
+    await expect(exampleText).toBeHidden();
+    expect((await sectionPosition(results.locator(".."))).above).toBeGreaterThanOrEqual(-1);
+    await results.tap();
+    await expect(resultsText).toBeHidden();
+    await help.getByRole("button", { name: "Close", exact: true }).tap();
+    await expect(help).toBeHidden();
+  });
+});
+
 test("opening a help section moves without animation when reduced motion is requested", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: 390, height: 844 });
