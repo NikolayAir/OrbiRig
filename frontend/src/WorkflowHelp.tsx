@@ -15,7 +15,7 @@ function ExpandableHelpSection({ id, className, title, openSection, onOpenChange
   className: string;
   title: string;
   openSection: ExpandableSection | null;
-  onOpenChange: (id: ExpandableSection, open: boolean) => void;
+  onOpenChange: (id: ExpandableSection, open: boolean, browserTop?: number) => void;
   children: ReactNode;
 }) {
   const open = openSection === id;
@@ -25,8 +25,10 @@ function ExpandableHelpSection({ id, className, title, openSection, onOpenChange
       data-help-section={id}
       open={open}
       onToggle={(event) => {
-        // The browser can open a section without a click, for example when it finds searched text.
-        if (event.currentTarget.open !== open) onOpenChange(id, event.currentTarget.open);
+        // The browser can open a section without a click, for example when it finds searched
+        // text. It has already scrolled to that text, so pass on where the section is now.
+        const details = event.currentTarget;
+        if (details.open !== open) onOpenChange(id, details.open, details.getBoundingClientRect().top);
       }}
     >
       <summary
@@ -78,6 +80,8 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
   const [scrollWholeDialog, setScrollWholeDialog] = useState(false);
   // Kept apart from `help` because changing `help` resets the scroll position.
   const [openSection, setOpenSection] = useState<ExpandableSection | null>(null);
+  // Where a section that the browser opened by itself was on screen, so it can stay there.
+  const browserOpened = useRef<{ id: ExpandableSection; top: number } | null>(null);
   const section = help?.section;
   const browserWorkflow = help?.browserWorkflow;
 
@@ -114,6 +118,8 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
   // before the browser paints, so the reader never sees the section in the wrong place.
   // Closing a section leaves the scroll position alone.
   useLayoutEffect(() => {
+    const kept = browserOpened.current;
+    browserOpened.current = null;
     const dialog = dialogRef.current;
     const details = openSection === null
       ? null
@@ -125,6 +131,12 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
       ? dialog
       : details.closest<HTMLElement>(".workflow-help-content");
     if (scroller === null) return;
+    if (kept?.id === openSection) {
+      // The browser has already shown the text it found. Closing another section may have
+      // moved it, so move the content back by the same distance instead of revealing the heading.
+      scroller.scrollTop += details.getBoundingClientRect().top - kept.top;
+      return;
+    }
     scroller.scrollTop += scrollDeltaToReveal({
       areaTop: scroller.getBoundingClientRect().top + scroller.clientTop,
       areaHeight: scroller.clientHeight,
@@ -181,7 +193,8 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
     if (help !== null && help.browserWorkflow !== browserWorkflow) setOpenSection(null);
   }
 
-  function changeOpenSection(id: ExpandableSection, open: boolean) {
+  function changeOpenSection(id: ExpandableSection, open: boolean, browserTop?: number) {
+    browserOpened.current = open && browserTop !== undefined ? { id, top: browserTop } : null;
     setOpenSection((current) => open ? id : current === id ? null : current);
   }
 

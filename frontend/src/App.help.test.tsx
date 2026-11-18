@@ -513,6 +513,28 @@ describe("App help", () => {
       expect(panel.scrollTop).toBe(0);
     });
 
+    it("keeps a section that the browser opened where the browser put it", () => {
+      const { panel, summary } = openExample();
+      const example = summary.closest("details")!;
+      const results = within(panel).getByText("Understanding results and further reading", { selector: "summary" }).closest("details")!;
+      fireEvent.click(summary);
+      placeAt(panel, { top: 100, height: 400 });
+      // Closing the example above it moves the results section up by 250px.
+      results.getBoundingClientRect = () => {
+        const top = example.open ? 450 : 200;
+        return { top, height: 300, bottom: top + 300, y: top, left: 0, right: 0, x: 0, width: 0, toJSON: () => ({}) };
+      };
+      panel.scrollTop = 300;
+
+      // Finding text on the page makes the browser open the section and scroll to the text.
+      results.open = true;
+      fireEvent(results, new Event("toggle"));
+
+      expect(example).not.toHaveAttribute("open");
+      // The panel moves back by the same distance instead of revealing the heading.
+      expect(panel.scrollTop).toBe(50);
+    });
+
     it("leaves the position alone when the whole section is already visible", () => {
       const { panel, summary, details } = openExample();
       placeAt(panel, { top: 100, height: 400 });

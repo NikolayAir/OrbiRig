@@ -101,6 +101,34 @@ test.describe("on a touch screen", () => {
   });
 });
 
+for (const { width, height, textScale } of [
+  { width: 390, height: 844, textScale: 100 },
+  { width: 320, height: 480, textScale: 200 },
+]) {
+  test(`text that the browser finds in a closed section stays in view at ${width}x${height} with ${textScale}% text`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await page.goto("/");
+    await page.locator("html").evaluate((element, scale) => { element.style.fontSize = `${scale}%`; }, textScale);
+    await page.getByRole("button", { name: "In the browser", exact: true }).click();
+    const help = page.getByRole("dialog", { name: "How it works" });
+    const example = help.locator("summary", { hasText: "When a command returns no result" }).locator("..");
+    const results = help.locator("summary", { hasText: "Understanding results and further reading" }).locator("..");
+    const found = results.getByRole("link", { name: /^Execution ID and UTC time rules/ });
+    await example.locator("summary").click();
+    await expect(example).toHaveAttribute("open", "");
+
+    // Find in page cannot be driven from a test, so do what the browser does when the
+    // match is in a closed section: open the section and scroll to the match.
+    await results.evaluate((details: HTMLDetailsElement) => {
+      details.open = true;
+      [...details.querySelectorAll("a")].at(-1)!.scrollIntoView({ block: "center" });
+    });
+
+    await expect(example).not.toHaveAttribute("open");
+    await expect(found).toBeInViewport({ ratio: 1 });
+  });
+}
+
 test("opening a help section moves without animation when reduced motion is requested", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: 390, height: 844 });
