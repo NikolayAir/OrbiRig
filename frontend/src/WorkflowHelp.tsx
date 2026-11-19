@@ -196,7 +196,10 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
 
   function changeOpenSection(id: ExpandableSection, open: boolean, browserTop?: number) {
     browserOpened.current = open && browserTop !== undefined ? { id, top: browserTop } : null;
-    setOpenSection((current) => open ? id : current === id ? null : current);
+    setOpenSection((current) => {
+      if (open) return id;
+      return current === id ? null : current;
+    });
   }
 
   function navigateBrowserTabs(event: KeyboardEvent<HTMLButtonElement>, current: Workflow) {

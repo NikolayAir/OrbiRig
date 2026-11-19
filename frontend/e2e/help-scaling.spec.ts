@@ -34,6 +34,8 @@ for (const { width, height, textScale } of [
         if (workflow) await help.getByRole("tab", { name: workflow, exact: true }).click();
         const summary = help.locator("summary", { hasText: title });
         const details = summary.locator("..");
+        // Switch to keyboard input before focusing a summary so its outline is drawn.
+        if (input === "keyboard") await page.keyboard.press("Tab");
         const toggle = async () => {
           if (input === "keyboard") {
             await summary.focus();
@@ -57,7 +59,6 @@ for (const { width, height, textScale } of [
           expect(opened.below).toBeLessThan(0);
         }
         if (input === "keyboard") {
-          await expect(summary).toBeFocused();
           await expectFocusedControlFullyVisible(summary);
         }
         expect(await page.evaluate(() => window.scrollY)).toBe(pageScroll);
@@ -114,14 +115,13 @@ for (const { width, height, textScale, scrollWhole } of [
     await expect(help).toHaveAttribute("data-scroll-whole", String(scrollWhole));
     const example = help.locator("summary", { hasText: "When a command returns no result" }).locator("..");
     const results = help.locator("summary", { hasText: "Understanding results and further reading" }).locator("..");
-    const found = results.getByRole("link", { name: /^Execution ID and UTC time rules/ });
+    const found = results.getByRole("link", { name: /^Execution ID and UTC time rules/, includeHidden: true });
     await example.locator("summary").click();
     await expect(example).toHaveAttribute("open", "");
 
     // Reproduce a match in a closed section without driving the native search UI.
-    const browserTop = await results.evaluate((details: HTMLDetailsElement) => {
-      details.open = true;
-      const match = [...details.querySelectorAll("a")].at(-1)!;
+    const browserTop = await found.evaluate(match => {
+      match.closest("details")!.open = true;
       match.scrollIntoView({ block: "center" });
       // Measure before the queued toggle closes the previously open section.
       return match.getBoundingClientRect().top;
@@ -270,10 +270,8 @@ for (const { width, height, textScale, columns } of [
       await links.first().focus();
       for (let i = 0; i < count; i++) {
         const link = links.nth(i);
-        await expect(link).toBeFocused();
-        await expect(link).toHaveCSS("text-decoration-line", "underline");
-        await expect(link).toHaveCSS("outline-style", "solid");
         await expectFocusedControlFullyVisible(link);
+        await expect(link).toHaveCSS("text-decoration-line", "underline");
         if (i + 1 < count) await page.keyboard.press(tabKey);
       }
     }
@@ -287,29 +285,6 @@ for (const { height, textScale, fontFamily } of [
   { height: 200, textScale: 100 },
 ]) {
   test.describe(`help at 320x${height} with ${textScale}% text${fontFamily ? ` in ${fontFamily}` : ""}`, () => {
-    async function expectFocusedTabInView(target: Locator) {
-      await expect(target).toBeFocused();
-      await expect(target).toHaveCSS("outline-style", "solid");
-      await expect(target).toBeInViewport({ ratio: 1 });
-      const focus = await target.evaluate(element => {
-        const dialog = element.closest("dialog")!;
-        const bounds = element.getBoundingClientRect();
-        const style = getComputedStyle(element);
-        const outline = parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset);
-        const top = dialog.getBoundingClientRect().top + dialog.clientTop;
-        const panel = element.closest<HTMLElement>(".workflow-help-content");
-        const panelTop = panel ? panel.getBoundingClientRect().top + panel.clientTop : top;
-        const panelBottom = panel ? panelTop + panel.clientHeight : top + dialog.clientHeight;
-        return {
-          top: bounds.top - outline,
-          bottom: bounds.bottom + outline,
-          viewportTop: Math.max(top, panelTop),
-          viewportBottom: Math.min(top + dialog.clientHeight, panelBottom),
-        };
-      });
-      expect(focus.top).toBeGreaterThanOrEqual(focus.viewportTop);
-      expect(focus.bottom).toBeLessThanOrEqual(focus.viewportBottom);
-    }
     async function wheelTo(page: Page, target: Locator, direction: number, ratio = 0) {
       // Engines may limit one wheel event to a fraction of the viewport.
       // Short steps also avoid skipping the target in very short windows.
@@ -366,10 +341,10 @@ for (const { height, textScale, fontFamily } of [
       const tab = browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab";
       await close.focus();
       await page.keyboard.press(tab);
-      await expectFocusedTabInView(help.getByRole("tab", { name: "In the browser", exact: true }));
+      await expectFocusedControlFullyVisible(help.getByRole("tab", { name: "In the browser", exact: true }));
       await page.keyboard.press("ArrowRight");
       const cliTab = help.getByRole("tab", { name: "From the command line", exact: true });
-      await expectFocusedTabInView(cliTab);
+      await expectFocusedControlFullyVisible(cliTab);
       await page.keyboard.press(tab);
       await expect(help.getByRole("tabpanel", { name: "From the command line", exact: true })).toBeFocused();
       await page.keyboard.press(tab);
@@ -379,12 +354,11 @@ for (const { height, textScale, fontFamily } of [
       await page.keyboard.press(tab);
       // The exit codes and the documentation link wait in a section that starts closed.
       const cliResults = help.locator("summary", { hasText: "Understanding CLI results and exit codes" });
-      await expectFocusedTabInView(cliResults);
+      await expectFocusedControlFullyVisible(cliResults);
       await page.keyboard.press("Enter");
       await page.keyboard.press(tab);
       const readme = help.getByRole("link", { name: "CLI setup and full instructions" });
-      await expect(readme).toBeFocused();
-      await expect(readme).toBeInViewport();
+      await expectFocusedControlFullyVisible(readme);
 
       for (const element of [help, help.getByRole("tabpanel", { name: "From the command line", exact: true }), command]) {
         expect(await element.evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
@@ -392,11 +366,11 @@ for (const { height, textScale, fontFamily } of [
       await cliTab.click();
       await page.keyboard.press("ArrowLeft");
       const browserTab = help.getByRole("tab", { name: "In the browser", exact: true });
-      await expectFocusedTabInView(browserTab);
+      await expectFocusedControlFullyVisible(browserTab);
       await page.keyboard.press(tab);
       await expect(help.getByRole("tabpanel", { name: "In the browser", exact: true })).toBeFocused();
       await page.keyboard.press(tab);
-      await expectFocusedTabInView(help.getByRole("tab", { name: "Verify observation", exact: true }));
+      await expectFocusedControlFullyVisible(help.getByRole("tab", { name: "Verify observation", exact: true }));
       await page.keyboard.press(tab);
       const verificationPanel = help.getByRole("tabpanel", { name: "Verify observation", exact: true });
       await expect(verificationPanel).toBeFocused();
@@ -425,14 +399,14 @@ for (const { height, textScale, fontFamily } of [
       const illustration = help.locator(".workflow-help-example");
       await expect(verificationPanel.locator(".workflow-help-example")).toHaveCount(1);
       expect(await verificationPanel.evaluate(panel => panel.firstElementChild?.nextElementSibling?.matches("details.workflow-help-example"))).toBe(true);
-      await expectFocusedTabInView(summary);
+      await expectFocusedControlFullyVisible(summary);
       await expect(illustration).not.toHaveAttribute("open", "");
       await page.keyboard.press("Enter");
       await expect(illustration).toHaveAttribute("open", "");
       expect(await illustration.evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
       await page.keyboard.press(tab);
       const exampleLink = help.getByRole("link", { name: "Reproduce the stateful-target example" });
-      await expectFocusedTabInView(exampleLink);
+      await expectFocusedControlFullyVisible(exampleLink);
       await summary.focus();
       await page.keyboard.press("Space");
       await expect(illustration).not.toHaveAttribute("open", "");
@@ -443,18 +417,18 @@ for (const { height, textScale, fontFamily } of [
       await summary.focus();
       await page.keyboard.press(tab);
       const reference = verificationPanel.locator(".workflow-help-reference summary");
-      await expectFocusedTabInView(reference);
+      await expectFocusedControlFullyVisible(reference);
       await page.keyboard.press("Enter");
       for (const name of ["Supported scenarios and checks", "Execution ID and UTC time rules"]) {
         await page.keyboard.press(tab);
         const link = help.getByRole("link", { name });
-        await expectFocusedTabInView(link);
+        await expectFocusedControlFullyVisible(link);
       }
       await help.getByRole("tab", { name: "Verify observation", exact: true }).focus();
-      await expectFocusedTabInView(help.getByRole("tab", { name: "Verify observation", exact: true }));
+      await expectFocusedControlFullyVisible(help.getByRole("tab", { name: "Verify observation", exact: true }));
       await page.keyboard.press("ArrowRight");
       const inspect = help.getByRole("tab", { name: "Inspect evidence", selected: true });
-      await expectFocusedTabInView(inspect);
+      await expectFocusedControlFullyVisible(inspect);
       await expect(summary).not.toBeVisible();
       await page.keyboard.press(tab);
       await expect(help.getByRole("tabpanel", { name: "Inspect evidence", exact: true })).toBeFocused();
@@ -557,15 +531,5 @@ test("ordinary scrolling clips workflow tabs at the content boundary below the f
   await tabs.getByRole("tab", { name: "Verify observation" }).focus();
   await page.keyboard.press("ArrowRight");
   const selected = tabs.getByRole("tab", { name: "Inspect evidence", selected: true });
-  await expect(selected).toBeFocused();
-  const focusedTop = await selected.evaluate(element => {
-    const bounds = element.getBoundingClientRect();
-    const style = getComputedStyle(element);
-    const panel = element.closest<HTMLElement>(".workflow-help-content")!;
-    return {
-      top: bounds.top - parseFloat(style.outlineWidth) - parseFloat(style.outlineOffset),
-      viewportTop: panel.getBoundingClientRect().top + panel.clientTop,
-    };
-  });
-  expect(focusedTop.top).toBeGreaterThanOrEqual(focusedTop.viewportTop);
+  await expectFocusedControlFullyVisible(selected);
 });

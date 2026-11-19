@@ -1,20 +1,33 @@
 import { expect, type Locator } from "@playwright/test";
 
-// Touching the viewport is not enough: the whole control and its focus outline must lie
-// inside the dialog and its scrolling panel.
+// A focused control and its outline must fit within the dialog and any containing panel.
 export async function expectFocusedControlFullyVisible(control: Locator) {
+  await expect(control).toBeFocused();
+  await expect(control).toHaveCSS("outline-style", "solid");
   await expect(control).toBeInViewport({ ratio: 1 });
-  const visible = await control.evaluate(node => {
-    const rect = node.getBoundingClientRect();
-    const dialog = node.closest("dialog")!.getBoundingClientRect();
-    const panel = node.closest(".workflow-help-content")!.getBoundingClientRect();
-    const style = getComputedStyle(node);
-    const outline = parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset);
-    return rect.left - outline >= dialog.left && rect.right + outline <= dialog.right &&
-      rect.top - outline >= Math.max(dialog.top, panel.top) &&
-      rect.bottom + outline <= Math.min(dialog.bottom, panel.bottom);
+  const { outlineBounds, containerBounds } = await control.evaluate(node => {
+    const { left, right, top, bottom } = node.getBoundingClientRect();
+    const { outlineWidth, outlineOffset } = getComputedStyle(node);
+    const outline = Math.max(0, parseFloat(outlineWidth) + parseFloat(outlineOffset));
+    const dialog = node.closest("dialog")!;
+    const panel = node.closest<HTMLElement>(".workflow-help-content");
+    const containers = panel ? [dialog, panel] : [dialog];
+    return {
+      outlineBounds: { left: left - outline, right: right + outline, top: top - outline, bottom: bottom + outline },
+      containerBounds: containers.map(container => {
+        const rect = container.getBoundingClientRect();
+        const left = rect.left + container.clientLeft;
+        const top = rect.top + container.clientTop;
+        return { left, right: left + container.clientWidth, top, bottom: top + container.clientHeight };
+      }),
+    };
   });
-  expect(visible).toBe(true);
+  for (const bounds of containerBounds) {
+    expect(outlineBounds.left).toBeGreaterThanOrEqual(bounds.left);
+    expect(outlineBounds.right).toBeLessThanOrEqual(bounds.right);
+    expect(outlineBounds.top).toBeGreaterThanOrEqual(bounds.top);
+    expect(outlineBounds.bottom).toBeLessThanOrEqual(bounds.bottom);
+  }
 }
 
 // Where an open section lies in the area that scrolls: the whole dialog when it scrolls
