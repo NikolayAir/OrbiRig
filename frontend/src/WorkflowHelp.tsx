@@ -8,8 +8,8 @@ import type { Workflow } from "./workflowTypes";
 type HelpSection = "browser" | "cli";
 type ExpandableSection = "python-example" | "verification-results" | "inspection-results" | "cli-results" | "dotnet-example";
 
-// The component, not the browser, decides which section is open. Opening one closes
-// the others in the same update, so two sections are never expanded together.
+// One shared state value controls expanded sections. Selecting a section closes
+// the previous section in the same update.
 function ExpandableHelpSection({ id, className, title, openSection, onOpenChange, children }: {
   id: ExpandableSection;
   className: string;
@@ -116,7 +116,8 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
 
   // Runs after the sections have opened and closed, so it measures the final layout, and
   // before the browser paints, so the reader never sees the section in the wrong place.
-  // Closing a section leaves the scroll position alone.
+  // Closing a section does not request a scroll adjustment. The browser may
+  // clamp the scroll position when the content becomes shorter.
   useLayoutEffect(() => {
     const kept = browserOpened.current;
     browserOpened.current = null;
