@@ -267,17 +267,7 @@ for (const { width, height, textScale, columns } of [
         await expect(link).toBeFocused();
         await expect(link).toHaveCSS("text-decoration-line", "underline");
         await expect(link).toHaveCSS("outline-style", "solid");
-        const visible = await link.evaluate(node => {
-          const rect = node.getBoundingClientRect();
-          const dialog = node.closest("dialog")!.getBoundingClientRect();
-          const panel = node.closest(".workflow-help-content")!.getBoundingClientRect();
-          const style = getComputedStyle(node);
-          const outline = parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset);
-          return rect.left - outline >= dialog.left && rect.right + outline <= dialog.right &&
-            rect.top - outline >= Math.max(dialog.top, panel.top) &&
-            rect.bottom + outline <= Math.min(dialog.bottom, panel.bottom);
-        });
-        expect(visible).toBe(true);
+        await expectFocusedControlFullyVisible(link);
         if (i + 1 < count) await page.keyboard.press(tabKey);
       }
     }
