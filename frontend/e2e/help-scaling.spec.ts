@@ -101,31 +101,37 @@ test.describe("on a touch screen", () => {
   });
 });
 
-for (const { width, height, textScale } of [
-  { width: 390, height: 844, textScale: 100 },
-  { width: 320, height: 480, textScale: 200 },
+for (const { width, height, textScale, scrollWhole } of [
+  { width: 390, height: 844, textScale: 100, scrollWhole: false },
+  { width: 320, height: 480, textScale: 200, scrollWhole: true },
 ]) {
-  test(`text that the browser finds in a closed section stays in view at ${width}x${height} with ${textScale}% text`, async ({ page }) => {
+  test(`text that the browser finds in a closed section keeps its position at ${width}x${height} with ${textScale}% text`, async ({ page }) => {
     await page.setViewportSize({ width, height });
     await page.goto("/");
     await page.locator("html").evaluate((element, scale) => { element.style.fontSize = `${scale}%`; }, textScale);
     await page.getByRole("button", { name: "In the browser", exact: true }).click();
     const help = page.getByRole("dialog", { name: "How it works" });
+    await expect(help).toHaveAttribute("data-scroll-whole", String(scrollWhole));
     const example = help.locator("summary", { hasText: "When a command returns no result" }).locator("..");
     const results = help.locator("summary", { hasText: "Understanding results and further reading" }).locator("..");
     const found = results.getByRole("link", { name: /^Execution ID and UTC time rules/ });
     await example.locator("summary").click();
     await expect(example).toHaveAttribute("open", "");
 
-    // Find in page cannot be driven from a test, so do what the browser does when the
-    // match is in a closed section: open the section and scroll to the match.
-    await results.evaluate((details: HTMLDetailsElement) => {
+    // Reproduce a match in a closed section without driving the native search UI.
+    const browserTop = await results.evaluate((details: HTMLDetailsElement) => {
       details.open = true;
-      [...details.querySelectorAll("a")].at(-1)!.scrollIntoView({ block: "center" });
+      const match = [...details.querySelectorAll("a")].at(-1)!;
+      match.scrollIntoView({ block: "center" });
+      // Measure before the queued toggle closes the previously open section.
+      return match.getBoundingClientRect().top;
     });
 
     await expect(example).not.toHaveAttribute("open");
     await expect(found).toBeInViewport({ ratio: 1 });
+    await expect.poll(async () => Math.abs(
+      await found.evaluate(match => match.getBoundingClientRect().top) - browserTop,
+    )).toBeLessThanOrEqual(1.5);
   });
 }
 
