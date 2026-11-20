@@ -86,6 +86,7 @@ for (const { guide, width, height, textScale, scrollWhole, fit, largeTitle } of 
   { guide: "cli", width: 1440, height: 1000, textScale: 200, scrollWhole: false, fit: "both" },
   { guide: "cli", width: 1440, height: 260, textScale: 100, scrollWhole: true, fit: "both", largeTitle: true },
   { guide: "cli", width: 1440, height: 200, textScale: 100, scrollWhole: true, fit: "section" },
+  { guide: "browser", width: 375, height: 667, textScale: 100, scrollWhole: false, fit: "beginning" },
   { guide: "browser", width: 320, height: 480, textScale: 200, scrollWhole: true, fit: "beginning" },
 ]) {
   test(`following help heading respects available space in ${guide} guidance at ${width}x${height} with ${textScale}% text`, async ({ page }) => {
@@ -126,6 +127,39 @@ for (const { guide, width, height, textScale, scrollWhole, fit, largeTitle } of 
     }
   });
 }
+
+test("reveals the following help heading when there is room for the outline but not the usual margin", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "In the browser", exact: true }).click();
+  const help = page.getByRole("dialog", { name: "How it works" });
+  const heading = help.locator("summary", { hasText: "When a command returns no result" });
+  const following = help.locator("summary", { hasText: "Understanding results and further reading" });
+  const details = heading.locator("..");
+  await page.keyboard.press("Tab");
+  await heading.press("Enter");
+  await expect(details).toHaveAttribute("open", "");
+
+  // Size the panel to the rendered headings and focus outline, plus a pixel for rounding.
+  const height = await heading.evaluate(node => {
+    const panel = node.closest(".workflow-help-content")!;
+    const next = node.closest("details")!.nextElementSibling!.querySelector("summary")!;
+    const style = getComputedStyle(node);
+    const outline = parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset);
+    const span = next.getBoundingClientRect().bottom - node.getBoundingClientRect().top;
+    const spaceOutsidePanel = window.innerHeight - panel.getBoundingClientRect().height;
+    return Math.ceil(spaceOutsidePanel + span + outline) + 1;
+  });
+
+  await heading.press("Enter");
+  await expect(details).not.toHaveAttribute("open");
+  await page.setViewportSize({ width: 1440, height });
+  await expect(help).toHaveAttribute("data-scroll-whole", "false");
+  await heading.press("Enter");
+  await expect(details).toHaveAttribute("open", "");
+  await expectFocusedControlFullyVisible(heading);
+  await expect(following).toBeInViewport({ ratio: 1 });
+});
 
 test.describe("on a touch screen", () => {
   test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });

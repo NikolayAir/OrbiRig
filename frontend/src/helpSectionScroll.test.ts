@@ -17,13 +17,20 @@ describe("scrollDeltaToReveal", () => {
   });
 
   it("scrolls just far enough to show the following heading when both fit", () => {
-    expect(scrollDeltaToReveal({ ...area, sectionTop: 410, sectionHeight: 150, followingHeadingBottom: 600 })).toBe(100);
-    expect(scrollDeltaToReveal({ ...area, sectionTop: 200, sectionHeight: 150, followingHeadingBottom: 500 })).toBe(0);
+    const section = { ...area, sectionTop: 410, sectionHeight: 150 };
+    expect(scrollDeltaToReveal({ ...section, followingHeading: { bottom: 600, openHeadingOutline: 5 } })).toBe(100);
+    expect(scrollDeltaToReveal({ ...section, followingHeading: { bottom: 805, openHeadingOutline: 5 } })).toBe(305);
   });
 
-  it("keeps the open heading's margin when both cannot fit", () => {
-    // The following heading would take 303px of scroll. The opening allows 302px.
-    expect(scrollDeltaToReveal({ ...area, sectionTop: 410, sectionHeight: 150, followingHeadingBottom: 803 })).toBe(68);
+  it("leaves the position alone when both headings and the outline are visible", () => {
+    const section = { ...area, sectionTop: 106, sectionHeight: 300 };
+    expect(scrollDeltaToReveal({ ...section, followingHeading: { bottom: 500, openHeadingOutline: 5 } })).toBe(0);
+  });
+
+  it("keeps the open section's usual margin when both cannot fit", () => {
+    // The following heading would take 306px of scroll. The outline allows 305px.
+    const section = { ...area, sectionTop: 410, sectionHeight: 150 };
+    expect(scrollDeltaToReveal({ ...section, followingHeading: { bottom: 806, openHeadingOutline: 5 } })).toBe(68);
   });
 
   it("shows a longer section from its heading instead of scrolling to its end", () => {
