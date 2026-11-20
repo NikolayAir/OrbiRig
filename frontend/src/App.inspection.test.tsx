@@ -271,7 +271,7 @@ describe("App inspection", () => {
     ).toBeInTheDocument();
     expect(
       within(invariantItems[1]).getByRole("heading", {
-        name: "Command is accepted",
+        name: "Command reported as accepted",
       }),
     ).toBeInTheDocument();
     expect(

@@ -11,8 +11,8 @@ import type {
 
 const INVARIANT_TITLES: Record<string, string> = {
   pre_state_matches_expected: "Starting mode matches the scenario",
-  acknowledgement_is_accepted: "Command is accepted",
-  acknowledgement_is_rejected: "Command is rejected",
+  acknowledgement_is_accepted: "Command reported as accepted",
+  acknowledgement_is_rejected: "Command reported as rejected",
   post_state_matches_requested_mode: "Ending mode matches the requested mode",
   post_state_matches_pre_state: "Ending mode matches the starting mode",
   telemetry_matches_post_state: "Telemetry matches the ending mode",

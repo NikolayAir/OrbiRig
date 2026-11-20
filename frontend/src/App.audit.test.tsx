@@ -19,6 +19,7 @@ describe("pre-release regressions", () => {
     record.invariant_results[1] = { invariant_id: id, expected, actual, passed };
     render(<VerifiedExecutionDetails record={record} />);
     const check = screen.getByText(id).closest("li")!;
+    expect(within(check).getByRole("heading", { name: `Command reported as ${expectedLabel.toLowerCase()}` })).toBeVisible();
     const definitions = check.querySelectorAll("dd");
     expect(definitions[0]).toHaveTextContent(expectedLabel);
     expect(definitions[1]).toHaveTextContent(actualLabel);
