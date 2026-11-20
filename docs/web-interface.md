@@ -4,7 +4,7 @@
 
 Use the [hosted interface](https://orbirig-evidence-inspector.onrender.com/) to check a recorded command result against a scenario you select, or to reopen and inspect saved JSON evidence. The Python core performs the checks on the server; the browser displays the results and errors. These actions do not execute commands or contact an external target.
 
-JSON is processed on the server. Use synthetic, non-sensitive data in the public demo.
+JSON is processed on the server. Use synthetic, non-sensitive data in the public interface.
 
 ## Verify an observation
 
@@ -50,7 +50,7 @@ While either request is pending, **Cancel request** stops waiting in the browser
 
 **From the command line** shows the setup, runnable command and output summary before the expandable sections. The meaning of each exit code and the link to the [CLI guide](cli.md) are under **Understanding CLI results and exit codes**, which starts closed. The exit codes keep completed verification (`0` for `PASS`, `1` for `FAIL`) apart from invalid input, file or output errors and unexpected internal errors.
 
-**Verify a C#/.NET program (optional)** in the same guide expands a short explanation and a link to the [.NET guide](dotnet-stateful-target.md). It distinguishes local target execution through the Python API from browser or CLI verification of recorded JSON. The .NET SDK is required only to build and run that optional example.
+**Verify a C#/.NET program (optional)** in the same guide summarises three outcomes from a local run and links to the [.NET guide](dotnet-stateful-target.md). The round trip passes verification and the continuity check, stale telemetry produces a verification `FAIL`, and a missing response causes a collection error. The .NET SDK is required for the local example. The browser and CLI verify recorded JSON.
 
 Browser guidance shows the selected workflow's steps first. Result explanations and documentation links expand under **Understanding results and further reading** or **Understanding inspection and further reading**.
 
@@ -60,7 +60,7 @@ Opening a section scrolls only as far as needed to show it: a section that fits 
 
 If resizing changes which area scrolls while a section is open, the guide brings the section heading into view. A control with visible keyboard focus in the scrolling area takes priority.
 
-Under **In the browser → Verify observation**, the expandable **When a command returns no result (Python API example)** illustrates a [response failure after saving state](stateful-target.md#simulate-a-response-failure-after-state-commit). This is a static example from the Python API; the browser does not run the target. It shows why a collection error produces no verification outcome and why confirming the saved state requires a separate check in this controlled example.
+Under **In the browser → Verify observation**, **When a command returns no result (Python API example)** summarises a local run with a [response failure after saving state](stateful-target.md#simulate-a-response-failure-after-state-commit). The target saves the new mode and exits before returning an observation. OrbiRig reports a collection error without a verification outcome. The example reads the state file separately to confirm the saved mode.
 
 ## Run locally
 

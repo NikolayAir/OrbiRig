@@ -71,7 +71,7 @@ describe("App help", () => {
     } else {
       expect(guidance.getByRole("region", { name: "CLI verification command" })).toBeVisible();
       expect(guidance.queryByText(/OrbiRig checks recorded command results/)).not.toBeInTheDocument();
-      expect(guidance.queryByRole("list")).not.toBeInTheDocument();
+      expect(guidance.getByText("Example outcomes from a local run")).not.toBeVisible();
     }
 
     fireEvent.click(within(help).getByRole("button", { name: "Close" }));
@@ -252,7 +252,7 @@ describe("App help", () => {
     );
     expect(guidance.getByRole("tabpanel", { name: "In the browser" }).querySelector("p"))
       .toBe(browserPanel.getByText(/OrbiRig checks recorded command results/));
-    expect(browserPanel.queryByText(/OrbiRig can verify recorded observations in two ways/)).not.toBeInTheDocument();
+    expect(browserPanel.queryByText(/^You can verify recorded observations/)).not.toBeInTheDocument();
     expect(guidance.getByText(/The examples use a simplified spacecraft/)).toHaveTextContent(
       "The examples use a simplified spacecraft model with two operating modes, NOMINAL and SAFE. A command requests a mode; an observation records the request, whether it was accepted, the mode before and after, and a separately reported mode (telemetry). OrbiRig currently supports three such scenarios. This approach shares principles with software testing and data-quality practices, such as checking API responses against expected values or validating data in processing pipelines.",
     );
@@ -311,9 +311,14 @@ describe("App help", () => {
     fireEvent.click(summary);
 
     expect(link).toBeVisible();
-    expect(details).toHaveTextContent("The C#/.NET example shows how OrbiRig's existing scenarios can check command results from a program written in another language.");
+    expect(details).toHaveTextContent("You can use the Python API to verify command responses from an independent C#/.NET program against a scenario you choose.");
+    const outcomes = within(details).getAllByRole("listitem");
+    expect(outcomes).toHaveLength(3);
+    expect(outcomes[0]).toHaveTextContent(/Round trip.*PASS.*continuity/);
+    expect(outcomes[1]).toHaveTextContent(/Stale telemetry.*saves SAFE.*reports NOMINAL.*verification FAIL/);
+    expect(outcomes[2]).toHaveTextContent(/Collection error.*before returning an observation.*without creating a verified record/);
     expect(details).toHaveTextContent("The .NET 10 SDK is needed only to build and run this example.");
-    expect(details).toHaveTextContent("The browser does not run the target, and verifying JSON files with the CLI does not require .NET.");
+    expect(details).toHaveTextContent("The browser and CLI verify recorded JSON independently of the local run.");
     expect(link).toHaveAttribute("href", "https://github.com/NikolayAir/OrbiRig/blob/main/docs/dotnet-stateful-target.md");
     expect(link).toHaveAttribute("target", "_blank");
     expect(link).toHaveAttribute("rel", "noreferrer");
@@ -340,13 +345,11 @@ describe("App help", () => {
     expect(verificationSteps.nextElementSibling).toBe(example);
     expect(example.nextElementSibling).toHaveTextContent("PASS means the recorded behaviour matches the selected scenario.");
     expect(example).not.toHaveAttribute("open");
-    expect(illustration.getByText(/Illustrative example/)).not.toBeVisible();
+    const exampleIntro = illustration.getByText("Example from a local run using the Python API.");
+    expect(exampleIntro).not.toBeVisible();
     fireEvent.click(summary);
     expect(example).toHaveAttribute("open");
-    expect(illustration.getByText(/Illustrative example/)).toBeVisible();
-    expect(illustration.getByText(/Illustrative example/)).toHaveTextContent(
-      "Illustrative example from the Python API. The browser does not run the test target.",
-    );
+    expect(exampleIntro).toBeVisible();
     expect(illustration.getAllByRole("listitem").map((step) => step.textContent?.replace(/\s+/g, " ").trim())).toEqual([
       "A command requests a change from NOMINAL to SAFE.",
       "The independent test target saves SAFE, then exits before returning an observation.",
@@ -376,7 +379,7 @@ describe("App help", () => {
     fireEvent.click(help.getByRole("tab", { name: "Verify observation" }));
     expect(summary).toBeVisible();
     expect(example).not.toHaveAttribute("open");
-    expect(illustration.getByText(/Illustrative example/)).not.toBeVisible();
+    expect(illustration.getByText("Example from a local run using the Python API.")).not.toBeVisible();
     fireEvent.click(summary);
     expect(example).toHaveAttribute("open");
     fireEvent.click(summary);
@@ -567,11 +570,11 @@ describe("App help", () => {
       "How it works",
     ]);
     const cliPanel = within(guidance.getByRole("tabpanel", { name: "From the command line" }));
-    expect(cliPanel.getByText(/OrbiRig can verify/)).toHaveTextContent(
-      "OrbiRig can verify recorded observations in two ways: by submitting JSON in the browser or by reading a local JSON file from the command line. Both interfaces use the same Python verification core. Neither interface sends commands to a target system (the software or device described in the records) or collects new observations from it.",
+    expect(cliPanel.getByText(/^You can verify recorded observations/)).toHaveTextContent(
+      "You can verify recorded observations by submitting JSON in the browser or passing a local JSON file path on the command line. Both interfaces use the same Python verification core. Use the Python API to collect new observations from a separate program.",
     );
     expect(guidance.getByRole("tabpanel", { name: "From the command line" }).querySelector("p"))
-      .toBe(cliPanel.getByText(/OrbiRig can verify/));
+      .toBe(cliPanel.getByText(/^You can verify recorded observations/));
     expect(cliPanel.queryByText(/OrbiRig checks recorded command results/)).not.toBeInTheDocument();
     expect(guidance.getByText(/To try the included example/)).toHaveTextContent(
       "To try the included example, open a terminal in an OrbiRig checkout. Run uv sync --locked if the Python environment is not yet installed, then:",

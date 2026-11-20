@@ -506,7 +506,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                   onOpenChange={changeOpenSection}
                 >
                   <p>
-                    Illustrative example from the Python API. The browser does not run the test target.
+                    Example from a local run using the Python API.
                   </p>
                   <ol>
                     <li>A command requests a change from NOMINAL to SAFE.</li>
@@ -631,11 +631,10 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
           {section === "cli" && (
             <>
               <p>
-                OrbiRig can verify recorded observations in two ways: by submitting JSON
-                in the browser or by reading a local JSON file from the command line.
-                Both interfaces use the same Python verification core. Neither interface
-                sends commands to a target system (the software or device described in
-                the records) or collects new observations from it.
+                You can verify recorded observations by submitting JSON in the browser or
+                passing a local JSON file path on the command line. Both interfaces use the same Python
+                verification core. Use the Python API to collect new observations from a
+                separate program.
               </p>
               <p>
                 To try the included example, open a terminal in an OrbiRig checkout. Run{" "}
@@ -685,14 +684,28 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                 onOpenChange={changeOpenSection}
               >
                 <p>
-                  The C#/.NET example shows how OrbiRig&apos;s existing scenarios can check command
-                  results from a program written in another language. It runs locally through the
-                  Python API, keeps its state between launches
-                  and demonstrates stale telemetry and a missing response after saving a change.
+                  You can use the Python API to verify command responses from an independent
+                  C#/.NET program against a scenario you choose. The API starts a new process for
+                  each command. A state file keeps the operating mode between runs.
                 </p>
+                <p><strong>Example outcomes from a local run</strong></p>
+                <ul>
+                  <li>
+                    <strong>Round trip.</strong> The mode changes from <code>NOMINAL</code> to <code>SAFE</code> and back.
+                    OrbiRig reports <strong>PASS</strong> and confirms continuity between the two runs.
+                  </li>
+                  <li>
+                    <strong>Stale telemetry.</strong> The target saves <code>SAFE</code> and reports <code>NOMINAL</code> as telemetry.
+                    OrbiRig records a verification <strong>FAIL</strong>.
+                  </li>
+                  <li>
+                    <strong>Collection error.</strong> The target saves a change and exits before returning an observation.
+                    OrbiRig reports the error without creating a verified record.
+                  </li>
+                </ul>
                 <p>
-                  The .NET 10 SDK is needed only to build and run this example. The browser does
-                  not run the target, and verifying JSON files with the CLI does not require .NET.
+                  The .NET 10 SDK is needed only to build and run this example. The browser and CLI
+                  verify recorded JSON independently of the local run.
                 </p>
                 <p><DocLink href={LINKS.dotnetTarget}>Build and verify the C#/.NET example</DocLink></p>
               </ExpandableHelpSection>

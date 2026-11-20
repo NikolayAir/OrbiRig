@@ -187,7 +187,7 @@ test.describe("on a touch screen", () => {
     const help = page.getByRole("dialog", { name: "How it works" });
     const example = help.locator("summary", { hasText: "When a command returns no result" });
     const results = help.locator("summary", { hasText: "Understanding results and further reading" });
-    const exampleText = help.getByText("Illustrative example from the Python API.");
+    const exampleText = help.getByText("Example from a local run using the Python API.");
     const resultsText = help.getByText(/^PASS means the recorded behaviour matches/);
 
     await example.tap();
@@ -303,11 +303,11 @@ test("only one help section stays open across workflows and command-line guidanc
   await trigger.click();
   const help = page.getByRole("dialog", { name: "How it works" });
   const summary = (title: string) => help.locator("summary", { hasText: title });
-  const example = { summary: summary("When a command returns no result"), text: help.getByText("Illustrative example from the Python API.") };
+  const example = { summary: summary("When a command returns no result"), text: help.getByText("Example from a local run using the Python API.") };
   const results = { summary: summary("Understanding results and further reading"), text: help.getByText(/^PASS means the recorded behaviour matches/) };
   const inspection = { summary: summary("Understanding inspection and further reading"), text: help.getByText(/^Inspecting an observation checks/) };
   const cliResults = { summary: summary("Understanding CLI results and exit codes"), text: help.getByText(/^Exit code/) };
-  const dotnet = { summary: summary("Verify a C#/.NET program"), text: help.getByText(/^The C#\/\.NET example shows/) };
+  const dotnet = { summary: summary("Verify a C#/.NET program"), text: help.getByText("Example outcomes from a local run", { exact: true }) };
   const tab = (name: string) => help.getByRole("tab", { name, exact: true });
 
   await example.summary.click();
