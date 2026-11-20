@@ -155,6 +155,34 @@ test("opening a help section moves without animation when reduced motion is requ
   expect((await sectionPosition(details)).scrollTop).toBe(settled);
 });
 
+for (const { before, after, scrollWhole } of [
+  { before: 800, after: 200, scrollWhole: true },
+  { before: 200, after: 800, scrollWhole: false },
+]) {
+  const scroller = scrollWhole ? "dialog" : "content panel";
+  test(`an open help heading stays visible when resizing switches scrolling to the ${scroller}`, async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: before });
+    await page.goto("/");
+    await page.getByRole("button", { name: "From the command line", exact: true }).click();
+    const help = page.getByRole("dialog", { name: "How it works" });
+    const heading = help.locator("summary", { hasText: "Verify a C#/.NET program" });
+    const details = heading.locator("..");
+    await expect(help).toHaveAttribute("data-scroll-whole", String(!scrollWhole));
+
+    // Switch to keyboard input before focusing the heading so its outline is drawn.
+    await page.keyboard.press("Tab");
+    await heading.focus();
+    await page.keyboard.press("Enter");
+    await expect(details).toHaveAttribute("open", "");
+    await expectFocusedControlFullyVisible(heading);
+
+    await page.setViewportSize({ width: 320, height: after });
+    await expect(help).toHaveAttribute("data-scroll-whole", String(scrollWhole));
+    await expect(details).toHaveAttribute("open", "");
+    await expectFocusedControlFullyVisible(heading);
+  });
+}
+
 test("only one help section stays open across workflows and command-line guidance", async ({ page }) => {
   const apiRequests: string[] = [];
   page.on("request", request => {

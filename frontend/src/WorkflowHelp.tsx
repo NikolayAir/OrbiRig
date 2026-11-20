@@ -85,7 +85,9 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
   const section = help?.section;
   const browserWorkflow = help?.browserWorkflow;
 
-  useEffect(() => {
+  // Set the scroll position after opening the guide, navigating within it, or
+  // changing scroll modes. The effect below measures the resulting layout.
+  useLayoutEffect(() => {
     if (help !== null && dialogRef.current !== null) {
       if (!dialogRef.current.open) {
         dialogRef.current.showModal();
@@ -114,10 +116,9 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
     }
   }, [help, scrollWholeDialog]);
 
-  // Runs after the sections have opened and closed, so it measures the final layout, and
-  // before the browser paints, so the reader never sees the section in the wrong place.
-  // Closing a section does not request a scroll adjustment. The browser may
-  // clamp the scroll position when the content becomes shorter.
+  // Measure the open section before the browser paints. A change of scroll mode
+  // uses the new layout after the effect above sets its scroll position.
+  // On close, the browser can clamp the existing position as the content gets shorter.
   useLayoutEffect(() => {
     const kept = browserOpened.current;
     browserOpened.current = null;
@@ -148,7 +149,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
       // The summary keeps room for its focus outline through its scroll margin.
       margin: parseFloat(getComputedStyle(summary).scrollMarginTop) || 0,
     });
-  }, [openSection]);
+  }, [openSection, scrollWholeDialog]);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -175,8 +176,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
 
   function openHelp(section: HelpSection, trigger: HTMLButtonElement) {
     // Create a new state object even when reopening the same guide.
-    // This reruns the code that calls showModal() (useEffect), even if the previous
-    // close event has not been delivered yet.
+    // This lets the effect reopen the dialog even if its close event has not been delivered yet.
     setHelp({ section, trigger, browserWorkflow: activeWorkflow, scrollToWorkflow: false });
     setOpenSection(null);
   }
