@@ -175,7 +175,7 @@ Totals include 3 Ubuntu browser jobs, 1 .NET interoperability job and the final 
 
 Python setup uses `check-latest: true` to select the latest available patch in each chosen series. A newer patch is downloaded when the runner's cached version is older.
 
-Python test and browser jobs use uv 0.13.4 and install Python dependencies with `uv sync --locked --no-editable`. uv receives the exact interpreter path from `actions/setup-python`, overriding the local `.python-version`. The `Python 3.12` job selects `test`, `dev` and `web`; compatibility jobs select `test` and `web`; browser jobs select only `web`. Subsequent commands use `uv run --no-sync`.
+Python test and browser jobs use uv 0.13.4 to install dependencies with `uv sync --locked --no-editable`. The interpreter path comes from `actions/setup-python` and takes precedence over the local `.python-version`. The `Python 3.12` job selects `test`, `dev` and `web`. Compatibility jobs select `test` and `web`, and browser jobs select only `web`. Subsequent commands use `uv run --no-sync`.
 
 Every Python test job checks dependency consistency and package imports, then runs the complete pytest suite and Behave scenarios. Compatibility jobs use `--no-cov` to avoid duplicate coverage reports. These jobs skip the optional .NET tests without requiring an SDK.
 

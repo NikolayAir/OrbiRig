@@ -32,7 +32,7 @@ See the [web-interface guide](docs/web-interface.md) to run it locally or use th
 
 ### Verify a file from the command line
 
-Install [Git](https://git-scm.com/downloads) and [uv](https://docs.astral.sh/uv/getting-started/installation/). uv uses a supported Python interpreter (3.12–3.15) or downloads one.
+Install [Git](https://git-scm.com/downloads) and [uv](https://docs.astral.sh/uv/getting-started/installation/), which can use an installed Python 3.12–3.15 interpreter or download one if needed.
 
 In a terminal, clone the repository, install OrbiRig and verify the included observation file.
 

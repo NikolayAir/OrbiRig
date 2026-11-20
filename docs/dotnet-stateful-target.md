@@ -1,6 +1,6 @@
 # Verify an independent C#/.NET program
 
-The [.NET target](../examples/dotnet_stateful_target/) is a C# console program that handles a command and keeps its operating mode in a file between runs. It implements the command handling using .NET 10 and `System.Text.Json`. OrbiRig's Python verifier checks the program's report against the scenario you choose.
+The [.NET target](../examples/dotnet_stateful_target/) is a C# console program that runs on .NET 10 and keeps its operating mode in a file between runs. It reads and writes JSON with `System.Text.Json`. OrbiRig's Python verifier checks the program's report against the scenario you choose.
 
 For each command, OrbiRig uses the [Python subprocess API](python.md#collect-from-a-separate-program) to start the compiled program and send the command as JSON. The program checks the input and state, handles the command and returns [observation evidence](evidence-formats.md#observation-evidence) in the same format as the [Python stateful target](stateful-target.md).
 

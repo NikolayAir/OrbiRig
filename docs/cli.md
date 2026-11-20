@@ -4,13 +4,13 @@ Use `orbirig verify-observation` to check a local observation JSON file against 
 
 ## Install
 
-The CLI requires Python 3.12–3.15. From a repository checkout, install [uv](https://docs.astral.sh/uv/getting-started/installation/) and run at the repository root:
+The CLI requires Python 3.12–3.15. With [uv](https://docs.astral.sh/uv/getting-started/installation/) installed, run the setup command from the repository root.
 
 ```bash
 uv sync --locked
 ```
 
-uv creates `.venv` and installs the core package and console command. Run it with `uv run --no-sync orbirig`; no web dependencies, Node.js or browser are required. The [development guide](../CONTRIBUTING.md#python-environment) explains interpreter selection and optional dependencies.
+This command installs the core package in `.venv`. Run the CLI in this Python-only environment with `uv run --no-sync orbirig`. The [development guide](../CONTRIBUTING.md#python-environment) explains interpreter selection and optional dependencies.
 
 If you have a built wheel, install it in an activated Python environment with `python -m pip install /path/to/orbirig-VERSION-py3-none-any.whl`. Replace the path with your wheel's filename, then invoke `orbirig` directly.
 

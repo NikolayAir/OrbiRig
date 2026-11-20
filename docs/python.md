@@ -2,7 +2,7 @@
 
 The Python API checks recorded command results against the [scenario you choose](verification.md#supported-scenarios) and returns the expected and observed values for each check. You can also collect observations from a separate program, check sequence continuity and read or write JSON evidence. The core works without FastAPI, React, Node.js or a browser.
 
-Install [uv](https://docs.astral.sh/uv/getting-started/installation/) and use Python 3.12–3.15. From the repository root, install OrbiRig with `uv sync --locked`. Save an example as a Python script, then run `uv run --no-sync python your_script.py` from the repository root so the example can find its files.
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/) and use Python 3.12–3.15. From the repository root, install OrbiRig with `uv sync --locked`. Save an example as a Python script, then run `uv run --no-sync python your_script.py` from the same directory so the example can find its files.
 
 For `scenario_id`, pass a `ScenarioId` member such as `ScenarioId.NOMINAL_TO_SAFE_MODE`. Convert a string explicitly first, for example with `ScenarioId("nominal_to_safe_mode")`. Passing a raw string raises `TypeError` before a command is executed or a subprocess is started.
 
