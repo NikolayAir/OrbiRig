@@ -138,11 +138,13 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
       scroller.scrollTop += details.getBoundingClientRect().top - kept.top;
       return;
     }
+    // Measure from the heading so its divider and padding do not take up the scroll area.
+    const headingTop = summary.getBoundingClientRect().top;
     scroller.scrollTop += scrollDeltaToReveal({
       areaTop: scroller.getBoundingClientRect().top + scroller.clientTop,
       areaHeight: scroller.clientHeight,
-      sectionTop: details.getBoundingClientRect().top,
-      sectionHeight: details.getBoundingClientRect().height,
+      sectionTop: headingTop,
+      sectionHeight: details.getBoundingClientRect().bottom - headingTop,
       // The summary keeps room for its focus outline through its scroll margin.
       margin: parseFloat(getComputedStyle(summary).scrollMarginTop) || 0,
     });

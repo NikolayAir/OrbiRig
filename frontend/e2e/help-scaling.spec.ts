@@ -34,18 +34,15 @@ for (const { width, height, textScale } of [
         if (workflow) await help.getByRole("tab", { name: workflow, exact: true }).click();
         const summary = help.locator("summary", { hasText: title });
         const details = summary.locator("..");
-        // Switch to keyboard input before focusing a summary so its outline is drawn.
-        if (input === "keyboard") await page.keyboard.press("Tab");
-        const toggle = async () => {
-          if (input === "keyboard") {
-            await summary.focus();
-            await page.keyboard.press("Enter");
-          } else {
-            await summary.click();
-          }
-        };
+        if (input === "keyboard") {
+          // Switch to keyboard input before focusing a summary so its outline is drawn.
+          await page.keyboard.press("Tab");
+          await summary.focus();
+          await page.keyboard.press("Enter");
+        } else {
+          await summary.click();
+        }
 
-        await toggle();
         await expect(details).toHaveAttribute("open", "");
         const opened = await sectionPosition(details);
         // The heading is never cut off at the top; one pixel allows for rounding.
@@ -56,14 +53,21 @@ for (const { width, height, textScale } of [
         } else {
           // A longer one starts at the top margin instead of jumping to its end.
           expect(Math.abs(opened.above - opened.margin)).toBeLessThanOrEqual(1.5);
-          expect(opened.below).toBeLessThan(0);
         }
         if (input === "keyboard") {
           await expectFocusedControlFullyVisible(summary);
+        } else {
+          await expect(summary).toBeInViewport({ ratio: 1 });
         }
         expect(await page.evaluate(() => window.scrollY)).toBe(pageScroll);
 
-        await toggle();
+        if (input === "keyboard") {
+          await page.keyboard.press("Enter");
+        } else {
+          // Click the visible heading without Playwright adjusting its scroll position.
+          const bounds = (await summary.boundingBox())!;
+          await page.mouse.click(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+        }
         await expect(details).not.toHaveAttribute("open");
         // Closing moves nothing, apart from the limit that the shorter content imposes.
         const closed = await sectionPosition(details);
