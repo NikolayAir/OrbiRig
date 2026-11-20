@@ -56,7 +56,9 @@ Browser guidance shows the selected workflow's steps first. Result explanations 
 
 Only one section in **How it works** is open at a time, including the optional examples: opening another closes the previous one, and selecting the open section closes it. Sections start closed, and switching tabs or workflows, or reopening the guide, does not bring back what was open earlier, so the main instructions remain easy to find.
 
-Opening a section scrolls only as far as needed to show it: a section that fits is shown whole, and a longer one starts at its heading instead of jumping to its end. When the browser opens a section itself to show text found on the page, that text stays where the browser placed it. Closing a section does not trigger additional scrolling, though the browser may limit the scroll position when the content becomes shorter. Keyboard focus stays visible when space is limited.
+Opening a section scrolls only as far as needed to show it: a section that fits is shown whole, and a longer one starts at its heading instead of jumping to its end. When the browser opens a section itself to show text found on the page, that text stays where the browser placed it. Closing a section does not trigger additional scrolling, though the browser may limit the scroll position when the content becomes shorter.
+
+If resizing changes which area scrolls while a section is open, the guide brings the section heading into view. A control with visible keyboard focus in the scrolling area takes priority.
 
 Under **In the browser → Verify observation**, the expandable **When a command returns no result (Python API example)** illustrates a [response failure after saving state](stateful-target.md#simulate-a-response-failure-after-state-commit). This is a static example from the Python API; the browser does not run the target. It shows why a collection error produces no verification outcome and why confirming the saved state requires a separate check in this controlled example.
 

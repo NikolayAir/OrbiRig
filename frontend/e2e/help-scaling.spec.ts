@@ -155,18 +155,26 @@ test("opening a help section moves without animation when reduced motion is requ
   expect((await sectionPosition(details)).scrollTop).toBe(settled);
 });
 
-for (const { before, after, scrollWhole } of [
-  { before: 800, after: 200, scrollWhole: true },
-  { before: 200, after: 800, scrollWhole: false },
-]) {
+for (const { before, after, scrollWhole, control } of [
+  { before: 800, after: 200, scrollWhole: true, control: "section heading" },
+  { before: 200, after: 800, scrollWhole: false, control: "section heading" },
+  { before: 800, after: 200, scrollWhole: true, control: "Close button" },
+  { before: 800, after: 200, scrollWhole: true, control: "guide link" },
+  { before: 200, after: 800, scrollWhole: false, control: "guide link" },
+] as const) {
   const scroller = scrollWhole ? "dialog" : "content panel";
-  test(`an open help heading stays visible when resizing switches scrolling to the ${scroller}`, async ({ page }) => {
+  test(`the focused ${control} stays visible when resizing switches scrolling to the ${scroller}`, async ({ page }) => {
     await page.setViewportSize({ width: 320, height: before });
     await page.goto("/");
     await page.getByRole("button", { name: "From the command line", exact: true }).click();
     const help = page.getByRole("dialog", { name: "How it works" });
     const heading = help.locator("summary", { hasText: "Verify a C#/.NET program" });
     const details = heading.locator("..");
+    const focused = {
+      "section heading": heading,
+      "Close button": help.getByRole("button", { name: "Close", exact: true }),
+      "guide link": help.getByRole("link", { name: /^Build and verify the C#\/\.NET example/ }),
+    }[control];
     await expect(help).toHaveAttribute("data-scroll-whole", String(!scrollWhole));
 
     // Switch to keyboard input before focusing the heading so its outline is drawn.
@@ -174,12 +182,13 @@ for (const { before, after, scrollWhole } of [
     await heading.focus();
     await page.keyboard.press("Enter");
     await expect(details).toHaveAttribute("open", "");
-    await expectFocusedControlFullyVisible(heading);
+    if (control !== "section heading") await focused.focus();
+    await expectFocusedControlFullyVisible(focused);
 
     await page.setViewportSize({ width: 320, height: after });
     await expect(help).toHaveAttribute("data-scroll-whole", String(scrollWhole));
     await expect(details).toHaveAttribute("open", "");
-    await expectFocusedControlFullyVisible(heading);
+    await expectFocusedControlFullyVisible(focused);
   });
 }
 

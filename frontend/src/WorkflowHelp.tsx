@@ -44,19 +44,21 @@ function ExpandableHelpSection({ id, className, title, openSection, onOpenChange
   );
 }
 
-function scrollFocusedControlIntoView(dialog: HTMLElement, element: HTMLElement) {
+function scrollFocusedControlIntoView(scroller: HTMLElement, element: HTMLElement) {
   const focused = element.getBoundingClientRect();
   const style = getComputedStyle(element);
   const outline = Math.max(0, parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset));
-  const viewportTop = dialog.getBoundingClientRect().top + dialog.clientTop;
+  const area = scroller.getBoundingClientRect();
+  const viewportTop = area.top + scroller.clientTop;
   const top = viewportTop + outline;
-  const bottom = viewportTop + dialog.clientHeight - outline;
+  // clientHeight can round up past a fractional rendered edge, as on the content panel.
+  const bottom = Math.min(viewportTop + scroller.clientHeight, area.bottom) - outline;
   // Some browsers scroll only by whole pixels.
   // Round the distance outwards so the entire focus outline stays visible.
   if (focused.top < top) {
-    dialog.scrollTop += Math.floor(focused.top - top);
+    scroller.scrollTop += Math.floor(focused.top - top);
   } else if (focused.bottom > bottom) {
-    dialog.scrollTop += Math.ceil(focused.bottom - bottom);
+    scroller.scrollTop += Math.ceil(focused.bottom - bottom);
   }
 }
 
@@ -80,6 +82,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
   const [scrollWholeDialog, setScrollWholeDialog] = useState(false);
   // Kept apart from `help` because changing `help` resets the scroll position.
   const [openSection, setOpenSection] = useState<ExpandableSection | null>(null);
+  const previousOpenSection = useRef<ExpandableSection | null>(null);
   // Where a section that the browser opened by itself was on screen, so it can stay there.
   const browserOpened = useRef<{ id: ExpandableSection; top: number } | null>(null);
   const section = help?.section;
@@ -120,6 +123,8 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
   // uses the new layout after the effect above sets its scroll position.
   // On close, the browser can clamp the existing position as the content gets shorter.
   useLayoutEffect(() => {
+    const sectionAlreadyOpen = previousOpenSection.current === openSection;
+    previousOpenSection.current = openSection;
     const kept = browserOpened.current;
     browserOpened.current = null;
     const dialog = dialogRef.current;
@@ -137,6 +142,17 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
       // The browser has already shown the text it found. Closing another section may have
       // moved it, so move the content back by the same distance instead of revealing the heading.
       scroller.scrollTop += details.getBoundingClientRect().top - kept.top;
+      return;
+    }
+    // For an already open section, keep the control with a keyboard focus indicator
+    // in view as the scroll area changes. Focus on the heading or its container
+    // uses the normal section reveal.
+    const focused = document.activeElement;
+    if (
+      sectionAlreadyOpen && focused instanceof HTMLElement && focused.matches(":focus-visible") &&
+      scroller.contains(focused) && !focused.contains(summary)
+    ) {
+      scrollFocusedControlIntoView(scroller, focused);
       return;
     }
     // Measure from the heading so its divider and padding do not take up the scroll area.
