@@ -4,7 +4,7 @@ The Python core owns the scenario rules, JSON validation and verification result
 
 ## Verification flow
 
-The [verification overview](../README.md#how-verification-works) introduces the four checks. The diagram here follows an observation from a JSON file or a command run to a verified record or an error. In both paths, the caller selects the scenario and provides the execution ID and UTC time.
+The [verification overview in the README](../README.md#how-verification-works) introduces the four checks. The detailed diagram here follows an observation from a JSON file or a command run to a verified record or an error. In both paths, the caller selects the scenario and provides the execution ID and UTC time.
 
 ```mermaid
 ---

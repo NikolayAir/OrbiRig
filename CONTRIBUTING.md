@@ -12,7 +12,9 @@ Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then prep
 uv sync --locked --extra test --extra dev --extra web
 ```
 
-uv selects or downloads the interpreter, creates `.venv` and installs OrbiRig in editable mode. No manual activation is needed. The optional extras are defined in [`pyproject.toml`](pyproject.toml):
+uv selects or downloads the interpreter, creates `.venv` and installs OrbiRig in editable mode. No manual activation is needed.
+
+Choose the install command for the work you want to do. The optional extras are defined in [`pyproject.toml`](pyproject.toml).
 
 | Installation | Purpose |
 | --- | --- |
@@ -81,6 +83,8 @@ Behave describes the 3 supported command scenarios in Given/When/Then steps: the
 Pyright checks the package, tests, Behave steps, examples and scripts against Python 3.12 language and typing rules. CI uses the Node.js version from `.node-version` to run the type checker.
 
 ### Distribution checks
+
+Run the distribution check from the repository root.
 
 ```bash
 uv run --no-sync python scripts/verify_distributions.py

@@ -18,7 +18,7 @@ An observation records these values.
 
 ## Supported scenarios
 
-The command line and JSON evidence use these scenario IDs.
+Each scenario specifies the requested mode and what OrbiRig expects the program to report. The command line and JSON evidence use the IDs in the first column.
 
 | Scenario ID | Starting mode for `PASS` | Requested mode | Expected response | Ending mode for `PASS` |
 | --- | --- | --- | --- | --- |

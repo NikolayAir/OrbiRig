@@ -10,11 +10,13 @@ The browser sends JSON to the server for checking. Use sample data that contains
 2. Choose **Load example** to fill in a sample. To verify your own observation, select a **Scenario** and fill in **Execution ID**, **Execution time (UTC)** and **Observation evidence JSON**. The execution time is when the command ran, for example `2026-10-21T10:00:00Z`.
 3. Choose **Verify observation** to see the expected and actual values for each check and the overall `PASS` or `FAIL`.
 
-**Load example** uses the selected scenario or **NOMINAL to SAFE** when you have not selected one. **Load failing example** fills in an observation whose telemetry (a separate report of the operating mode) disagrees with the recorded ending mode. Verifying it gives `FAIL`.
-
-An [expected command rejection](verification.md#supported-scenarios) can pass. OrbiRig reports an input error before running the checks if the recorded command does not match the selected scenario. When entering your own record, follow the [rules for execution IDs and times](evidence-formats.md#execution-ids).
+**Load example** uses the selected scenario or **NOMINAL to SAFE** when you have not selected one. The screenshot shows the default example after you choose **Verify observation**.
 
 ![The verification form and a PASS result for the NOMINAL-to-SAFE example](images/orbirig-web-interface.png)
+
+**Load failing example** fills in an observation whose telemetry (a separate report of the operating mode) disagrees with the recorded ending mode. Verifying it gives `FAIL`.
+
+An [expected command rejection](verification.md#supported-scenarios) can pass. OrbiRig reports an input error before running the checks if the recorded command does not match the selected scenario. When entering your own record, follow the [rules for execution IDs and times](evidence-formats.md#execution-ids).
 
 You can save a verified record as a JSON file [from the command line](cli.md#verify-the-bundled-example) or [with the Python API](python.md#reopen-saved-verified-evidence).
 
@@ -82,12 +84,14 @@ npm ci
 cd ..
 ```
 
-Start FastAPI and Vite in separate terminals from the repository root. Select the same Node.js version in the Vite terminal as well:
+From the repository root, start FastAPI in the first terminal.
 
 ```bash
 # Terminal 1
 uv run --no-sync python -m uvicorn orbirig.web:app --reload
 ```
+
+In the second terminal, start Vite from the repository root using the Node.js version you selected for `npm ci`.
 
 ```bash
 # Terminal 2
@@ -136,7 +140,7 @@ For inspection, FastAPI decodes the submitted text and passes it to the matching
 
 ### Send an example request
 
-With FastAPI running locally, run this command from the repository root:
+With FastAPI running locally, send the bundled verification request from the repository root.
 
 ```bash
 curl --header 'Content-Type: application/json' \
@@ -146,7 +150,7 @@ curl --header 'Content-Type: application/json' \
 
 The [request file](examples/verify-observation-request.json) contains all 4 fields, with the observation encoded as a JSON string. The response is HTTP `200` with 4 passing checks and `"outcome": "PASS"`; see the [complete response](examples/verify-observation-response.json).
 
-Inspection sends the evidence text directly, without a JSON wrapper:
+To inspect the bundled verified record, send its JSON directly as the request body.
 
 ```bash
 # Send the file bytes unchanged, preserving whitespace and repeated JSON fields.
@@ -157,7 +161,7 @@ curl --header 'Content-Type: text/plain; charset=utf-8' \
 
 ### Responses
 
-Successful responses contain display data. Use the CLI or the Python serialisation functions to create a versioned evidence document you can reopen later.
+The HTTP status tells you whether the request succeeded. Read the response body for any `PASS` or `FAIL` outcome.
 
 | HTTP status | Meaning |
 | --- | --- |
@@ -167,6 +171,8 @@ Successful responses contain display data. Use the CLI or the Python serialisati
 | `415` | The request content type is unsupported. |
 | `422` | A verification request or submitted evidence is invalid. |
 | `500` | An unexpected server error, separate from verification `FAIL`. |
+
+Successful responses contain display data. Use the CLI or the Python serialisation functions to create a versioned evidence document you can reopen later.
 
 For HTTP `422` verification errors, `detail` contains a `code` and `message`. For example, selecting `safe_to_nominal_mode` for the example command, which requests `SAFE`, returns:
 

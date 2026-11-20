@@ -4,13 +4,13 @@
 
 Validation checks a document's format and whether any saved results agree with its inputs. [Verification](verification.md) compares an observation with a chosen scenario and gives a `PASS` or `FAIL` result.
 
+Choose the reader for the form of evidence you have. The version fields describe the JSON format independently of the OrbiRig package version.
+
 | Evidence form | Version field | Current version | Python model |
 | --- | --- | --- | --- |
 | Observation | `evidence_format_version` | `1` | `CommandExecutionObservation` |
 | Verified execution | `schema_version` | `1` | `VerifiedExecutionRecord` |
 | Verified execution sequence | `schema_version` | `1` | `VerifiedExecutionSequence` |
-
-Choose the reader for the form of evidence you have. The version fields describe the JSON format independently of the OrbiRig package version.
 
 ## What validation establishes
 

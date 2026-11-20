@@ -22,11 +22,11 @@ The hosted interface runs on Render's free plan. After 15 minutes of inactivity,
 
 1. Open the [OrbiRig web interface](https://orbirig-evidence-inspector.onrender.com/) and select the **Verify observation** workflow.
 2. Choose **Load example** to fill in the inputs, then choose **Verify observation** to run the checks. The default example records an accepted change from `NOMINAL` to `SAFE` and gives `PASS`.
-3. Choose **Load failing example**, then **Verify observation**. The result is `FAIL` because telemetry reports `NOMINAL` while the recorded ending mode is `SAFE`.
-
-To explore saved records, switch to **Inspect evidence**, select an evidence type, choose **Load example**, then submit it with the **Inspect evidence** button.
+3. Choose **Load failing example**, then **Verify observation**. The screenshot shows a `FAIL` result because telemetry reports `NOMINAL` while the recorded ending mode is `SAFE`.
 
 ![A verification result with three passing checks and one failed telemetry check](docs/images/orbirig-web-verification.png)
+
+To explore saved records, switch to **Inspect evidence**, select an evidence type, choose **Load example**, then submit it with the **Inspect evidence** button.
 
 See the [web-interface guide](docs/web-interface.md) to run it locally or use the HTTP endpoints.
 
@@ -52,7 +52,7 @@ The [CLI guide](docs/cli.md) explains how to save a record, check a telemetry mi
 
 ## How verification works
 
-The browser, command line and Python API use the same verification rules. The Python core validates the input before it runs the four checks.
+The browser, command line and Python API use the same verification rules. The simplified diagram shows how the Python core validates a recorded observation before running the four checks.
 
 ```mermaid
 ---
@@ -77,7 +77,7 @@ flowchart TD
     class validate,verifier action
 ```
 
-The [verification flow](docs/architecture.md#verification-flow) follows the data from collection and validation through to a result and explains which errors stop the process.
+The [detailed diagram in the architecture guide](docs/architecture.md#verification-flow) follows an observation from a JSON file or a command run to a verified record. It also shows which errors stop the process.
 
 Each verification check (called an **invariant** in the API) keeps the expected value, actual value and whether they match.
 
@@ -89,6 +89,8 @@ Each verification check (called an **invariant** in the API) keeps the expected 
 | Telemetry | The separately reported mode matches the recorded ending mode. |
 
 Enter an execution ID (a label for the command run) and its time in UTC. The verified record keeps these details with the observation, scenario, four checks and outcome.
+
+The table shows the two verification outcomes and the errors that can prevent a result.
 
 | Status | Meaning |
 | --- | --- |

@@ -133,7 +133,7 @@ Next command: PASS
 
 The collector raises `ObservationCollectionError` before it can verify a result. The exception includes the exit status. The collector captures the target's standard error stream separately.
 
-The target can fail at different points, with different effects on the saved state.
+The table shows what OrbiRig reports and what happens to the state file when telemetry is wrong or the target exits without returning an observation.
 
 | Target behaviour | OrbiRig result | Target state |
 | --- | --- | --- |
