@@ -1,24 +1,66 @@
-import { type KeyboardEvent, useEffect, useRef, useState } from "react";
+import { type KeyboardEvent, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { DocLink } from "./DocLink";
+import { scrollDeltaToReveal } from "./helpSectionScroll";
 import { LINKS } from "./workflowContent";
 import type { Workflow } from "./workflowTypes";
 
 type HelpSection = "browser" | "cli";
+type ExpandableSection = "python-example" | "verification-results" | "inspection-results" | "cli-results" | "dotnet-example";
 
-function scrollFocusedControlIntoView(dialog: HTMLElement, element: HTMLElement) {
+// One shared state value controls expanded sections. Selecting a section closes
+// the previous section in the same update.
+function ExpandableHelpSection({ id, className, title, openSection, onOpenChange, children }: {
+  id: ExpandableSection;
+  className: string;
+  title: string;
+  openSection: ExpandableSection | null;
+  onOpenChange: (id: ExpandableSection, open: boolean, browserTop?: number) => void;
+  children: ReactNode;
+}) {
+  const open = openSection === id;
+  return (
+    <details
+      className={className}
+      data-help-section={id}
+      open={open}
+      onToggle={(event) => {
+        // The browser can open a section without a click, for example when it finds searched
+        // text. It has already scrolled to that text, so pass on where the section is now.
+        const details = event.currentTarget;
+        if (details.open !== open) onOpenChange(id, details.open, details.getBoundingClientRect().top);
+      }}
+    >
+      <summary
+        onClick={(event) => {
+          // Handle explicit activation in the guide's state so onToggle can
+          // recognise a section the browser opened to reveal found text.
+          event.preventDefault();
+          onOpenChange(id, !open);
+        }}
+      >
+        {title}
+      </summary>
+      {children}
+    </details>
+  );
+}
+
+function scrollFocusedControlIntoView(scroller: HTMLElement, element: HTMLElement) {
   const focused = element.getBoundingClientRect();
   const style = getComputedStyle(element);
   const outline = Math.max(0, parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset));
-  const viewportTop = dialog.getBoundingClientRect().top + dialog.clientTop;
+  const area = scroller.getBoundingClientRect();
+  const viewportTop = area.top + scroller.clientTop;
   const top = viewportTop + outline;
-  const bottom = viewportTop + dialog.clientHeight - outline;
+  // clientHeight can round up past a fractional rendered edge, as on the content panel.
+  const bottom = Math.min(viewportTop + scroller.clientHeight, area.bottom) - outline;
   // Some browsers scroll only by whole pixels.
   // Round the distance outwards so the entire focus outline stays visible.
   if (focused.top < top) {
-    dialog.scrollTop += Math.floor(focused.top - top);
+    scroller.scrollTop += Math.floor(focused.top - top);
   } else if (focused.bottom > bottom) {
-    dialog.scrollTop += Math.ceil(focused.bottom - bottom);
+    scroller.scrollTop += Math.ceil(focused.bottom - bottom);
   }
 }
 
@@ -40,10 +82,17 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
     trigger: HTMLButtonElement;
   } | null>(null);
   const [scrollWholeDialog, setScrollWholeDialog] = useState(false);
+  // Kept apart from `help` because changing `help` resets the scroll position.
+  const [openSection, setOpenSection] = useState<ExpandableSection | null>(null);
+  const previousOpenSection = useRef<ExpandableSection | null>(null);
+  // Where a section that the browser opened by itself was on screen, so it can stay there.
+  const browserOpened = useRef<{ id: ExpandableSection; top: number } | null>(null);
   const section = help?.section;
   const browserWorkflow = help?.browserWorkflow;
 
-  useEffect(() => {
+  // Set the scroll position after opening the guide, navigating within it, or
+  // changing scroll modes. The effect below measures the resulting layout.
+  useLayoutEffect(() => {
     if (help !== null && dialogRef.current !== null) {
       if (!dialogRef.current.open) {
         dialogRef.current.showModal();
@@ -72,6 +121,54 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
     }
   }, [help, scrollWholeDialog]);
 
+  // Measure the open section before the browser paints. A change of scroll mode
+  // uses the new layout after the effect above sets its scroll position.
+  // On close, the browser can clamp the existing position as the content gets shorter.
+  useLayoutEffect(() => {
+    const sectionAlreadyOpen = previousOpenSection.current === openSection;
+    previousOpenSection.current = openSection;
+    const kept = browserOpened.current;
+    browserOpened.current = null;
+    const dialog = dialogRef.current;
+    const details = openSection === null
+      ? null
+      : dialog?.querySelector<HTMLElement>(`details[data-help-section="${openSection}"]`);
+    const summary = details?.querySelector("summary");
+    if (!dialog || !details || !summary) return;
+    // The dialog scrolls as a whole in short windows; otherwise only the content panel does.
+    const scroller = dialog.dataset.scrollWhole === "true"
+      ? dialog
+      : details.closest<HTMLElement>(".workflow-help-content");
+    if (scroller === null) return;
+    if (kept?.id === openSection) {
+      // The browser has already shown the text it found. Closing another section may have
+      // moved it, so move the content back by the same distance instead of revealing the heading.
+      scroller.scrollTop += details.getBoundingClientRect().top - kept.top;
+      return;
+    }
+    // For an already open section, keep the control with a keyboard focus indicator
+    // in view as the scroll area changes. Focus on the heading or its container
+    // uses the normal section reveal.
+    const focused = document.activeElement;
+    if (
+      sectionAlreadyOpen && focused instanceof HTMLElement && focused.matches(":focus-visible") &&
+      scroller.contains(focused) && !focused.contains(summary)
+    ) {
+      scrollFocusedControlIntoView(scroller, focused);
+      return;
+    }
+    // Measure from the heading so its divider and padding do not take up the scroll area.
+    const headingTop = summary.getBoundingClientRect().top;
+    scroller.scrollTop += scrollDeltaToReveal({
+      areaTop: scroller.getBoundingClientRect().top + scroller.clientTop,
+      areaHeight: scroller.clientHeight,
+      sectionTop: headingTop,
+      sectionHeight: details.getBoundingClientRect().bottom - headingTop,
+      // The summary keeps room for its focus outline through its scroll margin.
+      margin: parseFloat(getComputedStyle(summary).scrollMarginTop) || 0,
+    });
+  }, [openSection, scrollWholeDialog]);
+
   useEffect(() => {
     const dialog = dialogRef.current;
     const header = headerRef.current;
@@ -97,21 +194,32 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
 
   function openHelp(section: HelpSection, trigger: HTMLButtonElement) {
     // Create a new state object even when reopening the same guide.
-    // This reruns the code that calls showModal() (useEffect), even if the previous
-    // close event has not been delivered yet.
+    // This lets the effect reopen the dialog even if its close event has not been delivered yet.
     setHelp({ section, trigger, browserWorkflow: activeWorkflow, scrollToWorkflow: false });
+    setOpenSection(null);
   }
 
   function selectHelp(section: HelpSection) {
     setHelp((current) => current === null || current.section === section
       ? current
       : { ...current, section, scrollToWorkflow: false });
+    // Switching tabs starts from the main instructions, not from earlier expanded text.
+    if (help !== null && help.section !== section) setOpenSection(null);
   }
 
   function selectBrowserWorkflow(browserWorkflow: Workflow) {
     setHelp((current) => current === null || current.browserWorkflow === browserWorkflow
       ? current
       : { ...current, browserWorkflow, scrollToWorkflow: true });
+    if (help !== null && help.browserWorkflow !== browserWorkflow) setOpenSection(null);
+  }
+
+  function changeOpenSection(id: ExpandableSection, open: boolean, browserTop?: number) {
+    browserOpened.current = open && browserTop !== undefined ? { id, top: browserTop } : null;
+    setOpenSection((current) => {
+      if (open) return id;
+      return current === id ? null : current;
+    });
   }
 
   function navigateBrowserTabs(event: KeyboardEvent<HTMLButtonElement>, current: Workflow) {
@@ -295,22 +403,6 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
           role="tabpanel"
           id="workflow-help-browser-panel"
           aria-labelledby="workflow-help-browser-tab"
-          onToggle={(event) => {
-            if (!(event.target instanceof HTMLDetailsElement) || !event.target.open) return;
-            const tabs = browserWorkflowsRef.current;
-            const panel = browserPanelRef.current;
-            const dialog = dialogRef.current;
-            if (tabs === null || panel === null || dialog === null) return;
-            if (scrollWholeDialog) {
-              dialog.scrollTop += tabs.getBoundingClientRect().top - dialog.getBoundingClientRect().top - dialog.clientTop;
-            } else {
-              panel.scrollTop += tabs.getBoundingClientRect().top - panel.getBoundingClientRect().top - panel.clientTop;
-            }
-            const focused = document.activeElement;
-            if (focused instanceof HTMLElement && event.target.contains(focused) && focused.matches(":focus-visible")) {
-              scrollFocusedControlIntoView(scrollWholeDialog ? dialog : panel, focused);
-            }
-          }}
           hidden={section !== "browser"}
           tabIndex={0}
         >
@@ -391,8 +483,13 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                     and overall <strong>PASS</strong> or <strong>FAIL</strong> result.
                   </li>
                 </ol>
-                <details className="workflow-help-example">
-                  <summary>When a command returns no result (Python API example)</summary>
+                <ExpandableHelpSection
+                  id="python-example"
+                  className="workflow-help-example"
+                  title="When a command returns no result (Python API example)"
+                  openSection={openSection}
+                  onOpenChange={changeOpenSection}
+                >
                   <p>
                     Illustrative example from the Python API. The browser does not run the test target.
                   </p>
@@ -418,9 +515,14 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                     The collection error alone does not establish the state of an external system.
                   </p>
                   <p><DocLink href={LINKS.statefulTarget}>Reproduce the stateful-target example</DocLink></p>
-                </details>
-                <details className="workflow-help-reference">
-                  <summary>Understanding results and further reading</summary>
+                </ExpandableHelpSection>
+                <ExpandableHelpSection
+                  id="verification-results"
+                  className="workflow-help-reference"
+                  title="Understanding results and further reading"
+                  openSection={openSection}
+                  onOpenChange={changeOpenSection}
+                >
                   <p>
                     <strong>PASS</strong> means the recorded behaviour matches the selected
                     scenario. This can include a rejected command if rejection was expected.
@@ -444,7 +546,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                     <li><DocLink href={LINKS.scenarios}>Supported scenarios and checks</DocLink></li>
                     <li><DocLink href={LINKS.executionMetadata}>Execution ID and UTC time rules</DocLink></li>
                   </ul>
-                </details>
+                </ExpandableHelpSection>
               </div>
               <div
                 className="workflow-help-instructions"
@@ -468,8 +570,13 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                     and any saved verification results.
                   </li>
                 </ol>
-                <details className="workflow-help-reference">
-                  <summary>Understanding inspection and further reading</summary>
+                <ExpandableHelpSection
+                  id="inspection-results"
+                  className="workflow-help-reference"
+                  title="Understanding inspection and further reading"
+                  openSection={openSection}
+                  onOpenChange={changeOpenSection}
+                >
                   <p>
                     Inspecting an observation checks its JSON structure and supported values.
                     To compare the reported result with a scenario, use <strong>Verify observation</strong>.
@@ -491,7 +598,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                     <li><DocLink href={LINKS.savedEvidence}>How saved evidence is rechecked</DocLink></li>
                     <li><DocLink href={LINKS.validationLimits}>What validation establishes</DocLink></li>
                   </ul>
-                </details>
+                </ExpandableHelpSection>
               </div>
 
             </>
@@ -537,16 +644,31 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
               </p>
               <p>
                 The command prints JSON evidence containing the individual checks and overall <strong>PASS</strong> or <strong>FAIL</strong> result.
-                Exit code <code>0</code> means <strong>PASS</strong>, while <code>1</code> means
-                verification completed with <strong>FAIL</strong>. Invalid input returns <code>2</code>,
-                file or output errors return <code>3</code>, and unexpected internal
-                errors <span className="keep-together">return <code>4</code></span>.
               </p>
-              <p>
-                <DocLink href={LINKS.cli}>CLI setup and full instructions</DocLink>
-              </p>
-              <details className="workflow-help-example">
-                <summary>Verify a C#/.NET program (optional)</summary>
+              <ExpandableHelpSection
+                id="cli-results"
+                className="workflow-help-reference"
+                title="Understanding CLI results and exit codes"
+                openSection={openSection}
+                onOpenChange={changeOpenSection}
+              >
+                <p>
+                  Exit code <code>0</code> means <strong>PASS</strong>, while <code>1</code> means
+                  verification completed with <strong>FAIL</strong>. Invalid input returns <code>2</code>,
+                  file or output errors return <code>3</code>, and unexpected internal
+                  errors <span className="keep-together">return <code>4</code></span>.
+                </p>
+                <p>
+                  <DocLink href={LINKS.cli}>CLI setup and full instructions</DocLink>
+                </p>
+              </ExpandableHelpSection>
+              <ExpandableHelpSection
+                id="dotnet-example"
+                className="workflow-help-example"
+                title="Verify a C#/.NET program (optional)"
+                openSection={openSection}
+                onOpenChange={changeOpenSection}
+              >
                 <p>
                   The C#/.NET example shows how OrbiRig&apos;s existing scenarios can check command
                   results from a program written in another language. It runs locally through the
@@ -558,7 +680,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                   not run the target, and verifying JSON files with the CLI does not require .NET.
                 </p>
                 <p><DocLink href={LINKS.dotnetTarget}>Build and verify the C#/.NET example</DocLink></p>
-              </details>
+              </ExpandableHelpSection>
             </>
           )}
         </div>

@@ -370,18 +370,185 @@ describe("App help", () => {
     expect(fetchMock).not.toHaveBeenCalled();
 
     fireEvent.click(help.getByRole("tab", { name: "Inspect evidence" }));
-    expect(example).toHaveAttribute("open");
     expect(example).not.toBeVisible();
     expect(within(help.getByRole("tabpanel", { name: "Inspect evidence" })).queryByText("When a command returns no result (Python API example)")).not.toBeInTheDocument();
+    // Returning does not bring back the text that was open before leaving.
     fireEvent.click(help.getByRole("tab", { name: "Verify observation" }));
-    expect(example).toBeVisible();
+    expect(summary).toBeVisible();
+    expect(example).not.toHaveAttribute("open");
+    expect(illustration.getByText(/Illustrative example/)).not.toBeVisible();
+    fireEvent.click(summary);
     expect(example).toHaveAttribute("open");
     fireEvent.click(summary);
     expect(example).not.toHaveAttribute("open");
-    expect(illustration.getByText(/Illustrative example/)).not.toBeVisible();
     fireEvent.click(help.getByRole("tab", { name: "From the command line" }));
     expect(help.queryByText("When a command returns no result (Python API example)", { selector: "summary" })).not.toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  describe("expandable sections", () => {
+    const EXAMPLE = "When a command returns no result (Python API example)";
+    const RESULTS = "Understanding results and further reading";
+    const INSPECTION = "Understanding inspection and further reading";
+    const CLI_RESULTS = "Understanding CLI results and exit codes";
+    const DOTNET = "Verify a C#/.NET program (optional)";
+
+    function openGuide(name: "In the browser" | "From the command line") {
+      render(<App />);
+      fireEvent.click(screen.getByRole("button", { name }));
+      const dialog = screen.getByRole("dialog", { name: "How it works" });
+      const help = within(dialog);
+      return {
+        dialog,
+        help,
+        toggle: (title: string) => fireEvent.click(help.getByText(title, { selector: "summary" })),
+        // Reads every open section, including those in panels that are not shown.
+        opened: () => [...dialog.querySelectorAll("details[open] > summary")].map((summary) => summary.textContent),
+      };
+    }
+
+    it("closes the open section when another one is opened, and when it is selected again", () => {
+      const { toggle, opened } = openGuide("In the browser");
+
+      toggle(EXAMPLE);
+      expect(opened()).toEqual([EXAMPLE]);
+      toggle(RESULTS);
+      expect(opened()).toEqual([RESULTS]);
+      toggle(RESULTS);
+      expect(opened()).toEqual([]);
+    });
+
+    it("starts closed after switching workflow or tab, and after the guide is reopened", () => {
+      const { help, toggle, opened } = openGuide("In the browser");
+
+      toggle(EXAMPLE);
+      fireEvent.click(help.getByRole("tab", { name: "Inspect evidence" }));
+      expect(opened()).toEqual([]);
+      toggle(INSPECTION);
+      // Selecting the tab that is already shown does not discard what the reader opened.
+      fireEvent.click(help.getByRole("tab", { name: "Inspect evidence" }));
+      fireEvent.click(help.getByRole("tab", { name: "In the browser" }));
+      expect(opened()).toEqual([INSPECTION]);
+      fireEvent.click(help.getByRole("tab", { name: "From the command line" }));
+      expect(opened()).toEqual([]);
+      toggle(CLI_RESULTS);
+      expect(opened()).toEqual([CLI_RESULTS]);
+      toggle(DOTNET);
+      expect(opened()).toEqual([DOTNET]);
+      fireEvent.click(help.getByRole("tab", { name: "In the browser" }));
+      fireEvent.click(help.getByRole("tab", { name: "From the command line" }));
+      expect(opened()).toEqual([]);
+
+      toggle(DOTNET);
+      fireEvent.click(help.getByRole("button", { name: "Close" }));
+      fireEvent.click(screen.getByRole("button", { name: "From the command line" }));
+      expect(opened()).toEqual([]);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("follows the browser when it opens or closes a section without a click", () => {
+      const { dialog, toggle, opened } = openGuide("In the browser");
+      const section = (title: string) => within(dialog).getByText(title, { selector: "summary" }).closest("details")!;
+
+      toggle(EXAMPLE);
+      // Searching for text on the page makes the browser expand the section that contains it.
+      const results = section(RESULTS);
+      results.open = true;
+      fireEvent(results, new Event("toggle"));
+      expect(opened()).toEqual([RESULTS]);
+      results.open = false;
+      fireEvent(results, new Event("toggle"));
+      expect(opened()).toEqual([]);
+    });
+  });
+
+  describe("revealing an opened section", () => {
+    // jsdom has no layout, so each element reports the geometry the test gives it.
+    function placeAt(element: HTMLElement, { top, height, clientHeight = height }: { top: number; height: number; clientHeight?: number }) {
+      element.getBoundingClientRect = () => ({
+        top, height, bottom: top + height, y: top, left: 0, right: 0, x: 0, width: 0, toJSON: () => ({}),
+      });
+      Object.defineProperty(element, "clientHeight", { configurable: true, value: clientHeight });
+    }
+
+    function openExample() {
+      render(<App />);
+      fireEvent.click(screen.getByRole("button", { name: "In the browser" }));
+      const dialog = screen.getByRole("dialog", { name: "How it works" }) as HTMLDialogElement;
+      const panel = within(dialog).getByRole("tabpanel", { name: "In the browser" });
+      const summary = within(dialog).getByText("When a command returns no result (Python API example)", { selector: "summary" });
+      return { dialog, panel, summary, details: summary.closest("details")! };
+    }
+
+    it("scrolls the content panel just far enough to show a section that fits", () => {
+      const { panel, summary, details } = openExample();
+      const pageScroll = vi.spyOn(window, "scrollTo");
+      placeAt(panel, { top: 100, height: 400 });
+      placeAt(details, { top: 450, height: 300 });
+      placeAt(summary, { top: 483, height: 30 });
+      panel.scrollTop = 40;
+
+      fireEvent.click(summary);
+
+      // The section ends 250px below the visible area, so the panel moves by that distance.
+      expect(panel.scrollTop).toBe(290);
+      // Closing it leaves the position alone.
+      fireEvent.click(summary);
+      expect(panel.scrollTop).toBe(290);
+      expect(pageScroll).not.toHaveBeenCalled();
+      expect(scrollIntoViewMock).not.toHaveBeenCalled();
+    });
+
+    it("reveals a long section's heading below its divider in a short dialog", () => {
+      const { dialog, panel, summary, details } = openExample();
+      // The rendered switch to whole-dialog scrolling is checked in the browser tests.
+      dialog.dataset.scrollWhole = "true";
+      placeAt(dialog, { top: 0, height: 414 });
+      placeAt(panel, { top: 160, height: 2000 });
+      placeAt(details, { top: 700, height: 900 });
+      // A wrapped heading fits only when the divider and its padding are scrolled away.
+      placeAt(summary, { top: 733, height: 370 });
+      summary.style.scrollMarginTop = "16px";
+
+      fireEvent.click(summary);
+
+      expect(dialog.scrollTop).toBe(717);
+      expect(panel.scrollTop).toBe(0);
+    });
+
+    it("keeps a section that the browser opened where the browser put it", () => {
+      const { panel, summary } = openExample();
+      const example = summary.closest("details")!;
+      const results = within(panel).getByText("Understanding results and further reading", { selector: "summary" }).closest("details")!;
+      fireEvent.click(summary);
+      placeAt(panel, { top: 100, height: 400 });
+      // Closing the example above it moves the results section up by 250px.
+      results.getBoundingClientRect = () => {
+        const top = example.open ? 450 : 200;
+        return { top, height: 300, bottom: top + 300, y: top, left: 0, right: 0, x: 0, width: 0, toJSON: () => ({}) };
+      };
+      panel.scrollTop = 300;
+
+      // Finding text on the page makes the browser open the section and scroll to the text.
+      results.open = true;
+      fireEvent(results, new Event("toggle"));
+
+      expect(example).not.toHaveAttribute("open");
+      // The panel moves back by the same distance instead of revealing the heading.
+      expect(panel.scrollTop).toBe(50);
+    });
+
+    it("leaves the position alone when the whole section is already visible", () => {
+      const { panel, summary, details } = openExample();
+      placeAt(panel, { top: 100, height: 400 });
+      placeAt(details, { top: 120, height: 200 });
+      placeAt(summary, { top: 153, height: 30 });
+      panel.scrollTop = 75;
+
+      fireEvent.click(summary);
+
+      expect(panel.scrollTop).toBe(75);
+    });
   });
 
   it("explains local CLI setup and shows a complete selectable command", () => {
@@ -415,28 +582,59 @@ describe("App help", () => {
     expect(guidance.getByText(/The execution ID and UTC timestamp/)).toHaveTextContent(
       "The execution ID and UTC timestamp are example values. For your own recorded execution, replace the file path with a UTF-8 observation JSON file and use the recorded execution ID and time.",
     );
-    expect(guidance.getByRole("link", { name: /^CLI setup and full instructions/ })).toHaveAttribute(
-      "href",
-      "https://github.com/NikolayAir/OrbiRig/blob/main/docs/cli.md",
+    expect(guidance.getByText(/The command prints JSON evidence/)).toHaveTextContent(
+      "The command prints JSON evidence containing the individual checks and overall PASS or FAIL result.",
     );
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("distinguishes completed CLI PASS and FAIL from input, file and internal errors", () => {
+  it("keeps the CLI essentials visible and puts exit codes and documentation in their own section", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "From the command line" }));
 
     const cli = within(screen.getByRole("dialog", { name: "How it works" }));
-    const results = cli.getByText(/The command prints JSON evidence/);
-    expect(results).toHaveTextContent(
-      "The command prints JSON evidence containing the individual checks and overall PASS or FAIL result. Exit code 0 means PASS, while 1 means verification completed with FAIL. Invalid input returns 2, file or output errors return 3, and unexpected internal errors return 4.",
+    const summary = cli.getByText("Understanding CLI results and exit codes", { selector: "summary" });
+    const section = summary.closest("details")!;
+
+    // Setup, the command and the output summary are outside expandable sections.
+    expect(cli.getByText(/To try the included example/)).toBeVisible();
+    expect(cli.getByRole("region", { name: "CLI verification command" })).toBeVisible();
+    const output = cli.getByText(/The command prints JSON evidence/);
+    expect(output).toBeVisible();
+    expect(output).toHaveTextContent(
+      "The command prints JSON evidence containing the individual checks and overall PASS or FAIL result.",
     );
-    expect([...results.querySelectorAll("strong")].map((element) => element.textContent)).toEqual([
-      "PASS", "FAIL", "PASS", "FAIL",
-    ]);
-    expect([...results.querySelectorAll("code")].map((element) => element.textContent)).toEqual([
+    expect(output).not.toHaveTextContent(/exit code/i);
+
+    // Exit codes and the documentation link wait in a section that starts closed.
+    expect(section).not.toHaveAttribute("open");
+    const codes = within(section).getByText(/^Exit code/);
+    expect(codes).not.toBeVisible();
+    fireEvent.click(summary);
+    expect(section).toHaveAttribute("open");
+    expect(codes).toBeVisible();
+    // Completed PASS and FAIL stay apart from input, file and internal errors.
+    expect(codes).toHaveTextContent(
+      "Exit code 0 means PASS, while 1 means verification completed with FAIL. Invalid input returns 2, file or output errors return 3, and unexpected internal errors return 4.",
+    );
+    expect([...codes.querySelectorAll("strong")].map((element) => element.textContent)).toEqual(["PASS", "FAIL"]);
+    expect([...codes.querySelectorAll("code")].map((element) => element.textContent)).toEqual([
       "0", "1", "2", "3", "4",
     ]);
+    const link = within(section).getByRole("link", { name: /^CLI setup and full instructions/ });
+    expect(link).toBeVisible();
+    expect(link).toHaveAttribute("href", "https://github.com/NikolayAir/OrbiRig/blob/main/docs/cli.md");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noreferrer");
+
+    // The optional C#/.NET example is a separate section, and opening it replaces this one.
+    const dotnetSummary = cli.getByText("Verify a C#/.NET program (optional)", { selector: "summary" });
+    const dotnet = dotnetSummary.closest("details")!;
+    expect(section.contains(dotnet)).toBe(false);
+    fireEvent.click(dotnetSummary);
+    expect(dotnet).toHaveAttribute("open");
+    expect(section).not.toHaveAttribute("open");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it.each(["In the browser", "From the command line"])("preserves verification inputs through %s help and workflow switches", (name) => {

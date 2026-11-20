@@ -1,21 +1,263 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-test("opening an explanation scrolls towards the workflow selector without moving page focus", async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 800 });
+import { expectFocusedControlFullyVisible, sectionPosition } from "./help-support";
+
+const SECTIONS = [
+  { guide: "In the browser", workflow: "Verify observation", title: "When a command returns no result" },
+  { guide: "In the browser", workflow: "Verify observation", title: "Understanding results and further reading" },
+  { guide: "In the browser", workflow: "Inspect evidence", title: "Understanding inspection and further reading" },
+  { guide: "From the command line", workflow: null, title: "Understanding CLI results and exit codes" },
+  { guide: "From the command line", workflow: null, title: "Verify a C#/.NET program" },
+] as const;
+
+for (const { width, height, textScale } of [
+  { width: 1440, height: 900, textScale: 100 },
+  { width: 390, height: 844, textScale: 100 },
+  { width: 320, height: 480, textScale: 200 },
+  // A short window, as with browser zoom at 400%, where the whole dialog scrolls.
+  { width: 320, height: 200, textScale: 100 },
+]) {
+  for (const input of ["mouse", "keyboard"] as const) {
+    test(`opening a help section by ${input} shows its heading and beginning at ${width}x${height} with ${textScale}% text`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await page.goto("/");
+      await page.locator("html").evaluate((element, scale) => { element.style.fontSize = `${scale}%`; }, textScale);
+      // Scroll the page behind the dialog where it can scroll, to see that it stays put.
+      await page.evaluate(() => window.scrollTo(0, 100));
+
+      for (const { guide, workflow, title } of SECTIONS) {
+        await page.getByRole("button", { name: guide, exact: true }).click();
+        const help = page.getByRole("dialog", { name: "How it works" });
+        await expect(help).toBeVisible();
+        // Playwright may scroll the page to reach the button, so measure from here.
+        const pageScroll = await page.evaluate(() => window.scrollY);
+        if (workflow) await help.getByRole("tab", { name: workflow, exact: true }).click();
+        const summary = help.locator("summary", { hasText: title });
+        const details = summary.locator("..");
+        if (input === "keyboard") {
+          // Switch to keyboard input before focusing a summary so its outline is drawn.
+          await page.keyboard.press("Tab");
+          await summary.focus();
+          await page.keyboard.press("Enter");
+        } else {
+          await summary.click();
+        }
+
+        await expect(details).toHaveAttribute("open", "");
+        const opened = await sectionPosition(details);
+        // The heading is never cut off at the top; one pixel allows for rounding.
+        expect(opened.above).toBeGreaterThanOrEqual(-1);
+        if (opened.height <= opened.areaHeight - 2 * opened.margin) {
+          // A section that fits is shown whole.
+          expect(opened.below).toBeGreaterThanOrEqual(-1);
+        } else {
+          // A longer one starts at the top margin instead of jumping to its end.
+          expect(Math.abs(opened.above - opened.margin)).toBeLessThanOrEqual(1.5);
+        }
+        if (input === "keyboard") {
+          await expectFocusedControlFullyVisible(summary);
+        } else {
+          await expect(summary).toBeInViewport({ ratio: 1 });
+        }
+        expect(await page.evaluate(() => window.scrollY)).toBe(pageScroll);
+
+        if (input === "keyboard") {
+          await page.keyboard.press("Enter");
+        } else {
+          // Click the visible heading without Playwright adjusting its scroll position.
+          const bounds = (await summary.boundingBox())!;
+          await page.mouse.click(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+        }
+        await expect(details).not.toHaveAttribute("open");
+        // Closing moves nothing, apart from the limit that the shorter content imposes.
+        const closed = await sectionPosition(details);
+        expect(closed.scrollTop).toBe(Math.min(opened.scrollTop, closed.maxScrollTop));
+        expect(await page.evaluate(() => window.scrollY)).toBe(pageScroll);
+        await page.keyboard.press("Escape");
+        await expect(help).toBeHidden();
+      }
+    });
+  }
+}
+
+test.describe("on a touch screen", () => {
+  test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
+
+  test("help sections open, switch and close by touch", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "In the browser", exact: true }).tap();
+    const help = page.getByRole("dialog", { name: "How it works" });
+    const example = help.locator("summary", { hasText: "When a command returns no result" });
+    const results = help.locator("summary", { hasText: "Understanding results and further reading" });
+    const exampleText = help.getByText("Illustrative example from the Python API.");
+    const resultsText = help.getByText(/^PASS means the recorded behaviour matches/);
+
+    await example.tap();
+    await expect(exampleText).toBeVisible();
+    await expect(exampleText).toBeInViewport();
+    await results.tap();
+    await expect(resultsText).toBeVisible();
+    await expect(exampleText).toBeHidden();
+    expect((await sectionPosition(results.locator(".."))).above).toBeGreaterThanOrEqual(-1);
+    await results.tap();
+    await expect(resultsText).toBeHidden();
+    await help.getByRole("button", { name: "Close", exact: true }).tap();
+    await expect(help).toBeHidden();
+  });
+});
+
+for (const { width, height, textScale, scrollWhole } of [
+  { width: 390, height: 844, textScale: 100, scrollWhole: false },
+  { width: 320, height: 480, textScale: 200, scrollWhole: true },
+]) {
+  test(`text that the browser finds in a closed section keeps its position at ${width}x${height} with ${textScale}% text`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await page.goto("/");
+    await page.locator("html").evaluate((element, scale) => { element.style.fontSize = `${scale}%`; }, textScale);
+    await page.getByRole("button", { name: "In the browser", exact: true }).click();
+    const help = page.getByRole("dialog", { name: "How it works" });
+    await expect(help).toHaveAttribute("data-scroll-whole", String(scrollWhole));
+    const example = help.locator("summary", { hasText: "When a command returns no result" }).locator("..");
+    const results = help.locator("summary", { hasText: "Understanding results and further reading" }).locator("..");
+    const found = results.getByRole("link", { name: /^Execution ID and UTC time rules/, includeHidden: true });
+    await example.locator("summary").click();
+    await expect(example).toHaveAttribute("open", "");
+
+    // Reproduce a match in a closed section without driving the native search UI.
+    const browserTop = await found.evaluate(match => {
+      match.closest("details")!.open = true;
+      match.scrollIntoView({ block: "center" });
+      // Measure before the queued toggle closes the previously open section.
+      return match.getBoundingClientRect().top;
+    });
+
+    await expect(example).not.toHaveAttribute("open");
+    await expect(found).toBeInViewport({ ratio: 1 });
+    await expect.poll(async () => Math.abs(
+      await found.evaluate(match => match.getBoundingClientRect().top) - browserTop,
+    )).toBeLessThanOrEqual(1.5);
+  });
+}
+
+test("opening a help section moves without animation when reduced motion is requested", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await page.getByRole("button", { name: "In the browser", exact: true }).click();
+  const summary = page.getByRole("dialog", { name: "How it works" }).locator("summary", { hasText: "Understanding results and further reading" });
+  const details = summary.locator("..");
+  await summary.click();
+  await expect(details).toHaveAttribute("open", "");
+  const settled = (await sectionPosition(details)).scrollTop;
+  expect(settled).toBeGreaterThan(0);
+  // Smooth scrolling would still be moving after the click has finished.
+  await page.waitForTimeout(300);
+  expect((await sectionPosition(details)).scrollTop).toBe(settled);
+});
+
+for (const { before, after, scrollWhole, control } of [
+  { before: 800, after: 200, scrollWhole: true, control: "section heading" },
+  { before: 200, after: 800, scrollWhole: false, control: "section heading" },
+  { before: 800, after: 200, scrollWhole: true, control: "Close button" },
+  { before: 800, after: 200, scrollWhole: true, control: "guide link" },
+  { before: 200, after: 800, scrollWhole: false, control: "guide link" },
+] as const) {
+  const scroller = scrollWhole ? "dialog" : "content panel";
+  test(`the focused ${control} stays visible when resizing switches scrolling to the ${scroller}`, async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: before });
+    await page.goto("/");
+    await page.getByRole("button", { name: "From the command line", exact: true }).click();
+    const help = page.getByRole("dialog", { name: "How it works" });
+    const heading = help.locator("summary", { hasText: "Verify a C#/.NET program" });
+    const details = heading.locator("..");
+    const focused = {
+      "section heading": heading,
+      "Close button": help.getByRole("button", { name: "Close", exact: true }),
+      "guide link": help.getByRole("link", { name: /^Build and verify the C#\/\.NET example/ }),
+    }[control];
+    await expect(help).toHaveAttribute("data-scroll-whole", String(!scrollWhole));
+
+    // Switch to keyboard input before focusing the heading so its outline is drawn.
+    await page.keyboard.press("Tab");
+    await heading.focus();
+    await page.keyboard.press("Enter");
+    await expect(details).toHaveAttribute("open", "");
+    if (control !== "section heading") await focused.focus();
+    await expectFocusedControlFullyVisible(focused);
+
+    await page.setViewportSize({ width: 320, height: after });
+    await expect(help).toHaveAttribute("data-scroll-whole", String(scrollWhole));
+    await expect(details).toHaveAttribute("open", "");
+    await expectFocusedControlFullyVisible(focused);
+  });
+}
+
+test("only one help section stays open across workflows and command-line guidance", async ({ page }) => {
+  const apiRequests: string[] = [];
+  page.on("request", request => {
+    if (new URL(request.url()).pathname.startsWith("/api/")) apiRequests.push(request.url());
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  const input = page.getByLabel("Execution ID", { exact: true });
+  await input.fill("keep-during-sections");
+  const trigger = page.getByRole("button", { name: "In the browser", exact: true });
+  await trigger.click();
   const help = page.getByRole("dialog", { name: "How it works" });
-  const panel = help.getByRole("tabpanel", { name: "In the browser", exact: true });
-  const summary = help.locator(".workflow-help-example summary");
-  await summary.click();
-  await expect(summary.locator("..")).toHaveAttribute("open", "");
-  await expect.poll(() => panel.evaluate(node => node.scrollTop)).toBeGreaterThan(0);
-  await expect(help.getByRole("tablist", { name: "Browser instructions" })).toBeInViewport();
-  const scrollTop = await panel.evaluate(node => node.scrollTop);
-  await summary.click();
-  // Closing a section does not schedule another automatic scroll.
-  await expect(summary.locator("..")).not.toHaveAttribute("open", "");
-  expect(await panel.evaluate(node => node.scrollTop)).toBeLessThanOrEqual(scrollTop);
+  const summary = (title: string) => help.locator("summary", { hasText: title });
+  const example = { summary: summary("When a command returns no result"), text: help.getByText("Illustrative example from the Python API.") };
+  const results = { summary: summary("Understanding results and further reading"), text: help.getByText(/^PASS means the recorded behaviour matches/) };
+  const inspection = { summary: summary("Understanding inspection and further reading"), text: help.getByText(/^Inspecting an observation checks/) };
+  const cliResults = { summary: summary("Understanding CLI results and exit codes"), text: help.getByText(/^Exit code/) };
+  const dotnet = { summary: summary("Verify a C#/.NET program"), text: help.getByText(/^The C#\/\.NET example shows/) };
+  const tab = (name: string) => help.getByRole("tab", { name, exact: true });
+
+  await example.summary.click();
+  await expect(example.text).toBeVisible();
+  await results.summary.click();
+  await expect(results.text).toBeVisible();
+  await expect(example.text).toBeHidden();
+
+  // The keyboard behaves like the pointer: Enter and Space open and close a section.
+  await results.summary.focus();
+  await page.keyboard.press("Enter");
+  await expect(results.text).toBeHidden();
+  await page.keyboard.press("Space");
+  await expect(results.text).toBeVisible();
+  await example.summary.focus();
+  await page.keyboard.press("Enter");
+  await expect(example.text).toBeVisible();
+  await expect(results.text).toBeHidden();
+
+  // Another workflow starts closed, and so does the first one when the reader returns.
+  await tab("Inspect evidence").click();
+  await expect(example.text).toBeHidden();
+  await inspection.summary.click();
+  await expect(inspection.text).toBeVisible();
+  await tab("Verify observation").click();
+  await expect(example.text).toBeHidden();
+  await tab("Inspect evidence").click();
+  await expect(inspection.text).toBeHidden();
+
+  await tab("From the command line").click();
+  await cliResults.summary.click();
+  await expect(cliResults.text).toBeVisible();
+  await dotnet.summary.click();
+  await expect(dotnet.text).toBeVisible();
+  await expect(cliResults.text).toBeHidden();
+  await tab("In the browser").click();
+  await tab("From the command line").click();
+  await expect(dotnet.text).toBeHidden();
+
+  await dotnet.summary.click();
+  await expect(dotnet.text).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(help).toBeHidden();
+  await trigger.click();
+  await expect(help).toBeVisible();
+  await expect(example.text).toBeHidden();
+  await expect(input).toHaveValue("keep-during-sections");
+  expect(apiRequests).toEqual([]);
 });
 
 for (const { width, height, textScale, columns } of [
@@ -69,20 +311,8 @@ for (const { width, height, textScale, columns } of [
       await links.first().focus();
       for (let i = 0; i < count; i++) {
         const link = links.nth(i);
-        await expect(link).toBeFocused();
+        await expectFocusedControlFullyVisible(link);
         await expect(link).toHaveCSS("text-decoration-line", "underline");
-        await expect(link).toHaveCSS("outline-style", "solid");
-        const visible = await link.evaluate(node => {
-          const rect = node.getBoundingClientRect();
-          const dialog = node.closest("dialog")!.getBoundingClientRect();
-          const panel = node.closest(".workflow-help-content")!.getBoundingClientRect();
-          const style = getComputedStyle(node);
-          const outline = parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset);
-          return rect.left - outline >= dialog.left && rect.right + outline <= dialog.right &&
-            rect.top - outline >= Math.max(dialog.top, panel.top) &&
-            rect.bottom + outline <= Math.min(dialog.bottom, panel.bottom);
-        });
-        expect(visible).toBe(true);
         if (i + 1 < count) await page.keyboard.press(tabKey);
       }
     }
@@ -96,29 +326,6 @@ for (const { height, textScale, fontFamily } of [
   { height: 200, textScale: 100 },
 ]) {
   test.describe(`help at 320x${height} with ${textScale}% text${fontFamily ? ` in ${fontFamily}` : ""}`, () => {
-    async function expectFocusedTabInView(target: Locator) {
-      await expect(target).toBeFocused();
-      await expect(target).toHaveCSS("outline-style", "solid");
-      await expect(target).toBeInViewport({ ratio: 1 });
-      const focus = await target.evaluate(element => {
-        const dialog = element.closest("dialog")!;
-        const bounds = element.getBoundingClientRect();
-        const style = getComputedStyle(element);
-        const outline = parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset);
-        const top = dialog.getBoundingClientRect().top + dialog.clientTop;
-        const panel = element.closest<HTMLElement>(".workflow-help-content");
-        const panelTop = panel ? panel.getBoundingClientRect().top + panel.clientTop : top;
-        const panelBottom = panel ? panelTop + panel.clientHeight : top + dialog.clientHeight;
-        return {
-          top: bounds.top - outline,
-          bottom: bounds.bottom + outline,
-          viewportTop: Math.max(top, panelTop),
-          viewportBottom: Math.min(top + dialog.clientHeight, panelBottom),
-        };
-      });
-      expect(focus.top).toBeGreaterThanOrEqual(focus.viewportTop);
-      expect(focus.bottom).toBeLessThanOrEqual(focus.viewportBottom);
-    }
     async function wheelTo(page: Page, target: Locator, direction: number, ratio = 0) {
       // Engines may limit one wheel event to a fraction of the viewport.
       // Short steps also avoid skipping the target in very short windows.
@@ -175,10 +382,10 @@ for (const { height, textScale, fontFamily } of [
       const tab = browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab";
       await close.focus();
       await page.keyboard.press(tab);
-      await expectFocusedTabInView(help.getByRole("tab", { name: "In the browser", exact: true }));
+      await expectFocusedControlFullyVisible(help.getByRole("tab", { name: "In the browser", exact: true }));
       await page.keyboard.press("ArrowRight");
       const cliTab = help.getByRole("tab", { name: "From the command line", exact: true });
-      await expectFocusedTabInView(cliTab);
+      await expectFocusedControlFullyVisible(cliTab);
       await page.keyboard.press(tab);
       await expect(help.getByRole("tabpanel", { name: "From the command line", exact: true })).toBeFocused();
       await page.keyboard.press(tab);
@@ -186,9 +393,13 @@ for (const { height, textScale, fontFamily } of [
       await expect(command).toBeFocused();
       await expect(command).toBeInViewport();
       await page.keyboard.press(tab);
+      // The exit codes and the documentation link wait in a section that starts closed.
+      const cliResults = help.locator("summary", { hasText: "Understanding CLI results and exit codes" });
+      await expectFocusedControlFullyVisible(cliResults);
+      await page.keyboard.press("Enter");
+      await page.keyboard.press(tab);
       const readme = help.getByRole("link", { name: "CLI setup and full instructions" });
-      await expect(readme).toBeFocused();
-      await expect(readme).toBeInViewport();
+      await expectFocusedControlFullyVisible(readme);
 
       for (const element of [help, help.getByRole("tabpanel", { name: "From the command line", exact: true }), command]) {
         expect(await element.evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
@@ -196,11 +407,11 @@ for (const { height, textScale, fontFamily } of [
       await cliTab.click();
       await page.keyboard.press("ArrowLeft");
       const browserTab = help.getByRole("tab", { name: "In the browser", exact: true });
-      await expectFocusedTabInView(browserTab);
+      await expectFocusedControlFullyVisible(browserTab);
       await page.keyboard.press(tab);
       await expect(help.getByRole("tabpanel", { name: "In the browser", exact: true })).toBeFocused();
       await page.keyboard.press(tab);
-      await expectFocusedTabInView(help.getByRole("tab", { name: "Verify observation", exact: true }));
+      await expectFocusedControlFullyVisible(help.getByRole("tab", { name: "Verify observation", exact: true }));
       await page.keyboard.press(tab);
       const verificationPanel = help.getByRole("tabpanel", { name: "Verify observation", exact: true });
       await expect(verificationPanel).toBeFocused();
@@ -229,14 +440,14 @@ for (const { height, textScale, fontFamily } of [
       const illustration = help.locator(".workflow-help-example");
       await expect(verificationPanel.locator(".workflow-help-example")).toHaveCount(1);
       expect(await verificationPanel.evaluate(panel => panel.firstElementChild?.nextElementSibling?.matches("details.workflow-help-example"))).toBe(true);
-      await expectFocusedTabInView(summary);
+      await expectFocusedControlFullyVisible(summary);
       await expect(illustration).not.toHaveAttribute("open", "");
       await page.keyboard.press("Enter");
       await expect(illustration).toHaveAttribute("open", "");
       expect(await illustration.evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
       await page.keyboard.press(tab);
       const exampleLink = help.getByRole("link", { name: "Reproduce the stateful-target example" });
-      await expectFocusedTabInView(exampleLink);
+      await expectFocusedControlFullyVisible(exampleLink);
       await summary.focus();
       await page.keyboard.press("Space");
       await expect(illustration).not.toHaveAttribute("open", "");
@@ -247,18 +458,18 @@ for (const { height, textScale, fontFamily } of [
       await summary.focus();
       await page.keyboard.press(tab);
       const reference = verificationPanel.locator(".workflow-help-reference summary");
-      await expectFocusedTabInView(reference);
+      await expectFocusedControlFullyVisible(reference);
       await page.keyboard.press("Enter");
       for (const name of ["Supported scenarios and checks", "Execution ID and UTC time rules"]) {
         await page.keyboard.press(tab);
         const link = help.getByRole("link", { name });
-        await expectFocusedTabInView(link);
+        await expectFocusedControlFullyVisible(link);
       }
       await help.getByRole("tab", { name: "Verify observation", exact: true }).focus();
-      await expectFocusedTabInView(help.getByRole("tab", { name: "Verify observation", exact: true }));
+      await expectFocusedControlFullyVisible(help.getByRole("tab", { name: "Verify observation", exact: true }));
       await page.keyboard.press("ArrowRight");
       const inspect = help.getByRole("tab", { name: "Inspect evidence", selected: true });
-      await expectFocusedTabInView(inspect);
+      await expectFocusedControlFullyVisible(inspect);
       await expect(summary).not.toBeVisible();
       await page.keyboard.press(tab);
       await expect(help.getByRole("tabpanel", { name: "Inspect evidence", exact: true })).toBeFocused();
@@ -299,7 +510,7 @@ for (const { height, textScale, fontFamily } of [
       await expect(close).toBeFocused();
 
       const command = help.getByRole("region", { name: "CLI verification command" });
-      const readme = help.getByRole("link", { name: "CLI setup and full instructions" });
+      const lastSection = help.locator("summary", { hasText: "Verify a C#/.NET program" });
       await expect(help).toHaveAttribute("data-scroll-whole", "true");
 
       // Restoring space also restores the usual independently scrolling panel.
@@ -308,7 +519,7 @@ for (const { height, textScale, fontFamily } of [
       await help.getByRole("tab", { name: "From the command line", exact: true }).click();
       await expect(help).toHaveAttribute("data-scroll-whole", "false");
       await command.hover();
-      await wheelTo(page, readme, 1);
+      await wheelTo(page, lastSection, 1);
       await expect(close).toBeInViewport({ ratio: 1 });
       expect(await help.getByRole("tabpanel", { name: "From the command line", exact: true }).evaluate(panel => panel.scrollTop)).toBeGreaterThan(0);
       expect(await help.evaluate(dialog => dialog.scrollTop)).toBe(0);
@@ -329,7 +540,10 @@ test("ordinary scrolling clips workflow tabs at the content boundary below the f
   const header = help.locator(".workflow-help-header");
   const panel = help.getByRole("tabpanel", { name: "In the browser", exact: true });
   const tabs = help.getByRole("tablist", { name: "Browser instructions" });
+  // An open section gives the panel room to scroll. Opening it moves the content to the
+  // section, so return to the start and let ordinary wheel scrolling bring the tabs to the edge.
   await help.getByRole("tabpanel", { name: "Verify observation", exact: true }).locator(".workflow-help-reference summary").click();
+  await panel.evaluate(node => { node.scrollTop = 0; });
   const initialHeader = (await header.boundingBox())!;
   const panelBounds = (await panel.boundingBox())!;
   await page.mouse.move(panelBounds.x + panelBounds.width / 2, panelBounds.y + panelBounds.height / 2);
@@ -358,15 +572,5 @@ test("ordinary scrolling clips workflow tabs at the content boundary below the f
   await tabs.getByRole("tab", { name: "Verify observation" }).focus();
   await page.keyboard.press("ArrowRight");
   const selected = tabs.getByRole("tab", { name: "Inspect evidence", selected: true });
-  await expect(selected).toBeFocused();
-  const focusedTop = await selected.evaluate(element => {
-    const bounds = element.getBoundingClientRect();
-    const style = getComputedStyle(element);
-    const panel = element.closest<HTMLElement>(".workflow-help-content")!;
-    return {
-      top: bounds.top - parseFloat(style.outlineWidth) - parseFloat(style.outlineOffset),
-      viewportTop: panel.getBoundingClientRect().top + panel.clientTop,
-    };
-  });
-  expect(focusedTop.top).toBeGreaterThanOrEqual(focusedTop.viewportTop);
+  await expectFocusedControlFullyVisible(selected);
 });
