@@ -2,7 +2,7 @@
 
 [README](../README.md) · [Verification concepts](verification.md) · [Evidence formats](evidence-formats.md)
 
-The Python API checks recorded command results against an explicit scenario and returns the expected and observed values for each check. It also collects observations, checks sequence continuity and reads or writes JSON evidence. The core works without FastAPI, React, Node.js or a browser.
+The Python API checks recorded command results against a scenario you choose and returns the expected and observed values for each check. You can also collect observations from a separate program, check sequence continuity and read or write JSON evidence. The core works without FastAPI, React, Node.js or a browser.
 
 Use Python 3.12–3.15. Install the core from the repository root with `uv sync --locked`. Save an example below as a Python script and run it with `uv run --no-sync python your_script.py`. File paths in the examples are relative to the repository root.
 
@@ -145,9 +145,9 @@ The program runs with the caller's permissions; collection does not sandbox it. 
 
 For collection without verification, `collect_subprocess_observation(...)` takes `argv`, `command` and `timeout` and returns a `CommandExecutionObservation`. To verify this observation later, choose the expected scenario separately and pass it to the verifier.
 
-For actual command handling across separate launches, see the [stateful test target](stateful-target.md). It keeps operating-mode state in an isolated file and can deliberately report stale telemetry, allowing the same Python API to demonstrate a continuous sequence and detect a valid observation that fails verification.
+Use the [stateful test target](stateful-target.md) to run operating-mode commands in separate processes and verify continuity in the resulting sequence. The target keeps its mode in an isolated file. With stale telemetry enabled, OrbiRig returns `FAIL` for a valid observation whose telemetry disagrees with the post-state.
 
-The optional [C#/.NET 10 target](dotnet-stateful-target.md) implements that behaviour independently in another language. Its guide uses `execute_verified_subprocess_workflow(...)` to verify transitions, detect stale telemetry and distinguish a collection error after state commit. No Python core changes or new evidence formats are needed.
+The optional [C#/.NET 10 target](dotnet-stateful-target.md) handles the same commands in a separate C# program. Use `execute_verified_subprocess_workflow(...)` with the same scenarios and evidence format to verify its transitions, detect stale telemetry and handle a collection error after state commit.
 
 ## Reopen saved verified evidence
 

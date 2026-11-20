@@ -39,7 +39,7 @@ uv run --no-sync orbirig verify-observation docs/examples/nominal-to-safe.json \
   --executed-at 2026-10-21T10:00:00Z > verified-execution.json
 ```
 
-The command has no output-file option. The saved file can be [reopened in Python](python.md#reopen-saved-verified-evidence) or pasted into **Verified execution** inspection in the [web interface](web-interface.md#inspect-evidence).
+The command has no output-file option. You can [reopen the saved record in Python](python.md#reopen-saved-verified-evidence) or paste its JSON into **Verified execution** inspection in the [web interface](web-interface.md#inspect-evidence).
 
 ## See a failed telemetry check
 

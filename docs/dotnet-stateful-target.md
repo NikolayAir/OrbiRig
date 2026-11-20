@@ -2,11 +2,11 @@
 
 [Python API](python.md#collect-from-a-separate-program) · [Python stateful target](stateful-target.md) · [Evidence formats](evidence-formats.md)
 
-The [.NET target](../examples/dotnet_stateful_target/) is a non-operational console program that keeps its operating mode in a file between launches. It implements the command behaviour in C#, using .NET 10 and `System.Text.Json`. It neither calls OrbiRig's Python code nor contains scenario expectations or verification rules.
+The [.NET target](../examples/dotnet_stateful_target/) is a non-operational C# console program that keeps its operating mode in a state file between launches. It implements command handling independently using .NET 10 and `System.Text.Json`. OrbiRig's Python core defines the scenario expectations and evaluates the reported behaviour.
 
-OrbiRig sends one command to the compiled program through its existing subprocess API. The program validates the input and stored state, handles the command and returns [observation-evidence v1](evidence-formats.md#observation-evidence). Python independently checks that observation against the scenario selected by the caller. This demonstrates cross-language verification without a second verification implementation or a new evidence format. The example is optional: Python installation, CLI, HTTP API, browser interface and deployment do not require .NET.
+OrbiRig sends one command to the compiled program through its subprocess API. The target validates the input and stored state, handles the command and returns [observation-evidence v1](evidence-formats.md#observation-evidence). Python checks that observation against the scenario selected by the caller, using the same verification rules and evidence format as for the Python target.
 
-The subprocess API already supports external programs. This example exercises that boundary with a separately compiled implementation, real state between process launches and deliberately incorrect reports. The same Python expectations detect a C# telemetry defect, while a delivery failure remains a collection error. It adds an example target, with the existing scenarios and verification rules unchanged.
+Use the commands below to verify a round trip across process launches, detect stale telemetry and check the saved state after a collection error. Only this optional workflow needs the .NET SDK.
 
 ## Prerequisites and build
 
@@ -130,7 +130,7 @@ On rejection, `--fail-after-commit` is ignored. Combining both fault flags saves
 
 ## Inspect the failed record in the browser
 
-The example also saves the stale-telemetry record as `dotnet-stale-telemetry.json` in the current directory. You can look at it in OrbiRig's browser interface, which only reads saved JSON and never runs the .NET program. [Run the interface locally](web-interface.md#run-locally), switch to **Inspect evidence**, select **Verified execution**, paste the file's contents into **Evidence JSON** and press **Inspect evidence**.
+The example also saves the stale-telemetry record as `dotnet-stale-telemetry.json` in the current directory. You can inspect the saved record in OrbiRig's web interface. [Run the interface locally](web-interface.md#run-locally), switch to **Inspect evidence**, select **Verified execution**, paste the file's contents into **Evidence JSON** and press **Inspect evidence**.
 
 Python reconstructs the record and recomputes its checks. The result shows the outcome `FAIL` with three passing checks, and `telemetry_matches_post_state` failing with expected `SAFE` and actual `NOMINAL`. The record is still valid evidence: a saved `FAIL` is accepted when it matches the recomputed results. Delete the file when you have finished.
 

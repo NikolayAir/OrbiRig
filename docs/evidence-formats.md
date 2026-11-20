@@ -28,7 +28,7 @@ Verified-execution and sequence serialisers apply the reader's canonical reconst
 
 ## Observation evidence
 
-The complete structure of an observation v1 document is illustrated by [nominal-to-safe.json](examples/nominal-to-safe.json):
+The bundled [nominal-to-safe.json](examples/nominal-to-safe.json) contains a complete observation v1 document.
 
 ```json
 {

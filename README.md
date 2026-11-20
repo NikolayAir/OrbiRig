@@ -2,21 +2,21 @@
 
 OrbiRig is a software tool for checking recorded command results against the expected behaviour of a scenario you select. It supports 3 scenarios and shows the expected and actual values for each check, with an overall `PASS` or `FAIL`.
 
-The scenarios use a simplified spacecraft model with 2 operating modes: `NOMINAL` (normal operation) and `SAFE` (a protective mode). OrbiRig checks the mode before and after a command, its acknowledgement (whether it was accepted or rejected), and telemetry (the separately reported mode). This is a non-operational verification harness; it does not control a real spacecraft. The spacecraft model is the example domain: the approach of defining expectations separately, then checking reported results and saved evidence against them, applies to any system that records what it did.
+The scenarios use a simplified spacecraft model with 2 operating modes: `NOMINAL` (normal operation) and `SAFE` (a protective mode). OrbiRig checks the mode before and after a command, its acknowledgement (whether it was accepted or rejected), and telemetry (the separately reported mode). OrbiRig is a non-operational verification harness.
 
-Choose how to use it:
+## What you can do with OrbiRig
 
-| Interface | What you can do |
+| Interface | Tasks |
 | --- | --- |
 | [Browser](https://orbirig-evidence-inspector.onrender.com/) | Verify an observation or inspect saved observations, verified executions and sequences. |
 | [Command line](docs/cli.md) | Verify an observation file and save the result as JSON. |
-| [Python API](docs/python.md) | Also execute reference examples, collect observations from a separate program and verify sequences. |
+| [Python API](docs/python.md) | Verify observations and sequences, run reference commands and collect observations from separate programs. |
 
 ## Quick start
 
 ### Try it in the browser
 
-The hosted demo runs on Render's free plan. After 15 minutes of inactivity, the service spins down, so the next visit may take about a minute to load.
+The hosted interface runs on Render's free plan. After 15 minutes of inactivity, the service spins down, so the next visit may take about a minute to load.
 
 1. Open the [web interface](https://orbirig-evidence-inspector.onrender.com/) and choose **Verify observation**.
 2. Choose **Load example**, then **Verify observation**.
@@ -86,7 +86,7 @@ The [stateful test target](docs/stateful-target.md) is a separate program that k
 
 Another fault makes the target save a mode change and then fail before returning an observation. OrbiRig reports a collection error for that run, without producing a verification result. The stateful-target guide includes a runnable example that checks the saved state and sends a subsequent command.
 
-The optional [C#/.NET 10 target](docs/dotnet-stateful-target.md) demonstrates the same verification and error boundaries with an independently implemented program. It uses the existing Python subprocess API and requires .NET only to build and run that example.
+OrbiRig can also collect and verify observations from the optional [C#/.NET 10 target](docs/dotnet-stateful-target.md) through the same Python subprocess API. The separate C# program keeps its operating mode in a state file between launches. Only this optional workflow needs the .NET SDK.
 
 [Tests](CONTRIBUTING.md#python-checks) include deliberately incorrect observations and [browser-to-Python checks](CONTRIBUTING.md#browser-tests) with independently defined expected results.
 
@@ -126,7 +126,7 @@ See [verification concepts](docs/verification.md) for the 3 supported scenarios,
 | Verify a saved observation in a terminal | [Command-line use](docs/cli.md) |
 | Use the Python API or collect from a separate program | [Using the Python API](docs/python.md) |
 | Check command results from a program that preserves state between runs | [Stateful test target](docs/stateful-target.md) |
-| Verify a real C#/.NET program and detect its deliberately incorrect telemetry | [.NET interoperability example](docs/dotnet-stateful-target.md) |
+| Verify an independent C#/.NET program and detect stale telemetry | [.NET stateful target](docs/dotnet-stateful-target.md) |
 | Use or run the browser interface and HTTP endpoints | [Web interface](docs/web-interface.md) |
 | Check JSON formats, execution IDs and timestamps | [Evidence format reference](docs/evidence-formats.md) |
 | Set up development and run tests | [Contributing and development](CONTRIBUTING.md) |
