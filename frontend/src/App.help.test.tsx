@@ -240,9 +240,9 @@ describe("App help", () => {
     expect(
       within(verificationSteps).getAllByRole("listitem").map((step) => step.textContent?.replace(/\s+/g, " ").trim()),
     ).toEqual([
-      "For your own record, select a Scenario, such as NOMINAL to SAFE.",
+      "For your own observation, select a Scenario, such as NOMINAL to SAFE.",
       "Enter an Execution ID and the time the command ran in Execution time (UTC).",
-      "Paste the record into Observation evidence JSON.",
+      "Paste the observation into the Observation evidence JSON field.",
       "Choose Verify observation to see the individual checks and overall PASS or FAIL result.",
     ]);
 

@@ -476,12 +476,12 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                 <p>To try a sample, choose <strong>Load example</strong> or <strong>Load failing example</strong>, then <strong>Verify observation</strong>.</p>
                 <ol>
                   <li>
-                    For your own record, select a <strong>Scenario</strong>, such as <strong>NOMINAL to SAFE</strong>.
+                    For your own observation, select a <strong>Scenario</strong>, such as <strong>NOMINAL to SAFE</strong>.
                   </li>
                   <li>
                     Enter an <strong>Execution ID</strong> and the time the command ran in <strong>Execution time (UTC)</strong>.
                   </li>
-                  <li>Paste the record into <strong>Observation evidence JSON</strong>.</li>
+                  <li>Paste the observation into the <strong>Observation evidence JSON</strong> field.</li>
                   <li>
                     Choose <strong>Verify observation</strong> to see the individual checks
                     and overall <strong>PASS</strong> or <strong>FAIL</strong> result.

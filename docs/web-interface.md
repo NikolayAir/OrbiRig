@@ -7,7 +7,7 @@ The browser sends JSON to the server for checking. Use sample data that contains
 ## Verify an observation
 
 1. Switch to the **Verify observation** workflow.
-2. Choose **Load example** to fill in a sample. To use your own record, select a **Scenario** and fill in **Execution ID**, **Execution time (UTC)** and **Observation evidence JSON**. The execution time is when the command ran, for example `2026-10-21T10:00:00Z`.
+2. Choose **Load example** to fill in a sample. To verify your own observation, select a **Scenario** and fill in **Execution ID**, **Execution time (UTC)** and **Observation evidence JSON**. The execution time is when the command ran, for example `2026-10-21T10:00:00Z`.
 3. Choose **Verify observation** to see the expected and actual values for each check and the overall `PASS` or `FAIL`.
 
 **Load example** uses the selected scenario or **NOMINAL to SAFE** when you have not selected one. **Load failing example** fills in an observation whose telemetry (a separate report of the operating mode) disagrees with the recorded ending mode. Verifying it gives `FAIL`.

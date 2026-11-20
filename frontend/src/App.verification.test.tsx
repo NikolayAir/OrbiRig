@@ -136,6 +136,15 @@ describe("App verification", () => {
     expect(
       screen.getByText("Observation evidence is required."),
     ).toBeInTheDocument();
+
+    const timestamp = "2026-08-25T18:30:00Z";
+    fireEvent.change(executedAt, { target: { value: timestamp } });
+
+    expect(executedAt).toHaveValue(timestamp);
+    expect(screen.getByText("2026-10-21T10:00:00Z")).toBeVisible();
+    expect(executedAt).toHaveAccessibleDescription(
+      "Use the time the command ran, for example 2026-10-21T10:00:00Z.",
+    );
   });
 
   it("submits raw observation evidence with explicit verification input", async () => {
