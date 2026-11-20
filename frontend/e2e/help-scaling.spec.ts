@@ -607,8 +607,6 @@ for (const { height, textScale, fontFamily } of [
       await page.keyboard.press("Space");
       await expect(close).toBeFocused();
 
-      const command = help.getByRole("region", { name: "CLI verification command" });
-      const lastSection = help.locator("summary", { hasText: "Verify a C#/.NET program" });
       await expect(help).toHaveAttribute("data-scroll-whole", "true");
 
       // Restoring space also restores the usual independently scrolling panel.
@@ -616,10 +614,20 @@ for (const { height, textScale, fontFamily } of [
       await page.locator("html").evaluate(element => { element.style.fontSize = "100%"; });
       await help.getByRole("tab", { name: "From the command line", exact: true }).click();
       await expect(help).toHaveAttribute("data-scroll-whole", "false");
-      await command.hover();
-      await wheelTo(page, lastSection, 1);
+
+      const panel = help.getByRole("tabpanel", { name: "From the command line", exact: true });
+      const command = panel.getByRole("region", { name: "CLI verification command" });
+      const example = panel.locator("summary", { hasText: "Verify a C#/.NET program" });
+      // The closed sections may already fit after resizing. Open the example so
+      // there is content to scroll back through to reach the command.
+      await example.click();
+      await expect(example.locator("..")).toHaveAttribute("open", "");
+      await example.hover();
+      await expect(command).not.toBeInViewport({ ratio: 1 });
+      const scrollBeforeWheel = await panel.evaluate(node => node.scrollTop);
+      await wheelTo(page, command, -1, 1);
       await expect(close).toBeInViewport({ ratio: 1 });
-      expect(await help.getByRole("tabpanel", { name: "From the command line", exact: true }).evaluate(panel => panel.scrollTop)).toBeGreaterThan(0);
+      expect(await panel.evaluate(node => node.scrollTop)).toBeLessThan(scrollBeforeWheel);
       expect(await help.evaluate(dialog => dialog.scrollTop)).toBe(0);
       await page.keyboard.press("Escape");
       await expect(help).toBeHidden();
