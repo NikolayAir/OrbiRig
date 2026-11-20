@@ -33,6 +33,8 @@ function ExpandableHelpSection({ id, className, title, openSection, onOpenChange
     >
       <summary
         onClick={(event) => {
+          // Handle explicit activation in the guide's state so onToggle can
+          // recognise a section the browser opened to reveal found text.
           event.preventDefault();
           onOpenChange(id, !open);
         }}
