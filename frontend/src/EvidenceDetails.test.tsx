@@ -82,7 +82,7 @@ describe("sequence inspection pages", () => {
     expect(first.getByText("SET_OPERATING_MODE")).toBeVisible();
     expect(first.getByText("nominal_to_nominal_rejection")).toBeVisible();
     expect(first.getAllByText("Verification check: PASS")).toHaveLength(4);
-    expect(first.getByText("Telemetry operating mode")).toBeVisible();
+    expect(first.getByText("Mode reported by telemetry")).toBeVisible();
     expect(scrollIntoViewMock).not.toHaveBeenCalled();
 
     // Neighbouring records with the same ID can stay open for comparison.
@@ -93,7 +93,7 @@ describe("sequence inspection pages", () => {
     expect(toggle).toHaveAttribute("aria-expanded", "false");
     expect(toggle).toHaveFocus();
     expect(container.querySelectorAll(".verified-execution-fields")).toHaveLength(1);
-    expect(second.getByText("Telemetry operating mode")).toBeVisible();
+    expect(second.getByText("Mode reported by telemetry")).toBeVisible();
   });
 
   it("keeps a member's FAIL visible while its reported values and checks are collapsed", () => {
@@ -104,7 +104,7 @@ describe("sequence inspection pages", () => {
     fireEvent.click(member.getByRole("button", { name: "Show details for member 1" }));
     expect(member.getAllByText("Verification check: PASS")).toHaveLength(3);
     expect(member.getByText("Verification check: FAIL")).toBeVisible();
-    const check = member.getByRole("heading", { name: "Telemetry matches post-state" }).closest("li")!;
+    const check = member.getByRole("heading", { name: "Telemetry matches the ending mode" }).closest("li")!;
     expect(within(check).getByText("NOMINAL")).toBeVisible();
     expect(within(check).getByText("SAFE")).toBeVisible();
   });
@@ -181,17 +181,17 @@ describe("sequence inspection pages", () => {
     expect(within(result()).getByText("Sequence outcome: FAIL")).toBeInTheDocument();
     const boundary = within(screen.getByRole("article", { name: "Continuity check 25" }));
     expect(boundary.getByText("Members 25 → 26")).toBeVisible();
-    expect(boundary.queryByText("Expected operating mode")).not.toBeInTheDocument();
+    expect(boundary.queryByText("Previous ending mode (expected)")).not.toBeInTheDocument();
     const toggle = boundary.getByRole("button", { name: "Show details for continuity check 25, members 25 to 26" });
     toggle.focus();
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute("aria-expanded", "true");
     expect(toggle).toHaveFocus();
-    expect(boundary.getByText("Expected operating mode")).toBeVisible();
+    expect(boundary.getByText("Previous ending mode (expected)")).toBeVisible();
     expect(boundary.getByText("SAFE")).toBeVisible();
     expect(boundary.getByText("NOMINAL")).toBeVisible();
     fireEvent.click(toggle);
-    expect(boundary.queryByText("Expected operating mode")).not.toBeInTheDocument();
+    expect(boundary.queryByText("Previous ending mode (expected)")).not.toBeInTheDocument();
     expect(boundary.getByText("Continuity outcome: FAIL")).toBeVisible();
     expect(sequence).toEqual(original);
     fireEvent.click(screen.getByRole("checkbox"));
@@ -308,7 +308,7 @@ describe("sequence inspection pages", () => {
     await screen.findByRole("article", { name: "Member 1" });
     expect(pageControl().getByRole("spinbutton", { name: "Page" })).toHaveValue(1);
     expect(screen.getByRole("button", { name: "Show details for member 1" })).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByText("Telemetry operating mode")).not.toBeInTheDocument();
+    expect(screen.queryByText("Mode reported by telemetry")).not.toBeInTheDocument();
   });
 
   it("collapses member and continuity details after changing a page or filtering", () => {

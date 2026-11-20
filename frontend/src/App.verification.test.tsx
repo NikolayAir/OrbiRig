@@ -18,7 +18,7 @@ describe("App verification", () => {
     render(<App />);
 
     const heading = screen.getByRole("heading", {
-      name: "Check what a system reported against what it should have done",
+      name: "Check recorded command results",
       level: 1,
     });
     const header = heading.closest("header")!;
@@ -37,10 +37,10 @@ describe("App verification", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /OrbiRig compares recorded command results/,
+        /^OrbiRig uses a simplified spacecraft model/,
       ),
     ).toHaveTextContent(
-      "OrbiRig compares recorded command results with a scenario you choose and recomputes saved results instead of trusting them.",
+      "NOMINAL is its normal mode and SAFE is its protective mode.",
     );
 
     const verificationChoice = screen.getByRole("button", {
@@ -53,6 +53,9 @@ describe("App verification", () => {
     expect(verificationChoice).toHaveAttribute("aria-pressed", "true");
     expect(inspectionChoice).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByLabelText("Execution ID")).toBeInTheDocument();
+    expect(screen.getByLabelText("Execution time (UTC)")).toHaveAccessibleDescription(
+      "Use the time the command ran, for example 2026-10-21T10:00:00Z.",
+    );
     expect(screen.queryByLabelText("Evidence JSON")).not.toBeInTheDocument();
   });
 
@@ -107,7 +110,7 @@ describe("App verification", () => {
     );
     expect(executedAt).toHaveAttribute(
       "aria-describedby",
-      "verification-executed-at-error",
+      "verification-executed-at-hint verification-executed-at-error",
     );
     expect(scenario).toHaveAttribute(
       "aria-describedby",
@@ -231,7 +234,7 @@ describe("App verification", () => {
       within(record).getByText("Verification outcome: FAIL"),
     ).toBeInTheDocument();
     expect(within(record).getAllByText("FAIL")).toHaveLength(2);
-    expect(within(record).getByText("The recorded behaviour does not meet the scenario's expectations. Review the failed checks below.")).toBeVisible();
+    expect(within(record).getByText("One or more checks failed. Compare the expected and actual values in those checks.")).toBeVisible();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
@@ -283,7 +286,7 @@ describe("App verification", () => {
   it.each([
     ["invalid_observation_evidence", "Check the document's required fields, value types and supported values. JSON field names must not repeat."],
     ["invalid_execution_metadata", "Use a non-blank ID and a UTC time such as 2026-08-26T08:30:00Z."],
-    ["scenario_command_mismatch", "Check that this is the intended scenario and the matching observation."],
+    ["scenario_command_mismatch", "Check that the requested mode matches the command for the scenario you intended to test."],
   ])("explains what to check after %s", async (code, guidance) => {
     fetchMock.mockResolvedValue({
       ok: false,
@@ -318,7 +321,7 @@ describe("App verification", () => {
     const alert = await screen.findByRole("alert");
     expect(within(alert).getByText("Request too large")).toBeVisible();
     expect(alert).toHaveTextContent(
-      "The complete HTTP request body is limited to 4 MiB. Reduce the submitted data before trying again.",
+      "The HTTP request body (the data sent for checking) has a 4 MiB limit. Use a smaller evidence document and try again.",
     );
     expect(json).not.toHaveBeenCalled();
     expect(screen.getByLabelText("Execution ID")).toHaveValue("exec-web-verify-001");

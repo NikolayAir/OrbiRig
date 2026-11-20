@@ -89,7 +89,7 @@ export function VerificationPanel({
           label="Load failing example"
           tone="negative"
           tooltipClassName="verification-failing-example-hint"
-          description="Telemetry disagrees with the recorded state. Replaces current inputs"
+          description="Telemetry reports a different mode from the recorded ending mode. Replaces current inputs"
           disabled={verification.kind === "loading"}
           requiresConfirmation={verificationNeedsConfirmation("failing")}
           onLoad={() => loadVerificationExample("failing")}
@@ -153,18 +153,19 @@ export function VerificationPanel({
               id="verification-executed-at"
               ref={executedAtInputRef}
               aria-describedby={describedBy(
-                verificationRequiredErrors.executedAt
-                  ? "verification-executed-at-error"
-                  : undefined,
+                "verification-executed-at-hint",
+                verificationRequiredErrors.executedAt ? "verification-executed-at-error" : undefined,
               )}
               aria-invalid={
                 verificationRequiredErrors.executedAt ? true : undefined
               }
               value={executedAt}
               onChange={(event) => onInputChange("executedAt", event.target.value)}
-              placeholder="YYYY-MM-DDTHH:MM:SSZ"
               required
             />
+            <p id="verification-executed-at-hint" className="field-hint">
+              Use the time the command ran, for example <code>2026-10-21T10:00:00Z</code>.
+            </p>
             {verificationRequiredErrors.executedAt && (
               <p
                 className="field-error"
@@ -181,8 +182,8 @@ export function VerificationPanel({
           <div className="field-label">
             <label htmlFor="verification-scenario">Scenario</label>
             <FieldHelp control={fieldHelp.scenario} label="Scenario" helpId="scenario-help-description">
-              Choose the expected behaviour for this command execution.
-              OrbiRig checks the observation against this scenario.
+              Choose what you expect the command to do. The rejection scenario covers a request
+              for NOMINAL when the mode is already NOMINAL.
             </FieldHelp>
           </div>
           <select

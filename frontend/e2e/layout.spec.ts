@@ -208,8 +208,8 @@ for (const viewport of [
     await expect(observation).toBeChecked();
     await observation.focus();
     for (const [name, description] of [
-      ["Verified execution", "One execution with its selected scenario and verification checks."],
-      ["Verified execution sequence", "Ordered records; each should start where the last ended."],
+      ["Verified execution", "One command run with its scenario and check results."],
+      ["Verified execution sequence", "Two or more verified records with checks between them."],
     ]) {
       await page.keyboard.press("ArrowDown");
       const radio = page.getByRole("radio", { name, exact: true });

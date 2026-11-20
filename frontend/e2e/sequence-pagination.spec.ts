@@ -97,8 +97,8 @@ for (const [width, withFailures] of [[1280, false], [390, true]] as const) {
 
     const boundary25 = result.getByRole("article", { name: "Continuity check 25", exact: true });
     await boundary25.getByRole("button").click();
-    await expect(boundary25.getByText("Expected operating mode").locator("..").locator("dd")).toHaveText(withFailures ? "SAFE" : "NOMINAL");
-    await expect(boundary25.getByText("Observed operating mode").locator("..").locator("dd")).toHaveText("NOMINAL");
+    await expect(boundary25.getByText("Previous ending mode (expected)").locator("..").locator("dd")).toHaveText(withFailures ? "SAFE" : "NOMINAL");
+    await expect(boundary25.getByText("Next starting mode (observed)").locator("..").locator("dd")).toHaveText("NOMINAL");
     if (withFailures) {
       await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
     }
@@ -157,8 +157,8 @@ for (const [width, withFailures] of [[1280, false], [390, true]] as const) {
           element.getBoundingClientRect().height <= Number.parseFloat(getComputedStyle(element).lineHeight) + 1,
         )).toBe(true);
       }
-      await expect(boundary25.getByText("Expected operating mode").locator("..").locator("dd")).toHaveText("SAFE");
-      await expect(boundary25.getByText("Observed operating mode").locator("..").locator("dd")).toHaveText("NOMINAL");
+      await expect(boundary25.getByText("Previous ending mode (expected)").locator("..").locator("dd")).toHaveText("SAFE");
+      await expect(boundary25.getByText("Next starting mode (observed)").locator("..").locator("dd")).toHaveText("NOMINAL");
     } else {
       await expect(result.locator(".sequence-page-status")).toHaveText("No failed members or continuity checks.");
     }

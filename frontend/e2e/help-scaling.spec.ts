@@ -305,7 +305,7 @@ test("only one help section stays open across workflows and command-line guidanc
   const summary = (title: string) => help.locator("summary", { hasText: title });
   const example = { summary: summary("When a command returns no result"), text: help.getByText("Example from a local run using the Python API.") };
   const results = { summary: summary("Understanding results and further reading"), text: help.getByText(/^PASS means the recorded behaviour matches/) };
-  const inspection = { summary: summary("Understanding inspection and further reading"), text: help.getByText(/^Inspecting an observation checks/) };
+  const inspection = { summary: summary("Understanding inspection and further reading"), text: help.getByText(/^Inspecting an observation validates/) };
   const cliResults = { summary: summary("Understanding CLI results and exit codes"), text: help.getByText(/^Exit code/) };
   const dotnet = { summary: summary("Verify a C#/.NET program"), text: help.getByText("Example outcomes from a local run", { exact: true }) };
   const tab = (name: string) => help.getByRole("tab", { name, exact: true });
@@ -537,14 +537,14 @@ for (const { height, textScale, fontFamily } of [
       const summary = help.locator(".workflow-help-example summary");
       const illustration = help.locator(".workflow-help-example");
       await expect(verificationPanel.locator(".workflow-help-example")).toHaveCount(1);
-      expect(await verificationPanel.evaluate(panel => panel.firstElementChild?.nextElementSibling?.matches("details.workflow-help-example"))).toBe(true);
+      await expect(verificationPanel.locator(":scope > ol + details.workflow-help-example")).toHaveCount(1);
       await expectFocusedControlFullyVisible(summary);
       await expect(illustration).not.toHaveAttribute("open", "");
       await page.keyboard.press("Enter");
       await expect(illustration).toHaveAttribute("open", "");
       expect(await illustration.evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
       await page.keyboard.press(tab);
-      const exampleLink = help.getByRole("link", { name: "Reproduce the stateful-target example" });
+      const exampleLink = help.getByRole("link", { name: "Run the Python example" });
       await expectFocusedControlFullyVisible(exampleLink);
       await summary.focus();
       await page.keyboard.press("Space");
@@ -587,7 +587,7 @@ for (const { height, textScale, fontFamily } of [
       await help.getByRole("tab", { name: "Inspect evidence", exact: true }).click();
       await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
       await help.getByRole("tabpanel", { name: "Inspect evidence", exact: true }).locator(".workflow-help-reference summary").click();
-      await wheelTo(page, help.getByText(/For saved verified executions and sequences/), 1);
+      await wheelTo(page, help.getByText(/^For verified evidence/), 1);
       await wheelTo(page, close, -1, 1);
       await expect(close).toBeInViewport({ ratio: 1 });
       await close.click();

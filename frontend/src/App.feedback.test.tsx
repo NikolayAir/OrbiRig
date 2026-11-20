@@ -106,7 +106,7 @@ describe("App feedback", () => {
       const alert = screen.getByRole("alert");
       expect(within(alert).getByText("Request too large")).toBeVisible();
       expect(alert).toHaveTextContent(
-        "The complete HTTP request body is limited to 4 MiB. Reduce the submitted data before trying again.",
+        "The HTTP request body (the data sent for checking) has a 4 MiB limit. Use a smaller evidence document and try again.",
       );
       expect(screen.queryByRole("region", { name: "Verified execution" })).not.toBeInTheDocument();
     }
@@ -184,7 +184,7 @@ describe("App feedback", () => {
       const alert = screen.getByRole("alert");
       expect(within(alert).getByText("Request too large")).toBeVisible();
       expect(alert).toHaveTextContent(
-        "The complete HTTP request body is limited to 4 MiB. Reduce the submitted data before trying again.",
+        "The HTTP request body (the data sent for checking) has a 4 MiB limit. Use a smaller evidence document and try again.",
       );
       expect(screen.queryByRole("region", { name: "Verified execution sequence" })).not.toBeInTheDocument();
     }

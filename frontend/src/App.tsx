@@ -220,19 +220,19 @@ export function App() {
           <img src={orbirigMark} width="40" height="40" alt="" />
           <span>OrbiRig</span>
         </p>
-        <h1>Check what a system reported against what it should have done</h1>
+        <h1>Check recorded command results</h1>
         <p>
-          OrbiRig compares recorded command results with a scenario you choose and
-          recomputes saved results instead of trusting them.
+          OrbiRig uses a simplified spacecraft model. NOMINAL is its normal mode
+          and SAFE is its protective mode.
         </p>
         <p className="field-hint">
-          JSON is processed on the server. Use synthetic, non-sensitive data in the public demo.
+          The browser sends JSON to the server for checking. On the public site, use sample data without private information.
         </p>
         <ol className="check-flow" aria-label="How a check works">
-          <li><strong>Expected behaviour</strong><span>A scenario defined apart from the data.</span></li>
-          <li><strong>Recorded result</strong><span>The command and its reported values.</span></li>
-          <li><strong>Independent checks</strong><span>Each shows expected and actual values.</span></li>
-          <li><strong>Outcome</strong><span>PASS or FAIL for valid input.</span></li>
+          <li><strong>Expected behaviour</strong><span>Choose a scenario that says what you expect.</span></li>
+          <li><strong>Observation</strong><span>The command and what the program reported.</span></li>
+          <li><strong>Verification checks</strong><span>Compare the expected and actual values.</span></li>
+          <li><strong>Outcome</strong><span>PASS or FAIL when the input is valid.</span></li>
         </ol>
       </header>
 
@@ -270,7 +270,7 @@ export function App() {
           onClick={() => { if (activeWorkflow !== "inspection") fieldHelp.closePinned(); setActiveWorkflow("inspection"); }}
         >
           <span>Inspect evidence</span>
-          <small id="inspection-workflow-description">Validate saved records and recheck any verification results they contain.</small>
+          <small id="inspection-workflow-description">Read a JSON document and check that any saved results match its data.</small>
         </button>
       </div>
 
@@ -317,7 +317,6 @@ export function App() {
 
       <footer className="page-footer">
         <div>
-          <p>Example data uses a simplified spacecraft model.</p>
           <p>Built with a Python verification core, FastAPI, React and TypeScript.</p>
         </div>
         <p>

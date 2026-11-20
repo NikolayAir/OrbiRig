@@ -10,12 +10,12 @@ import type {
 } from "./apiResponses";
 
 const INVARIANT_TITLES: Record<string, string> = {
-  pre_state_matches_expected: "Pre-state matches expected",
-  acknowledgement_is_accepted: "Acknowledgement is accepted",
-  acknowledgement_is_rejected: "Acknowledgement is rejected",
-  post_state_matches_requested_mode: "Post-state matches requested mode",
-  post_state_matches_pre_state: "Post-state matches pre-state",
-  telemetry_matches_post_state: "Telemetry matches post-state",
+  pre_state_matches_expected: "Starting mode matches the scenario",
+  acknowledgement_is_accepted: "Command is accepted",
+  acknowledgement_is_rejected: "Command is rejected",
+  post_state_matches_requested_mode: "Ending mode matches the requested mode",
+  post_state_matches_pre_state: "Ending mode matches the starting mode",
+  telemetry_matches_post_state: "Telemetry matches the ending mode",
 };
 
 function ObservationFields({
@@ -29,13 +29,13 @@ function ObservationFields({
       <dd>{observation.command.command_type}</dd>
       <dt>Target mode</dt>
       <dd>{observation.command.target_mode}</dd>
-      <dt>Pre-state operating mode</dt>
+      <dt>Starting mode</dt>
       <dd>{observation.pre_state.operating_mode}</dd>
       <dt>Acknowledgement</dt>
       <dd>{observation.acknowledgement.accepted ? "Accepted" : "Rejected"}</dd>
-      <dt>Post-state operating mode</dt>
+      <dt>Ending mode</dt>
       <dd>{observation.post_state.operating_mode}</dd>
-      <dt>Telemetry operating mode</dt>
+      <dt>Mode reported by telemetry</dt>
       <dd>{observation.telemetry.operating_mode}</dd>
     </dl>
   );
@@ -55,7 +55,7 @@ export function ObservationDetails({
         </div>
       </div>
       <p className="result-description">
-        These are reported values. No scenario verification has been performed.
+        The observation format is valid. Use <strong>Verify observation</strong> to check these values against a scenario.
       </p>
       <ObservationFields observation={observation} />
     </section>
@@ -181,7 +181,7 @@ export function VerifiedExecutionDetails({
       <p className="result-description">
         {record.outcome === "PASS"
           ? "The recorded behaviour matches this execution's scenario."
-          : "The recorded behaviour does not meet the scenario's expectations. Review the failed checks below."}
+          : "One or more checks failed. Compare the expected and actual values in those checks."}
       </p>
       <VerifiedExecutionFields record={record} />
     </section>
@@ -268,7 +268,7 @@ export function VerifiedExecutionSequenceDetails({
       <p className="result-description">
         {sequence.outcome === "PASS"
           ? "All execution and continuity checks passed."
-          : "1 or more execution or continuity checks did not pass."}{" "}
+          : "At least one record or continuity check failed."}{" "}
         Records stay in their original order.
       </p>
 
@@ -293,8 +293,8 @@ export function VerifiedExecutionSequenceDetails({
         Show failures and related records
       </label>
       <p className="sequence-page-description">
-        The filter includes members marked FAIL and both members of each continuity check marked FAIL.
-        Original numbers and links are kept.
+        This filter shows failed records and both records in each failed continuity check.
+        The record numbers and the links between them stay the same.
       </p>
       <p aria-live="polite" aria-atomic="true" className="sequence-page-status">
         {members.length === 0
@@ -444,11 +444,11 @@ function ContinuityBoundaryDetails({
               </dd>
             </div>
             <div>
-              <dt>Expected operating mode</dt>
+              <dt>Previous ending mode (expected)</dt>
               <dd>{result.expected_operating_mode}</dd>
             </div>
             <div>
-              <dt>Observed operating mode</dt>
+              <dt>Next starting mode (observed)</dt>
               <dd>{result.observed_operating_mode}</dd>
             </div>
           </dl>

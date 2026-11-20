@@ -35,7 +35,7 @@ export const VERIFICATION_ERROR_MESSAGES: Record<VerificationErrorCode, string> 
 export const VERIFICATION_ERROR_GUIDANCE: Partial<Record<VerificationErrorCode, string>> = {
   invalid_observation_evidence: "Check the document's required fields, value types and supported values. JSON field names must not repeat.",
   invalid_execution_metadata: "Use a non-blank ID and a UTC time such as 2026-08-26T08:30:00Z.",
-  scenario_command_mismatch: "Check that this is the intended scenario and the matching observation.",
+  scenario_command_mismatch: "Check that the requested mode matches the command for the scenario you intended to test.",
 };
 
 export const REQUIRED_VERIFICATION_MESSAGES: Record<
