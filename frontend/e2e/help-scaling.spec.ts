@@ -80,6 +80,104 @@ for (const { width, height, textScale } of [
   }
 }
 
+for (const { guide, width, height, textScale, scrollWhole, fit, largeTitle } of [
+  { guide: "browser", width: 1440, height: 900, textScale: 100, scrollWhole: false, fit: "both" },
+  { guide: "cli", width: 390, height: 680, textScale: 100, scrollWhole: false, fit: "both" },
+  { guide: "cli", width: 1440, height: 1000, textScale: 200, scrollWhole: false, fit: "both" },
+  { guide: "cli", width: 1440, height: 260, textScale: 100, scrollWhole: true, fit: "both", largeTitle: true },
+  { guide: "cli", width: 1440, height: 200, textScale: 100, scrollWhole: true, fit: "section" },
+  { guide: "browser", width: 375, height: 667, textScale: 100, scrollWhole: false, fit: "beginning" },
+  { guide: "browser", width: 320, height: 480, textScale: 200, scrollWhole: true, fit: "beginning" },
+]) {
+  test(`following help heading respects available space in ${guide} guidance at ${width}x${height} with ${textScale}% text`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await page.goto("/");
+    await page.locator("html").evaluate((element, scale) => { element.style.fontSize = `${scale}%`; }, textScale);
+    if (largeTitle) {
+      // A taller header makes the whole dialog scroll with room for the next heading.
+      await page.addStyleTag({ content: ".workflow-help-heading h2 { font-size: 3rem; }" });
+    }
+    await page.getByRole("button", { name: guide === "browser" ? "In the browser" : "From the command line", exact: true }).click();
+    const help = page.getByRole("dialog", { name: "How it works" });
+    const heading = help.locator("summary", { hasText: guide === "browser" ? "When a command returns no result" : "Understanding CLI results and exit codes" });
+    const following = help.locator("summary", { hasText: guide === "browser" ? "Understanding results and further reading" : "Verify a C#/.NET program" });
+    const details = heading.locator("..");
+    await expect(help).toHaveAttribute("data-scroll-whole", String(scrollWhole));
+
+    // Use keyboard input to check that the whole outline still fits after scrolling.
+    await page.keyboard.press("Tab");
+    await heading.focus();
+    await page.keyboard.press("Enter");
+    await expect(details).toHaveAttribute("open", "");
+    await expectFocusedControlFullyVisible(heading);
+    const opened = await sectionPosition(details);
+
+    if (fit === "both") {
+      expect(opened.below).toBeGreaterThanOrEqual(-1);
+      await expect(following).toBeInViewport({ ratio: 1 });
+      // The following heading should only just enter the visible area.
+      expect((await sectionPosition(following.locator(".."))).below).toBeLessThanOrEqual(1.5);
+    } else if (fit === "section") {
+      // Leave the whole open section in view with its usual margin.
+      expect(Math.abs(opened.below - opened.margin)).toBeLessThanOrEqual(1.5);
+      await expect(following).not.toBeInViewport({ ratio: 1 });
+    } else {
+      expect(Math.abs(opened.above - opened.margin)).toBeLessThanOrEqual(1.5);
+      await expect(following).not.toBeInViewport();
+    }
+  });
+}
+
+test("opening a help section by mouse scrolls just far enough to show the following heading", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "In the browser", exact: true }).click();
+  const help = page.getByRole("dialog", { name: "How it works" });
+  const heading = help.locator("summary", { hasText: "When a command returns no result" });
+  const details = heading.locator("..");
+  const following = help.locator("summary", { hasText: "Understanding results and further reading" });
+
+  await heading.click();
+
+  await expect(details).toHaveAttribute("open", "");
+  await expect(details).toBeInViewport({ ratio: 1 });
+  await expect(following).toBeInViewport({ ratio: 1 });
+  expect((await sectionPosition(following.locator(".."))).below).toBeLessThanOrEqual(1.5);
+});
+
+test("reveals the following help heading when there is room for the outline but not the usual margin", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "In the browser", exact: true }).click();
+  const help = page.getByRole("dialog", { name: "How it works" });
+  const heading = help.locator("summary", { hasText: "When a command returns no result" });
+  const following = help.locator("summary", { hasText: "Understanding results and further reading" });
+  const details = heading.locator("..");
+  await page.keyboard.press("Tab");
+  await heading.press("Enter");
+  await expect(details).toHaveAttribute("open", "");
+
+  // Size the panel to the rendered headings and focus outline, plus a pixel for rounding.
+  const height = await heading.evaluate(node => {
+    const panel = node.closest(".workflow-help-content")!;
+    const next = node.closest("details")!.nextElementSibling!.querySelector("summary")!;
+    const style = getComputedStyle(node);
+    const outline = parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset);
+    const span = next.getBoundingClientRect().bottom - node.getBoundingClientRect().top;
+    const spaceOutsidePanel = window.innerHeight - panel.getBoundingClientRect().height;
+    return Math.ceil(spaceOutsidePanel + span + outline) + 1;
+  });
+
+  await heading.press("Enter");
+  await expect(details).not.toHaveAttribute("open");
+  await page.setViewportSize({ width: 1440, height });
+  await expect(help).toHaveAttribute("data-scroll-whole", "false");
+  await heading.press("Enter");
+  await expect(details).toHaveAttribute("open", "");
+  await expectFocusedControlFullyVisible(heading);
+  await expect(following).toBeInViewport({ ratio: 1 });
+});
+
 test.describe("on a touch screen", () => {
   test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
 

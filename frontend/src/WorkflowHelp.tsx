@@ -46,10 +46,14 @@ function ExpandableHelpSection({ id, className, title, openSection, onOpenChange
   );
 }
 
+function focusOutlineOutset(style: CSSStyleDeclaration) {
+  if (style.outlineStyle === "none") return 0;
+  return Math.max(0, (parseFloat(style.outlineWidth) || 0) + (parseFloat(style.outlineOffset) || 0));
+}
+
 function scrollFocusedControlIntoView(scroller: HTMLElement, element: HTMLElement) {
   const focused = element.getBoundingClientRect();
-  const style = getComputedStyle(element);
-  const outline = Math.max(0, parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset));
+  const outline = focusOutlineOutset(getComputedStyle(element));
   const area = scroller.getBoundingClientRect();
   const viewportTop = area.top + scroller.clientTop;
   const top = viewportTop + outline;
@@ -159,13 +163,24 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
     }
     // Measure from the heading so its divider and padding do not take up the scroll area.
     const headingTop = summary.getBoundingClientRect().top;
+    const headingStyle = getComputedStyle(summary);
+    const area = scroller.getBoundingClientRect();
+    const areaTop = area.top + scroller.clientTop;
+    // Measure the next heading on activation. Resizing keeps the open section as the target.
+    const followingHeading = sectionAlreadyOpen
+      ? null
+      : details.nextElementSibling?.querySelector(":scope > summary");
     scroller.scrollTop += scrollDeltaToReveal({
-      areaTop: scroller.getBoundingClientRect().top + scroller.clientTop,
-      areaHeight: scroller.clientHeight,
+      areaTop,
+      areaHeight: Math.min(scroller.clientHeight, area.bottom - areaTop),
       sectionTop: headingTop,
       sectionHeight: details.getBoundingClientRect().bottom - headingTop,
       // The summary keeps room for its focus outline through its scroll margin.
-      margin: parseFloat(getComputedStyle(summary).scrollMarginTop) || 0,
+      margin: parseFloat(headingStyle.scrollMarginTop) || 0,
+      followingHeading: followingHeading ? {
+        bottom: followingHeading.getBoundingClientRect().bottom,
+        openHeadingOutline: focusOutlineOutset(headingStyle),
+      } : undefined,
     });
   }, [openSection, scrollWholeDialog]);
 

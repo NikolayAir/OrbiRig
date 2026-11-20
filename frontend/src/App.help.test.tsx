@@ -477,15 +477,17 @@ describe("App help", () => {
       const dialog = screen.getByRole("dialog", { name: "How it works" }) as HTMLDialogElement;
       const panel = within(dialog).getByRole("tabpanel", { name: "In the browser" });
       const summary = within(dialog).getByText("When a command returns no result (Python API example)", { selector: "summary" });
-      return { dialog, panel, summary, details: summary.closest("details")! };
+      const followingHeading = within(dialog).getByText("Understanding results and further reading", { selector: "summary" });
+      return { dialog, panel, summary, followingHeading, details: summary.closest("details")! };
     }
 
     it("scrolls the content panel just far enough to show a section that fits", () => {
-      const { panel, summary, details } = openExample();
+      const { panel, summary, followingHeading, details } = openExample();
       const pageScroll = vi.spyOn(window, "scrollTo");
       placeAt(panel, { top: 100, height: 400 });
       placeAt(details, { top: 450, height: 300 });
       placeAt(summary, { top: 483, height: 30 });
+      placeAt(followingHeading, { top: 798, height: 90 });
       panel.scrollTop = 40;
 
       fireEvent.click(summary);
@@ -500,7 +502,7 @@ describe("App help", () => {
     });
 
     it("reveals a long section's heading below its divider in a short dialog", () => {
-      const { dialog, panel, summary, details } = openExample();
+      const { dialog, panel, summary, followingHeading, details } = openExample();
       // The rendered switch to whole-dialog scrolling is checked in the browser tests.
       dialog.dataset.scrollWhole = "true";
       placeAt(dialog, { top: 0, height: 414 });
@@ -508,6 +510,7 @@ describe("App help", () => {
       placeAt(details, { top: 700, height: 900 });
       // A wrapped heading fits only when the divider and its padding are scrolled away.
       placeAt(summary, { top: 733, height: 370 });
+      placeAt(followingHeading, { top: 1650, height: 80 });
       summary.style.scrollMarginTop = "16px";
 
       fireEvent.click(summary);
@@ -539,10 +542,11 @@ describe("App help", () => {
     });
 
     it("leaves the position alone when the whole section is already visible", () => {
-      const { panel, summary, details } = openExample();
+      const { panel, summary, followingHeading, details } = openExample();
       placeAt(panel, { top: 100, height: 400 });
       placeAt(details, { top: 120, height: 200 });
       placeAt(summary, { top: 153, height: 30 });
+      placeAt(followingHeading, { top: 380, height: 30 });
       panel.scrollTop = 75;
 
       fireEvent.click(summary);

@@ -56,7 +56,7 @@ Browser guidance shows the selected workflow's steps first. Result explanations 
 
 Only one section in **How it works** is open at a time, including the optional examples: opening another closes the previous one, and selecting the open section closes it. Sections start closed, and switching tabs or workflows, or reopening the guide, does not bring back what was open earlier, so the main instructions remain easy to find.
 
-Opening a section scrolls only as far as needed to show it: a section that fits is shown whole, and a longer one starts at its heading instead of jumping to its end. When the browser opens a section itself to show text found on the page, that text stays where the browser placed it. Closing a section does not trigger additional scrolling, though the browser may limit the scroll position when the content becomes shorter.
+Opening a section scrolls only as far as needed to show it: a section that fits is shown whole, and a longer one starts at its heading instead of jumping to its end. The following section's heading is also shown when both fit in the scrolling area. When the browser opens a section itself to show text found on the page, that text stays where the browser placed it. Closing a section does not trigger additional scrolling, though the browser may limit the scroll position when the content becomes shorter.
 
 If resizing changes which area scrolls while a section is open, the guide brings the section heading into view. A control with visible keyboard focus in the scrolling area takes priority.
 
