@@ -27,6 +27,15 @@ describe("scrollDeltaToReveal", () => {
     expect(scrollDeltaToReveal({ ...section, followingHeading: { bottom: 500, openHeadingOutline: 5 } })).toBe(0);
   });
 
+  it("scrolls up just far enough to reveal the open outline when both fit", () => {
+    expect(scrollDeltaToReveal({
+      ...area,
+      sectionTop: 92,
+      sectionHeight: 150,
+      followingHeading: { bottom: 290, openHeadingOutline: 5 },
+    })).toBe(-13);
+  });
+
   it("keeps the open section's usual margin when both cannot fit", () => {
     // The following heading would take 306px of scroll. The outline allows 305px.
     const section = { ...area, sectionTop: 410, sectionHeight: 150 };

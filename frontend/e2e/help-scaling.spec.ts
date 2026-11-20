@@ -128,6 +128,23 @@ for (const { guide, width, height, textScale, scrollWhole, fit, largeTitle } of 
   });
 }
 
+test("opening a help section by mouse scrolls just far enough to show the following heading", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "In the browser", exact: true }).click();
+  const help = page.getByRole("dialog", { name: "How it works" });
+  const heading = help.locator("summary", { hasText: "When a command returns no result" });
+  const details = heading.locator("..");
+  const following = help.locator("summary", { hasText: "Understanding results and further reading" });
+
+  await heading.click();
+
+  await expect(details).toHaveAttribute("open", "");
+  await expect(details).toBeInViewport({ ratio: 1 });
+  await expect(following).toBeInViewport({ ratio: 1 });
+  expect((await sectionPosition(following.locator(".."))).below).toBeLessThanOrEqual(1.5);
+});
+
 test("reveals the following help heading when there is room for the outline but not the usual margin", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/");
