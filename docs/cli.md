@@ -31,6 +31,8 @@ The [example observation](examples/nominal-to-safe.json) records an accepted cha
 
 To save the JSON, use `>` to send standard output to a file. This creates or replaces `verified-execution.json`.
 
+In PowerShell, run the redirection example with [version 7.4 or later](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_redirection#redirecting-output-from-native-commands) to preserve the UTF-8 output. Windows PowerShell 5.1 writes redirected output as UTF-16LE by default.
+
 ```bash
 # Redirect stdout only; diagnostics remain visible on stderr.
 uv run --no-sync orbirig verify-observation docs/examples/nominal-to-safe.json \

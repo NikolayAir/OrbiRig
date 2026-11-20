@@ -138,7 +138,7 @@ The target can fail at different points, with different effects on the saved sta
 | Target behaviour | OrbiRig result | Target state |
 | --- | --- | --- |
 | A valid observation reports incorrect telemetry (`--stale-telemetry`) | Verified `FAIL` | The accepted change is saved. |
-| An input or file error stops the target before it replaces the state file. | Collection error without a verified record | The original file still contains the previous mode. |
+| An input or file error stops the target before it replaces the state file. | Collection error without a verified record | Any existing state file keeps its contents, including invalid data. A missing file stays missing. |
 | The target saves a change and exits without an observation (`--fail-after-commit`). | Collection error without a verified record | The accepted change is already saved. |
 
 After a collection error, use a separate check to learn the target's state. This example reads the state file and confirms the saved mode by sending another command in a new process.
