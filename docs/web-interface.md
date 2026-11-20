@@ -1,66 +1,74 @@
 # Web interface
 
-[README](../README.md) · [Verification concepts](verification.md) · [Evidence formats](evidence-formats.md) · [Development checks](../CONTRIBUTING.md)
+In the [OrbiRig web interface](https://orbirig-evidence-inspector.onrender.com/), use **Verify observation** to check a recorded command result against a **scenario**, the behaviour you expect. Use **Inspect evidence** to review an **evidence** document, which is JSON containing an observation or saved verification results. Both workflows use recorded data.
 
-Use the [hosted interface](https://orbirig-evidence-inspector.onrender.com/) to check a recorded command result against a scenario you select, or to reopen and inspect saved JSON evidence. The Python core performs the checks on the server; the browser displays the results and errors. These actions do not execute commands or contact an external target.
-
-JSON is processed on the server. Use synthetic, non-sensitive data in the public demo.
+The browser sends JSON to the server for checking. Use sample data that contains no private information on the public site.
 
 ## Verify an observation
 
-1. Choose **Verify observation** and select the scenario describing the expected behaviour.
-2. Enter an execution ID, UTC execution time and observation JSON, or choose **Load example**.
-3. Choose **Verify observation** to see the recorded values, each check's expected and actual values, and the overall `PASS` or `FAIL`.
+1. Switch to the **Verify observation** workflow.
+2. Choose **Load example** to fill in a sample. To verify your own observation, select a **Scenario** and fill in **Execution ID**, **Execution time (UTC)** and **Observation evidence JSON**. The execution time is when the command ran, for example `2026-10-21T10:00:00Z`.
+3. Choose **Verify observation** to see the expected and actual values for each check and the overall `PASS` or `FAIL`.
 
-**Load example** fills in a sample execution ID, UTC time and observation JSON for the selected scenario. It uses **NOMINAL to SAFE** if none is selected. **Load failing example** does the same with telemetry that disagrees with the recorded post-state, which produces `FAIL`. Choose **Verify observation** to run the checks after loading an example.
+**Load example** uses the selected scenario or **NOMINAL to SAFE** when you have not selected one. The screenshot shows the default example after you choose **Verify observation**.
 
-An expected command rejection can pass. Invalid input, including a command incompatible with the selected scenario, produces an error rather than a completed `FAIL` result. See [supported scenarios](verification.md#supported-scenarios) and the rules for [execution IDs and timestamps](evidence-formats.md#execution-ids).
+![The verification form and a PASS result for the NOMINAL-to-SAFE example](images/orbirig-web-interface.png)
 
-![OrbiRig interface showing the verification form and a PASS result](images/orbirig-web-interface.png)
+**Load failing example** fills in an observation whose telemetry (a separate report of the operating mode) disagrees with the recorded ending mode. Verifying it gives `FAIL`.
 
-*The interface after verifying the NOMINAL-to-SAFE example.*
+An [expected command rejection](verification.md#supported-scenarios) can pass. OrbiRig reports an input error before running the checks if the recorded command does not match the selected scenario. When entering your own record, follow the [rules for execution IDs and times](evidence-formats.md#execution-ids).
+
+You can save a verified record as a JSON file [from the command line](cli.md#verify-the-bundled-example) or [with the Python API](python.md#reopen-saved-verified-evidence).
 
 ## Inspect evidence
 
-Switch to **Inspect evidence**, select the evidence type and paste saved JSON or load an example. Then submit it with the **Inspect evidence** button. **Load example** provides valid evidence. For verified types, **Load failing example** provides valid evidence with a `FAIL` outcome; the sequence example fails continuity while each record passes. For sequences, **Load long sequence** provides 100 records with a `FAIL` outcome, which shows page controls and the failure filter. **Load altered example** provides evidence that is rejected: a repeated field name for an observation, and saved checks that no longer match the data for verified types.
+1. Switch to the **Inspect evidence** workflow.
+2. Select the **Evidence type**. Paste the saved document into **Evidence JSON** or choose **Load example**.
+3. Choose **Inspect evidence** to check the document and view its contents.
 
 | Type | What inspection shows and checks |
 | --- | --- |
-| Observation | Reported command, states, acknowledgement and telemetry. Loading validates the observation format; it does not produce a verification outcome. |
-| Verified execution | Execution ID and time, selected scenario, observation, checks and outcome. Python recomputes the results and rejects stored mismatches. |
-| Verified execution sequence | Overall outcome, ordered member records and continuity checks. Python reconstructs members and recomputes continuity in saved order. |
+| Observation | The reported command, modes, acknowledgement and telemetry. OrbiRig checks the format. Use **Verify observation** for a scenario check. |
+| Verified execution | The time, ID, scenario, observation, checks and outcome for one command run. OrbiRig recalculates the results and checks that they match the saved values. |
+| Verified execution sequence | The overall outcome, records in their saved order and continuity checks. OrbiRig recalculates each record's results and compares the ending mode of each record with the starting mode of the next. |
 
-Inspection is read-only: it does not edit or repair evidence. A saved `FAIL` is accepted when its checks and outcome match the recomputed results.
+### Choose an inspection example
 
-Sequences show up to 25 compact member summaries per page, with their original member numbers, execution IDs, scenarios and `PASS` or `FAIL` results. Each member's outgoing continuity check shows its original pair of member numbers and result. **Show details** reveals the execution, observation and verification checks for a member, or the connected execution IDs and expected and observed modes for a continuity check. Several members and continuity checks can stay open for comparison; collapsed details are not rendered.
+- **Load example** fills in valid JSON for the selected evidence type.
+- **Load failing example** gives a valid saved `FAIL` when you select a verified type. In the sequence example, each record passes and the continuity check fails.
+- **Load long sequence** gives 100 records to browse and filter, including failed telemetry and continuity checks.
+- **Load altered example** gives invalid evidence. The observation repeats a field name. The verified examples contain saved results that disagree with the recorded values.
 
-The sequence outcome and totals for members and continuity checks marked `FAIL` cover the complete document. **Show failures and related records** finds members marked `FAIL` and both members of each continuity check marked `FAIL` across the whole sequence. Continuity checks keep their original links, including links to the next page; filtering does not reconnect records. When more than 1 page is needed, page controls appear above and below the records. Changing the page brings the records heading into view and closes all details; changing the filter also closes details and returns to the first page. Switching between verification and inspection keeps the page, filter and open details. Submitting a new inspection returns to the first page with the filter off and all details closed.
+### Find failures in a sequence
 
-If loading an example would replace your edits, the interface asks for confirmation. Choosing **Cancel** in that dialog keeps your current inputs. Reloading an example with exactly the same current inputs keeps a completed result; loading different values clears it and shows the same reminder as editing.
+The sequence outcome and counts of records and continuity checks marked `FAIL` cover the full document. OrbiRig shows up to 25 records per page. Each record keeps its original number and its continuity check with the next record, even across pages.
 
-Invalid input errors add a short suggestion of what to check. Python still decides whether input is valid. Completed results and request errors receive keyboard focus and are brought into view. A short status message announces completed verification or inspection. If you move to another control, switch between verification and inspection or open the help dialog while a request is pending, its response does not move focus or scroll the page.
+Use **Show failures and related records** to see failed records and both records in a failed continuity check. Use **Show details** on a record or continuity check to see its values. You can keep several details open to compare them.
 
-The submission button shows **Verifying…** or **Inspecting…** while a request is pending. After a result, a completion message appears beside the button on wide screens and below it on narrower ones. The button then stays unavailable until an input changes, because the same inputs give the same result. It remains available after a cancelled request, an input error or a request failure. Completion is separate from the verification outcome: both `PASS` and `FAIL` are completed results. Successful inspection confirms that the evidence is valid, meaning its format is correct and any saved results match the recomputed ones. Observation inspection has no verification outcome; for saved verified evidence, the completion message also states the saved `PASS` or `FAIL` outcome, because valid evidence can record a `FAIL`.
+Changing the page or filter closes the open details. Changing the filter also takes you to the first page. Starting another inspection clears the filter and returns to the first page.
 
-Editing any input after a result clears that result and shows an inline reminder to verify or inspect the current values. Restoring the previous text or selection still requires a new request. If a repeated request is cancelled or fails, the next edit shows the reminder again until a new result completes. The reminder is announced once on the first edit without moving focus. Verification and inspection retain their own inputs and states when you switch between them. Empty required fields are reported beside the field without sending a request: verification lists each missing input and focuses the first, and empty or whitespace-only inspection JSON produces **Evidence JSON is required.** and focuses the field.
+## Inputs and results
 
-While either request is pending, **Cancel request** stops waiting in the browser and keeps the current inputs and selection. Focus returns to the submission button so you can edit or retry. Cancellation produces no verification outcome. The server may already have completed the check; late responses from cancelled requests are ignored, including after a retry.
+- **Edit inputs.** Changing a value or the selected evidence type clears the current result and prompts a new check. Changing the evidence type keeps the JSON text. Switching workflows keeps each form's inputs, results and sequence view.
+- **Replace inputs with an example.** OrbiRig asks before replacing edits. Choose **Cancel** to keep them. Loading the same values keeps a completed result.
+- **Correct an error.** If a required field is blank, OrbiRig marks it before sending a request and moves keyboard focus to the first missing field. If the server rejects the data, use the error message to find the field or value to check.
+- **Read a completed result.** OrbiRig leaves the result in place and makes the submit button unavailable until an input changes. Both `PASS` and `FAIL` complete a verification. Successful inspection of verified evidence includes its saved outcome.
+- **Cancel a request.** Choose **Cancel request** while OrbiRig is checking. The browser stops waiting, keeps your inputs and returns focus to the submit button. A late response from that request cannot replace your inputs or results.
 
-**How it works** provides browser and command-line instructions. Browser guidance covers verification and inspection, with links to the relevant scenario, evidence-format and validation documentation; command-line guidance explains local CLI use and exit codes. **Documentation** beside these controls opens the guide index. Documentation and source links open in a new tab so your current inputs and results stay in place.
+Results and request errors usually receive keyboard focus and are brought into view. If you have moved to another control, opened help or switched workflows since submitting, OrbiRig leaves focus where it is. Status messages announce completion.
 
-**From the command line** shows the setup, runnable command and output summary before the expandable sections. The meaning of each exit code and the link to the [CLI guide](cli.md) are under **Understanding CLI results and exit codes**, which starts closed. The exit codes keep completed verification (`0` for `PASS`, `1` for `FAIL`) apart from invalid input, file or output errors and unexpected internal errors.
+## Help in the interface
 
-**Verify a C#/.NET program (optional)** in the same guide expands a short explanation and a link to the [.NET guide](dotnet-stateful-target.md). It distinguishes local target execution through the Python API from browser or CLI verification of recorded JSON. The .NET SDK is required only to build and run that optional example.
+Under **How it works**, choose **In the browser** or **From the command line**. The separate **Documentation** link opens the guide index in a new tab.
 
-Browser guidance shows the selected workflow's steps first. Result explanations and documentation links expand under **Understanding results and further reading** or **Understanding inspection and further reading**.
+- **In the browser** gives steps for the selected workflow. Under **Verify observation**, **When a command returns no result (Python API example)** describes a [local Python run](stateful-target.md#simulate-a-response-failure-after-state-commit) where the program saves a change before a collection error.
+- **From the command line** covers [CLI setup](cli.md), a command you can run and the expected output. **Understanding CLI results and exit codes** explains the return codes. **Verify a C#/.NET program (optional)** explains the outcomes of a [local .NET run](dotnet-stateful-target.md).
 
-Only one section in **How it works** is open at a time, including the optional examples: opening another closes the previous one, and selecting the open section closes it. Sections start closed, and switching tabs or workflows, or reopening the guide, does not bring back what was open earlier, so the main instructions remain easy to find.
+The guide keeps one section open at a time. Switching tabs or workflows, or reopening the guide, starts with the sections closed.
 
-Opening a section scrolls only as far as needed to show it: a section that fits is shown whole, and a longer one starts at its heading instead of jumping to its end. The following section's heading is also shown when both fit in the scrolling area. When the browser opens a section itself to show text found on the page, that text stays where the browser placed it. Closing a section does not trigger additional scrolling, though the browser may limit the scroll position when the content becomes shorter.
+Opening a section scrolls only as far as needed. The guide shows the full section if it fits and starts at its heading if it is too long. When there is room, it also shows the next heading. If the browser opens a section to reveal a search match, the guide keeps the match in view. Closing a section can shorten the scroll area. The browser may then move to the last available scroll position.
 
 If resizing changes which area scrolls while a section is open, the guide brings the section heading into view. A control with visible keyboard focus in the scrolling area takes priority.
-
-Under **In the browser → Verify observation**, the expandable **When a command returns no result (Python API example)** illustrates a [response failure after saving state](stateful-target.md#simulate-a-response-failure-after-state-commit). This is a static example from the Python API; the browser does not run the target. It shows why a collection error produces no verification outcome and why confirming the saved state requires a separate check in this controlled example.
 
 ## Run locally
 
@@ -76,12 +84,14 @@ npm ci
 cd ..
 ```
 
-Start FastAPI and Vite in separate terminals from the repository root. Select the same Node.js version in the Vite terminal as well:
+From the repository root, start FastAPI in the first terminal.
 
 ```bash
 # Terminal 1
 uv run --no-sync python -m uvicorn orbirig.web:app --reload
 ```
+
+In the second terminal, start Vite from the repository root using the Node.js version you selected for `npm ci`.
 
 ```bash
 # Terminal 2
@@ -122,7 +132,7 @@ All 4 endpoints use `POST`:
 | `/api/inspect/verified-execution` | `text/plain; charset=utf-8` | Raw verified-execution JSON text |
 | `/api/inspect/verified-execution-sequence` | `text/plain; charset=utf-8` | Raw verified-sequence JSON text |
 
-Request bodies must be UTF-8 without a byte-order mark (BOM). A verification request in another encoding, or with bytes that are not valid UTF-8, returns HTTP `422` with the `invalid_request` code.
+The server decodes both request types as UTF-8. Send JSON without a byte-order mark (BOM). If the server cannot decode the verification request as UTF-8 or parse its outer JSON object, it returns HTTP `422` with the `invalid_request` code.
 
 For verification, `scenario_id` is one of the [scenario string values](verification.md#supported-scenarios). `observation_evidence` contains JSON as a string, not a nested object. FastAPI passes this string unchanged to `deserialize_execution_evidence(...)`, then delegates verification to `build_verified_execution_record(...)`.
 
@@ -130,7 +140,7 @@ For inspection, FastAPI decodes the submitted text and passes it to the matching
 
 ### Send an example request
 
-With FastAPI running locally, run this command from the repository root:
+With FastAPI running locally, send the bundled verification request from the repository root.
 
 ```bash
 curl --header 'Content-Type: application/json' \
@@ -140,7 +150,7 @@ curl --header 'Content-Type: application/json' \
 
 The [request file](examples/verify-observation-request.json) contains all 4 fields, with the observation encoded as a JSON string. The response is HTTP `200` with 4 passing checks and `"outcome": "PASS"`; see the [complete response](examples/verify-observation-response.json).
 
-Inspection sends the evidence text directly, without a JSON wrapper:
+To inspect the bundled verified record, send its JSON directly as the request body.
 
 ```bash
 # Send the file bytes unchanged, preserving whitespace and repeated JSON fields.
@@ -151,7 +161,7 @@ curl --header 'Content-Type: text/plain; charset=utf-8' \
 
 ### Responses
 
-Successful responses contain data for display and are not saved evidence documents. To create versioned evidence that can be reopened by the evidence readers, use the CLI or the Python serialisation functions.
+The HTTP status tells you whether the request succeeded. Read the response body for any `PASS` or `FAIL` outcome.
 
 | HTTP status | Meaning |
 | --- | --- |
@@ -161,6 +171,8 @@ Successful responses contain data for display and are not saved evidence documen
 | `415` | The request content type is unsupported. |
 | `422` | A verification request or submitted evidence is invalid. |
 | `500` | An unexpected server error, separate from verification `FAIL`. |
+
+Successful responses contain display data. Use the CLI or the Python serialisation functions to create a versioned evidence document you can reopen later.
 
 For HTTP `422` verification errors, `detail` contains a `code` and `message`. For example, selecting `safe_to_nominal_mode` for the example command, which requests `SAFE`, returns:
 
@@ -177,7 +189,7 @@ Invalid inspection evidence returns a string in `detail`. Where available, it id
 
 Missing-field diagnostics name only fields required by the selected schema. A document submitted under a different evidence type is rejected against that selected schema; the server does not detect or switch its type automatically. JSON parsing errors, such as repeated field names, may identify the problem without a field path.
 
-Verification errors retain their `code` and `message` structure. Invalid observation messages include the same safe diagnostics. Metadata errors also include `field: "execution_id"` or `field: "executed_at"`, which the browser uses to highlight and describe the affected input. Invalid evidence produces no verification outcome; canonically consistent `FAIL` evidence remains valid.
+Invalid observation messages use the same field-level diagnostics. Metadata errors also include `field: "execution_id"` or `field: "executed_at"`, which the browser uses to mark the field and show its error.
 
 ### Request size limit
 

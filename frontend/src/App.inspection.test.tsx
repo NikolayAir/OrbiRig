@@ -92,11 +92,11 @@ describe("App inspection", () => {
     expect(observationOption).toBeChecked();
     expect(verifiedExecutionOption).not.toBeChecked();
     expect(sequenceOption).not.toBeChecked();
-    expect(observationOption).toHaveAccessibleDescription("Recorded behaviour without verification results.");
-    expect(verifiedExecutionOption).toHaveAccessibleDescription("One execution with its selected scenario and verification checks.");
-    expect(sequenceOption).toHaveAccessibleDescription("Ordered records; each should start where the last ended.");
+    expect(observationOption).toHaveAccessibleDescription("A command and its reported result.");
+    expect(verifiedExecutionOption).toHaveAccessibleDescription("One command run with its scenario and check results.");
+    expect(sequenceOption).toHaveAccessibleDescription("Two or more verified records with checks between them.");
     expect(screen.getByRole("button", { name: "Load example" })).toHaveAccessibleDescription("Replaces evidence JSON");
-    expect(screen.getByLabelText("Evidence JSON")).toHaveAccessibleDescription("Paste the full JSON document matching the selected evidence type: observation, verified execution, or verified-execution sequence. Use Load example to see the expected structure.");
+    expect(screen.getByLabelText("Evidence JSON")).toHaveAccessibleDescription("Paste the full JSON document for the evidence type you chose. Choose Load example to see the format.");
 
     fireEvent.click(verifiedExecutionOption);
 
@@ -178,7 +178,9 @@ describe("App inspection", () => {
     expect(screen.getByText("Accepted")).toBeInTheDocument();
     const result = within(screen.getByRole("region", { name: "Observation details" }));
     expect(result.getByText("Valid observation evidence")).toBeVisible();
-    expect(result.getByText("These are reported values. No scenario verification has been performed.")).toBeVisible();
+    expect(result.getByText(/^The observation format is valid/)).toHaveTextContent(
+      "Use Verify observation to check these values against a scenario.",
+    );
     expect(result.queryByText("PASS")).not.toBeInTheDocument();
     expect(result.queryByText("FAIL")).not.toBeInTheDocument();
     expect(screen.queryByText(/ScenarioId/)).not.toBeInTheDocument();
@@ -253,7 +255,7 @@ describe("App inspection", () => {
     expect(invariantItems).toHaveLength(4);
     expect(
       within(invariantItems[0]).getByRole("heading", {
-        name: "Pre-state matches expected",
+        name: "Starting mode matches the scenario",
       }),
     ).toBeInTheDocument();
     expect(
@@ -269,7 +271,7 @@ describe("App inspection", () => {
     ).toBeInTheDocument();
     expect(
       within(invariantItems[1]).getByRole("heading", {
-        name: "Acknowledgement is accepted",
+        name: "Command reported as accepted",
       }),
     ).toBeInTheDocument();
     expect(
@@ -280,8 +282,8 @@ describe("App inspection", () => {
     expect(
       within(invariantItems[1]).getByText("Verification check: PASS"),
     ).toBeInTheDocument();
-    expect(within(invariantItems[2]).getByRole("heading", { name: "Post-state matches requested mode" })).toBeVisible();
-    expect(within(invariantItems[3]).getByRole("heading", { name: "Telemetry matches post-state" })).toBeVisible();
+    expect(within(invariantItems[2]).getByRole("heading", { name: "Ending mode matches the requested mode" })).toBeVisible();
+    expect(within(invariantItems[3]).getByRole("heading", { name: "Telemetry matches the ending mode" })).toBeVisible();
     expect(result.getAllByText("PASS")).toHaveLength(5);
   });
 
@@ -494,7 +496,7 @@ describe("App inspection", () => {
     ).toBeInTheDocument();
     expect(
       within(members[0]).getByRole("heading", {
-        name: "Pre-state matches expected",
+        name: "Starting mode matches the scenario",
       }),
     ).toBeInTheDocument();
     expect(
@@ -548,7 +550,7 @@ describe("App inspection", () => {
       within(sequence).getByText("Sequence outcome: FAIL"),
     ).toBeInTheDocument();
     expect(within(sequence).getByText("Valid saved evidence")).toBeVisible();
-    expect(within(sequence).getByText("1 or more execution or continuity checks did not pass. Records stay in their original order.")).toBeVisible();
+    expect(within(sequence).getByText("At least one record or continuity check failed. Records stay in their original order.")).toBeVisible();
 
     const boundary = within(sequence).getByRole("article", {
       name: "Continuity check 1",
@@ -838,7 +840,7 @@ describe("App inspection", () => {
     const alert = await screen.findByRole("alert");
     expect(within(alert).getByText("Request too large")).toBeVisible();
     expect(alert).toHaveTextContent(
-      "The complete HTTP request body is limited to 4 MiB. Reduce the submitted data before trying again.",
+      "The HTTP request body (the data sent for checking) has a 4 MiB limit. Use a smaller evidence document and try again.",
     );
     expect(json).not.toHaveBeenCalled();
     expect(screen.getByLabelText("Evidence JSON")).toHaveValue(evidence);

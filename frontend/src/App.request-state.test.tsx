@@ -18,16 +18,15 @@ describe("page introduction", () => {
     render(<App />);
     const steps = within(screen.getByRole("list", { name: "How a check works" })).getAllByRole("listitem");
     expect(steps.map(step => step.querySelector("strong")?.textContent)).toEqual([
-      "Expected behaviour", "Recorded result", "Independent checks", "Outcome",
+      "Expected behaviour", "Observation", "Verification checks", "Outcome",
     ]);
   });
 });
 
 describe("page footer", () => {
-  it("states the example domain and links to the source without duplicating documentation", () => {
+  it("names the implementation and links to the source", () => {
     render(<App />);
     const footer = within(screen.getByRole("contentinfo"));
-    expect(footer.getByText("Example data uses a simplified spacecraft model.", { exact: true })).toBeVisible();
     expect(footer.getByText("Built with a Python verification core, FastAPI, React and TypeScript.", { exact: true })).toBeVisible();
     expect(footer.getByRole("link", { name: /^Source code/ })).toHaveAttribute("href", "https://github.com/NikolayAir/OrbiRig");
     expect(footer.queryByRole("link", { name: /^Documentation/ })).not.toBeInTheDocument();

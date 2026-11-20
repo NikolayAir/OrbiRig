@@ -70,7 +70,7 @@ export function InspectionPanel({
             label="Load long sequence"
             tone="negative"
             tooltipClassName="long-sequence-example-hint"
-            description="100 records across 4 pages, with failures to find. Replaces evidence JSON"
+            description="100 records across 4 pages, with failed telemetry and continuity checks. Replaces evidence JSON"
             disabled={inspection.kind === "loading"}
             requiresConfirmation={requiresConfirmation("long")}
             onLoad={() => loadInspectionExample("long")}
@@ -83,7 +83,7 @@ export function InspectionPanel({
             tooltipClassName={evidenceType === "verified-execution-sequence" ? "sequence-continuity-example-hint" : undefined}
             description={`${evidenceType === "verified-execution"
               ? "Valid saved evidence with a FAIL outcome."
-              : "Each record passes, but the next one starts in a different state."} Replaces evidence JSON`}
+              : "Both records pass. The first ending mode differs from the second starting mode."} Replaces evidence JSON`}
             disabled={inspection.kind === "loading"}
             requiresConfirmation={requiresConfirmation("failing")}
             onLoad={() => loadInspectionExample("failing")}
@@ -95,7 +95,7 @@ export function InspectionPanel({
           tooltipClassName={evidenceType === "observation" ? "observation-altered-example-hint" : undefined}
           description={`${evidenceType === "observation"
             ? "Repeats a field name, so the evidence is rejected."
-            : "Saved checks no longer match the data, so recomputing rejects it."} Replaces evidence JSON`}
+            : "OrbiRig rejects saved checks that disagree with the recorded values."} Replaces evidence JSON`}
           disabled={inspection.kind === "loading"}
           requiresConfirmation={requiresConfirmation("altered")}
           onLoad={() => loadInspectionExample("altered")}
@@ -121,7 +121,7 @@ export function InspectionPanel({
           />
           <span>
             <span id="observation-type-label">Observation</span>
-            <small id="observation-type-description">Recorded behaviour without verification results.</small>
+            <small id="observation-type-description">A command and its reported result.</small>
           </span>
         </label>
         <label>
@@ -136,7 +136,7 @@ export function InspectionPanel({
           />
           <span>
             <span id="execution-type-label">Verified execution</span>
-            <small id="execution-type-description">One execution with its selected scenario and verification checks.</small>
+            <small id="execution-type-description">One command run with its scenario and check results.</small>
           </span>
         </label>
         <label>
@@ -153,7 +153,7 @@ export function InspectionPanel({
           />
           <span>
             <span id="sequence-type-label">Verified execution sequence</span>
-            <small id="sequence-type-description">Ordered records; each should start where the last ended.</small>
+            <small id="sequence-type-description">Two or more verified records with checks between them.</small>
           </span>
         </label>
       </fieldset>
@@ -163,8 +163,8 @@ export function InspectionPanel({
           <div className="field-label">
             <label htmlFor="evidence">Evidence JSON</label>
             <FieldHelp control={evidenceHelp} label="Evidence JSON" helpId="inspection-evidence-hint">
-              Paste the full JSON document matching the selected evidence type: observation, verified execution,
-              or verified-execution sequence. Use Load example to see the expected structure.
+              Paste the full JSON document for the evidence type you chose.
+              Choose Load example to see the format.
             </FieldHelp>
           </div>
           <textarea

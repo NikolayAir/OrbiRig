@@ -1,24 +1,22 @@
 # Command-line use
 
-[README](../README.md) · [Verification concepts](verification.md) · [Evidence formats](evidence-formats.md)
-
-The `orbirig` command checks a recorded command result from a local JSON file against a scenario you select. It writes a verified execution record as JSON, with the expected and actual values for each check and an overall `PASS` or `FAIL` outcome. It does not execute commands or collect new observations.
+Use `orbirig verify-observation` to check a local observation JSON file against the [scenario you choose](verification.md#supported-scenarios). The command writes a [verified execution record](evidence-formats.md#verified-execution-evidence) with the original observation, expected and actual values for each check, and an overall `PASS` or `FAIL` outcome.
 
 ## Install
 
-The CLI requires Python 3.12–3.15. From a repository checkout, install [uv](https://docs.astral.sh/uv/getting-started/installation/) and run at the repository root:
+The CLI requires Python 3.12–3.15. With [uv](https://docs.astral.sh/uv/getting-started/installation/) installed, run the setup command from the repository root.
 
 ```bash
 uv sync --locked
 ```
 
-uv creates `.venv` and installs the core package and console command. Run it with `uv run --no-sync orbirig`; no web dependencies, Node.js or browser are required. The [development guide](../CONTRIBUTING.md#python-environment) explains interpreter selection and optional dependencies.
+This command installs the core package in `.venv`. Run the CLI in this Python-only environment with `uv run --no-sync orbirig`. The [development guide](../CONTRIBUTING.md#python-environment) explains interpreter selection and optional dependencies.
 
 If you have a built wheel, install it in an activated Python environment with `python -m pip install /path/to/orbirig-VERSION-py3-none-any.whl`. Replace the path with your wheel's filename, then invoke `orbirig` directly.
 
 ## Verify the bundled example
 
-Run from the repository root:
+From the repository root, check the included observation using the `nominal_to_safe_mode` scenario.
 
 ```bash
 uv run --no-sync orbirig verify-observation docs/examples/nominal-to-safe.json \
@@ -27,9 +25,13 @@ uv run --no-sync orbirig verify-observation docs/examples/nominal-to-safe.json \
   --executed-at 2026-10-21T10:00:00Z
 ```
 
-The [example observation](examples/nominal-to-safe.json) records an accepted change from `NOMINAL` to `SAFE`, with matching telemetry. The command exits with code `0` and writes a complete verified execution record to standard output (stdout). The record contains `schema_version: 1`, the execution ID and UTC timestamp you provided, the selected scenario, the observation, 4 passing checks and `outcome: "PASS"`. Standard error (stderr) is empty.
+In PowerShell, enter the verification command on one line and omit the `\` line continuations.
 
-To save the result, use shell redirection:
+The [example observation](examples/nominal-to-safe.json) records an accepted change from `NOMINAL` to `SAFE`. The command writes JSON to standard output (stdout) with four passing checks and `"outcome": "PASS"`. It exits with code `0`.
+
+To save the JSON, use `>` to send standard output to a file. This creates or replaces `verified-execution.json`.
+
+In PowerShell, run the redirection example with [version 7.4 or later](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_redirection#redirecting-output-from-native-commands) to preserve the UTF-8 output. Windows PowerShell 5.1 writes redirected output as UTF-16LE by default.
 
 ```bash
 # Redirect stdout only; diagnostics remain visible on stderr.
@@ -39,11 +41,11 @@ uv run --no-sync orbirig verify-observation docs/examples/nominal-to-safe.json \
   --executed-at 2026-10-21T10:00:00Z > verified-execution.json
 ```
 
-The command has no output-file option. The saved file can be [reopened in Python](python.md#reopen-saved-verified-evidence) or pasted into **Verified execution** inspection in the [web interface](web-interface.md#inspect-evidence).
+To [inspect the file in the browser](web-interface.md#inspect-evidence), switch to the **Inspect evidence** workflow and choose **Verified execution**. Paste the file's contents into **Evidence JSON**, then choose **Inspect evidence**. You can also [reopen the file in Python](python.md#reopen-saved-verified-evidence).
 
 ## See a failed telemetry check
 
-Copy the example to `bad-telemetry.json` and change only `telemetry.operating_mode` to `"NOMINAL"`. Then run:
+Copy `docs/examples/nominal-to-safe.json` to `bad-telemetry.json` in the repository root. Change only `telemetry.operating_mode` to `"NOMINAL"`. Verify the changed file with the same scenario.
 
 ```bash
 uv run --no-sync orbirig verify-observation bad-telemetry.json \
@@ -52,7 +54,7 @@ uv run --no-sync orbirig verify-observation bad-telemetry.json \
   --executed-at 2026-10-21T10:00:00Z
 ```
 
-The command exits with code `1` and writes a complete, valid evidence record with outcome `FAIL`. The `telemetry_matches_post_state` check contains expected `"SAFE"`, actual `"NOMINAL"` and `passed: false`. Stderr remains empty. The input is valid, but the recorded telemetry does not match the post-state.
+The command exits with code `1` and writes a valid evidence record with outcome `FAIL`. The `telemetry_matches_post_state` check shows `"expected": "SAFE"`, `"actual": "NOMINAL"` and `"passed": false`.
 
 ## Arguments
 
@@ -60,7 +62,7 @@ The command exits with code `1` and writes a complete, valid evidence record wit
 
 | Argument | Meaning |
 | --- | --- |
-| `FILE` | 1 local UTF-8 observation-evidence v1 file. `-` is a filename, not a request to read stdin. |
+| `FILE` | Path to one local observation-evidence v1 file in UTF-8. The command treats `-` as a filename. |
 | `--scenario` | Exactly `nominal_to_safe_mode`, `nominal_to_nominal_rejection` or `safe_to_nominal_mode`. See [expected behaviour](verification.md#supported-scenarios). |
 | `--execution-id` | A non-blank ID, preserved exactly; Unicode surrogate code points are rejected. |
 | `--executed-at` | The recorded execution's UTC time, for example `2026-10-21T10:00:00Z`. |

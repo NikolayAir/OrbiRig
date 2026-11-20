@@ -424,22 +424,12 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
           {section === "browser" && (
             <>
               <p>
-                OrbiRig checks recorded command results against expectations defined independently
-                of the recorded data. When verification can proceed, it shows which checks pass or
-                fail; invalid input is reported separately. It rechecks saved verification results
-                for consistency with the recorded data.
+                An observation records the command, whether it was accepted, and the operating
+                mode before and after it ran. It also includes telemetry, a separate report of the mode.
               </p>
               <p>
-                The examples use a simplified spacecraft model with two operating modes, NOMINAL and SAFE.
-                A command requests a mode; an observation records the request, whether it was accepted,
-                the mode before and after, and a separately reported mode (telemetry). OrbiRig currently
-                supports three such scenarios. This approach shares principles with software testing and
-                data-quality practices, such as checking API responses against expected values or validating
-                data in processing pipelines.
-              </p>
-              <p>
-                The web interface verifies submitted command results and inspects
-                saved records. It does not connect to external systems, send commands or collect live data.
+                For verification, choose the scenario that describes what you expect. For inspection,
+                provide the saved JSON document (evidence) you want to check. The browser uses recorded data.
               </p>
 
               <div
@@ -483,16 +473,15 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                 hidden={browserWorkflow !== "verification"}
                 tabIndex={0}
               >
+                <p>To try a sample, choose <strong>Load example</strong> or <strong>Load failing example</strong>, then <strong>Verify observation</strong>.</p>
                 <ol>
-                  <li>Enter an execution ID and the UTC time of the recorded execution.</li>
                   <li>
-                    Select a scenario describing the expected behaviour, such as switching
-                    from NOMINAL to SAFE mode.
+                    For your own observation, select a <strong>Scenario</strong>, such as <strong>NOMINAL to SAFE</strong>.
                   </li>
                   <li>
-                    Paste the observation JSON, or choose <strong>Load example</strong> or{" "}
-                    <strong>Load failing example</strong> to try a sample.
+                    Enter an <strong>Execution ID</strong> and the time the command ran in <strong>Execution time (UTC)</strong>.
                   </li>
+                  <li>Paste the observation into the <strong>Observation evidence JSON</strong> field.</li>
                   <li>
                     Choose <strong>Verify observation</strong> to see the individual checks
                     and overall <strong>PASS</strong> or <strong>FAIL</strong> result.
@@ -506,7 +495,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                   onOpenChange={changeOpenSection}
                 >
                   <p>
-                    Illustrative example from the Python API. The browser does not run the test target.
+                    Example from a local run using the Python API.
                   </p>
                   <ol>
                     <li>A command requests a change from NOMINAL to SAFE.</li>
@@ -514,22 +503,20 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                       The independent test target saves SAFE, then exits before returning an observation.
                     </li>
                     <li>
-                      OrbiRig reports a <strong>collection error</strong>.
-                      No verification <strong>PASS</strong> or <strong>FAIL</strong> is produced.
+                      OrbiRig reports a <strong>collection error</strong>. With no observation to check,
+                      it has no <strong>PASS</strong> or <strong>FAIL</strong> result.
                     </li>
                     <li>
-                      In this controlled example, a separate check of the target's state file
-                      confirms SAFE was saved.
+                      Reading the target's state file confirms it saved SAFE.
                     </li>
                     <li>
                       The next command starts from SAFE, changes to NOMINAL and produces <strong>PASS</strong>.
                     </li>
                   </ol>
                   <p>
-                    A missing response does not prove that a command failed to execute.
-                    The collection error alone does not establish the state of an external system.
+                    After a collection error, check the target separately to find out whether it saved a change.
                   </p>
-                  <p><DocLink href={LINKS.statefulTarget}>Reproduce the stateful-target example</DocLink></p>
+                  <p><DocLink href={LINKS.statefulTarget}>Run the Python example</DocLink></p>
                 </ExpandableHelpSection>
                 <ExpandableHelpSection
                   id="verification-results"
@@ -548,14 +535,8 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                     match the selected scenario, is reported as an error instead of FAIL.
                   </p>
                   <p>
-                    Choose the scenario based on the behaviour you intended to test, not on the
-                    values reported in the observation.
-                  </p>
-                  <p>
-                    Both <strong>PASS</strong> and <strong>FAIL</strong> are completed results.{" "}
-                    <strong>Verify observation</strong> stays unavailable until an input changes,
-                    since identical inputs produce the same result. Editing an input clears the previous
-                    result and prompts a new check.
+                    After a completed result, change an input to run <strong>Verify observation</strong> again.
+                    This clears the previous result.
                   </p>
                   <ul className="workflow-help-links">
                     <li><DocLink href={LINKS.scenarios}>Supported scenarios and checks</DocLink></li>
@@ -573,12 +554,10 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
               >
                 <ol>
                   <li>
-                    Select the evidence type: observation, verified execution, or
-                    verified-execution sequence.
+                    Select the <strong>Evidence type</strong> that matches your document.
                   </li>
                   <li>
-                    Paste its JSON or load an example. <strong>Load altered example</strong> shows
-                    why evidence with repeated fields or outdated saved results is rejected.
+                    Paste the document into <strong>Evidence JSON</strong> or choose <strong>Load example</strong>.
                   </li>
                   <li>
                     Choose <strong>Inspect evidence</strong> to see the recorded values
@@ -593,20 +572,18 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                   onOpenChange={changeOpenSection}
                 >
                   <p>
-                    Inspecting an observation checks its JSON structure and supported values.
+                    Inspecting an observation validates its JSON by checking the format, fields and values.
                     To compare the reported result with a scenario, use <strong>Verify observation</strong>.
                   </p>
                   <p>
-                    For saved verified executions and sequences, OrbiRig recalculates each
-                    record's checks and outcome from its scenario and observation, then compares
-                    them with the stored results. For sequences, it also checks continuity in
-                    the saved order. A record with a <strong>FAIL</strong> outcome can still be
-                    inspected when these results match.
+                    For verified evidence, OrbiRig also recalculates the checks from the saved
+                    scenario and observation. A saved <strong>FAIL</strong> is valid when the stored
+                    results agree with those checks. In a sequence, each continuity check compares
+                    the ending mode of one record with the starting mode of the next.
                   </p>
                   <p>
-                    After a successful inspection, <strong>Inspect evidence</strong> stays unavailable until
-                    the JSON or evidence type changes, since identical inputs produce the same result.
-                    Editing either clears the result and prompts a new inspection.
+                    After a successful inspection, change the JSON or evidence type to run{" "}
+                    <strong>Inspect evidence</strong> again. This clears the previous result.
                   </p>
                   <ul className="workflow-help-links">
                     <li><DocLink href={LINKS.evidenceFormats}>Evidence formats and JSON rules</DocLink></li>
@@ -631,15 +608,9 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
           {section === "cli" && (
             <>
               <p>
-                OrbiRig can verify recorded observations in two ways: by submitting JSON
-                in the browser or by reading a local JSON file from the command line.
-                Both interfaces use the same Python verification core. Neither interface
-                sends commands to a target system (the software or device described in
-                the records) or collects new observations from it.
-              </p>
-              <p>
-                To try the included example, open a terminal in an OrbiRig checkout. Run{" "}
-                <code>uv sync --locked</code> if the Python environment is not yet installed, then:
+                The command line checks an observation in a local JSON file. To try the example,
+                open a terminal in the OrbiRig repository. Run <code>uv sync --locked</code> to
+                install OrbiRig, then run the verification command.
               </p>
               <pre
                 className="workflow-help-command"
@@ -654,8 +625,8 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
               </pre>
               <p>
                 The execution ID and UTC timestamp are example values. For your own recorded
-                execution, replace the file path with a UTF-8 observation JSON file and use
-                the recorded execution ID and time.
+                execution, use the path to your UTF-8 observation JSON file, choose the scenario you want
+                to check and enter the command's ID and time.
               </p>
               <p>
                 The command prints JSON evidence containing the individual checks and overall <strong>PASS</strong> or <strong>FAIL</strong> result.
@@ -685,14 +656,28 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                 onOpenChange={changeOpenSection}
               >
                 <p>
-                  The C#/.NET example shows how OrbiRig&apos;s existing scenarios can check command
-                  results from a program written in another language. It runs locally through the
-                  Python API, keeps its state between launches
-                  and demonstrates stale telemetry and a missing response after saving a change.
+                  You can use the Python API to verify command responses from an independent
+                  C#/.NET program against a scenario you choose. The API starts a new process for
+                  each command. A state file keeps the operating mode between runs.
                 </p>
+                <p><strong>Example outcomes from a local run</strong></p>
+                <ul>
+                  <li>
+                    <strong>Round trip.</strong> The mode changes from <code>NOMINAL</code> to <code>SAFE</code> and back.
+                    OrbiRig reports <strong>PASS</strong>. The second run starts in the mode the first one left.
+                  </li>
+                  <li>
+                    <strong>Stale telemetry.</strong> The target saves <code>SAFE</code> and reports <code>NOMINAL</code> as telemetry.
+                    OrbiRig records a verification <strong>FAIL</strong>.
+                  </li>
+                  <li>
+                    <strong>Collection error.</strong> The target saves a change and exits before returning an observation.
+                    OrbiRig reports the error without creating a verified record.
+                  </li>
+                </ul>
                 <p>
-                  The .NET 10 SDK is needed only to build and run this example. The browser does
-                  not run the target, and verifying JSON files with the CLI does not require .NET.
+                  Use the .NET 10 SDK to build and run the optional target locally. The example saves
+                  the stale-telemetry result as JSON for inspection in the browser.
                 </p>
                 <p><DocLink href={LINKS.dotnetTarget}>Build and verify the C#/.NET example</DocLink></p>
               </ExpandableHelpSection>

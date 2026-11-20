@@ -79,7 +79,7 @@ test.beforeEach(async ({ page }) => {
 test("page identity loads the product mark alongside its name", async ({ page }) => {
   await expect(page.locator(".brand")).toHaveText("OrbiRig");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "Check what a system reported against what it should have done",
+    "Check recorded command results",
   );
   const mark = page.locator(".brand img");
   await expect(mark).toHaveAttribute("alt", "");
@@ -226,9 +226,9 @@ for (const viewport of [
       await page.mouse.click(bounds.x + 1, bounds.y + 1);
       await expect(help).toBeVisible();
       if (guide === "In the browser") {
-        const webScope = help.getByText(/The examples use a simplified spacecraft/);
-        await expect(webScope).toHaveText("The examples use a simplified spacecraft model with two operating modes, NOMINAL and SAFE. A command requests a mode; an observation records the request, whether it was accepted, the mode before and after, and a separately reported mode (telemetry). OrbiRig currently supports three such scenarios. This approach shares principles with software testing and data-quality practices, such as checking API responses against expected values or validating data in processing pipelines.");
-        await expect(help.getByText(/^The web interface verifies submitted/)).toHaveText("The web interface verifies submitted command results and inspects saved records. It does not connect to external systems, send commands or collect live data.");
+        const webScope = help.getByText(/^An observation records the command/);
+        await expect(webScope).toContainText("telemetry, a separate report of the mode");
+        await expect(help.getByText(/^For verification, choose the scenario/)).toContainText("The browser uses recorded data.");
         await webScope.scrollIntoViewIfNeeded();
         await expect(webScope).toBeInViewport();
         await expect(help.getByRole("tab", { name: "Verify observation", selected: true })).toBeVisible();
@@ -237,7 +237,7 @@ for (const viewport of [
         await expect(help.getByRole("tabpanel", { name: "Verify observation" })).toBeHidden();
         await expect(help.getByRole("tabpanel", { name: "Inspect evidence" })).toBeVisible();
         await expect(help.getByRole("region", { name: "CLI verification command" })).toHaveCount(0);
-        await expect(help.getByText(/OrbiRig can verify/)).toHaveCount(0);
+        await expect(help.getByText(/^The command line checks an observation/)).toHaveCount(0);
         await help.getByRole("tabpanel", { name: "Inspect evidence" }).locator(".workflow-help-reference summary").click();
         await expect(help.getByRole("link")).toHaveCount(3);
         const browserTabs = help.getByRole("tablist", { name: "Browser instructions" });
@@ -265,7 +265,7 @@ for (const viewport of [
         }
         await page.keyboard.press("Tab");
         await expect(help.getByRole("tabpanel", { name: "Inspect evidence" })).toBeFocused();
-        const inspectionGuidance = help.getByText(/For saved verified executions and sequences/);
+        const inspectionGuidance = help.getByText(/^For verified evidence/);
         // Moving between the workflow tabs closed the section; it must be opened again to be read.
         await expect(inspectionGuidance).toBeHidden();
         await help.getByRole("tabpanel", { name: "Inspect evidence" }).locator(".workflow-help-reference summary").click();
@@ -274,7 +274,7 @@ for (const viewport of [
       } else {
         await expect(help.getByRole("heading", { name: "Verify observation" })).toHaveCount(0);
         await expect(help.getByRole("heading", { name: "Inspect evidence" })).toHaveCount(0);
-        await expect(help.getByText(/OrbiRig checks recorded command results/)).toHaveCount(0);
+        await expect(help.getByText(/^An observation records the command/)).toHaveCount(0);
 
         if (viewport.width === 1280) {
           // The exit codes are in a section that starts closed; open it to measure, then close it again.
@@ -577,7 +577,7 @@ test("verification reports HTTP 413 for an oversized wrapped request and allows 
   });
   await expect(page.getByRole("alert").locator("strong")).toHaveText("Request too large");
   await expect(page.getByRole("alert").locator("span")).toHaveText(
-    "The complete HTTP request body is limited to 4 MiB. Reduce the submitted data before trying again.",
+    "The HTTP request body (the data sent for checking) has a 4 MiB limit. Use a smaller evidence document and try again.",
   );
   await expect(page.getByLabel("Execution ID", { exact: true })).toHaveValue("browser-execution");
   await expect(page.getByLabel("Execution time (UTC)", { exact: true })).toHaveValue("2026-08-17T08:00:00Z");
@@ -618,7 +618,7 @@ for (const inspection of [
     expect(response.request().headers()["content-type"]).toBe("text/plain; charset=utf-8");
     await expect(page.getByRole("alert").locator("strong")).toHaveText("Request too large");
     await expect(page.getByRole("alert").locator("span")).toHaveText(
-      "The complete HTTP request body is limited to 4 MiB. Reduce the submitted data before trying again.",
+      "The HTTP request body (the data sent for checking) has a 4 MiB limit. Use a smaller evidence document and try again.",
     );
     await expect(page.getByLabel("Evidence JSON", { exact: true })).toHaveValue(submittedText);
     await expect(page.getByRole("radio", { name: inspection.type, exact: true })).toBeChecked();
@@ -724,8 +724,8 @@ test("sequence keeps input order and reports a mode mismatch even though every r
     await expect(field(boundary, "Connected executions")).toHaveText(
       `Previous execution ID: ${previous} → Next execution ID: ${next}`,
     );
-    await expect(field(boundary, "Expected operating mode")).toHaveText(expected);
-    await expect(field(boundary, "Observed operating mode")).toHaveText(observed);
+    await expect(field(boundary, "Previous ending mode (expected)")).toHaveText(expected);
+    await expect(field(boundary, "Next starting mode (observed)")).toHaveText(observed);
     await expectOutcome(boundary, "Continuity outcome", outcome);
   }
   await expect(page.getByRole("alert")).toHaveCount(0);
@@ -744,15 +744,15 @@ test("observation inspection shows reported behaviour without claiming verificat
   expect(response.request().postData()).toBe(submittedText);
   const observation = page.getByRole("region", { name: "Observation details", exact: true });
   await expect(observation.getByText("Valid observation evidence", { exact: true })).toBeVisible();
-  await expect(observation.getByText("These are reported values. No scenario verification has been performed.")).toBeVisible();
+  await expect(observation.getByText(/^The observation format is valid/)).toContainText("Use Verify observation to check these values against a scenario.");
   await expect(observation).toBeVisible();
   for (const [label, value] of [
     ["Command type", "SET_OPERATING_MODE"],
     ["Target mode", "SAFE"],
-    ["Pre-state operating mode", "SAFE"],
+    ["Starting mode", "SAFE"],
     ["Acknowledgement", "Rejected"],
-    ["Post-state operating mode", "NOMINAL"],
-    ["Telemetry operating mode", "SAFE"],
+    ["Ending mode", "NOMINAL"],
+    ["Mode reported by telemetry", "SAFE"],
   ]) {
     await expect(field(observation, label)).toHaveText(value);
   }

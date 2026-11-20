@@ -19,6 +19,7 @@ describe("pre-release regressions", () => {
     record.invariant_results[1] = { invariant_id: id, expected, actual, passed };
     render(<VerifiedExecutionDetails record={record} />);
     const check = screen.getByText(id).closest("li")!;
+    expect(within(check).getByRole("heading", { name: `Command reported as ${expectedLabel.toLowerCase()}` })).toBeVisible();
     const definitions = check.querySelectorAll("dd");
     expect(definitions[0]).toHaveTextContent(expectedLabel);
     expect(definitions[1]).toHaveTextContent(actualLabel);
@@ -31,7 +32,7 @@ describe("pre-release regressions", () => {
     expect(screen.getByRole("button", { name: "Show Verify observation" }))
       .toHaveAccessibleDescription("Compare a recorded result with a scenario.");
     expect(screen.getByRole("button", { name: "Show Inspect evidence" }))
-      .toHaveAccessibleDescription("Validate saved records and recheck any verification results they contain.");
+      .toHaveAccessibleDescription("Read a JSON document and check that any saved results match its data.");
     for (const name of ["About Verify observation", "About Inspect evidence", "About Execution time (UTC)"]) {
       expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
     }

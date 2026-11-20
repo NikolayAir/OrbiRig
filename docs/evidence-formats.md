@@ -1,8 +1,10 @@
 # Evidence format reference
 
-[README](../README.md) · [Verification concepts](verification.md) · [Using the Python API](python.md)
+**Evidence** is JSON that stores what a program reported or what OrbiRig found when checking it. A verified record adds the scenario, execution details, checks and outcome to the observation. The readers in `orbirig.evidence` validate each submitted document. Each form has a version field.
 
-Evidence JSON records reported observations and verification results. An observation document contains the command and reported values; a verified record also includes the selected scenario, execution details, checks and outcome. All readers in `orbirig.evidence` validate submitted JSON as untrusted input. The 3 supported forms are versioned separately:
+Validation checks a document's format and whether any saved results agree with its inputs. [Verification](verification.md) compares an observation with a chosen scenario and gives a `PASS` or `FAIL` result.
+
+Choose the reader for the form of evidence you have. The version fields describe the JSON format independently of the OrbiRig package version.
 
 | Evidence form | Version field | Current version | Python model |
 | --- | --- | --- | --- |
@@ -10,13 +12,9 @@ Evidence JSON records reported observations and verification results. An observa
 | Verified execution | `schema_version` | `1` | `VerifiedExecutionRecord` |
 | Verified execution sequence | `schema_version` | `1` | `VerifiedExecutionSequence` |
 
-The evidence form must be known when choosing a reader. Package versions and these format/schema versions are independent; changing one does not imply changing the others.
-
 ## What validation establishes
 
-Recomputing checks confirms whether the saved results agree with the saved scenario and observation. It does not prove that the observation describes an actual command execution. OrbiRig does not sign evidence or confirm who provided the observations, execution IDs or timestamps.
-
-If someone changes an observation and replaces its checks with matching results, the document can still be valid. Establishing where the data came from and whether it was changed requires safeguards outside these JSON checks.
+Evidence is unsigned, so a document can pass validation if someone edits the observation and updates the results to match. Confirming that a command ran, who provided the data, or whether someone changed it requires independent information about its source.
 
 ## Shared JSON rules
 
@@ -24,11 +22,11 @@ Readers reject malformed JSON and repeated field names within any object, includ
 
 Serialisers return JSON text with 2-space indentation, a stable field and array order, and 1 final LF newline. The same input models produce the same text. Reading JSON does not require object fields in a particular order, but result arrays must follow the order defined below. See [saving and reopening evidence](python.md#reopen-saved-verified-evidence) to write the text to UTF-8 files.
 
-Verified-execution and sequence serialisers apply the reader's canonical reconstruction before returning JSON. They reject manually assembled models with inconsistent derived results rather than repairing those results. This includes stored invariant checks, continuity and aggregate outcomes; consistent `FAIL` evidence is supported. The schema versions remain independent of the package version.
+Before writing a verified execution or sequence, the serialiser recalculates the results using the same rules as the reader. It raises `ValueError` if the model's checks or outcomes disagree with those results.
 
 ## Observation evidence
 
-The complete structure of an observation v1 document is illustrated by [nominal-to-safe.json](examples/nominal-to-safe.json):
+The bundled [nominal-to-safe.json](examples/nominal-to-safe.json) contains a complete observation v1 document.
 
 ```json
 {
@@ -46,7 +44,7 @@ The complete structure of an observation v1 document is illustrated by [nominal-
 
 `accepted` is a JSON boolean. The meaning of each reported value is explained in [verification concepts](verification.md#what-an-observation-records).
 
-`serialize_execution_evidence(...)` returns JSON in this form. `deserialize_execution_evidence(...)` returns a `CommandExecutionObservation`. There is no scenario, execution metadata, invariant result or outcome in an observation document. Successfully reading it does not establish verification success.
+`serialize_execution_evidence(...)` returns JSON in this form. `deserialize_execution_evidence(...)` validates the format, fields and values and returns a `CommandExecutionObservation`. To [verify an existing observation in Python](python.md#verify-an-existing-observation), provide a separate scenario, execution ID and UTC execution time.
 
 ## Verified execution evidence
 
@@ -73,7 +71,7 @@ The checks appear in this order, using these `invariant_id` values:
 
 Their expected behaviour is defined in [verification concepts](verification.md#supported-scenarios).
 
-`serialize_verified_execution_evidence(...)` returns a record's JSON representation. `deserialize_verified_execution_evidence(...)` validates the execution ID and timestamp, reconstructs the observation and recomputes the checks using the saved scenario and observation. The stored invariant identifiers, order, values, pass flags and outcome must match the recomputed record exactly. A saved `FAIL` is valid when its checks and outcome match these results; a stored `PASS` that contradicts them is invalid.
+`serialize_verified_execution_evidence(...)` returns a record's JSON representation. `deserialize_verified_execution_evidence(...)` validates the execution ID and timestamp, loads the observation and recalculates the checks. The saved check IDs, order, values, pass flags and outcome must match the recalculated results. This rule also allows a correctly recorded `FAIL`.
 
 The [CLI example](cli.md#verify-the-bundled-example) produces this form of record and calculates the checks and outcome for you.
 

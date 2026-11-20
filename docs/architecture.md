@@ -1,12 +1,10 @@
 # Architecture
 
-[README overview](../README.md#how-verification-works) · [Verification concepts](verification.md) · [Using the Python API](python.md) · [Evidence formats](evidence-formats.md)
-
-OrbiRig separates collecting a command's reported result, checking it against explicit expectations, and displaying or exporting the checks. The Python core validates inputs, defines scenario expectations, performs verification and reads or writes evidence. The command line and HTTP API call this core, while the React/TypeScript web interface submits requests to the API and displays the results. The core works without FastAPI, React, Node.js or a browser.
+The Python core owns the scenario rules, JSON validation and verification results. The command line calls it directly. The React/TypeScript interface submits recorded data to the FastAPI adapter and displays its response. You can use the core on its own as a Python library.
 
 ## Verification flow
 
-The [README diagram](../README.md#how-verification-works) gives a compact overview. The detailed diagram below shows how an observation is loaded from JSON or collected during command execution, then checked against a separately selected scenario. It also shows where input and collection errors prevent record creation.
+The [verification overview in the README](../README.md#how-verification-works) introduces the four checks. The detailed diagram here follows an observation from a JSON file or a command run to a verified record or an error. In both paths, the caller selects the scenario and provides the execution ID and UTC time.
 
 ```mermaid
 ---
@@ -19,7 +17,7 @@ config:
 ---
 flowchart TD
     accTitle: Observation collection and independent verification
-    accDescr: Observation JSON is validated and loaded, or the Python API executes the command required by the selected scenario and collects an observation. Python checks the observation against the scenario's separate expectations. The execution ID and UTC timestamp identify the verified record, which contains 4 checks and a PASS or FAIL outcome and can be exported as versioned JSON. Invalid input, a command that does not match the scenario, or a collection error prevents record creation.
+    accDescr: The Python core loads an observation from JSON or collects one by executing the selected scenario's command. It compares the observation with the scenario's expectations. A verified record stores the execution ID, UTC time, four checks and a PASS or FAIL outcome. An input error or a collection error stops verification before it creates a record.
     saved["Observation JSON"] ---> load("Validate and load JSON")
     scenario["Selected scenario"] -->|Command| collect("Collect observation from<br/>ReferenceSpacecraft<br/>or a separate program")
     collect ---> observation
@@ -36,13 +34,11 @@ flowchart TD
     class load,collect,verifier action
 ```
 
-Rounded boxes show actions; square-cornered boxes show data or results. The caller selects the scenario independently of the recorded values and provides the execution ID and UTC timestamp. Invalid metadata also prevents record creation.
+An invalid execution ID or timestamp also prevents record creation. Both [Python execution helpers](python.md) validate the metadata and scenario before they handle a reference command or start a target. The [subprocess helper](python.md#collect-from-a-separate-program) also validates its timeout before launch.
 
 The Python API builds reference observations directly from `ReferenceSpacecraft` state, acknowledgement and telemetry. For subprocesses, collection validates the returned JSON with the same reader used for saved observations; invalid output follows the collection-error path.
 
-Execution helpers validate the scenario, execution ID and UTC timestamp before handling a reference command or starting a target. Subprocess timeout arguments are also validated before launch, as described in the [Python collection guide](python.md#collect-from-a-separate-program).
-
-A valid observation can produce `FAIL`; an expected command rejection can produce `PASS`. Invalid input, a command incompatible with the selected scenario or a collection failure produces no verified record. A collection or verification error does not establish whether an external target changed state. See [verification concepts](verification.md) for the checks and their meaning, and the [Python collection guide](python.md#collect-from-a-separate-program) for the subprocess protocol.
+A [collection or verification error](verification.md#collection-and-verification) leaves the external target's state unknown. A completed verification can report `FAIL` using a valid observation.
 
 ## Component responsibilities
 
@@ -58,7 +54,7 @@ A valid observation can produce `FAIL`; an expected command rejection can produc
 
 [`ReferenceSpacecraft`](../src/orbirig/reference_sut.py) is a simplified, deterministic test double used to produce repeatable observations. The verifier defines expectations independently of this test double.
 
-Loading saved verified evidence recomputes its checks and outcome rather than trusting the stored results. Sequence loading also reconstructs each record and checks continuity in the saved order. The saved checks and outcome must match the recalculated results, including for `FAIL` evidence. See [loading saved evidence](verification.md#loading-saved-evidence) and the [JSON formats and validation rules](evidence-formats.md).
+The [evidence format reference](evidence-formats.md) lists the stored fields, their order and the rules for comparing saved and recalculated results.
 
 ### Browser modules
 
@@ -66,9 +62,9 @@ Loading saved verified evidence recomputes its checks and outcome rather than tr
 
 | Module | Responsibility |
 | --- | --- |
-| [Verification panel](../frontend/src/VerificationPanel.tsx) and [inspection panel](../frontend/src/InspectionPanel.tsx) | Render inputs, actions and feedback using the state supplied by `App`. |
-| [API client](../frontend/src/apiClient.ts) and [response checks](../frontend/src/apiResponses.ts) | Send the original evidence text, handle HTTP responses and check display fields, 4 checks per execution, and 1 continuity result per adjacent pair in a sequence of at least 2 records. Incomplete responses produce a request error in the interface; Python supplies the verification results. |
+| [Verification panel](../frontend/src/VerificationPanel.tsx) and [inspection panel](../frontend/src/InspectionPanel.tsx) | Render inputs, actions and feedback from the state passed by `App`. |
+| [API client](../frontend/src/apiClient.ts) and [response checks](../frontend/src/apiResponses.ts) | Send the original evidence text and check HTTP responses for the fields the interface needs. A complete response has four checks per execution. A sequence has at least two records and one continuity result per adjacent pair. Incomplete responses produce a request error. Python calculates the verification results. |
 | [Request tracking](../frontend/src/useCancellableRequest.ts) | Track verification and inspection separately. Abort browser requests on cancellation or when React removes the application from the page, and ignore late responses after cancellation or retry, including after JSON parsing. |
 | [Completion feedback](../frontend/src/useWorkflowFeedback.ts) | Coordinate announcements, focus and scrolling, giving up automatic focus when the user moves elsewhere. |
-| [Evidence details](../frontend/src/EvidenceDetails.tsx) | Display observations, verification checks and sequences in their supplied order. |
+| [Evidence details](../frontend/src/EvidenceDetails.tsx) | Display observations, verification checks and sequence records in the order returned by Python. |
 | [Field help](../frontend/src/FieldHelp.tsx) and [help state](../frontend/src/useVerificationFieldHelp.ts) | Share the field-tooltip markup and manage deliberate opening, dismissal and a single pinned tooltip. |

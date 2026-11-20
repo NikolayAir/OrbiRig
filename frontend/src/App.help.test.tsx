@@ -17,7 +17,7 @@ describe("App help", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "In the browser" }));
     const help = within(screen.getByRole("dialog", { name: "How it works" }));
-    expect(help.getByText(/The examples use a simplified spacecraft/)).toBeVisible();
+    expect(help.getByText(/^An observation records the command/)).toBeVisible();
     for (const name of ["Verify observation", "Inspect evidence"]) {
       fireEvent.click(help.getByRole("tab", { name }));
       const panel = help.getByRole("tabpanel", { name });
@@ -70,8 +70,8 @@ describe("App help", () => {
       expect(within(guidance.getByRole("tabpanel", { name: "Verify observation" }).querySelector(".workflow-help-links")!).getAllByRole("link")).toHaveLength(2);
     } else {
       expect(guidance.getByRole("region", { name: "CLI verification command" })).toBeVisible();
-      expect(guidance.queryByText(/OrbiRig checks recorded command results/)).not.toBeInTheDocument();
-      expect(guidance.queryByRole("list")).not.toBeInTheDocument();
+      expect(guidance.queryByText(/^An observation records the command/)).not.toBeInTheDocument();
+      expect(guidance.getByText("Example outcomes from a local run")).not.toBeVisible();
     }
 
     fireEvent.click(within(help).getByRole("button", { name: "Close" }));
@@ -240,56 +240,49 @@ describe("App help", () => {
     expect(
       within(verificationSteps).getAllByRole("listitem").map((step) => step.textContent?.replace(/\s+/g, " ").trim()),
     ).toEqual([
-      "Enter an execution ID and the UTC time of the recorded execution.",
-      "Select a scenario describing the expected behaviour, such as switching from NOMINAL to SAFE mode.",
-      "Paste the observation JSON, or choose Load example or Load failing example to try a sample.",
+      "For your own observation, select a Scenario, such as NOMINAL to SAFE.",
+      "Enter an Execution ID and the time the command ran in Execution time (UTC).",
+      "Paste the observation into the Observation evidence JSON field.",
       "Choose Verify observation to see the individual checks and overall PASS or FAIL result.",
     ]);
 
     const browserPanel = within(guidance.getByRole("tabpanel", { name: "In the browser" }));
-    expect(browserPanel.getByText(/OrbiRig checks recorded command results/)).toHaveTextContent(
-      "OrbiRig checks recorded command results against expectations defined independently of the recorded data. When verification can proceed, it shows which checks pass or fail; invalid input is reported separately. It rechecks saved verification results for consistency with the recorded data.",
+    expect(browserPanel.getByText(/^An observation records the command/)).toHaveTextContent(
+      "It also includes telemetry, a separate report of the mode.",
     );
     expect(guidance.getByRole("tabpanel", { name: "In the browser" }).querySelector("p"))
-      .toBe(browserPanel.getByText(/OrbiRig checks recorded command results/));
-    expect(browserPanel.queryByText(/OrbiRig can verify recorded observations in two ways/)).not.toBeInTheDocument();
-    expect(guidance.getByText(/The examples use a simplified spacecraft/)).toHaveTextContent(
-      "The examples use a simplified spacecraft model with two operating modes, NOMINAL and SAFE. A command requests a mode; an observation records the request, whether it was accepted, the mode before and after, and a separately reported mode (telemetry). OrbiRig currently supports three such scenarios. This approach shares principles with software testing and data-quality practices, such as checking API responses against expected values or validating data in processing pipelines.",
-    );
-    expect(browserPanel.getByText(/^The web interface verifies submitted/)).toHaveTextContent(
-      "The web interface verifies submitted command results and inspects saved records. It does not connect to external systems, send commands or collect live data.",
-    );
+      .toBe(browserPanel.getByText(/^An observation records the command/));
+    expect(browserPanel.queryByText(/^The command line checks an observation/)).not.toBeInTheDocument();
+    expect(guidance.getByText(/^For verification, choose the scenario/)).toHaveTextContent("The browser uses recorded data.");
+    expect(guidance.getByText(/^To try a sample/)).toHaveTextContent("choose Load example or Load failing example, then Verify observation.");
     expect(guidance.getByText(/means the recorded behaviour matches/)).toHaveTextContent(
       "PASS means the recorded behaviour matches the selected scenario. This can include a rejected command if rejection was expected.",
     );
     expect(guidance.getByText(/means the observation is valid/)).toHaveTextContent(
       "FAIL means the observation is valid, but one or more verification checks do not meet their expectations. Invalid input, including a command that does not match the selected scenario, is reported as an error instead of FAIL.",
     );
-    expect(guidance.getByText(/Choose the scenario based/)).toHaveTextContent(
-      "Choose the scenario based on the behaviour you intended to test, not on the values reported in the observation.",
-    );
-    expect(guidance.getByText(/are completed results/)).toHaveTextContent(
-      "Both PASS and FAIL are completed results. Verify observation stays unavailable until an input changes, since identical inputs produce the same result. Editing an input clears the previous result and prompts a new check.",
+    expect(guidance.getByText(/^After a completed result/)).toHaveTextContent(
+      "After a completed result, change an input to run Verify observation again. This clears the previous result.",
     );
     fireEvent.click(guidance.getByRole("tab", { name: "Inspect evidence" }));
     const [inspectionSteps] = within(guidance.getByRole("tabpanel", { name: "Inspect evidence" })).getAllByRole("list");
     expect(
       within(inspectionSteps).getAllByRole("listitem").map((step) => step.textContent?.replace(/\s+/g, " ").trim()),
     ).toEqual([
-      "Select the evidence type: observation, verified execution, or verified-execution sequence.",
-      "Paste its JSON or load an example. Load altered example shows why evidence with repeated fields or outdated saved results is rejected.",
+      "Select the Evidence type that matches your document.",
+      "Paste the document into Evidence JSON or choose Load example.",
       "Choose Inspect evidence to see the recorded values and any saved verification results.",
     ]);
-    const observationInspection = guidance.getByText(/Inspecting an observation checks/);
+    const observationInspection = guidance.getByText(/Inspecting an observation validates/);
     expect(observationInspection).toHaveTextContent(
-      "Inspecting an observation checks its JSON structure and supported values. To compare the reported result with a scenario, use Verify observation.",
+      "Inspecting an observation validates its JSON by checking the format, fields and values. To compare the reported result with a scenario, use Verify observation.",
     );
     expect(observationInspection.querySelector("strong")).toHaveTextContent("Verify observation");
-    expect(guidance.getByText(/For saved verified executions and sequences/)).toHaveTextContent(
-      "For saved verified executions and sequences, OrbiRig recalculates each record's checks and outcome from its scenario and observation, then compares them with the stored results. For sequences, it also checks continuity in the saved order. A record with a FAIL outcome can still be inspected when these results match.",
+    expect(guidance.getByText(/^For verified evidence/)).toHaveTextContent(
+      "A saved FAIL is valid when the stored results agree with those checks. In a sequence, each continuity check compares the ending mode of one record with the starting mode of the next.",
     );
     expect(within(guidance.getByRole("tabpanel", { name: "Inspect evidence" })).getByText(/After a successful inspection/)).toHaveTextContent(
-      "After a successful inspection, Inspect evidence stays unavailable until the JSON or evidence type changes, since identical inputs produce the same result. Editing either clears the result and prompts a new inspection.",
+      "After a successful inspection, change the JSON or evidence type to run Inspect evidence again. This clears the previous result.",
     );
   });
 
@@ -311,9 +304,14 @@ describe("App help", () => {
     fireEvent.click(summary);
 
     expect(link).toBeVisible();
-    expect(details).toHaveTextContent("The C#/.NET example shows how OrbiRig's existing scenarios can check command results from a program written in another language.");
-    expect(details).toHaveTextContent("The .NET 10 SDK is needed only to build and run this example.");
-    expect(details).toHaveTextContent("The browser does not run the target, and verifying JSON files with the CLI does not require .NET.");
+    expect(details).toHaveTextContent("You can use the Python API to verify command responses from an independent C#/.NET program against a scenario you choose.");
+    const outcomes = within(details).getAllByRole("listitem");
+    expect(outcomes).toHaveLength(3);
+    expect(outcomes[0]).toHaveTextContent(/Round trip.*PASS.*second run starts in the mode the first one left/);
+    expect(outcomes[1]).toHaveTextContent(/Stale telemetry.*saves SAFE.*reports NOMINAL.*verification FAIL/);
+    expect(outcomes[2]).toHaveTextContent(/Collection error.*before returning an observation.*without creating a verified record/);
+    expect(details).toHaveTextContent("Use the .NET 10 SDK to build and run the optional target locally.");
+    expect(details).toHaveTextContent("The example saves the stale-telemetry result as JSON for inspection in the browser.");
     expect(link).toHaveAttribute("href", "https://github.com/NikolayAir/OrbiRig/blob/main/docs/dotnet-stateful-target.md");
     expect(link).toHaveAttribute("target", "_blank");
     expect(link).toHaveAttribute("rel", "noreferrer");
@@ -334,33 +332,28 @@ describe("App help", () => {
     const illustration = within(example);
 
     const verificationPanel = help.getByRole("tabpanel", { name: "Verify observation" });
-    const verificationSteps = verificationPanel.firstElementChild!;
-    expect(verificationSteps.tagName).toBe("OL");
-    expect(within(verificationSteps as HTMLElement).getAllByRole("listitem")).toHaveLength(4);
+    const verificationSteps = verificationPanel.querySelector<HTMLOListElement>(":scope > ol")!;
+    expect(within(verificationSteps).getAllByRole("listitem")).toHaveLength(4);
     expect(verificationSteps.nextElementSibling).toBe(example);
     expect(example.nextElementSibling).toHaveTextContent("PASS means the recorded behaviour matches the selected scenario.");
     expect(example).not.toHaveAttribute("open");
-    expect(illustration.getByText(/Illustrative example/)).not.toBeVisible();
+    const exampleIntro = illustration.getByText("Example from a local run using the Python API.");
+    expect(exampleIntro).not.toBeVisible();
     fireEvent.click(summary);
     expect(example).toHaveAttribute("open");
-    expect(illustration.getByText(/Illustrative example/)).toBeVisible();
-    expect(illustration.getByText(/Illustrative example/)).toHaveTextContent(
-      "Illustrative example from the Python API. The browser does not run the test target.",
-    );
+    expect(exampleIntro).toBeVisible();
     expect(illustration.getAllByRole("listitem").map((step) => step.textContent?.replace(/\s+/g, " ").trim())).toEqual([
       "A command requests a change from NOMINAL to SAFE.",
       "The independent test target saves SAFE, then exits before returning an observation.",
-      "OrbiRig reports a collection error. No verification PASS or FAIL is produced.",
-      "In this controlled example, a separate check of the target's state file confirms SAFE was saved.",
+      "OrbiRig reports a collection error. With no observation to check, it has no PASS or FAIL result.",
+      "Reading the target's state file confirms it saved SAFE.",
       "The next command starts from SAFE, changes to NOMINAL and produces PASS.",
     ]);
-    expect(illustration.getByText(/A missing response/)).toHaveTextContent(
-      "A missing response does not prove that a command failed to execute. The collection error alone does not establish the state of an external system.",
-    );
+    expect(illustration.getByText("After a collection error, check the target separately to find out whether it saved a change.")).toBeVisible();
     expect(help.getByText(/means the observation is valid/)).toHaveTextContent(
       "FAIL means the observation is valid, but one or more verification checks do not meet their expectations.",
     );
-    const link = illustration.getByRole("link", { name: /^Reproduce the stateful-target example/ });
+    const link = illustration.getByRole("link", { name: /^Run the Python example/ });
     expect(link).toHaveAttribute("href", "https://github.com/NikolayAir/OrbiRig/blob/main/docs/stateful-target.md#simulate-a-response-failure-after-state-commit");
     expect(link).toHaveAttribute("target", "_blank");
     expect(link).toHaveAttribute("rel", "noreferrer");
@@ -376,7 +369,7 @@ describe("App help", () => {
     fireEvent.click(help.getByRole("tab", { name: "Verify observation" }));
     expect(summary).toBeVisible();
     expect(example).not.toHaveAttribute("open");
-    expect(illustration.getByText(/Illustrative example/)).not.toBeVisible();
+    expect(illustration.getByText("Example from a local run using the Python API.")).not.toBeVisible();
     fireEvent.click(summary);
     expect(example).toHaveAttribute("open");
     fireEvent.click(summary);
@@ -567,15 +560,12 @@ describe("App help", () => {
       "How it works",
     ]);
     const cliPanel = within(guidance.getByRole("tabpanel", { name: "From the command line" }));
-    expect(cliPanel.getByText(/OrbiRig can verify/)).toHaveTextContent(
-      "OrbiRig can verify recorded observations in two ways: by submitting JSON in the browser or by reading a local JSON file from the command line. Both interfaces use the same Python verification core. Neither interface sends commands to a target system (the software or device described in the records) or collects new observations from it.",
+    expect(cliPanel.getByText(/^The command line checks an observation/)).toHaveTextContent(
+      "To try the example, open a terminal in the OrbiRig repository. Run uv sync --locked to install OrbiRig, then run the verification command.",
     );
     expect(guidance.getByRole("tabpanel", { name: "From the command line" }).querySelector("p"))
-      .toBe(cliPanel.getByText(/OrbiRig can verify/));
-    expect(cliPanel.queryByText(/OrbiRig checks recorded command results/)).not.toBeInTheDocument();
-    expect(guidance.getByText(/To try the included example/)).toHaveTextContent(
-      "To try the included example, open a terminal in an OrbiRig checkout. Run uv sync --locked if the Python environment is not yet installed, then:",
-    );
+      .toBe(cliPanel.getByText(/^The command line checks an observation/));
+    expect(cliPanel.queryByText(/^An observation records the command/)).not.toBeInTheDocument();
     expect(command).toHaveAttribute("tabindex", "0");
     expect(command.querySelector("code")?.textContent).toBe([
       "uv run --no-sync orbirig verify-observation docs/examples/nominal-to-safe.json \\",
@@ -584,7 +574,7 @@ describe("App help", () => {
       "  --executed-at 2026-10-21T10:00:00Z",
     ].join("\n"));
     expect(guidance.getByText(/The execution ID and UTC timestamp/)).toHaveTextContent(
-      "The execution ID and UTC timestamp are example values. For your own recorded execution, replace the file path with a UTF-8 observation JSON file and use the recorded execution ID and time.",
+      "For your own recorded execution, use the path to your UTF-8 observation JSON file, choose the scenario you want to check and enter the command's ID and time.",
     );
     expect(guidance.getByText(/The command prints JSON evidence/)).toHaveTextContent(
       "The command prints JSON evidence containing the individual checks and overall PASS or FAIL result.",
@@ -601,7 +591,7 @@ describe("App help", () => {
     const section = summary.closest("details")!;
 
     // Setup, the command and the output summary are outside expandable sections.
-    expect(cli.getByText(/To try the included example/)).toBeVisible();
+    expect(cli.getByText(/^The command line checks an observation/)).toBeVisible();
     expect(cli.getByRole("region", { name: "CLI verification command" })).toBeVisible();
     const output = cli.getByText(/The command prints JSON evidence/);
     expect(output).toBeVisible();
@@ -686,7 +676,7 @@ describe("App help", () => {
 
   it.each([
     ["Verify observation", "observation-verification", "Compare a recorded result with a scenario."],
-    ["Inspect evidence", "evidence-inspection", "Validate saved records and recheck any verification results they contain."],
+    ["Inspect evidence", "evidence-inspection", "Read a JSON document and check that any saved results match its data."],
   ])("keeps %s headings and instructions accessible without introduction help", (title, headingId, guidance) => {
     render(<App />);
     if (title === "Inspect evidence") selectInspectionWorkflow();
@@ -728,9 +718,7 @@ describe("App help", () => {
     render(<App />);
 
     const help = screen.getByRole("button", { name: "About Scenario" });
-    const description = screen.getByText(
-      "Choose the expected behaviour for this command execution. OrbiRig checks the observation against this scenario.",
-    );
+    const description = screen.getByText(/^Choose what you expect the command to do/);
     const scenario = screen.getByLabelText("Scenario");
     const helpContainer = help.parentElement;
 
@@ -743,7 +731,7 @@ describe("App help", () => {
       "scenario-help-description",
     );
     expect(description).toHaveTextContent(
-      "OrbiRig checks the observation against this scenario.",
+      "The rejection scenario covers a request for NOMINAL when the mode is already NOMINAL.",
     );
 
     help.focus();
@@ -833,7 +821,7 @@ describe("App help", () => {
     selectInspectionWorkflow();
     const help = screen.getByRole("button", { name: "About Evidence JSON" });
     const input = screen.getByLabelText("Evidence JSON", { exact: true });
-    const description = "Paste the full JSON document matching the selected evidence type: observation, verified execution, or verified-execution sequence. Use Load example to see the expected structure.";
+    const description = "Paste the full JSON document for the evidence type you chose. Choose Load example to see the format.";
     expect(help).toHaveAccessibleDescription(description);
     expect(input).toHaveAccessibleDescription(description);
     fireEvent.change(input, { target: { value: "preserved JSON" } });

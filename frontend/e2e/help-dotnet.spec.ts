@@ -39,9 +39,9 @@ for (const { width, height, textScale } of [
     await expectFocusedControlFullyVisible(summary);
     await page.keyboard.press("Enter");
     await expect(details).toHaveAttribute("open", "");
-    await expect(details).toContainText("results from a program written in another language");
-    await expect(details).toContainText("The .NET 10 SDK is needed only to build and run this example.");
-    await expect(details).toContainText("The browser does not run the target");
+    await expect(details).toContainText("Example outcomes from a local run");
+    await expect(details).toContainText("Use the .NET 10 SDK to build and run the optional target locally.");
+    await expect(details).toContainText("The example saves the stale-telemetry result as JSON for inspection in the browser.");
     await page.keyboard.press(tab);
     await expectFocusedControlFullyVisible(guide);
     for (const element of [help, panel, details]) {

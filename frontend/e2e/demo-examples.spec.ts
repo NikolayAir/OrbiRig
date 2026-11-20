@@ -19,7 +19,7 @@ for (const [type, endpoint] of [
       expect(await response.json()).not.toHaveProperty("outcome");
       await expect(page.locator(".outcome-badge")).toHaveCount(0);
       await expect(page.getByRole("region", { name: "Observation details", exact: true }))
-        .toContainText("No scenario verification has been performed.");
+        .toContainText("Use Verify observation to check these values against a scenario.");
       await expect(page.locator(".action-status")).toHaveText("Inspection completed. Evidence is valid.");
     } else {
       expect((await response.json()).outcome).toBe("PASS");
@@ -114,7 +114,7 @@ for (const [type, endpoint, message] of [
     const load = page.getByRole("button", { name: "Load altered example", exact: true });
     await expect(load).toHaveAccessibleDescription(type === "Observation"
       ? "Repeats a field name, so the evidence is rejected. Replaces evidence JSON"
-      : "Saved checks no longer match the data, so recomputing rejects it. Replaces evidence JSON");
+      : "OrbiRig rejects saved checks that disagree with the recorded values. Replaces evidence JSON");
     await load.click();
     const pending = page.waitForResponse(`**/api/inspect/${endpoint}`);
     await page.locator("button[type=submit]").click();
