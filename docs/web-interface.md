@@ -1,8 +1,6 @@
 # Web interface
 
-[README](../README.md) · [Verification concepts](verification.md) · [Evidence formats](evidence-formats.md) · [Development checks](../CONTRIBUTING.md)
-
-Use **Verify observation** to check a recorded command result against a **scenario**, the behaviour you expect. Use **Inspect evidence** to review an **evidence** document, which is JSON containing an observation or saved verification results. Both workflows work with recorded data. [Open OrbiRig](https://orbirig-evidence-inspector.onrender.com/)
+In the [OrbiRig web interface](https://orbirig-evidence-inspector.onrender.com/), use **Verify observation** to check a recorded command result against a **scenario**, the behaviour you expect. Use **Inspect evidence** to review an **evidence** document, which is JSON containing an observation or saved verification results. Both workflows work with recorded data.
 
 The browser sends JSON to the server for checking. Use sample data that contains no private information on the public site.
 
@@ -14,11 +12,11 @@ The browser sends JSON to the server for checking. Use sample data that contains
 
 **Load example** uses the selected scenario or **NOMINAL to SAFE** when you have not selected one. **Load failing example** fills in an observation whose telemetry (a separate report of the operating mode) disagrees with the recorded ending mode. Verifying it gives `FAIL`.
 
-An expected command rejection can pass. OrbiRig reports an input error before running the checks if the recorded command does not match the selected scenario. [Supported scenarios](verification.md#supported-scenarios) · [Execution IDs and times](evidence-formats.md#execution-ids)
+An [expected command rejection](verification.md#supported-scenarios) can pass. OrbiRig reports an input error before running the checks if the recorded command does not match the selected scenario. When entering your own record, follow the [rules for execution IDs and times](evidence-formats.md#execution-ids).
 
 ![The verification form and a PASS result for the NOMINAL-to-SAFE example](images/orbirig-web-interface.png)
 
-To create a verified record as a JSON file, use the command line or Python API. [Save a record from the command line](cli.md#verify-the-bundled-example) · [Save a record in Python](python.md#reopen-saved-verified-evidence)
+You can save a verified record as a JSON file [from the command line](cli.md#verify-the-bundled-example) or [with the Python API](python.md#reopen-saved-verified-evidence).
 
 ## Inspect evidence
 
@@ -61,8 +59,8 @@ Results and request errors usually receive keyboard focus and are brought into v
 
 Under **How it works**, choose **In the browser** or **From the command line**. The separate **Documentation** link opens the guide index in a new tab.
 
-- **In the browser** gives steps for the selected workflow. Under **Verify observation**, **When a command returns no result (Python API example)** describes a local run where the program saves a change before a collection error. [Run the Python example](stateful-target.md#simulate-a-response-failure-after-state-commit)
-- **From the command line** gives setup, a command you can run and the expected output. **Understanding CLI results and exit codes** explains the return codes. **Verify a C#/.NET program (optional)** explains the outcomes of a local .NET run. [CLI guide](cli.md) · [.NET guide](dotnet-stateful-target.md)
+- **In the browser** gives steps for the selected workflow. Under **Verify observation**, **When a command returns no result (Python API example)** describes a [local Python run](stateful-target.md#simulate-a-response-failure-after-state-commit) where the program saves a change before a collection error.
+- **From the command line** covers [CLI setup](cli.md), a command you can run and the expected output. **Understanding CLI results and exit codes** explains the return codes. **Verify a C#/.NET program (optional)** explains the outcomes of a [local .NET run](dotnet-stateful-target.md).
 
 The guide keeps one section open at a time. Switching tabs or workflows, or reopening the guide, starts with the sections closed.
 

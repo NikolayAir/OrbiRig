@@ -1,7 +1,5 @@
 # Contributing and development
 
-[README](README.md) · [Architecture](docs/architecture.md) · [Verification concepts](docs/verification.md) · [Web setup and deployment configuration](docs/web-interface.md)
-
 Use this guide to set up the Python core and web interface, run automated checks and build Python distributions. Keep the verification core usable without the web application. The commands below run from a repository checkout; each section states which directory to use.
 
 ## Python environment
@@ -193,7 +191,7 @@ The repository's active [Protect main ruleset](https://github.com/NikolayAir/Orb
 
 ## Changing behaviour or dependencies
 
-Keep scenario expectations explicit and independent of the reference test double. Check deliberate mismatches as well as passing examples. Preserve the distinction between completed verification `FAIL`, invalid evidence and collection errors. Keep sequence records in the order the caller provides. [Verification concepts](docs/verification.md) · [Evidence format reference](docs/evidence-formats.md)
+Keep scenario expectations explicit and independent of the reference test double. Check deliberate mismatches as well as passing examples. Preserve the [distinction between completed verification `FAIL`, invalid evidence and collection errors](docs/verification.md). Keep [sequence records](docs/evidence-formats.md#verified-sequence-evidence) in the order the caller provides.
 
 Select tests for changed responsibilities and risks, starting with focused checks and broadening when needed. Run frontend tests for interface changes and real browser-to-Python tests when changes affect communication between the browser and Python API. Test installed entry points for packaging or CLI changes.
 

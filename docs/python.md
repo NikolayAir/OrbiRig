@@ -1,10 +1,8 @@
 # Using the Python API
 
-[README](../README.md) · [Verification concepts](verification.md) · [Evidence formats](evidence-formats.md)
+The Python API checks recorded command results against the [scenario you choose](verification.md#supported-scenarios) and returns the expected and observed values for each check. You can also collect observations from a separate program, check sequence continuity and read or write JSON evidence. The core works without FastAPI, React, Node.js or a browser.
 
-The Python API checks recorded command results against a scenario you choose and returns the expected and observed values for each check. You can also collect observations from a separate program, check sequence continuity and read or write JSON evidence. The core works without FastAPI, React, Node.js or a browser.
-
-Use Python 3.12–3.15 and uv. From the repository root, install OrbiRig with `uv sync --locked`. Save an example as a Python script, then run `uv run --no-sync python your_script.py` from the repository root so the example can find its files. [Install uv](https://docs.astral.sh/uv/getting-started/installation/)
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/) and use Python 3.12–3.15. From the repository root, install OrbiRig with `uv sync --locked`. Save an example as a Python script, then run `uv run --no-sync python your_script.py` from the repository root so the example can find its files.
 
 For `scenario_id`, pass a `ScenarioId` member such as `ScenarioId.NOMINAL_TO_SAFE_MODE`. Convert a string explicitly first, for example with `ScenarioId("nominal_to_safe_mode")`. Passing a raw string raises `TypeError` before a command is executed or a subprocess is started.
 
@@ -98,7 +96,7 @@ sequence = verify_execution_sequence([first, second])  # This order defines cont
 print(serialize_verified_execution_sequence_evidence(sequence), end="")
 ```
 
-The output contains two verified records, one passing continuity check and an overall `PASS`. The order of the records in the list is the order OrbiRig checks. [Continuity rules](verification.md#continuity-across-executions)
+The output contains two verified records, one passing continuity check and an overall `PASS`. The [continuity check](verification.md#continuity-across-executions) uses the order of the records in the list.
 
 ## Collect from a separate program
 
@@ -147,7 +145,7 @@ For collection without verification, `collect_subprocess_observation(...)` takes
 
 Use the [stateful test target](stateful-target.md) to run operating-mode commands in separate processes and verify continuity in the resulting sequence. The target keeps its mode in an isolated file. With stale telemetry enabled, OrbiRig returns `FAIL` for a valid observation whose telemetry disagrees with the post-state.
 
-You can collect and verify observations from a C# program with the same protocol and scenario rules. [Verify the optional C#/.NET 10 target](dotnet-stateful-target.md)
+You can collect and verify observations from the optional [C#/.NET 10 target](dotnet-stateful-target.md) with the same protocol and scenario rules.
 
 ## Reopen saved verified evidence
 
@@ -190,6 +188,6 @@ sequence = deserialize_verified_execution_sequence_evidence(
 )
 ```
 
-The readers recalculate the checks and outcomes from the saved inputs. The stored results must match, including for a saved `FAIL`. [Evidence format reference](evidence-formats.md)
+The readers recalculate the checks and outcomes from the saved inputs. The [evidence format](evidence-formats.md) requires the stored results to match, including for a saved `FAIL`.
 
 The writers also check the results before returning JSON. If you build a record or sequence by hand and its results disagree with OrbiRig's checks, the writer raises `ValueError`. Use `build_verified_execution_record(...)` and `verify_execution_sequence(...)` to calculate those results.

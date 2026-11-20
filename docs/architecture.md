@@ -1,12 +1,10 @@
 # Architecture
 
-[README overview](../README.md#how-verification-works) · [Verification concepts](verification.md) · [Using the Python API](python.md) · [Evidence formats](evidence-formats.md)
-
 The Python core owns the scenario rules, JSON validation and verification results. The command line calls it directly. The React/TypeScript interface submits recorded data to the FastAPI adapter and displays its response. You can use the core on its own as a Python library.
 
 ## Verification flow
 
-Verification takes an observation from a JSON document or collects one during command execution. In both paths, the caller selects the scenario and provides the execution ID and UTC time. The diagram follows each path to a verified record or an error. [Verification overview](../README.md#how-verification-works)
+The [verification overview](../README.md#how-verification-works) introduces the four checks. The diagram here follows an observation from a JSON file or a command run to a verified record or an error. In both paths, the caller selects the scenario and provides the execution ID and UTC time.
 
 ```mermaid
 ---
@@ -36,11 +34,11 @@ flowchart TD
     class load,collect,verifier action
 ```
 
-An invalid execution ID or timestamp also prevents record creation. Both execution helpers validate the metadata and scenario before they handle a reference command or start a target. The subprocess helper also validates its timeout before launch. [Subprocess API](python.md#collect-from-a-separate-program)
+An invalid execution ID or timestamp also prevents record creation. Both [Python execution helpers](python.md) validate the metadata and scenario before they handle a reference command or start a target. The [subprocess helper](python.md#collect-from-a-separate-program) also validates its timeout before launch.
 
 The Python API builds reference observations directly from `ReferenceSpacecraft` state, acknowledgement and telemetry. For subprocesses, collection validates the returned JSON with the same reader used for saved observations; invalid output follows the collection-error path.
 
-A collection or verification error leaves the external target's state unknown. A completed verification can report `FAIL` using a valid observation. [Verification concepts](verification.md)
+A [collection or verification error](verification.md#collection-and-verification) leaves the external target's state unknown. A completed verification can report `FAIL` using a valid observation.
 
 ## Component responsibilities
 
@@ -56,7 +54,7 @@ A collection or verification error leaves the external target's state unknown. A
 
 [`ReferenceSpacecraft`](../src/orbirig/reference_sut.py) is a simplified, deterministic test double used to produce repeatable observations. The verifier defines expectations independently of this test double.
 
-The evidence reference lists the stored fields, their order and the rules for comparing saved and recalculated results. [JSON formats and validation rules](evidence-formats.md)
+The [evidence format reference](evidence-formats.md) lists the stored fields, their order and the rules for comparing saved and recalculated results.
 
 ### Browser modules
 

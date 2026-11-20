@@ -1,8 +1,6 @@
 # Command-line use
 
-[README](../README.md) · [Verification concepts](verification.md) · [Evidence formats](evidence-formats.md)
-
-Use `orbirig verify-observation` to check a local observation JSON file against a scenario you choose. The command writes a verified execution record with the original observation, expected and actual values for each check, and an overall `PASS` or `FAIL` outcome.
+Use `orbirig verify-observation` to check a local observation JSON file against the [scenario you choose](verification.md#supported-scenarios). The command writes a [verified execution record](evidence-formats.md#verified-execution-evidence) with the original observation, expected and actual values for each check, and an overall `PASS` or `FAIL` outcome.
 
 ## Install
 
@@ -29,7 +27,7 @@ uv run --no-sync orbirig verify-observation docs/examples/nominal-to-safe.json \
 
 In PowerShell, enter the verification command on one line and omit the `\` line continuations.
 
-The sample records an accepted change from `NOMINAL` to `SAFE`. The command writes JSON to standard output (stdout) with four passing checks and `"outcome": "PASS"`. It exits with code `0`. [Example observation](examples/nominal-to-safe.json)
+The [example observation](examples/nominal-to-safe.json) records an accepted change from `NOMINAL` to `SAFE`. The command writes JSON to standard output (stdout) with four passing checks and `"outcome": "PASS"`. It exits with code `0`.
 
 To save the JSON, use `>` to send standard output to a file. This creates or replaces `verified-execution.json`.
 
@@ -41,7 +39,7 @@ uv run --no-sync orbirig verify-observation docs/examples/nominal-to-safe.json \
   --executed-at 2026-10-21T10:00:00Z > verified-execution.json
 ```
 
-In the browser, switch to the **Inspect evidence** workflow and choose **Verified execution**. Paste the file's contents into **Evidence JSON**, then choose **Inspect evidence**. You can also reopen the file in Python. [Inspect evidence](web-interface.md#inspect-evidence) · [Reopen saved evidence in Python](python.md#reopen-saved-verified-evidence)
+To [inspect the file in the browser](web-interface.md#inspect-evidence), switch to the **Inspect evidence** workflow and choose **Verified execution**. Paste the file's contents into **Evidence JSON**, then choose **Inspect evidence**. You can also [reopen the file in Python](python.md#reopen-saved-verified-evidence).
 
 ## See a failed telemetry check
 

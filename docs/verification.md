@@ -1,7 +1,5 @@
 # Verification concepts
 
-[README](../README.md) · [Architecture](architecture.md) · [Using the Python API](python.md) · [Evidence formats](evidence-formats.md)
-
 Choose a **scenario** to tell OrbiRig what you expect. Provide an **observation** containing what the program reported. OrbiRig compares the two and gives an expected and actual value for each check. **Evidence** is the JSON document that stores an observation or saved verification results.
 
 The same approach applies when checking a recorded result from a software test or a data pipeline. Decide what the expected values should be separately from the data you are checking, then keep both sets of values with the result. OrbiRig applies this approach to the operating-mode scenarios described here.
@@ -55,7 +53,7 @@ The browser and command line use the Python verifier to check recorded observati
 
 In `ReferenceSpacecraft`, command rejection and command-handling errors leave the state unchanged. A collection or verification error does not tell you whether an external target changed state.
 
-OrbiRig needs one usable observation for each command it sends to a separate program. If collection fails, the Python API raises `ObservationCollectionError` before it has a record to verify. [Subprocess protocol](python.md#collect-from-a-separate-program)
+The [subprocess protocol](python.md#collect-from-a-separate-program) requires one usable observation for each command OrbiRig sends to a separate program. If collection fails, the Python API raises `ObservationCollectionError` before it has a record to verify.
 
 ## Continuity across executions
 

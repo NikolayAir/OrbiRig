@@ -1,10 +1,8 @@
 # Verify a stateful test target
 
-[Python API](python.md#collect-from-a-separate-program) · [Verification concepts](verification.md)
+The [stateful target](../examples/stateful_target.py) is a separate Python program that handles operating-mode commands and keeps its mode between runs. It uses Python's standard library. OrbiRig collects its reports and checks them against the [scenario you choose](verification.md#supported-scenarios).
 
-The stateful target is a separate Python program that handles operating-mode commands and keeps its mode between runs. It uses Python's standard library. OrbiRig collects its reports and checks them against a scenario you choose. [Target source](../examples/stateful_target.py)
-
-The optional C#/.NET 10 target uses the same command and observation format. [.NET guide](dotnet-stateful-target.md)
+The optional [C#/.NET 10 target](dotnet-stateful-target.md) uses the same command and observation format.
 
 OrbiRig starts a new process for each command. The processes share a state file that contains `{"operating_mode": "NOMINAL"}` or `{"operating_mode": "SAFE"}`. The file stores the target's current mode. The target returns the command and its reported result in a separate observation document.
 
@@ -12,7 +10,7 @@ The target accepts a change to the other mode and rejects a request for its curr
 
 ## Run a round trip and detect stale telemetry
 
-Install OrbiRig from the repository root with `uv sync --locked`. From the same directory, run the example in a Bash-compatible shell. [Python environment](../CONTRIBUTING.md#python-environment)
+Use [uv with a supported Python version](../CONTRIBUTING.md#python-environment). From the repository root, install OrbiRig with `uv sync --locked` and run the example in a Bash-compatible shell.
 
 ```bash
 uv run --no-sync python - <<'PY'
@@ -75,7 +73,7 @@ State after fault: SAFE
 Next command: PASS
 ```
 
-Only the telemetry check fails. The next process reads `SAFE` from the state file and changes it back to `NOMINAL`. [Save or reopen the records in Python](python.md#reopen-saved-verified-evidence)
+Only the telemetry check fails. The next process reads `SAFE` from the state file and changes it back to `NOMINAL`. You can [save or reopen these records in Python](python.md#reopen-saved-verified-evidence).
 
 ## Simulate a response failure after state commit
 
@@ -149,6 +147,6 @@ After a collection error, use a separate check to learn the target's state. This
 
 Use a separate regular state file with exactly 1 hard link for each independent target or test session. Commands within that session must share the same file and run sequentially, with only 1 caller at a time. Missing files, symbolic links, hard-linked aliases, directories, malformed JSON, repeated field names, unsupported modes and invalid commands are errors; the target does not create or repair state automatically. It writes diagnostics to stderr and exits with code `2`, without an observation. The collector reports `ObservationCollectionError`, rather than a verification outcome.
 
-The target validates the command and state before writing. Rejected commands leave the file unchanged. To save an accepted change, the target writes a temporary file in the same directory and calls `os.replace` to replace the state file. On a filesystem that supports atomic replacement, a reader sees either the original file or the complete new file. Use a trusted directory and run one target process at a time. Check the saved state separately after a response error. The caller is responsible for recovery after power loss. [Subprocess contract](python.md#collect-from-a-separate-program)
+The target validates the command and state before writing. Rejected commands leave the file unchanged. To save an accepted change, the target writes a temporary file in the same directory and calls `os.replace` to replace the state file. On a filesystem that supports atomic replacement, a reader sees either the original file or the complete new file. Use a trusted directory and run one target process at a time. Check the saved state separately after a [subprocess collection error](python.md#collect-from-a-separate-program). The caller is responsible for recovery after power loss.
 
 This example models only 2 operating modes and 2 controlled faults: stale telemetry and a response failure after state commit. It does not represent operational spacecraft behaviour.

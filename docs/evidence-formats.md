@@ -1,10 +1,8 @@
 # Evidence format reference
 
-[README](../README.md) · [Verification concepts](verification.md) · [Using the Python API](python.md)
-
 **Evidence** is JSON that stores what a program reported or what OrbiRig found when checking it. A verified record adds the scenario, execution details, checks and outcome to the observation. The readers in `orbirig.evidence` validate each submitted document. Each form has a version field.
 
-Validation checks a document's format and whether any saved results agree with its inputs. Verification compares an observation with a chosen scenario and gives a `PASS` or `FAIL` result.
+Validation checks a document's format and whether any saved results agree with its inputs. [Verification](verification.md) compares an observation with a chosen scenario and gives a `PASS` or `FAIL` result.
 
 | Evidence form | Version field | Current version | Python model |
 | --- | --- | --- | --- |
@@ -46,7 +44,7 @@ The bundled [nominal-to-safe.json](examples/nominal-to-safe.json) contains a com
 
 `accepted` is a JSON boolean. The meaning of each reported value is explained in [verification concepts](verification.md#what-an-observation-records).
 
-`serialize_execution_evidence(...)` returns JSON in this form. `deserialize_execution_evidence(...)` validates the format, fields and values and returns a `CommandExecutionObservation`. Verification also needs a separate scenario, execution ID and UTC execution time. [Verify an existing observation](python.md#verify-an-existing-observation)
+`serialize_execution_evidence(...)` returns JSON in this form. `deserialize_execution_evidence(...)` validates the format, fields and values and returns a `CommandExecutionObservation`. To [verify an existing observation in Python](python.md#verify-an-existing-observation), provide a separate scenario, execution ID and UTC execution time.
 
 ## Verified execution evidence
 

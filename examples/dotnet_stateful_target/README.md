@@ -2,7 +2,7 @@
 
 This non-operational console program handles one operating-mode command per process. It uses C# and .NET 10 independently of OrbiRig's Python implementation. It contains no scenario expectations or verification outcomes.
 
-The guide runs the target through OrbiRig's Python API and shows how to read `PASS`, `FAIL` and a collection error after a saved change. It is available online even when you are reading this README from a Python source archive. [Verify an independent C#/.NET program](https://github.com/NikolayAir/OrbiRig/blob/main/docs/dotnet-stateful-target.md)
+The online [C#/.NET verification guide](https://github.com/NikolayAir/OrbiRig/blob/main/docs/dotnet-stateful-target.md) shows how to run the target through OrbiRig's Python API and read `PASS`, `FAIL` and a collection error after a saved change. You can use it when reading this README from a Python source archive.
 
 Prerequisites: the .NET 10 SDK and macOS with `/usr/bin/stat`, or Linux with GNU `/usr/bin/stat`. No NuGet packages are required. From the repository root:
 

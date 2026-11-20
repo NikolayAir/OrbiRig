@@ -1,10 +1,8 @@
 # Verify an independent C#/.NET program
 
-[Python API](python.md#collect-from-a-separate-program) · [Python stateful target](stateful-target.md) · [Evidence formats](evidence-formats.md)
+The [.NET target](../examples/dotnet_stateful_target/) is a C# console program that handles a command and keeps its operating mode in a file between runs. It implements the command handling using .NET 10 and `System.Text.Json`. OrbiRig's Python verifier checks the program's report against the scenario you choose.
 
-The .NET target is a C# console program that handles a command and keeps its operating mode in a file between runs. It implements the command handling using .NET 10 and `System.Text.Json`. OrbiRig's Python verifier checks the program's report against the scenario you choose. [Target source](../examples/dotnet_stateful_target/)
-
-For each command, OrbiRig starts the compiled program and sends the command as JSON. The program checks the input and state, handles the command and reports the result in the same evidence format as the Python target. [Observation evidence](evidence-formats.md#observation-evidence)
+For each command, OrbiRig uses the [Python subprocess API](python.md#collect-from-a-separate-program) to start the compiled program and send the command as JSON. The program checks the input and state, handles the command and returns [observation evidence](evidence-formats.md#observation-evidence) in the same format as the [Python stateful target](stateful-target.md).
 
 Use the example to check two mode changes across separate runs, detect a mismatch between telemetry and the reported ending mode, and check what the program saved after a collection error. Only this optional workflow needs the .NET SDK.
 
@@ -128,7 +126,7 @@ On rejection, the target returns the normal observation. If you set both flags f
 
 ## Inspect the saved FAIL record in the browser
 
-The example writes the stale-telemetry record to `dotnet-stale-telemetry.json` in the current directory. To inspect it, start the web interface, switch to the **Inspect evidence** workflow and select **Verified execution**. Paste the file's contents into **Evidence JSON** and choose **Inspect evidence**. [Run the web interface locally](web-interface.md#run-locally)
+The example writes the stale-telemetry record to `dotnet-stale-telemetry.json` in the current directory. To inspect it, [run the web interface locally](web-interface.md#run-locally), switch to the **Inspect evidence** workflow and select **Verified execution**. Paste the file's contents into **Evidence JSON** and choose **Inspect evidence**.
 
 OrbiRig recalculates the checks and accepts the saved `FAIL` because the results match. The failed telemetry check shows expected `SAFE` and actual `NOMINAL`.
 
@@ -157,4 +155,4 @@ The tests build the target once in a temporary directory and use a separate stat
 
 The file tests cover input validation, links, special files, long names, permissions and cleanup after a write fails. The partial-write test uses the operating system's file-size limit. On Linux, the .NET runtime also uses that limit for executable memory. The test sets `DOTNET_EnableWriteXorExecute=0` for that child process so the limit affects the target's file write. A macOS-only test sets the original file's immutable flag and checks that it stays in place when replacement fails.
 
-The test module skips by default. When you enable it, a missing SDK or a failed build makes the tests fail. The `.NET 10 interoperability / Ubuntu` CI job runs them with Python 3.12 and .NET 10. The `CI passed` job requires its success. [CI jobs](../CONTRIBUTING.md#github-ci)
+The test module skips by default. When you enable it, a missing SDK or a failed build makes the tests fail. The `.NET 10 interoperability / Ubuntu` CI job runs them with Python 3.12 and .NET 10. The [`CI passed` job](../CONTRIBUTING.md#github-ci) requires its success.

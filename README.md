@@ -20,7 +20,7 @@ The three supported scenarios use a simplified, non-operational spacecraft model
 
 The hosted interface runs on Render's free plan. After 15 minutes of inactivity, the service spins down, so the next visit may take about a minute to load.
 
-1. In the hosted OrbiRig interface, switch to the **Verify observation** workflow. [Open OrbiRig](https://orbirig-evidence-inspector.onrender.com/)
+1. Open the [OrbiRig web interface](https://orbirig-evidence-inspector.onrender.com/) and select the **Verify observation** workflow.
 2. Choose **Load example** to fill in the inputs, then choose **Verify observation** to run the checks. The default example records an accepted change from `NOMINAL` to `SAFE` and gives `PASS`.
 3. Choose **Load failing example**, then **Verify observation**. The result is `FAIL` because telemetry reports `NOMINAL` while the recorded ending mode is `SAFE`.
 
@@ -32,7 +32,7 @@ See the [web-interface guide](docs/web-interface.md) to run it locally or use th
 
 ### Verify a file from the command line
 
-Install Git and uv. uv uses a supported Python interpreter (3.12–3.15) or downloads one. [Install Git](https://git-scm.com/downloads) · [Install uv](https://docs.astral.sh/uv/getting-started/installation/)
+Install [Git](https://git-scm.com/downloads) and [uv](https://docs.astral.sh/uv/getting-started/installation/). uv uses a supported Python interpreter (3.12–3.15) or downloads one.
 
 In a terminal, clone the repository, install OrbiRig and verify the included observation file.
 
@@ -48,7 +48,7 @@ uv run --no-sync orbirig verify-observation docs/examples/nominal-to-safe.json \
 
 The command prints a verified execution record as JSON with 4 passing checks and `"outcome": "PASS"`. It exits with code `0`.
 
-The CLI guide explains how to save a record, check a telemetry mismatch and read exit codes. The Python guide covers running commands and checking sequences. [CLI guide](docs/cli.md) · [Python guide](docs/python.md)
+The [CLI guide](docs/cli.md) explains how to save a record, check a telemetry mismatch and read exit codes. The [Python guide](docs/python.md) covers running commands and checking sequences.
 
 ## How verification works
 
@@ -77,7 +77,7 @@ flowchart TD
     class validate,verifier action
 ```
 
-The architecture guide follows the data from collection and validation through to a result and explains which errors stop the process. [Verification flow](docs/architecture.md#verification-flow)
+The [verification flow](docs/architecture.md#verification-flow) follows the data from collection and validation through to a result and explains which errors stop the process.
 
 Each verification check (called an **invariant** in the API) keeps the expected value, actual value and whether they match.
 
@@ -102,13 +102,13 @@ You can check records together or reopen saved evidence.
 - **Check a sequence.** The Python API checks **continuity** across two or more records in the order you provide. The recorded ending mode of each command must match the recorded starting mode of the next. The sequence passes when all records and all continuity checks pass.
 - **Reopen saved evidence.** OrbiRig recalculates saved checks and outcomes from the stored inputs and rejects results that disagree. A correctly recorded `FAIL` can be valid evidence.
 
-The checks establish whether the recorded data meets the selected rules. Showing that a command actually ran or identifying who provided the data requires separate evidence. [What validation establishes](docs/evidence-formats.md#what-validation-establishes)
+The checks establish whether the recorded data meets the selected rules. Confirming that a command actually ran or identifying who provided the data requires [independent information about its source](docs/evidence-formats.md#what-validation-establishes).
 
 ### Collect observations from a program
 
 The Python API can use `ReferenceSpacecraft`, a test double that produces repeatable observations, or start a separate program (a subprocess) and collect its response. The selected scenario defines the rules for both cases, independently of the program that ran the command.
 
-The Python and optional C#/.NET 10 targets store their mode in a file between runs. Use either target to check continuity, detect stale telemetry or investigate a missing response after a saved change. The C# program uses the same Python collector and verifier and requires the .NET SDK for local setup. [Python stateful target](docs/stateful-target.md) · [.NET stateful target](docs/dotnet-stateful-target.md)
+The [Python stateful target](docs/stateful-target.md) and optional [C#/.NET 10 target](docs/dotnet-stateful-target.md) store their mode in a file between runs. Use either target to check continuity, detect stale telemetry or investigate a missing response after a saved change. The C# program uses the same Python collector and verifier and requires the .NET SDK for local setup.
 
 ## Documentation
 
