@@ -159,13 +159,20 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
     }
     // Measure from the heading so its divider and padding do not take up the scroll area.
     const headingTop = summary.getBoundingClientRect().top;
+    const area = scroller.getBoundingClientRect();
+    const areaTop = area.top + scroller.clientTop;
+    // A resize keeps the existing section in view. Extra context is useful on a new opening.
+    const followingHeading = sectionAlreadyOpen
+      ? null
+      : details.nextElementSibling?.querySelector(":scope > summary");
     scroller.scrollTop += scrollDeltaToReveal({
-      areaTop: scroller.getBoundingClientRect().top + scroller.clientTop,
-      areaHeight: scroller.clientHeight,
+      areaTop,
+      areaHeight: Math.min(scroller.clientHeight, area.bottom - areaTop),
       sectionTop: headingTop,
       sectionHeight: details.getBoundingClientRect().bottom - headingTop,
       // The summary keeps room for its focus outline through its scroll margin.
       margin: parseFloat(getComputedStyle(summary).scrollMarginTop) || 0,
+      followingHeadingBottom: followingHeading?.getBoundingClientRect().bottom,
     });
   }, [openSection, scrollWholeDialog]);
 

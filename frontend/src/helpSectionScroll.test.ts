@@ -16,6 +16,16 @@ describe("scrollDeltaToReveal", () => {
     expect(scrollDeltaToReveal({ ...area, sectionTop: 410, sectionHeight: 150 })).toBe(68);
   });
 
+  it("scrolls just far enough to show the following heading when both fit", () => {
+    expect(scrollDeltaToReveal({ ...area, sectionTop: 410, sectionHeight: 150, followingHeadingBottom: 600 })).toBe(100);
+    expect(scrollDeltaToReveal({ ...area, sectionTop: 200, sectionHeight: 150, followingHeadingBottom: 500 })).toBe(0);
+  });
+
+  it("keeps the open heading's margin when both cannot fit", () => {
+    // The following heading would take 303px of scroll. The opening allows 302px.
+    expect(scrollDeltaToReveal({ ...area, sectionTop: 410, sectionHeight: 150, followingHeadingBottom: 803 })).toBe(68);
+  });
+
   it("shows a longer section from its heading instead of scrolling to its end", () => {
     // 900px does not fit in 384px of usable space: the heading goes to the top margin.
     expect(scrollDeltaToReveal({ ...area, sectionTop: 300, sectionHeight: 900 })).toBe(192);
