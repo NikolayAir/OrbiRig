@@ -2,11 +2,11 @@
 
 [Python API](python.md#collect-from-a-separate-program) · [Python stateful target](stateful-target.md) · [Evidence formats](evidence-formats.md)
 
-The [.NET target](../examples/dotnet_stateful_target/) is a non-operational C# console program that keeps its operating mode in a state file between launches. It implements command handling independently using .NET 10 and `System.Text.Json`. OrbiRig's Python core defines the scenario expectations and evaluates the reported behaviour.
+The .NET target is a C# console program that handles a command and keeps its operating mode in a file between runs. It implements the command handling using .NET 10 and `System.Text.Json`. OrbiRig's Python verifier checks the program's report against the scenario you choose. [Target source](../examples/dotnet_stateful_target/)
 
-OrbiRig sends one command to the compiled program through its subprocess API. The target validates the input and stored state, handles the command and returns [observation-evidence v1](evidence-formats.md#observation-evidence). Python checks that observation against the scenario selected by the caller, using the same verification rules and evidence format as for the Python target.
+For each command, OrbiRig starts the compiled program and sends the command as JSON. The program checks the input and state, handles the command and reports the result in the same evidence format as the Python target. [Observation evidence](evidence-formats.md#observation-evidence)
 
-Use the commands below to verify a round trip across process launches, detect stale telemetry and check the saved state after a collection error. Only this optional workflow needs the .NET SDK.
+Use the example to check two mode changes across separate runs, detect a mismatch between telemetry and the reported ending mode, and check what the program saved after a collection error. Only this optional workflow needs the .NET SDK.
 
 ## Prerequisites and build
 
@@ -20,7 +20,7 @@ No Python extras are needed for the runnable example below. See the [Python envi
 
 Install the **.NET 10 SDK**, which includes the runtime, following Microsoft's instructions for [macOS](https://learn.microsoft.com/en-us/dotnet/core/install/macos) or [Linux](https://learn.microsoft.com/en-us/dotnet/core/install/linux). Use an OS version and architecture supported by that SDK; Python's platform support does not establish .NET compatibility.
 
-The target also requires `/usr/bin/stat`: the standard macOS utility, or GNU Coreutils `stat` on Linux. This narrow OS dependency provides file type and hard-link count unavailable through the public .NET file APIs. It avoids a NuGet dependency or native `stat` structure layouts that vary by OS and architecture. The program invokes the absolute executable with separate arguments and no shell. Unsupported platforms, a missing utility or failed inspection are errors before state is written.
+The target also requires `/usr/bin/stat`, the standard macOS utility or GNU Coreutils `stat` on Linux. It reports file type and hard-link count, which the public .NET file APIs do not expose together. The target calls it with an absolute path and separate arguments, without a shell. On an unsupported platform, or if `stat` is missing or cannot check the path, the target exits without replacing the state file.
 
 From the repository root, the build and run commands are the same on macOS and Linux:
 
@@ -38,7 +38,7 @@ If VS Code reports `dotnet: command not found` or cannot restore the project, ch
 
 ## Verify transitions, rejection and both controlled faults
 
-After building, run the following from the repository root. Each call starts a new .NET process; only the temporary state file is shared. All scenario choices and execution metadata are supplied by Python before collection.
+After building, run the example from the repository root. Each call starts a new .NET process and shares the temporary state file. The Python script sets the scenario, execution ID and time before each call.
 
 ```bash
 uv run --no-sync python - <<'PY'
@@ -120,19 +120,17 @@ State after collection error: SAFE
 Next command: PASS
 ```
 
-The round trip has two passing records and a passing continuity check in the supplied order. A rejected request for the active mode also passes its explicitly selected rejection scenario. Rejection leaves the state file's original bytes unchanged.
+- **Round trip and rejection.** The two changes pass verification and the ending mode of the first matches the starting mode of the second. The rejection passes the selected rejection scenario and leaves the state file unchanged.
+- **`--stale-telemetry`.** The target saves `SAFE` and reports the previous mode, `NOMINAL`, as telemetry. Only `telemetry_matches_post_state` fails. OrbiRig returns a valid `FAIL` record.
+- **`--fail-after-commit`.** The target saves the change, exits with code `3` and writes a diagnostic to standard error. The collector captures that stream and reports the exit code in `ObservationCollectionError`. OrbiRig has no observation to verify. Reading the file and running the next command confirm the saved mode in this example.
 
-`--stale-telemetry` saves an accepted change but reports the previous mode as telemetry. OrbiRig produces a valid `FAIL` record: three checks pass and only `telemetry_matches_post_state` fails. The next command reads the committed `SAFE` state. Existing [evidence serialisers and readers](python.md#reopen-saved-verified-evidence) can save and reopen the failed record without changing the evidence contract.
+On rejection, the target returns the normal observation. If you set both flags for an accepted change, the target saves it and exits with code `3` before returning an observation.
 
-`--fail-after-commit` saves an accepted change, then exits with code `3`, an explanatory stderr diagnostic and empty stdout. OrbiRig raises `ObservationCollectionError` and creates no verification record. The saved file and subsequent process independently confirm the committed state in this controlled example. An arbitrary collection error does not establish the state of an external system or imply rollback. The collector captures stderr rather than forwarding it; its exception reports the exit status.
+## Inspect the saved FAIL record in the browser
 
-On rejection, `--fail-after-commit` is ignored. Combining both fault flags saves an accepted transition and exits `3` without returning an observation. There are only these two controlled faults.
+The example writes the stale-telemetry record to `dotnet-stale-telemetry.json` in the current directory. To inspect it, start the web interface, switch to the **Inspect evidence** workflow and select **Verified execution**. Paste the file's contents into **Evidence JSON** and choose **Inspect evidence**. [Run the web interface locally](web-interface.md#run-locally)
 
-## Inspect the failed record in the browser
-
-The example also saves the stale-telemetry record as `dotnet-stale-telemetry.json` in the current directory. You can inspect the saved record in OrbiRig's web interface. [Run the interface locally](web-interface.md#run-locally), switch to **Inspect evidence**, select **Verified execution**, paste the file's contents into **Evidence JSON** and press **Inspect evidence**.
-
-Python reconstructs the record and recomputes its checks. The result shows the outcome `FAIL` with three passing checks, and `telemetry_matches_post_state` failing with expected `SAFE` and actual `NOMINAL`. The record is still valid evidence: a saved `FAIL` is accepted when it matches the recomputed results. Delete the file when you have finished.
+OrbiRig recalculates the checks and accepts the saved `FAIL` because the results match. The failed telemetry check shows expected `SAFE` and actual `NOMINAL`.
 
 ## Input, persistence and limits
 
@@ -155,6 +153,8 @@ uv sync --locked --extra test
 ORBIRIG_TEST_DOTNET=1 uv run --no-sync python -m pytest -q --no-cov tests/test_dotnet_stateful_target.py
 ```
 
-The fixture builds the real target once into pytest's temporary directory. Verification tests call OrbiRig's subprocess workflow and compare the resulting records with independent expected modes, acknowledgements, checks and outcomes. Other tests run the compiled DLL directly to check exit status, stdout, stderr and the state file. Every test uses isolated state. Coverage includes both transitions, sequence continuity, rejection, stale telemetry, response failure after commit, validation errors, linked and special files, long filenames, directory permissions, partial-write cleanup and repeatability. The partial-write test uses the OS file-size resource limit. On Linux the .NET runtime sizes its executable memory from that limit, so the test disables write-xor-execute for that child process only; the failure then occurs in the target's own temporary-file write. A macOS-only test uses immutable file flags to exercise failed replacement after the temporary write; that case is skipped on Linux. Neither test adds a fault mode to the target. An explicitly enabled run fails if the SDK is absent or the build fails. Ordinary Python test runs skip this module without probing .NET.
+The tests build the target once in a temporary directory and use a separate state file for each test. Verification tests check the collected modes, acknowledgements, check results and outcomes against expectations written in the tests. Other tests run the compiled DLL directly to check its exit code, output and changes to the state file.
 
-The dedicated `.NET 10 interoperability / Ubuntu` CI job enables these tests on Python 3.12 and .NET 10, independently of the Python compatibility matrix. The final `CI passed` job also requires its success. This configuration does not establish a passing CI run until the workflow has actually completed on the candidate revision.
+The file tests cover input validation, links, special files, long names, permissions and cleanup after a write fails. The partial-write test uses the operating system's file-size limit. On Linux, the .NET runtime also uses that limit for executable memory. The test sets `DOTNET_EnableWriteXorExecute=0` for that child process so the limit affects the target's file write. A macOS-only test sets the original file's immutable flag and checks that it stays in place when replacement fails.
+
+The test module skips by default. When you enable it, a missing SDK or a failed build makes the tests fail. The `.NET 10 interoperability / Ubuntu` CI job runs them with Python 3.12 and .NET 10. The `CI passed` job requires its success. [CI jobs](../CONTRIBUTING.md#github-ci)

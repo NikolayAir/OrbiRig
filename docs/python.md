@@ -4,11 +4,11 @@
 
 The Python API checks recorded command results against a scenario you choose and returns the expected and observed values for each check. You can also collect observations from a separate program, check sequence continuity and read or write JSON evidence. The core works without FastAPI, React, Node.js or a browser.
 
-Use Python 3.12–3.15. Install the core from the repository root with `uv sync --locked`. Save an example below as a Python script and run it with `uv run --no-sync python your_script.py`. File paths in the examples are relative to the repository root.
+Use Python 3.12–3.15 and uv. From the repository root, install OrbiRig with `uv sync --locked`. Save an example as a Python script, then run `uv run --no-sync python your_script.py` from the repository root so the example can find its files. [Install uv](https://docs.astral.sh/uv/getting-started/installation/)
 
 For `scenario_id`, pass a `ScenarioId` member such as `ScenarioId.NOMINAL_TO_SAFE_MODE`. Convert a string explicitly first, for example with `ScenarioId("nominal_to_safe_mode")`. Passing a raw string raises `TypeError` before a command is executed or a subprocess is started.
 
-The 2 execution helpers default to `ScenarioId.NOMINAL_TO_SAFE_MODE` when omitted. This fixed convenience default never depends on observed behaviour. The observation verifier requires an explicit scenario; the examples supply it in every workflow.
+`execute_verified_reference_workflow(...)` and `execute_verified_subprocess_workflow(...)` use `ScenarioId.NOMINAL_TO_SAFE_MODE` if you omit `scenario_id`. When you verify an existing observation, you must pass the scenario. The examples always choose it explicitly.
 
 ## Verify an existing observation
 
@@ -44,7 +44,7 @@ Loading the observation validates its format. `build_verified_execution_record(.
 
 ## Execute a reference example
 
-This example executes a command against `ReferenceSpacecraft`, the simplified test double, then collects and independently verifies the observation:
+Run the command specified by the scenario against `ReferenceSpacecraft`, a small program that stands in for a spacecraft and gives repeatable observations. OrbiRig checks the returned observation using the scenario's rules.
 
 ```python
 from datetime import datetime, timezone
@@ -98,7 +98,7 @@ sequence = verify_execution_sequence([first, second])  # This order defines cont
 print(serialize_verified_execution_sequence_evidence(sequence), end="")
 ```
 
-The output contains 2 verified records, 1 passing continuity check and an overall `PASS`. The sequence verifier accepts at least 2 records and checks them in the order you provide them. It does not sort by execution ID or timestamp, re-run commands or re-evaluate each record's scenario checks. A sequence can fail even when every record passes; see [continuity](verification.md#continuity-across-executions).
+The output contains two verified records, one passing continuity check and an overall `PASS`. The order of the records in the list is the order OrbiRig checks. [Continuity rules](verification.md#continuity-across-executions)
 
 ## Collect from a separate program
 
@@ -128,7 +128,7 @@ The result contains 4 passing checks and outcome `PASS`. To collect from your ow
 
 For both subprocess entry points, `timeout` must be a positive, finite number of seconds no greater than `2_147_483`: an `int` or `float`, excluding booleans. This upper bound stays within the signed 32-bit millisecond range used by poll-based waits, with room for rounding. Values outside the range raise `ValueError`; other types raise `TypeError`. These caller errors occur before a process starts and are separate from `ObservationCollectionError`.
 
-OrbiRig starts 1 process for each submitted command, without interpreting `argv` as a shell command. The command and observation are exchanged through stdin and stdout, not HTTP. The protocol is:
+OrbiRig starts one process for each command and passes `argv` directly to it without a shell. It sends the command through standard input (stdin) and reads the observation from standard output (stdout).
 
 1. OrbiRig starts the `argv` program and sends 1 compact UTF-8 command JSON document on stdin, followed by 1 LF newline. For this scenario it sends:
 
@@ -136,18 +136,18 @@ OrbiRig starts 1 process for each submitted command, without interpreting `argv`
    {"command_type":"SET_OPERATING_MODE","target_mode":"SAFE"}
    ```
 
-2. The program must exit with code `0` within the timeout and write exactly 1 [observation-evidence v1](evidence-formats.md#observation-evidence) document to stdout. Its recorded command must match the submitted command. Diagnostic text belongs on stderr.
+2. The program must exit with code `0` within the timeout and write exactly one [observation-evidence v1](evidence-formats.md#observation-evidence) document to stdout. Its recorded command must match the submitted command. Write diagnostics to standard error (stderr).
 3. OrbiRig validates the observation, then verifies it against the explicitly chosen scenario. Completed verification can produce `PASS` or `FAIL`.
 
-`ObservationCollectionError` from `orbirig.subprocess_collection` covers launch failures, timeouts and non-zero exits. It also covers invalid UTF-8, invalid evidence and returned-command mismatches. These errors produce no verified record and do not establish whether the external target changed state.
+`ObservationCollectionError` from `orbirig.subprocess_collection` covers a program that cannot start, times out or exits with a non-zero status. It also covers an invalid response, including invalid UTF-8, invalid evidence or a different command in the returned observation. OrbiRig has no usable observation to verify. Use a separate check to find out whether the target changed state.
 
-The program runs with the caller's permissions; collection does not sandbox it. The timeout is not an output-size limit: stdout and stderr are captured in memory without a size limit. The HTTP API's 4 MiB request limit does not apply to subprocess output.
+The program runs with the same permissions as the caller. The timeout limits how long OrbiRig waits. It captures the program's standard output and error streams in memory, with no output size limit. The web API's 4 MiB request-body limit applies to HTTP requests.
 
 For collection without verification, `collect_subprocess_observation(...)` takes `argv`, `command` and `timeout` and returns a `CommandExecutionObservation`. To verify this observation later, choose the expected scenario separately and pass it to the verifier.
 
 Use the [stateful test target](stateful-target.md) to run operating-mode commands in separate processes and verify continuity in the resulting sequence. The target keeps its mode in an isolated file. With stale telemetry enabled, OrbiRig returns `FAIL` for a valid observation whose telemetry disagrees with the post-state.
 
-The optional [C#/.NET 10 target](dotnet-stateful-target.md) handles the same commands in a separate C# program. Use `execute_verified_subprocess_workflow(...)` with the same scenarios and evidence format to verify its transitions, detect stale telemetry and handle a collection error after state commit.
+You can collect and verify observations from a C# program with the same protocol and scenario rules. [Verify the optional C#/.NET 10 target](dotnet-stateful-target.md)
 
 ## Reopen saved verified evidence
 
@@ -190,6 +190,6 @@ sequence = deserialize_verified_execution_sequence_evidence(
 )
 ```
 
-These readers recompute the checks and outcomes and reject saved values that disagree. This also allows saved `FAIL` results to be reopened when they match the recalculated results. See the [evidence reference](evidence-formats.md) for fields, versions, execution IDs and UTC timestamp rules.
+The readers recalculate the checks and outcomes from the saved inputs. The stored results must match, including for a saved `FAIL`. [Evidence format reference](evidence-formats.md)
 
-The verified-evidence writers apply the same reconstruction checks before returning JSON. A manually assembled record or sequence with inconsistent derived checks raises `ValueError`; its results are not silently repaired. Prefer `build_verified_execution_record(...)` and `verify_execution_sequence(...)` to construct canonical evidence.
+The writers also check the results before returning JSON. If you build a record or sequence by hand and its results disagree with OrbiRig's checks, the writer raises `ValueError`. Use `build_verified_execution_record(...)` and `verify_execution_sequence(...)` to calculate those results.

@@ -1,8 +1,10 @@
 # OrbiRig
 
-OrbiRig is a software tool for checking recorded command results against the expected behaviour of a scenario you select. It supports 3 scenarios and shows the expected and actual values for each check, with an overall `PASS` or `FAIL`.
+OrbiRig is a tool for checking recorded command results against expected behaviour. You choose a **scenario** that defines what you expect and provide an **observation** containing the command and what the program reported. OrbiRig shows the expected and actual values for each check, so you can see why the result is `PASS` or `FAIL`.
 
-The scenarios use a simplified spacecraft model with 2 operating modes: `NOMINAL` (normal operation) and `SAFE` (a protective mode). OrbiRig checks the mode before and after a command, its acknowledgement (whether it was accepted or rejected), and telemetry (the separately reported mode). OrbiRig is a non-operational verification harness.
+The three supported scenarios use a simplified, non-operational spacecraft model. It has two operating modes, `NOMINAL` for normal operation and `SAFE` for a protective mode. OrbiRig checks the mode before and after the command, the acknowledgement (whether the command was accepted or rejected), and **telemetry**, a separate report of the operating mode.
+
+**Evidence** is a JSON document (structured text) that stores an observation, a verified record or a sequence of verified records. A verified record keeps the observation, chosen scenario and check results together, so you can review the same evidence later.
 
 ## What you can do with OrbiRig
 
@@ -18,22 +20,21 @@ The scenarios use a simplified spacecraft model with 2 operating modes: `NOMINAL
 
 The hosted interface runs on Render's free plan. After 15 minutes of inactivity, the service spins down, so the next visit may take about a minute to load.
 
-1. Open the [web interface](https://orbirig-evidence-inspector.onrender.com/) and choose **Verify observation**.
-2. Choose **Load example**, then **Verify observation**.
-3. Inspect the expected and actual values. The default example records an accepted change from `NOMINAL` to `SAFE` and produces `PASS`.
-4. Choose **Load failing example**, then **Verify observation**, to see a mismatch produce `FAIL`.
+1. In the hosted OrbiRig interface, switch to the **Verify observation** workflow. [Open OrbiRig](https://orbirig-evidence-inspector.onrender.com/)
+2. Choose **Load example** to fill in the inputs, then choose **Verify observation** to run the checks. The default example records an accepted change from `NOMINAL` to `SAFE` and gives `PASS`.
+3. Choose **Load failing example**, then **Verify observation**. The result is `FAIL` because telemetry reports `NOMINAL` while the recorded ending mode is `SAFE`.
 
 To explore saved records, switch to **Inspect evidence**, select an evidence type, choose **Load example**, then submit it with the **Inspect evidence** button.
 
-![Verification result showing 3 passing checks and a failed telemetry check: expected SAFE, actual NOMINAL](docs/images/orbirig-web-verification.png)
-
-The result above uses an observation with telemetry that does not match the recorded post-state: the post-state is `SAFE`, but telemetry reports `NOMINAL`. OrbiRig shows the mismatch and returns `FAIL`.
+![A verification result with three passing checks and one failed telemetry check](docs/images/orbirig-web-verification.png)
 
 See the [web-interface guide](docs/web-interface.md) to run it locally or use the HTTP endpoints.
 
 ### Verify a file from the command line
 
-Install [Git](https://git-scm.com/downloads), [uv](https://docs.astral.sh/uv/getting-started/installation/) and Python 3.12–3.15, or let uv download a supported interpreter. From a terminal:
+Install Git and uv. uv uses a supported Python interpreter (3.12–3.15) or downloads one. [Install Git](https://git-scm.com/downloads) · [Install uv](https://docs.astral.sh/uv/getting-started/installation/)
+
+In a terminal, clone the repository, install OrbiRig and verify the included observation file.
 
 ```bash
 git clone https://github.com/NikolayAir/OrbiRig.git
@@ -47,11 +48,11 @@ uv run --no-sync orbirig verify-observation docs/examples/nominal-to-safe.json \
 
 The command prints a verified execution record as JSON with 4 passing checks and `"outcome": "PASS"`. It exits with code `0`.
 
-See the [CLI guide](docs/cli.md) for a failing example, saving output and exit codes, or the [Python guide](docs/python.md) to execute a repeatable reference example and check sequences.
+The CLI guide explains how to save a record, check a telemetry mismatch and read exit codes. The Python guide covers running commands and checking sequences. [CLI guide](docs/cli.md) · [Python guide](docs/python.md)
 
 ## How verification works
 
-Choose a **scenario** to state the expected behaviour before verification. An **observation** records the command and its reported result. **Evidence** is an observation or verified result represented as JSON, a text format for structured data. OrbiRig never chooses the scenario from the observation.
+The browser, command line and Python API use the same verification rules. The Python core validates the input before it runs the four checks.
 
 ```mermaid
 ---
@@ -76,46 +77,38 @@ flowchart TD
     class validate,verifier action
 ```
 
-Rounded boxes show actions; square-cornered boxes show data or results. See the [architecture guide](docs/architecture.md#verification-flow) for the detailed collection, validation and error paths.
+The architecture guide follows the data from collection and validation through to a result and explains which errors stop the process. [Verification flow](docs/architecture.md#verification-flow)
 
-The **Python core** validates inputs, defines scenario expectations, performs verification and reads or writes evidence. The React/TypeScript browser interface and CLI use this same core, so each interface applies the same verification rules. The core also works without the web application.
-
-The Python API can execute a command and collect an observation from the included `ReferenceSpacecraft` or a separate program, invoked as a subprocess. `ReferenceSpacecraft` is a simplified, deterministic **test double** used to produce repeatable observations. Scenario expectations are defined separately, so its reported behaviour does not determine what counts as correct.
-
-The [stateful test target](docs/stateful-target.md) is a separate program that keeps its mode between runs. With a simulated fault, it accepts a change to `SAFE` but its telemetry still reports `NOMINAL`. OrbiRig fails only the telemetry check, and the next command confirms that the program kept its new `SAFE` state.
-
-Another fault makes the target save a mode change and then fail before returning an observation. OrbiRig reports a collection error for that run, without producing a verification result. The stateful-target guide includes a runnable example that checks the saved state and sends a subsequent command.
-
-OrbiRig can also collect and verify observations from the optional [C#/.NET 10 target](docs/dotnet-stateful-target.md) through the same Python subprocess API. The separate C# program keeps its operating mode in a state file between launches. Only this optional workflow needs the .NET SDK.
-
-[Tests](CONTRIBUTING.md#python-checks) include deliberately incorrect observations and [browser-to-Python checks](CONTRIBUTING.md#browser-tests) with independently defined expected results.
-
-Each verification check, called an **invariant**, retains the expected value, actual value and whether they match:
+Each verification check (called an **invariant** in the API) keeps the expected value, actual value and whether they match.
 
 | Check | What it establishes |
 | --- | --- |
 | Pre-state | The starting mode matches the selected scenario. |
 | Acknowledgement | The reported acceptance or rejection matches the scenario. |
-| Post-state | The mode after the command matches the scenario's target, or the starting mode when rejection is expected. |
-| Telemetry | The reported mode matches the observed post-state. |
+| Post-state | The ending mode matches the requested mode for a transition or the recorded starting mode for an expected rejection. |
+| Telemetry | The separately reported mode matches the recorded ending mode. |
 
-Provide an execution ID and a UTC timestamp for the recorded execution. The verified record retains the selected scenario, observation, all 4 checks and overall outcome. Verification outcomes and errors have different meanings:
+Enter an execution ID (a label for the command run) and its time in UTC. The verified record keeps these details with the observation, scenario, four checks and outcome.
 
 | Status | Meaning |
 | --- | --- |
 | `PASS` | Every check meets its expectation. A rejected command can pass when rejection is expected. |
-| `FAIL` | The observation is valid input, but at least 1 check does not meet its expectation. |
-| Input error | The data cannot be verified. Examples include invalid JSON or a command that does not match the selected scenario. No verification result is produced. |
-| Collection error | No usable observation was collected, for example because the target subprocess timed out. No verification result is produced. |
+| `FAIL` | At least one check did not meet its expectation. |
+| Input error | OrbiRig cannot check the input and returns an error without a verification result. Examples include invalid JSON and a command that does not match the scenario. |
+| Collection error | OrbiRig could not get a usable observation from a separate program and has no verification result. |
 
-You can also check records together or reopen saved evidence:
+You can check records together or reopen saved evidence.
 
-- **Check a sequence.** For 2 or more records, the Python API checks **continuity**: the mode after one command must match the mode before the next. The records stay in the order you provide them. The sequence passes only when every record and every continuity check passes.
-- **Reopen saved evidence.** Loading verified execution or sequence JSON validates its format and recomputes the checks and outcome, including continuity for a sequence. The saved checks and outcome must match these results exactly, including for `FAIL` records. Contradictory saved results are rejected.
+- **Check a sequence.** The Python API checks **continuity** across two or more records in the order you provide. The recorded ending mode of each command must match the recorded starting mode of the next. The sequence passes when all records and all continuity checks pass.
+- **Reopen saved evidence.** OrbiRig recalculates saved checks and outcomes from the stored inputs and rejects results that disagree. A correctly recorded `FAIL` can be valid evidence.
 
-These checks assess the reported data. They do not prove that a command was executed or identify who produced the JSON. See [what evidence validation establishes](docs/evidence-formats.md#what-validation-establishes).
+The checks establish whether the recorded data meets the selected rules. Showing that a command actually ran or identifying who provided the data requires separate evidence. [What validation establishes](docs/evidence-formats.md#what-validation-establishes)
 
-See [verification concepts](docs/verification.md) for the 3 supported scenarios, observation collection and sequence checks, or the [evidence format reference](docs/evidence-formats.md) for JSON fields and validation rules.
+### Collect observations from a program
+
+The Python API can use `ReferenceSpacecraft`, a test double that produces repeatable observations, or start a separate program (a subprocess) and collect its response. The selected scenario defines the rules for both cases, independently of the program that ran the command.
+
+The Python and optional C#/.NET 10 targets store their mode in a file between runs. Use either target to check continuity, detect stale telemetry or investigate a missing response after a saved change. The C# program uses the same Python collector and verifier and requires the .NET SDK for local setup. [Python stateful target](docs/stateful-target.md) · [.NET stateful target](docs/dotnet-stateful-target.md)
 
 ## Documentation
 

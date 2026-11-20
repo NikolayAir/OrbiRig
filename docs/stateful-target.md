@@ -2,17 +2,17 @@
 
 [Python API](python.md#collect-from-a-separate-program) · [Verification concepts](verification.md)
 
-The [stateful target](../examples/stateful_target.py) is a non-operational test program. It handles operating-mode commands independently of OrbiRig, using only Python's standard library. It does not import `ReferenceSpacecraft`, scenario expectations or verification rules.
+The stateful target is a separate Python program that handles operating-mode commands and keeps its mode between runs. It uses Python's standard library. OrbiRig collects its reports and checks them against a scenario you choose. [Target source](../examples/stateful_target.py)
 
-For an independent implementation in another language, see the optional [C#/.NET 10 example](dotnet-stateful-target.md). It uses the same subprocess protocol and Python verifier, including both controlled faults described here.
+The optional C#/.NET 10 target uses the same command and observation format. [.NET guide](dotnet-stateful-target.md)
 
-Each command starts a new process through the existing stdin/stdout protocol. The processes share an explicitly created state file containing `{"operating_mode": "NOMINAL"}` or `{"operating_mode": "SAFE"}`. This is the target's local state, separate from OrbiRig's versioned evidence.
+OrbiRig starts a new process for each command. The processes share a state file that contains `{"operating_mode": "NOMINAL"}` or `{"operating_mode": "SAFE"}`. The file stores the target's current mode. The target returns the command and its reported result in a separate observation document.
 
-The target accepts a change to the other supported mode and rejects a request for its current mode. It reports pre-state, acknowledgement, post-state and telemetry separately. The optional `--stale-telemetry` flag reports the pre-command mode as telemetry. After an accepted change, this disagrees with the post-state while the actual change is still saved. OrbiRig then checks the observation against the scenario chosen by the caller.
+The target accepts a change to the other mode and rejects a request for its current mode. With `--stale-telemetry`, it saves an accepted change and reports the previous mode as telemetry (a separate report of the operating mode). OrbiRig then sees a mismatch between the reported ending mode and telemetry.
 
 ## Run a round trip and detect stale telemetry
 
-With the [Python environment](../CONTRIBUTING.md#python-environment) installed, run this from the repository root:
+Install OrbiRig from the repository root with `uv sync --locked`. From the same directory, run the example in a Bash-compatible shell. [Python environment](../CONTRIBUTING.md#python-environment)
 
 ```bash
 uv run --no-sync python - <<'PY'
@@ -75,11 +75,11 @@ State after fault: SAFE
 Next command: PASS
 ```
 
-The `FAIL` record has 3 passing checks and 1 failed telemetry check. The following process reads the committed `SAFE` state and successfully changes it back to `NOMINAL`. Existing [evidence functions](python.md#reopen-saved-verified-evidence) can save and reopen these records and sequences without a new format.
+Only the telemetry check fails. The next process reads `SAFE` from the state file and changes it back to `NOMINAL`. [Save or reopen the records in Python](python.md#reopen-saved-verified-evidence)
 
 ## Simulate a response failure after state commit
 
-The optional `--fail-after-commit` flag simulates a response failure after an accepted change has been saved. The target exits with code `3`, leaves stdout empty and writes `stateful target: simulated response failure after state commit` to stderr. For a rejected command, no state is committed: the flag is ignored and the target returns its usual rejection observation with code `0` and no failure diagnostic. If both fault flags are supplied, an accepted change is saved but no observation is returned.
+Use `--fail-after-commit` to make the target save an accepted change and exit before it returns an observation. The target exits with code `3`, writes a diagnostic to standard error and leaves standard output empty. A rejected command still returns a rejection observation with code `0`. If you set both fault flags for an accepted change, the target saves the change and exits with code `3`.
 
 From the repository root, run this as a separate example with the same Python environment:
 
@@ -133,22 +133,22 @@ State after collection error: SAFE
 Next command: PASS
 ```
 
-The target emits no observation for the failed response, and OrbiRig creates no verification result or evidence. The collector checks the non-zero exit before verification and raises the existing `ObservationCollectionError`. It reports the exit status; the target's diagnostic is on stderr, which the collector captures rather than forwarding.
+The collector raises `ObservationCollectionError` before it can verify a result. The exception includes the exit status. The collector captures the target's standard error stream separately.
 
-The examples distinguish 3 outcomes:
+The target can fail at different points, with different effects on the saved state.
 
 | Target behaviour | OrbiRig result | Target state |
 | --- | --- | --- |
 | A valid observation reports incorrect telemetry (`--stale-telemetry`) | Verified `FAIL` | The accepted change is saved. |
-| Failure before commit, such as an invalid command or stored state, or a failed state write or replacement | Collection error; no verified record | Unchanged where this target's tested failure path guarantees it. |
-| Failure after commit (`--fail-after-commit`) | Collection error; no verified record | The accepted change is already saved. |
+| An input or file error stops the target before it replaces the state file. | Collection error without a verified record | The original file still contains the previous mode. |
+| The target saves a change and exits without an observation (`--fail-after-commit`). | Collection error without a verified record | The accepted change is already saved. |
 
-In general, the state of an external system is unknown after a collection error without an additional observation. OrbiRig does not automatically determine that state or establish rollback after an arbitrary error. In this controlled example, we check the saved mode directly through the state file and confirm it with a subsequent command in a separate process.
+After a collection error, use a separate check to learn the target's state. This example reads the state file and confirms the saved mode by sending another command in a new process.
 
 ## State and failure boundaries
 
 Use a separate regular state file with exactly 1 hard link for each independent target or test session. Commands within that session must share the same file and run sequentially, with only 1 caller at a time. Missing files, symbolic links, hard-linked aliases, directories, malformed JSON, repeated field names, unsupported modes and invalid commands are errors; the target does not create or repair state automatically. It writes diagnostics to stderr and exits with code `2`, without an observation. The collector reports `ObservationCollectionError`, rather than a verification outcome.
 
-Commands and stored state are validated before any write. Rejected commands leave the original bytes unchanged. An accepted change is written to a temporary file beside the state file, then replaces it atomically; failed writes or replacements preserve the original file. Linked state files are rejected before writing because replacement would separate their names into different states. This does not provide concurrent-writer coordination, protection against concurrent filesystem changes or protection against power loss. Once state is committed, a later reply or collection error does not establish rollback, as described in the [subprocess contract](python.md#collect-from-a-separate-program).
+The target validates the command and state before writing. Rejected commands leave the file unchanged. To save an accepted change, the target writes a temporary file in the same directory and calls `os.replace` to replace the state file. On a filesystem that supports atomic replacement, a reader sees either the original file or the complete new file. Use a trusted directory and run one target process at a time. Check the saved state separately after a response error. The caller is responsible for recovery after power loss. [Subprocess contract](python.md#collect-from-a-separate-program)
 
 This example models only 2 operating modes and 2 controlled faults: stale telemetry and a response failure after state commit. It does not represent operational spacecraft behaviour.

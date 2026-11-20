@@ -80,7 +80,7 @@ To inspect the assertions behind the main verification claims, start here:
 
 Behave describes the 3 supported command scenarios in Given/When/Then steps: the starting mode, command and expected result. Use pytest for detailed negative cases instead of duplicating them in Behave.
 
-Pyright checks the package, pytest tests, Behave steps and distribution scripts in standard mode against Python 3.12 language and typing rules, regardless of the development interpreter. CI supplies the Node.js version from `.node-version` for its underlying type checker.
+Pyright checks the package, tests, Behave steps, examples and scripts against Python 3.12 language and typing rules. CI uses the Node.js version from `.node-version` to run the type checker.
 
 ### Distribution checks
 
@@ -99,12 +99,11 @@ Python distributions include the core and optional web adapter module; the sdist
 From `frontend/`, after `npm ci`:
 
 ```bash
-npm run typecheck
 npm test
 npm run build
 ```
 
-Vitest and React Testing Library check interface behaviour. Type checking and the production build also check browser tests, startup helpers and Playwright configuration. Browser tests run separately from `npm test`.
+Vitest and React Testing Library check interface behaviour. The production build first runs TypeScript checks, including the browser tests, startup helpers and Playwright configuration. To run just the type checks, use `npm run typecheck`. Run Playwright separately using the browser test commands.
 
 The `App.*.test.tsx` files group verification, inspection, guidance, examples, completion feedback, request-state and cancellation checks. They all render the real application, sharing [test setup and interaction helpers](frontend/src/test/appTestSupport.tsx). Their [hand-written expected values](frontend/src/test/appFixtures.ts) stay independent of application examples and server responses. [`docLinks.test.ts`](frontend/src/docLinks.test.ts) checks that documentation links in the interface point to existing files and headings. See [browser modules](docs/architecture.md#browser-modules) to locate the corresponding implementation.
 
@@ -133,7 +132,7 @@ Fixtures and expected results are written independently of API responses and `Re
 - Malformed JSON and repeated field names producing input errors without verification results.
 - The 4 MiB request limit in verification and all 3 inspection types, preservation of inputs and resubmission after reducing data. Verification includes an example whose evidence fits but whose encoded request exceeds the limit.
 - Observation inspection without a verification outcome, valid saved `FAIL` records with non-ASCII execution IDs, and rejection of contradictory saved outcomes in records and sequences.
-- A sequence failing continuity while every record passes, with supplied order differing from timestamp and execution-ID sorting.
+- A sequence with a failed continuity check even though every record passes. The input order differs from sorting by timestamp or execution ID.
 
 <details>
 <summary>Keyboard, cancellation and request-text checks</summary>
@@ -184,7 +183,7 @@ Every Python test job checks dependency consistency and package imports, then ru
 
 The Ubuntu `Python 3.12` job also runs Ruff, Pyright and branch coverage. It type-checks, tests and builds the frontend, checks isolated distributions and verifies that FastAPI serves the built page and favicon.
 
-`Chromium / Ubuntu`, `Firefox / Ubuntu` and `WebKit / Ubuntu` each install Python 3.12, the Node.js version from `.node-version` and the selected browser with system dependencies. They type-check the frontend and browser tests, then run that engine's full E2E suite with 1 worker. Chromium uses the headless shell. These jobs run for every listed trigger, independently of the Python compatibility matrix. One failure does not cancel the others. Available failure diagnostics are uploaded as `<browser>-failure-diagnostics` and retained for 7 days.
+`Chromium / Ubuntu`, `Firefox / Ubuntu` and `WebKit / Ubuntu` each install Python 3.12, the Node.js version from `.node-version` and the selected browser with system dependencies. They type-check the frontend and browser tests, then run that engine's full E2E suite with 1 worker. Chromium uses the headless shell. These jobs run for every listed trigger, independently of the Python compatibility matrix. If a browser job fails, the others keep running. That job uploads any available reports, traces, screenshots and videos as `<browser>-failure-diagnostics` for 7 days.
 
 `.NET 10 interoperability / Ubuntu` installs Python 3.12, the .NET 10 SDK and the `test` extra. It runs only the [real-target interoperability tests](tests/test_dotnet_stateful_target.py) with `ORBIRIG_TEST_DOTNET=1`, making missing SDKs and failed builds errors rather than skips. The fixture builds the console program once. Some tests verify it through the Python subprocess API; others run the compiled DLL directly to check exit status, output and state files. See the [.NET guide](docs/dotnet-stateful-target.md#automated-checks) for the same optional local command. This job does not extend the Python compatibility matrix or add .NET to the deployed runtime. Its result participates in `CI passed`, so a failure also prevents that deployment prerequisite from succeeding.
 
@@ -194,7 +193,7 @@ The repository's active [Protect main ruleset](https://github.com/NikolayAir/Orb
 
 ## Changing behaviour or dependencies
 
-Keep scenario expectations explicit and independent of the reference test double. Check deliberate mismatches as well as passing examples. Preserve the distinction between completed verification `FAIL`, invalid evidence and collection errors, and preserve supplied sequence order. See [verification concepts](docs/verification.md) and the [evidence reference](docs/evidence-formats.md) for the rules and JSON formats to retain.
+Keep scenario expectations explicit and independent of the reference test double. Check deliberate mismatches as well as passing examples. Preserve the distinction between completed verification `FAIL`, invalid evidence and collection errors. Keep sequence records in the order the caller provides. [Verification concepts](docs/verification.md) · [Evidence format reference](docs/evidence-formats.md)
 
 Select tests for changed responsibilities and risks, starting with focused checks and broadening when needed. Run frontend tests for interface changes and real browser-to-Python tests when changes affect communication between the browser and Python API. Test installed entry points for packaging or CLI changes.
 
