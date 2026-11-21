@@ -154,6 +154,24 @@ describe("Download result JSON", () => {
     expect(screen.queryByRole("button", { name: DOWNLOAD })).not.toBeInTheDocument();
   });
 
+  it("asks for a shorter execution ID when the result would exceed the inspection limit", async () => {
+    const message = "The saved evidence would exceed the web interface's 4 MiB inspection limit. "
+      + "Shorten the Execution ID and try again.";
+    fetchMock.mockResolvedValue(respond({ detail: {
+      code: "invalid_execution_metadata", field: "execution_id", message,
+    } }, 422));
+    submitVerification();
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(message);
+    expect(alert).not.toHaveTextContent("Use a non-blank ID and a UTC time");
+    const executionId = screen.getByRole("textbox", { name: "Execution ID" });
+    expect(executionId).toHaveAttribute("aria-invalid", "true");
+    expect(executionId).toHaveAccessibleDescription(expect.stringContaining(message));
+    expect(screen.queryByRole("region", { name: "Verified execution" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: DOWNLOAD })).not.toBeInTheDocument();
+  });
+
   it("offers no download when the request cannot reach the server", async () => {
     fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
     submitVerification();

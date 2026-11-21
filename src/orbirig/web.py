@@ -332,9 +332,18 @@ async def verify_observation_evidence(
         ) from None
 
     # Build the display data and the saved evidence from the same verified record.
+    evidence_json = serialize_verified_execution_evidence(record)
+    # A downloaded record must fit when it is submitted to the inspection endpoint.
+    if len(evidence_json.encode("utf-8")) > _MAX_EVIDENCE_REQUEST_BYTES:
+        raise _verification_error(
+            "invalid_execution_metadata",
+            "The saved evidence would exceed the web interface's 4 MiB inspection limit. "
+            "Shorten the Execution ID and try again.",
+            field="execution_id",
+        )
     return {
         **_verified_execution_presentation(record),
-        "verified_execution_evidence": serialize_verified_execution_evidence(record),
+        "verified_execution_evidence": evidence_json,
     }
 
 

@@ -63,10 +63,11 @@ export function VerificationPanel({
     cancelRef: verificationCancelRef,
   } = feedback;
   const verificationRequiredErrors = { ...errors };
-  if (verification.kind === "validation-failure" && verification.code === "invalid_execution_metadata") {
-    if (verification.field === "execution_id") verificationRequiredErrors.executionId = verification.message ?? "Execution ID must be non-blank text without surrogate code points.";
-    if (verification.field === "executed_at") verificationRequiredErrors.executedAt = verification.message ?? "Enter a valid UTC date and time.";
-  }
+  const metadataError = verification.kind === "validation-failure" && verification.code === "invalid_execution_metadata"
+    ? verification
+    : undefined;
+  if (metadataError?.field === "execution_id") verificationRequiredErrors.executionId = metadataError.message ?? "Execution ID must be non-blank text without surrogate code points.";
+  if (metadataError?.field === "executed_at") verificationRequiredErrors.executedAt = metadataError.message ?? "Enter a valid UTC date and time.";
   // A completed result already belongs to these inputs: the same check would repeat it exactly.
   const completed = verification.kind === "completed";
   const actionStatus = completed ? "Verification completed."
@@ -295,7 +296,10 @@ export function VerificationPanel({
       {verification.kind === "request-too-large" && <EvidenceRequestSizeError />}
 
       {verification.kind === "validation-failure" && (
-        <RequestError title="Input error" guidance={VERIFICATION_ERROR_GUIDANCE[verification.code]}>
+        <RequestError
+          title="Input error"
+          guidance={metadataError?.field && metadataError.message ? undefined : VERIFICATION_ERROR_GUIDANCE[verification.code]}
+        >
           {verification.message ?? VERIFICATION_ERROR_MESSAGES[verification.code]}
         </RequestError>
       )}

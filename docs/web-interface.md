@@ -207,6 +207,8 @@ Invalid observation messages use the same field-level diagnostics. Metadata erro
 
 Each endpoint limits the complete body to **4 MiB (4,194,304 bytes), inclusive**. Verification counts the encoded JSON wrapper and embedded evidence string. Inspection counts the submitted UTF-8 bytes. This HTTP limit does not apply to the Python evidence APIs.
 
+Saved evidence can be larger than the verification request. The API checks that the saved UTF-8 JSON also fits within 4 MiB, so **Inspect evidence** can reopen it. If a long **Execution ID** makes the saved document exceed the limit, verification returns HTTP `422` with `invalid_execution_metadata` and asks you to shorten the ID.
+
 Content-type checks run before body-size checks. The server enforces the size limit while reading, regardless of `Content-Length`. After an oversized request, the interface keeps entered values and selections and explains how to reduce the data before resubmitting.
 
 ## Render deployment configuration

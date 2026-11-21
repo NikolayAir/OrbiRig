@@ -13,6 +13,7 @@ CLIENT_WITH_SERVER_ERRORS = TestClient(
     raise_server_exceptions=False,
 )
 ENDPOINT = "/api/verify/observation"
+WEB_EVIDENCE_LIMIT = 4 * 1024 * 1024
 
 
 def _observation_document(
@@ -141,12 +142,14 @@ def test_explicit_non_default_scenario_controls_verification() -> None:
     assert payload["outcome"] == "PASS"
 
 
-def _expected_evidence_document() -> dict[str, object]:
+def _expected_evidence_document(
+    *, execution_id: str = "exec-web-verify-001",
+) -> dict[str, object]:
     # Define the expected fields and order independently of the evidence serialiser.
     return {
         "schema_version": 1,
         "execution": {
-            "execution_id": "exec-web-verify-001",
+            "execution_id": execution_id,
             "scenario_id": "nominal_to_safe_mode",
             "executed_at": "2026-08-25T18:30:00Z",
         },
@@ -268,6 +271,58 @@ def test_returned_evidence_reopens_with_the_same_presentation(request_document) 
 
     assert inspected.status_code == 200
     # Inspection returns display data only, so the evidence field is absent.
+    assert inspected.json() == verified
+
+
+@pytest.mark.parametrize(
+    ("character", "request_budget"),
+    [("a", WEB_EVIDENCE_LIMIT), ("é", WEB_EVIDENCE_LIMIT // 2)],
+    ids=["ascii-at-request-limit", "unicode-expands-in-saved-evidence"],
+)
+def test_verification_rejects_evidence_over_the_inspection_limit(
+    character: str, request_budget: int,
+) -> None:
+    request = _verification_request(execution_id="")
+    # The outer request carries literal UTF-8, while saved evidence escapes Unicode.
+    wrapper_size = len(json.dumps(request, ensure_ascii=False).encode("utf-8"))
+    id_budget = request_budget - wrapper_size
+    character_size = len(character.encode("utf-8"))
+    request["execution_id"] = character * (id_budget // character_size)
+    body = json.dumps(request, ensure_ascii=False).encode("utf-8")
+    assert request_budget - character_size < len(body) <= request_budget
+
+    response = CLIENT.post(ENDPOINT, content=body, headers={"Content-Type": "application/json"})
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "detail": {
+            "code": "invalid_execution_metadata",
+            "field": "execution_id",
+            "message": (
+                "The saved evidence would exceed the web interface's 4 MiB inspection limit. "
+                "Shorten the Execution ID and try again."
+            ),
+        },
+    }
+
+
+def test_evidence_at_the_inspection_limit_can_be_reopened() -> None:
+    empty_id_evidence = json.dumps(_expected_evidence_document(execution_id=""), indent=2) + "\n"
+    id_size = WEB_EVIDENCE_LIMIT - len(empty_id_evidence.encode("utf-8"))
+    response = _post(_verification_request(execution_id="a" * id_size))
+
+    assert response.status_code == 200
+    verified = response.json()
+    evidence = verified.pop("verified_execution_evidence").encode("utf-8")
+    assert len(evidence) == WEB_EVIDENCE_LIMIT
+
+    inspected = CLIENT.post(
+        "/api/inspect/verified-execution",
+        content=evidence,
+        headers={"Content-Type": "text/plain; charset=utf-8"},
+    )
+
+    assert inspected.status_code == 200
     assert inspected.json() == verified
 
 
