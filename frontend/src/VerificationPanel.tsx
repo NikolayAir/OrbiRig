@@ -151,12 +151,17 @@ export function VerificationPanel({
           </div>
 
           <div className="form-field">
-            <label htmlFor="verification-executed-at">Execution time (UTC)</label>
+            <div className="field-label">
+              <label htmlFor="verification-executed-at">Execution time (UTC)</label>
+              <FieldHelp control={fieldHelp.executedAt} label="Execution time (UTC)" helpId="execution-time-help-description">
+                Enter the UTC time when the command ran, for example <code>2026-10-21T10:00:00Z</code>.
+              </FieldHelp>
+            </div>
             <input
               id="verification-executed-at"
               ref={executedAtInputRef}
               aria-describedby={describedBy(
-                "verification-executed-at-hint",
+                "execution-time-help-description",
                 verificationRequiredErrors.executedAt ? "verification-executed-at-error" : undefined,
               )}
               aria-invalid={
@@ -167,9 +172,6 @@ export function VerificationPanel({
               onChange={(event) => onInputChange("executedAt", event.target.value)}
               required
             />
-            <p id="verification-executed-at-hint" className="field-hint">
-              Use the time the command ran, for example <code>2026-10-21T10:00:00Z</code>.
-            </p>
             {verificationRequiredErrors.executedAt && (
               <p
                 className="field-error"

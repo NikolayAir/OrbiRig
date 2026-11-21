@@ -33,7 +33,7 @@ describe("pre-release regressions", () => {
       .toHaveAccessibleDescription("Compare a recorded result with a scenario.");
     expect(screen.getByRole("button", { name: "Show Inspect evidence" }))
       .toHaveAccessibleDescription("Read a JSON document and check that any saved results match its data.");
-    for (const name of ["About Verify observation", "About Inspect evidence", "About Execution time (UTC)"]) {
+    for (const name of ["About Verify observation", "About Inspect evidence"]) {
       expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
     }
     render(<VerifiedExecutionDetails record={{ ...verifiedExecution, outcome: "PASS" }} />);

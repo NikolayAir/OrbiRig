@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
 
-type HelpField = "executionId" | "scenario" | "observationEvidence" | "inspectionEvidence";
+type HelpField = "executionId" | "executedAt" | "scenario" | "observationEvidence" | "inspectionEvidence";
 type HelpPointer = Pick<PointerEvent, "clientX" | "clientY">;
-const allDismissed = { executionId: true, scenario: true, observationEvidence: true, inspectionEvidence: true };
+const allDismissed = { executionId: true, executedAt: true, scenario: true, observationEvidence: true, inspectionEvidence: true };
 
 function containsPoint(bounds: Pick<DOMRect, "left" | "right" | "top" | "bottom">, point: HelpPointer) {
   return point.clientX >= bounds.left && point.clientX <= bounds.right &&
@@ -20,12 +20,19 @@ export type FieldHelpControl = {
 
 export function useVerificationFieldHelp() {
   const executionIdRef = useRef<HTMLSpanElement>(null);
+  const executedAtRef = useRef<HTMLSpanElement>(null);
   const scenarioRef = useRef<HTMLSpanElement>(null);
   const observationEvidenceRef = useRef<HTMLSpanElement>(null);
   const inspectionEvidenceRef = useRef<HTMLSpanElement>(null);
   const [openField, setOpenField] = useState<HelpField | null>(null);
   const [dismissed, setDismissed] = useState(allDismissed);
-  const refs = { executionId: executionIdRef, scenario: scenarioRef, observationEvidence: observationEvidenceRef, inspectionEvidence: inspectionEvidenceRef };
+  const refs = {
+    executionId: executionIdRef,
+    executedAt: executedAtRef,
+    scenario: scenarioRef,
+    observationEvidence: observationEvidenceRef,
+    inspectionEvidence: inspectionEvidenceRef,
+  };
   const fields = Object.keys(refs) as HelpField[];
 
   useEffect(() => {
@@ -100,5 +107,12 @@ export function useVerificationFieldHelp() {
       },
     };
   }
-  return { executionId: control("executionId"), scenario: control("scenario"), observationEvidence: control("observationEvidence"), inspectionEvidence: control("inspectionEvidence"), closePinned: () => { setOpenField(null); setDismissed(allDismissed); } };
+  return {
+    executionId: control("executionId"),
+    executedAt: control("executedAt"),
+    scenario: control("scenario"),
+    observationEvidence: control("observationEvidence"),
+    inspectionEvidence: control("inspectionEvidence"),
+    closePinned: () => { setOpenField(null); setDismissed(allDismissed); },
+  };
 }

@@ -189,7 +189,7 @@ for (const viewport of [
     const actionBounds = (await action.boundingBox())!;
     expect(editorBounds.height).toBeGreaterThanOrEqual(176);
     expect(actionBounds.y).toBeGreaterThanOrEqual(editorBounds.y + editorBounds.height);
-    for (const name of ["About Execution ID", "About Scenario", "About Observation evidence JSON"]) {
+    for (const name of ["About Execution ID", "About Execution time (UTC)", "About Scenario", "About Observation evidence JSON"]) {
       await page.getByRole("button", { name, exact: true }).focus();
       const tooltip = page.getByRole("tooltip");
       await expect(tooltip).toBeVisible();
@@ -361,6 +361,7 @@ for (const viewport of [
     await page.getByLabel("Execution ID", { exact: true }).focus();
     const tab = browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab";
     for (const control of [
+      page.getByRole("button", { name: "About Execution time (UTC)", exact: true }),
       page.getByLabel("Execution time (UTC)", { exact: true }),
       page.getByRole("button", { name: "About Scenario", exact: true }),
       page.getByLabel("Scenario", { exact: true }),
@@ -390,6 +391,7 @@ for (const { width, textScale } of [
 ]) {
   for (const [field, helpId] of [
     ["Execution ID", "execution-id-help-description"],
+    ["Execution time (UTC)", "execution-time-help-description"],
     ["Scenario", "scenario-help-description"],
     ["Observation evidence JSON", "verification-observation-hint"],
     ["Evidence JSON", "inspection-evidence-hint"],
@@ -542,6 +544,7 @@ test("reading enlarged help does not open another help button beneath its text",
 
 for (const [field, helpId] of [
   ["Execution ID", "execution-id-help-description"],
+  ["Execution time (UTC)", "execution-time-help-description"],
   ["Scenario", "scenario-help-description"],
   ["Observation evidence JSON", "verification-observation-hint"],
   ["Evidence JSON", "inspection-evidence-hint"],

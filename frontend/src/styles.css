@@ -791,15 +791,6 @@ fieldset {
   margin-top: 0;
 }
 
-.metadata-fields .field-hint {
-  margin-block-end: 0;
-}
-
-.metadata-fields .field-hint code {
-  display: inline-block;
-  max-inline-size: 100%;
-}
-
 .verification-evidence .evidence-input {
   margin-block-start: 1rem;
   padding-block-start: 0.75rem;

@@ -13,6 +13,8 @@ import {
 
 setupAppTests();
 
+const timeHelp = "Enter the UTC time when the command ran, for example 2026-10-21T10:00:00Z.";
+
 describe("App verification", () => {
   it("pairs the product name with a decorative mark and keeps the page title explicit", () => {
     render(<App />);
@@ -57,9 +59,10 @@ describe("App verification", () => {
     expect(executionId).toHaveAttribute("placeholder", "e.g. run-001");
     const executedAt = screen.getByLabelText("Execution time (UTC)");
     expect(executedAt).toHaveAttribute("placeholder", "YYYY-MM-DDTHH:mm:ssZ");
-    expect(executedAt).toHaveAccessibleDescription(
-      "Use the time the command ran, for example 2026-10-21T10:00:00Z.",
-    );
+    expect(executedAt).toHaveAccessibleDescription(timeHelp);
+    const executedAtHelp = screen.getByRole("button", { name: "About Execution time (UTC)" });
+    expect(executedAtHelp).toHaveAccessibleDescription(timeHelp);
+    expect(executedAtHelp).toHaveAttribute("aria-controls", "execution-time-help-description");
     const observationEvidence = screen.getByLabelText("Observation evidence JSON");
     expect(observationEvidence).toHaveValue("");
     expect(observationEvidence).toHaveAttribute("placeholder", "Paste observation JSON here…");
@@ -117,7 +120,7 @@ describe("App verification", () => {
     );
     expect(executedAt).toHaveAttribute(
       "aria-describedby",
-      "verification-executed-at-hint verification-executed-at-error",
+      "execution-time-help-description verification-executed-at-error",
     );
     expect(scenario).toHaveAttribute(
       "aria-describedby",
@@ -148,10 +151,8 @@ describe("App verification", () => {
     fireEvent.change(executedAt, { target: { value: timestamp } });
 
     expect(executedAt).toHaveValue(timestamp);
-    expect(screen.getByText("2026-10-21T10:00:00Z")).toBeVisible();
-    expect(executedAt).toHaveAccessibleDescription(
-      "Use the time the command ran, for example 2026-10-21T10:00:00Z.",
-    );
+    expect(screen.queryByText("Execution time (UTC) is required.")).not.toBeInTheDocument();
+    expect(executedAt).toHaveAccessibleDescription(timeHelp);
   });
 
   it("submits raw observation evidence with explicit verification input", async () => {

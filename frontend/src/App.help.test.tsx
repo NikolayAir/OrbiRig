@@ -844,6 +844,7 @@ describe("App help", () => {
 
   it.each([
     ["About Execution ID", "Execution ID"],
+    ["About Execution time (UTC)", "Execution time (UTC)"],
     ["About Scenario", "Scenario"],
     ["About Observation evidence JSON", "Observation evidence JSON"],
     ["About Evidence JSON", "Evidence JSON"],
