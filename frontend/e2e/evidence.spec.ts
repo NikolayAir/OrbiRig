@@ -90,6 +90,37 @@ test("page identity shows the product name and mark", async ({ page }) => {
   expect(await mark.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThanOrEqual(40);
 });
 
+test("favicons use the canvas width and keep transparent corners", async ({ page }) => {
+  for (const type of ["image/svg+xml", "image/png"]) {
+    const icon = page.locator(`link[rel="icon"][type="${type}"]`);
+    const samples = await icon.evaluate(async (link: HTMLLinkElement) => {
+      const image = new Image();
+      image.src = link.href;
+      await image.decode();
+
+      return [16, 32].map(size => {
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = size;
+        const context = canvas.getContext("2d")!;
+        context.drawImage(image, 0, 0, size, size);
+        const { data } = context.getImageData(0, 0, size, size);
+        const columns = new Set<number>();
+        // Ignore faint antialiasing when measuring the visible width.
+        for (let pixel = 0; pixel < size * size; pixel++) {
+          if (data[4 * pixel + 3] >= 128) columns.add(pixel % size);
+        }
+        const corners = [0, size - 1, size * (size - 1), size * size - 1];
+        const transparent = corners.every(pixel => data[4 * pixel + 3] === 0);
+        return { size, width: columns.size, transparent };
+      });
+    });
+    for (const { size, width, transparent } of samples) {
+      expect(width, `${size}px ${type} mark width`).toBeGreaterThanOrEqual(size - 1);
+      expect(transparent, `${size}px ${type} corners`).toBe(true);
+    }
+  }
+});
+
 test("keyboard workflow selection stays separate from help and preserves edited input", async ({ page, browserName }) => {
   const help = page.getByRole("region", { name: "How it works" });
   const chooser = page.getByRole("group", { name: "Choose what to do" });
