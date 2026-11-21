@@ -76,12 +76,15 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/");
 });
 
-test("page identity loads the product mark alongside its name", async ({ page }) => {
+test("page identity shows the product name and mark", async ({ page }) => {
   await expect(page.locator(".brand")).toHaveText("OrbiRig");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "Check recorded command results",
   );
   const mark = page.locator(".brand img");
+  const icon = page.locator('link[rel="icon"][type="image/svg+xml"]');
+  await expect(icon).toHaveAttribute("href", "/assets/orbirig-mark.svg?v=2");
+  await expect(mark).toHaveAttribute("src", "/assets/orbirig-mark.svg#header");
   await expect(mark).toHaveAttribute("alt", "");
   await expect(mark).toHaveJSProperty("complete", true);
   expect(await mark.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThanOrEqual(40);

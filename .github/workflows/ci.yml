@@ -107,6 +107,12 @@ jobs:
           assert response.status_code == 200
           assert '<div id="root"></div>' in response.text
 
+          mark_response = TestClient(app).get("/assets/orbirig-mark.svg")
+
+          assert mark_response.status_code == 200
+          assert mark_response.headers["content-type"] == "image/svg+xml"
+          assert mark_response.content.startswith(b"<svg ")
+
           favicon_response = TestClient(app).get("/favicon.png")
 
           assert favicon_response.status_code == 200

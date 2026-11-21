@@ -21,8 +21,6 @@ import type {
   Workflow,
 } from "./workflowTypes";
 
-const orbirigMark = new URL("./assets/orbirig-mark.png", import.meta.url).href;
-
 export function App() {
   const [activeWorkflow, setActiveWorkflow] = useState<Workflow>("verification");
   // Keep inputs and requests above the conditional panels. Switching tasks must
@@ -217,7 +215,7 @@ export function App() {
     <main>
       <header className="page-header">
         <p className="brand">
-          <img src={orbirigMark} width="40" height="40" alt="" />
+          <img src="/assets/orbirig-mark.svg#header" width="40" height="40" alt="" />
           <span>OrbiRig</span>
         </p>
         <h1>Check recorded command results</h1>

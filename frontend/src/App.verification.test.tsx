@@ -24,7 +24,7 @@ describe("App verification", () => {
     const header = heading.closest("header")!;
     expect(within(header).getByText("OrbiRig", { exact: true })).toBeVisible();
     const mark = header.querySelector("img")!;
-    expect(mark.getAttribute("src")).toContain("orbirig-mark");
+    expect(mark).toHaveAttribute("src", "/assets/orbirig-mark.svg#header");
     expect(mark).toHaveAttribute("alt", "");
     expect(within(header).queryByRole("img")).not.toBeInTheDocument();
   });
