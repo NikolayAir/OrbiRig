@@ -429,7 +429,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
               </p>
               <p>
                 For verification, choose the scenario that describes what you expect. For inspection,
-                provide the saved JSON document (evidence) you want to check. The browser uses recorded data.
+                provide the saved JSON document (evidence) you want to check.
               </p>
 
               <div
@@ -531,8 +531,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                   </p>
                   <p>
                     <strong>FAIL</strong> means the observation is valid, but one or more verification
-                    checks do not meet their expectations. Invalid input, including a command that does not
-                    match the selected scenario, is reported as an error instead of FAIL.
+                    checks do not meet their expectations. Invalid input is reported as an error, not as a FAIL result.
                   </p>
                   <p>
                     After a completed result, change an input to run <strong>Verify observation</strong> again.
@@ -607,10 +606,10 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
         >
           {section === "cli" && (
             <>
+              <p>The command line verifies an observation stored in a local JSON file.</p>
               <p>
-                The command line checks an observation in a local JSON file. To try the example,
-                open a terminal in the OrbiRig repository. Run <code>uv sync --locked</code> to
-                install OrbiRig, then run the verification command.
+                To try the example, open a terminal in the OrbiRig repository root and run <code>uv sync --locked</code> to install OrbiRig.
+                Then run the verification command:
               </p>
               <pre
                 className="workflow-help-command"
@@ -624,9 +623,8 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
   --executed-at 2026-10-21T10:00:00Z`}</code>
               </pre>
               <p>
-                The execution ID and UTC timestamp are example values. For your own recorded
-                execution, use the path to your UTF-8 observation JSON file, choose the scenario you want
-                to check and enter the command's ID and time.
+                To verify your own recorded execution, provide the path to its UTF-8 observation JSON file,
+                choose the scenario to check, and replace the example ID and UTC timestamp with the recorded command's values.
               </p>
               <p>
                 The command prints JSON evidence containing the individual checks and overall <strong>PASS</strong> or <strong>FAIL</strong> result.
@@ -657,8 +655,10 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
               >
                 <p>
                   You can use the Python API to verify command responses from an independent
-                  C#/.NET program against a scenario you choose. The API starts a new process for
-                  each command. A state file keeps the operating mode between runs.
+                  C#/.NET program against a scenario you choose.
+                </p>
+                <p>
+                  The API starts a new process for each command. The same state file keeps the operating mode between runs.
                 </p>
                 <p><strong>Example outcomes from a local run</strong></p>
                 <ul>

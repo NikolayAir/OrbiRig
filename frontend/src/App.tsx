@@ -226,7 +226,8 @@ export function App() {
           and SAFE is its protective mode.
         </p>
         <p className="field-hint">
-          The browser sends JSON to the server for checking. On the public site, use sample data without private information.
+          The browser sends submitted JSON to the server for checking.
+          Use only non-sensitive example data in this public web interface.
         </p>
         <ol className="check-flow" aria-label="How a check works">
           <li><strong>Expected behaviour</strong><span>Choose a scenario that says what you expect.</span></li>

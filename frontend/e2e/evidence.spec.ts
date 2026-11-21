@@ -228,7 +228,9 @@ for (const viewport of [
       if (guide === "In the browser") {
         const webScope = help.getByText(/^An observation records the command/);
         await expect(webScope).toContainText("telemetry, a separate report of the mode");
-        await expect(help.getByText(/^For verification, choose the scenario/)).toContainText("The browser uses recorded data.");
+        await expect(help.getByText(/^For verification, choose the scenario/)).toHaveText(
+          /For inspection, provide the saved JSON document \(evidence\) you want to check\.$/,
+        );
         await webScope.scrollIntoViewIfNeeded();
         await expect(webScope).toBeInViewport();
         await expect(help.getByRole("tab", { name: "Verify observation", selected: true })).toBeVisible();
@@ -237,7 +239,7 @@ for (const viewport of [
         await expect(help.getByRole("tabpanel", { name: "Verify observation" })).toBeHidden();
         await expect(help.getByRole("tabpanel", { name: "Inspect evidence" })).toBeVisible();
         await expect(help.getByRole("region", { name: "CLI verification command" })).toHaveCount(0);
-        await expect(help.getByText(/^The command line checks an observation/)).toHaveCount(0);
+        await expect(help.getByText(/^The command line verifies an observation/)).toHaveCount(0);
         await help.getByRole("tabpanel", { name: "Inspect evidence" }).locator(".workflow-help-reference summary").click();
         await expect(help.getByRole("link")).toHaveCount(3);
         const browserTabs = help.getByRole("tablist", { name: "Browser instructions" });

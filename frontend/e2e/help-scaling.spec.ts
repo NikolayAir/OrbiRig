@@ -81,7 +81,7 @@ for (const { width, height, textScale } of [
 }
 
 for (const { guide, width, height, textScale, scrollWhole, fit, largeTitle } of [
-  { guide: "browser", width: 1440, height: 900, textScale: 100, scrollWhole: false, fit: "both" },
+  { guide: "browser", width: 1440, height: 880, textScale: 100, scrollWhole: false, fit: "both" },
   { guide: "cli", width: 390, height: 680, textScale: 100, scrollWhole: false, fit: "both" },
   { guide: "cli", width: 1440, height: 1000, textScale: 200, scrollWhole: false, fit: "both" },
   { guide: "cli", width: 1440, height: 260, textScale: 100, scrollWhole: true, fit: "both", largeTitle: true },
@@ -129,7 +129,7 @@ for (const { guide, width, height, textScale, scrollWhole, fit, largeTitle } of 
 }
 
 test("opening a help section by mouse scrolls just far enough to show the following heading", async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.setViewportSize({ width: 1440, height: 880 });
   await page.goto("/");
   await page.getByRole("button", { name: "In the browser", exact: true }).click();
   const help = page.getByRole("dialog", { name: "How it works" });

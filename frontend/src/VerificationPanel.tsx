@@ -132,6 +132,7 @@ export function VerificationPanel({
               aria-invalid={
                 verificationRequiredErrors.executionId ? true : undefined
               }
+              placeholder="e.g. run-001"
               value={executionId}
               onChange={(event) => onInputChange("executionId", event.target.value)}
               required
@@ -159,6 +160,7 @@ export function VerificationPanel({
               aria-invalid={
                 verificationRequiredErrors.executedAt ? true : undefined
               }
+              placeholder="YYYY-MM-DDTHH:mm:ssZ"
               value={executedAt}
               onChange={(event) => onInputChange("executedAt", event.target.value)}
               required
