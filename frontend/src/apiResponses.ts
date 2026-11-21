@@ -37,6 +37,12 @@ export type VerifiedExecutionPresentation = {
   outcome: PresentationOutcome;
 };
 
+// A completed verification also carries the record's saved form as text.
+// The browser keeps it unparsed; Python owns validation and serialisation.
+export type VerificationResponse = VerifiedExecutionPresentation & {
+  verified_execution_evidence: string;
+};
+
 export type VerifiedExecutionSequencePresentation = {
   records: VerifiedExecutionPresentation[];
   continuity_results: Array<{
@@ -155,6 +161,18 @@ export function isVerifiedExecutionPresentation(
   const ids = new Set(results.map(result => result.invariant_id));
   return REQUIRED_CHECK_ID_GROUPS.every(
     checkIds => checkIds.some(id => ids.has(id)),
+  );
+}
+
+// A completed verification needs evidence text so the page can offer a download.
+export function isVerificationResponse(
+  payload: unknown,
+): payload is VerificationResponse {
+  return (
+    isVerifiedExecutionPresentation(payload) &&
+    "verified_execution_evidence" in payload &&
+    typeof payload.verified_execution_evidence === "string" &&
+    payload.verified_execution_evidence.length > 0
   );
 }
 

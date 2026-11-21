@@ -1,4 +1,4 @@
-import { type Dispatch, type SetStateAction, useId, useLayoutEffect, useMemo, useRef } from "react";
+import { type Dispatch, type ReactNode, type SetStateAction, useId, useLayoutEffect, useMemo, useRef } from "react";
 
 import { SUPPORTED_SCENARIOS } from "./workflowContent";
 
@@ -162,10 +162,13 @@ export function VerifiedExecutionDetails({
   record,
   headingId = "verified-execution",
   inspected = false,
+  actions,
 }: {
   record: VerifiedExecutionPresentation;
   headingId?: string;
   inspected?: boolean;
+  // VerificationPanel passes the download button for completed results.
+  actions?: ReactNode;
 }) {
   return (
     <section aria-labelledby={headingId}>
@@ -183,6 +186,7 @@ export function VerifiedExecutionDetails({
           ? "The recorded behaviour matches this execution's scenario."
           : "One or more checks failed. Compare the expected and actual values in those checks."}
       </p>
+      {actions && <div className="result-actions">{actions}</div>}
       <VerifiedExecutionFields record={record} />
     </section>
   );

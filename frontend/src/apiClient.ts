@@ -1,5 +1,6 @@
 import {
   isObservationPresentation,
+  isVerificationResponse,
   isVerifiedExecutionPresentation,
   isVerifiedExecutionSequencePresentation,
   verificationErrorCode,
@@ -58,9 +59,11 @@ export async function verifyObservationRequest(
   if (!response.ok) return { kind: "server-failure" };
   try {
     const payload: unknown = await response.json();
-    return isVerifiedExecutionPresentation(payload)
-      ? { kind: "completed", record: payload }
-      : { kind: "server-failure" };
+    if (!isVerificationResponse(payload)) return { kind: "server-failure" };
+    // Both parts describe the same verified record. Keep the saved text apart so
+    // the record shown on screen stays plain display data, as in inspection.
+    const { verified_execution_evidence: evidenceJson, ...record } = payload;
+    return { kind: "completed", record, evidenceJson };
   } catch {
     return { kind: "server-failure" };
   }

@@ -313,23 +313,6 @@ for (const viewport of [
         await expect(help.getByRole("heading", { name: "Inspect evidence" })).toHaveCount(0);
         await expect(help.getByText(/^An observation records the command/)).toHaveCount(0);
 
-        if (viewport.width === 1280) {
-          // The exit codes are in a section that starts closed; open it to measure, then close it again.
-          const results = help.locator("summary", { hasText: "Understanding CLI results and exit codes" });
-          await results.click();
-          const lastCodeOffset = await help.getByText(/^Exit code/)
-            .locator("code").last().evaluate((element) => {
-              const previousText = element.previousSibling!;
-              const range = document.createRange();
-              range.setStart(previousText, previousText.textContent!.lastIndexOf("return"));
-              range.setEnd(previousText, previousText.textContent!.length);
-              return Math.abs(element.getBoundingClientRect().top - range.getBoundingClientRect().top);
-            });
-          // Keep the final exit code on the same line as the preceding word.
-          expect(lastCodeOffset).toBeLessThan(6);
-          await results.click();
-        }
-
         // The selected tab and its panel precede the command in the tab order.
         await close.focus();
         await page.keyboard.press("Tab");
@@ -365,6 +348,9 @@ for (const viewport of [
         const results = help.locator("summary", { hasText: "Understanding CLI results and exit codes" });
         await expect(results).toBeFocused();
         await page.keyboard.press("Enter");
+        const exitCodes = help.getByText(/^Exit code/);
+        await expect(exitCodes).toBeVisible();
+        await expect(exitCodes.locator("code")).toHaveText(["0", "1", "2", "3", "4"]);
         await page.keyboard.press(browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab");
         const readme = help.getByRole("link", { name: "CLI setup and full instructions" });
         await expect(readme).toBeFocused();

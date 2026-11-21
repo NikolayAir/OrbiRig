@@ -1,6 +1,7 @@
 import type { RefObject, SubmitEvent } from "react";
 import { LoadExampleButton } from "./LoadExampleButton";
 import { EvidenceRequestSizeError, RequestError } from "./RequestFeedback";
+import { downloadVerifiedExecutionEvidence } from "./downloadEvidence";
 import { describedBy, preventRepeatedRequestAction } from "./formHelpers";
 import type { FeedbackTargets } from "./useWorkflowFeedback";
 
@@ -311,6 +312,16 @@ export function VerificationPanel({
         <VerifiedExecutionDetails
           record={verification.record}
           headingId="verified-observation-result"
+          // Editing an input clears the completed result and its download action.
+          actions={
+            <button
+              type="button"
+              className="secondary-action"
+              onClick={() => downloadVerifiedExecutionEvidence(verification.evidenceJson)}
+            >
+              Download result JSON
+            </button>
+          }
         />
       )}
     </div>

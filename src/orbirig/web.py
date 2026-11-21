@@ -13,6 +13,7 @@ from orbirig.evidence import (
     deserialize_execution_evidence,
     deserialize_verified_execution_evidence,
     deserialize_verified_execution_sequence_evidence,
+    serialize_verified_execution_evidence,
 )
 from orbirig.models import (
     CommandExecutionObservation,
@@ -330,7 +331,11 @@ async def verify_observation_evidence(
             "observation command does not match the selected scenario",
         ) from None
 
-    return _verified_execution_presentation(record)
+    # Build the display data and the saved evidence from the same verified record.
+    return {
+        **_verified_execution_presentation(record),
+        "verified_execution_evidence": serialize_verified_execution_evidence(record),
+    }
 
 
 @app.post("/api/inspect/verified-execution")
