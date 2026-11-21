@@ -1907,7 +1907,10 @@ a[target="_blank"] {
     padding: 1rem;
   }
 
-  /* Add scroll range at the end while keeping the padding used to choose the scroll mode. */
+  /*
+   * Match minimumBottomClearance in helpSectionScroll.ts at the scroll limit.
+   * Changing panel padding would also affect the choice of scroll mode.
+   */
   .workflow-help-content:has(details[open])::after {
     content: "";
     display: block;

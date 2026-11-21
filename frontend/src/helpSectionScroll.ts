@@ -6,10 +6,9 @@ function scrollWithBottomClearance(overflow: number, maximum: number): number {
   return Math.min(desired, maximum);
 }
 
-// How far to scroll so that a section that has just been opened is shown from its
-// heading downwards, moving the content as little as possible. All values are in
-// pixels in the same coordinate space, so the same calculation serves a scrolling
-// panel and a scrolling dialog.
+// Calculate the scroll needed to reveal a section from its heading on opening
+// or after a change of scroll mode. Use CSS pixels in one coordinate space
+// so the content panel and the whole dialog share the calculation.
 export function scrollDeltaToReveal({
   areaTop, areaHeight, sectionTop, sectionHeight, margin, followingHeading, preferBottomClearance = true,
 }: {
