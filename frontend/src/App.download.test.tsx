@@ -52,10 +52,7 @@ async function completedResult() {
 }
 
 // jsdom's Blob cannot be read directly; a FileReader gives the stored bytes.
-function readBlob<Result extends string | ArrayBuffer>(
-  blob: Blob,
-  start: (reader: FileReader) => void,
-) {
+function readBlob<Result extends string | ArrayBuffer>(start: (reader: FileReader) => void) {
   return new Promise<Result>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as Result);
@@ -67,7 +64,7 @@ function readBlob<Result extends string | ArrayBuffer>(
 async function savedText() {
   expect(createObjectURL).toHaveBeenCalledTimes(1);
   const blob = createObjectURL.mock.calls[0][0];
-  return readBlob<string>(blob, reader => reader.readAsText(blob));
+  return readBlob<string>(reader => reader.readAsText(blob));
 }
 
 describe("Download result JSON", () => {
@@ -216,7 +213,7 @@ describe("downloadVerifiedExecutionEvidence", () => {
     downloadVerifiedExecutionEvidence(text);
 
     const blob = createObjectURL.mock.calls[0][0];
-    const bytes = new Uint8Array(await readBlob<ArrayBuffer>(blob, reader => reader.readAsArrayBuffer(blob)));
+    const bytes = new Uint8Array(await readBlob<ArrayBuffer>(reader => reader.readAsArrayBuffer(blob)));
     expect(Array.from(bytes)).toEqual(Array.from(new TextEncoder().encode(text)));
     expect(bytes.slice(0, 3)).not.toEqual(new Uint8Array([0xef, 0xbb, 0xbf]));
     expect(savedFiles).toEqual([{ fileName: VERIFIED_EXECUTION_FILE_NAME, href: "blob:orbirig-result" }]);

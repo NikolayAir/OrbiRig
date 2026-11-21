@@ -137,12 +137,13 @@ async function readResult(result: Locator): Promise<ResultView> {
       execution: labelled(section.querySelector(".execution-summary-fields")!),
       observation: labelled(section.querySelector(".result-observation .observation-fields")!),
       checks: Array.from(section.querySelectorAll(".invariant-results > li"), item => {
-        // The Result value is a PASS or FAIL badge, read separately from its text.
         const { Expected, Actual } = labelled(item);
         return [
           item.querySelector("code")!.textContent!.trim(),
           Expected,
           Actual,
+          // The visible badge contains PASS or FAIL. Its accessible text also
+          // includes the "Verification check" label.
           item.querySelector(".outcome-badge [aria-hidden='true']")!.textContent!.trim(),
         ] as const;
       }),
@@ -292,9 +293,9 @@ for (const viewport of [
     await verify(page, "browser-execution", "nominal_to_safe_mode", observationFile("accepted.json"));
     await expect(downloadButton(page)).toBeVisible();
 
-    // Read every rectangle in one step so they come from the same layout. DOMRect
-    // keeps the exact size; Firefox rounds the values from boundingBox() and could
-    // report 43.99997 for a 44px control.
+    // Read all bounds together so they describe the same layout. Firefox
+    // reported 43.99997 for a 44px control through boundingBox(), so take
+    // the values directly from DOMRect.
     const { button, description, details } = await page.evaluate(() => {
       const rect = (selector: string) => document.querySelector(selector)!.getBoundingClientRect().toJSON();
       return {
