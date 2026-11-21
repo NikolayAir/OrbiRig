@@ -48,5 +48,6 @@
       "passed": true
     }
   ],
-  "outcome": "PASS"
+  "outcome": "PASS",
+  "verified_execution_evidence": "{\n  \"schema_version\": 1,\n  \"execution\": {\n    \"execution_id\": \"example-001\",\n    \"scenario_id\": \"nominal_to_safe_mode\",\n    \"executed_at\": \"2026-10-21T10:00:00Z\"\n  },\n  \"observation\": {\n    \"command\": {\n      \"command_type\": \"SET_OPERATING_MODE\",\n      \"target_mode\": \"SAFE\"\n    },\n    \"pre_state\": {\n      \"operating_mode\": \"NOMINAL\"\n    },\n    \"acknowledgement\": {\n      \"accepted\": true\n    },\n    \"post_state\": {\n      \"operating_mode\": \"SAFE\"\n    },\n    \"telemetry\": {\n      \"operating_mode\": \"SAFE\"\n    }\n  },\n  \"invariant_results\": [\n    {\n      \"invariant_id\": \"pre_state_matches_expected\",\n      \"passed\": true,\n      \"expected\": \"NOMINAL\",\n      \"actual\": \"NOMINAL\"\n    },\n    {\n      \"invariant_id\": \"acknowledgement_is_accepted\",\n      \"passed\": true,\n      \"expected\": true,\n      \"actual\": true\n    },\n    {\n      \"invariant_id\": \"post_state_matches_requested_mode\",\n      \"passed\": true,\n      \"expected\": \"SAFE\",\n      \"actual\": \"SAFE\"\n    },\n    {\n      \"invariant_id\": \"telemetry_matches_post_state\",\n      \"passed\": true,\n      \"expected\": \"SAFE\",\n      \"actual\": \"SAFE\"\n    }\n  ],\n  \"outcome\": \"PASS\"\n}\n"
 }

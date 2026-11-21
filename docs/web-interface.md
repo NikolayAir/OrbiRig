@@ -150,7 +150,7 @@ curl --header 'Content-Type: application/json' \
   http://127.0.0.1:8000/api/verify/observation
 ```
 
-The [request file](examples/verify-observation-request.json) contains all 4 fields, with the observation encoded as a JSON string. The response is HTTP `200` with 4 passing checks and `"outcome": "PASS"`; see the [complete response](examples/verify-observation-response.json).
+The [request file](examples/verify-observation-request.json) contains all 4 fields, with the observation encoded as a JSON string. The response is HTTP `200` with 4 passing checks, `"outcome": "PASS"` and the saved form of the record in `verified_execution_evidence`; see the [complete response](examples/verify-observation-response.json).
 
 To inspect the bundled verified record, send its JSON directly as the request body.
 
@@ -174,7 +174,9 @@ The HTTP status tells you whether the request succeeded. Read the response body 
 | `422` | A verification request or submitted evidence is invalid. |
 | `500` | An unexpected server error, separate from verification `FAIL`. |
 
-Successful responses contain display data. Use the CLI or the Python serialisation functions to create a versioned evidence document you can reopen later.
+Successful responses contain display data. A completed verification also returns `verified_execution_evidence`: the [verified execution evidence](evidence-formats.md#verified-execution-evidence) for the same record, as one JSON string. Python creates it with `serialize_verified_execution_evidence(...)`, so it uses schema version 1, the canonical field order and a final newline. For the bundled request, it matches [verified-execution.json](examples/verified-execution.json).
+
+Save that string unchanged as a UTF-8 file to reopen it later with `/api/inspect/verified-execution`. Only completed verification responses contain the field. Inspection and error responses do not.
 
 For HTTP `422` verification errors, `detail` contains a `code` and `message`. For example, selecting `safe_to_nominal_mode` for the example command, which requests `SAFE`, returns:
 
