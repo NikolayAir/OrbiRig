@@ -1,21 +1,33 @@
+const bottomClearance = 24;
+const minimumBottomClearance = 20;
+
+function scrollWithBottomClearance(overflow: number, maximum: number): number {
+  const desired = overflow <= -minimumBottomClearance ? 0 : Math.ceil(overflow + bottomClearance);
+  return Math.min(desired, maximum);
+}
+
 // How far to scroll so that a section that has just been opened is shown from its
 // heading downwards, moving the content as little as possible. All values are in
 // pixels in the same coordinate space, so the same calculation serves a scrolling
 // panel and a scrolling dialog.
-export function scrollDeltaToReveal({ areaTop, areaHeight, sectionTop, sectionHeight, margin, followingHeading }: {
+export function scrollDeltaToReveal({
+  areaTop, areaHeight, sectionTop, sectionHeight, margin, followingHeading, preferBottomClearance = true,
+}: {
   areaTop: number;
   areaHeight: number;
   sectionTop: number;
   sectionHeight: number;
   margin: number;
   followingHeading?: { bottom: number; openHeadingOutline: number };
+  preferBottomClearance?: boolean;
 }): number {
   const areaBottom = areaTop + areaHeight;
   if (followingHeading !== undefined) {
-    // Find the smallest scroll that shows the next heading and keeps the opening outline visible.
-    const minimum = Math.ceil(followingHeading.bottom - areaBottom);
+    // Leave space below the next heading when both headings fit. Give the open
+    // heading and its focus outline priority when there is only room for the headings.
+    const overflow = followingHeading.bottom - areaBottom;
     const maximum = Math.floor(sectionTop - areaTop - followingHeading.openHeadingOutline);
-    if (minimum <= maximum) return Math.min(Math.max(0, minimum), maximum);
+    if (Math.ceil(overflow) <= maximum) return scrollWithBottomClearance(overflow, maximum);
   }
 
   // In a very small area the margins must not use up more than the area itself.
@@ -27,5 +39,8 @@ export function scrollDeltaToReveal({ areaTop, areaHeight, sectionTop, sectionHe
   // Some browsers scroll only by whole pixels. Round outwards so the heading and
   // its focus outline are never cut off.
   if (above < 0) return Math.floor(above);
-  return Math.max(0, Math.ceil(sectionTop + shown - (areaBottom - edge)));
+  const overflow = sectionTop + shown - areaBottom;
+  const minimum = Math.max(0, Math.ceil(overflow + edge));
+  if (!preferBottomClearance || shown < sectionHeight) return minimum;
+  return Math.max(minimum, scrollWithBottomClearance(overflow, Math.floor(above)));
 }

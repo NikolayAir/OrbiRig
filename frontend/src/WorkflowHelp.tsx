@@ -177,6 +177,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
       sectionHeight: details.getBoundingClientRect().bottom - headingTop,
       // The summary keeps room for its focus outline through its scroll margin.
       margin: parseFloat(headingStyle.scrollMarginTop) || 0,
+      preferBottomClearance: !sectionAlreadyOpen,
       followingHeading: followingHeading ? {
         bottom: followingHeading.getBoundingClientRect().bottom,
         openHeadingOutline: focusOutlineOutset(headingStyle),

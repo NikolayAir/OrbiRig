@@ -464,8 +464,11 @@ a.workflow-help-trigger {
 .workflow-help-example {
   border-top: 1px solid var(--line);
   margin-top: 1.25rem;
-  margin-bottom: 1rem;
   padding-top: 1rem;
+}
+
+.workflow-help-example:not(:last-child) {
+  margin-bottom: 1rem;
 }
 
 .workflow-help-example summary {
@@ -1902,6 +1905,11 @@ a[target="_blank"] {
 
   .workflow-help-content {
     padding: 1rem;
+  }
+
+  /* Reserve enough scroll range beneath the last heading or link in an open guide. */
+  .workflow-help-content:has(details[open]) {
+    padding-bottom: max(1rem, 20px);
   }
 
   .continuity-boundary-fields {

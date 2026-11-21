@@ -80,9 +80,25 @@ for (const { width, height, textScale } of [
   }
 }
 
-for (const { guide, width, height, textScale, scrollWhole, fit, largeTitle } of [
+test("collapsed browser and command-line help have the same bottom spacing", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "In the browser", exact: true }).click();
+  const help = page.getByRole("dialog", { name: "How it works" });
+  for (const tab of ["In the browser", "From the command line"]) {
+    await help.getByRole("tab", { name: tab, exact: true }).click();
+    const panel = help.getByRole("tabpanel", { name: tab });
+    await expect(panel.locator("details[open]")).toHaveCount(0);
+    const lastSection = await sectionPosition(panel.locator("details:visible").last());
+    expect(lastSection.maxScrollTop).toBe(0);
+    expect(lastSection.below).toBeCloseTo(28, 0);
+  }
+});
+
+for (const { guide, width, height, textScale, scrollWhole, fit, largeTitle, atEnd } of [
   { guide: "browser", width: 1440, height: 880, textScale: 100, scrollWhole: false, fit: "both" },
-  { guide: "cli", width: 390, height: 680, textScale: 100, scrollWhole: false, fit: "both" },
+  { guide: "browser", width: 390, height: 960, textScale: 100, scrollWhole: false, fit: "both", atEnd: true },
+  { guide: "cli", width: 390, height: 680, textScale: 100, scrollWhole: false, fit: "both", atEnd: true },
   { guide: "cli", width: 1440, height: 1000, textScale: 200, scrollWhole: false, fit: "both" },
   { guide: "cli", width: 1440, height: 260, textScale: 100, scrollWhole: true, fit: "both", largeTitle: true },
   { guide: "cli", width: 1440, height: 200, textScale: 100, scrollWhole: true, fit: "section" },
@@ -115,11 +131,18 @@ for (const { guide, width, height, textScale, scrollWhole, fit, largeTitle } of 
     if (fit === "both") {
       expect(opened.below).toBeGreaterThanOrEqual(-1);
       await expect(following).toBeInViewport({ ratio: 1 });
-      // The following heading should only just enter the visible area.
-      expect((await sectionPosition(following.locator(".."))).below).toBeLessThanOrEqual(1.5);
+      const next = await sectionPosition(following.locator(".."));
+      // At the end of a narrow panel, its padding supplies 20px of clearance.
+      expect(next.below).toBeGreaterThanOrEqual(atEnd ? 19.5 : 23.5);
+      expect(next.below).toBeLessThanOrEqual(atEnd ? 20.5 : 25.5);
+      if (atEnd) {
+        expect(next.maxScrollTop).toBeGreaterThan(0);
+        expect(next.scrollTop).toBeCloseTo(next.maxScrollTop, 0);
+      }
     } else if (fit === "section") {
-      // Leave the whole open section in view with its usual margin.
-      expect(Math.abs(opened.below - opened.margin)).toBeLessThanOrEqual(1.5);
+      // The open section gets clearance even when the following heading cannot fit.
+      expect(opened.below).toBeGreaterThanOrEqual(23.5);
+      expect(opened.below).toBeLessThanOrEqual(25.5);
       await expect(following).not.toBeInViewport({ ratio: 1 });
     } else {
       expect(Math.abs(opened.above - opened.margin)).toBeLessThanOrEqual(1.5);
@@ -128,7 +151,7 @@ for (const { guide, width, height, textScale, scrollWhole, fit, largeTitle } of 
   });
 }
 
-test("opening a help section by mouse scrolls just far enough to show the following heading", async ({ page }) => {
+test("opening a help section by mouse leaves space below the following heading", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 880 });
   await page.goto("/");
   await page.getByRole("button", { name: "In the browser", exact: true }).click();
@@ -142,7 +165,9 @@ test("opening a help section by mouse scrolls just far enough to show the follow
   await expect(details).toHaveAttribute("open", "");
   await expect(details).toBeInViewport({ ratio: 1 });
   await expect(following).toBeInViewport({ ratio: 1 });
-  expect((await sectionPosition(following.locator(".."))).below).toBeLessThanOrEqual(1.5);
+  const next = await sectionPosition(following.locator(".."));
+  expect(next.below).toBeGreaterThanOrEqual(23.5);
+  expect(next.below).toBeLessThanOrEqual(25.5);
 });
 
 test("reveals the following help heading when there is room for the outline but not the usual margin", async ({ page }) => {
@@ -176,6 +201,7 @@ test("reveals the following help heading when there is room for the outline but 
   await expect(details).toHaveAttribute("open", "");
   await expectFocusedControlFullyVisible(heading);
   await expect(following).toBeInViewport({ ratio: 1 });
+  expect((await sectionPosition(following.locator(".."))).below).toBeLessThan(16);
 });
 
 test.describe("on a touch screen", () => {

@@ -477,7 +477,7 @@ describe("App help", () => {
       return { dialog, panel, summary, followingHeading, details: summary.closest("details")! };
     }
 
-    it("scrolls the content panel just far enough to show a section that fits", () => {
+    it("scrolls the content panel just far enough to show a section with clearance", () => {
       const { panel, summary, followingHeading, details } = openExample();
       const pageScroll = vi.spyOn(window, "scrollTo");
       placeAt(panel, { top: 100, height: 400 });
@@ -488,11 +488,11 @@ describe("App help", () => {
 
       fireEvent.click(summary);
 
-      // The section ends 250px below the visible area, so the panel moves by that distance.
-      expect(panel.scrollTop).toBe(290);
+      // The section ends 250px below the visible area and needs another 24px of clearance.
+      expect(panel.scrollTop).toBe(314);
       // Closing it leaves the position alone.
       fireEvent.click(summary);
-      expect(panel.scrollTop).toBe(290);
+      expect(panel.scrollTop).toBe(314);
       expect(pageScroll).not.toHaveBeenCalled();
       expect(scrollIntoViewMock).not.toHaveBeenCalled();
     });

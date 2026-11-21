@@ -11,20 +11,35 @@ describe("scrollDeltaToReveal", () => {
     expect(scrollDeltaToReveal({ ...area, sectionTop: 108, sectionHeight: 384 })).toBe(0);
   });
 
-  it("scrolls a section that fits just far enough to show its end", () => {
-    // The section ends at 560; the visible area ends at 492 after the margin.
-    expect(scrollDeltaToReveal({ ...area, sectionTop: 410, sectionHeight: 150 })).toBe(68);
+  it("leaves space below a section that fits without moving one with enough space", () => {
+    expect(scrollDeltaToReveal({ ...area, sectionTop: 410, sectionHeight: 150 })).toBe(84);
+    expect(scrollDeltaToReveal({ ...area, sectionTop: 330, sectionHeight: 150 })).toBe(0);
   });
 
-  it("scrolls just far enough to show the following heading when both fit", () => {
+  it("leaves less room below a section if the full clearance would hide its heading", () => {
+    expect(scrollDeltaToReveal({ ...area, sectionTop: 450, sectionHeight: 374 })).toBe(342);
+  });
+
+  it("uses the usual section margins when repositioning after a resize", () => {
+    expect(scrollDeltaToReveal({ ...area, sectionTop: 410, sectionHeight: 150, preferBottomClearance: false })).toBe(68);
+  });
+
+  it("scrolls just far enough to leave space below the following heading", () => {
     const section = { ...area, sectionTop: 410, sectionHeight: 150 };
-    expect(scrollDeltaToReveal({ ...section, followingHeading: { bottom: 600, openHeadingOutline: 5 } })).toBe(100);
+    expect(scrollDeltaToReveal({ ...section, followingHeading: { bottom: 600, openHeadingOutline: 5 } })).toBe(124);
+    expect(scrollDeltaToReveal({ ...section, followingHeading: { bottom: 495, openHeadingOutline: 5 } })).toBe(19);
+  });
+
+  it("limits the gap to keep the open heading's focus outline visible", () => {
+    const section = { ...area, sectionTop: 410, sectionHeight: 150 };
+    expect(scrollDeltaToReveal({ ...section, followingHeading: { bottom: 795, openHeadingOutline: 5 } })).toBe(305);
     expect(scrollDeltaToReveal({ ...section, followingHeading: { bottom: 805, openHeadingOutline: 5 } })).toBe(305);
   });
 
   it("leaves the position alone when both headings and the outline are visible", () => {
     const section = { ...area, sectionTop: 106, sectionHeight: 300 };
-    expect(scrollDeltaToReveal({ ...section, followingHeading: { bottom: 500, openHeadingOutline: 5 } })).toBe(0);
+    expect(scrollDeltaToReveal({ ...section, followingHeading: { bottom: 479, openHeadingOutline: 5 } })).toBe(0);
+    expect(scrollDeltaToReveal({ ...section, followingHeading: { bottom: 480, openHeadingOutline: 5 } })).toBe(0);
   });
 
   it("scrolls up just far enough to reveal the open outline when both fit", () => {
@@ -36,10 +51,10 @@ describe("scrollDeltaToReveal", () => {
     })).toBe(-13);
   });
 
-  it("keeps the open section's usual margin when both cannot fit", () => {
+  it("gives the open section its clearance when the next heading cannot fit", () => {
     // The following heading would take 306px of scroll. The outline allows 305px.
     const section = { ...area, sectionTop: 410, sectionHeight: 150 };
-    expect(scrollDeltaToReveal({ ...section, followingHeading: { bottom: 806, openHeadingOutline: 5 } })).toBe(68);
+    expect(scrollDeltaToReveal({ ...section, followingHeading: { bottom: 806, openHeadingOutline: 5 } })).toBe(84);
   });
 
   it("shows a longer section from its heading instead of scrolling to its end", () => {
@@ -58,7 +73,7 @@ describe("scrollDeltaToReveal", () => {
   });
 
   it("rounds outwards for fractional positions", () => {
-    expect(scrollDeltaToReveal({ ...area, sectionTop: 410.2, sectionHeight: 150.2 })).toBe(69);
+    expect(scrollDeltaToReveal({ ...area, sectionTop: 410.2, sectionHeight: 150.2 })).toBe(85);
     expect(scrollDeltaToReveal({ ...area, sectionTop: 107.4, sectionHeight: 100 })).toBe(-1);
   });
 

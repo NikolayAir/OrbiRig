@@ -1,11 +1,12 @@
 import { expect, test } from "@playwright/test";
 
-import { expectFocusedControlFullyVisible } from "./help-support";
+import { expectFocusedControlFullyVisible, sectionPosition } from "./help-support";
 
 const GUIDE = "https://github.com/NikolayAir/OrbiRig/blob/main/docs/dotnet-stateful-target.md";
 
-for (const { width, height, textScale } of [
-  { width: 1440, height: 900, textScale: 100 },
+for (const { width, height, textScale, clearance } of [
+  { width: 1440, height: 900, textScale: 100, clearance: "panel" },
+  { width: 390, height: 1150, textScale: 100, clearance: "end" },
   { width: 390, height: 844, textScale: 100 },
   { width: 320, height: 480, textScale: 200 },
 ]) {
@@ -42,6 +43,13 @@ for (const { width, height, textScale } of [
     await expect(details).toContainText("Example outcomes from a local run");
     await expect(details).toContainText("Use the .NET 10 SDK to build and run the optional target locally.");
     await expect(details).toContainText("The example saves the stale-telemetry result as JSON for inspection in the browser.");
+    if (clearance) {
+      await expect(guide).toBeInViewport({ ratio: 1 });
+      const opened = await sectionPosition(details);
+      expect(opened.below).toBeGreaterThanOrEqual(clearance === "end" ? 19.5 : 23.5);
+      expect(opened.below).toBeLessThanOrEqual(clearance === "end" ? 20.5 : 25.5);
+      if (clearance === "end") expect(opened.scrollTop).toBeCloseTo(opened.maxScrollTop, 0);
+    }
     await page.keyboard.press(tab);
     await expectFocusedControlFullyVisible(guide);
     for (const element of [help, panel, details]) {
