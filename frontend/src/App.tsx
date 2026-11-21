@@ -225,7 +225,7 @@ export function App() {
         </p>
         <p className="field-hint">
           The browser sends submitted JSON to the server for checking.
-          Use only non-sensitive example data in this public web interface.
+          On the public site, use only non-sensitive example data.
         </p>
         <ol className="check-flow" aria-label="How a check works">
           <li><strong>Expected behaviour</strong><span>Choose a scenario that says what you expect.</span></li>

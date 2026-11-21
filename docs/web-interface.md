@@ -2,7 +2,7 @@
 
 In the [OrbiRig web interface](https://orbirig-evidence-inspector.onrender.com/), use **Verify observation** to check a recorded command result against a **scenario**, the behaviour you expect. Use **Inspect evidence** to review an **evidence** document, which is JSON containing an observation or saved verification results. Both workflows use recorded data.
 
-The browser sends JSON to the server for checking. Use sample data that contains no private information on the public site.
+The browser sends submitted JSON to the server for checking. On the public site, use only non-sensitive example data.
 
 ## Verify an observation
 
