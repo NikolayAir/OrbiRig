@@ -178,7 +178,7 @@ export function InspectionPanel({
             onChange={(event) => onEvidenceChange(event.target.value)}
             disabled={inspection.kind === "loading"}
             spellCheck={false}
-            rows={7}
+            rows={8}
             required
           />
           {requiredError && <p className="field-error" id="inspection-evidence-error" role="alert">Evidence JSON is required.</p>}

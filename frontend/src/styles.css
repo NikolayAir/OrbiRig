@@ -862,6 +862,14 @@ fieldset {
   }
 }
 
+/* The editor takes the right half. The left half includes the column gap. */
+@container (min-width: 64rem) {
+  .verification-form,
+  .inspection-form {
+    grid-template-columns: minmax(0, 1fr) 50%;
+  }
+}
+
 @container observation-form (max-width: 9rem) {
   /* Make room for inputs at large text sizes within the existing panel. */
   #verification-workflow .workflow-heading,

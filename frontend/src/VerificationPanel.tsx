@@ -255,7 +255,7 @@ export function VerificationPanel({
             onChange={(event) => onInputChange("observationEvidence", event.target.value)}
             disabled={verification.kind === "loading"}
             spellCheck={false}
-            rows={7}
+            rows={8}
             required
           />
           {verificationRequiredErrors.observationEvidence && (

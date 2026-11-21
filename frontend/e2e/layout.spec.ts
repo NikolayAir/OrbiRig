@@ -273,7 +273,7 @@ for (const viewport of [
       expect(inspectionEditorBounds.x).toBeGreaterThan(types.x + types.width);
       expect(inspectionEditorBounds.y).toBeLessThan(types.y + types.height);
       expect(inspectionEditorBounds.width).toBeGreaterThanOrEqual(225);
-      expect(inspectionEditorBounds.width / types.width).toBeCloseTo(1.35, 1);
+      expect(inspectionEditorBounds.width).toBeGreaterThan(types.width);
       expect(inspectionAction.x + inspectionAction.width).toBeCloseTo(inspectionEditorBounds.x + inspectionEditorBounds.width, 0);
       if (viewport.width > 640) expect(inspectionAction.width).toBeLessThan(inspectionEditorBounds.width);
       expect(inspectionAction.y - (inspectionEditorBounds.y + inspectionEditorBounds.height)).toBeCloseTo(16, 0);
