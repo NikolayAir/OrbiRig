@@ -576,9 +576,12 @@ describe("App help", () => {
       "  --execution-id demo-001 \\",
       "  --executed-at 2026-10-21T10:00:00Z",
     ].join("\n"));
-    expect(cliPanel.getByText(
-      "To verify your own recorded execution, provide the path to its UTF-8 observation JSON file, choose the scenario to check, and replace the example ID and UTC timestamp with the recorded command's values.",
-    )).toBeVisible();
+    const ownObservation = cliPanel.getByText(/^To verify your own observation/);
+    expect(ownObservation).toBeVisible();
+    expect(ownObservation).toHaveTextContent(
+      "To verify your own observation, provide the path to its UTF-8 JSON file and choose the scenario to check. " +
+      "Choose an execution ID for the run and use the command's execution time in UTC.",
+    );
     expect(guidance.getByText(/The command prints JSON evidence/)).toHaveTextContent(
       "The command prints JSON evidence containing the individual checks and overall PASS or FAIL result.",
     );

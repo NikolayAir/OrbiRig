@@ -624,8 +624,8 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
   --executed-at 2026-10-21T10:00:00Z`}</code>
               </pre>
               <p>
-                To verify your own recorded execution, provide the path to its UTF-8 observation JSON file,
-                choose the scenario to check, and replace the example ID and UTC timestamp with the recorded command's values.
+                To verify your own observation, provide the path to its UTF-8 JSON file and choose the scenario to check.
+                Choose an execution ID for the run and use the command's execution time in UTC.
               </p>
               <p>
                 The command prints JSON evidence containing the individual checks and overall <strong>PASS</strong> or <strong>FAIL</strong> result.
