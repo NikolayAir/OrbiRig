@@ -4,6 +4,8 @@ import { expect, test, type Locator } from "@playwright/test";
 
 const observation = readFileSync(new URL("./fixtures/mixed-results.json", import.meta.url), "utf8");
 const sequence = readFileSync(new URL("./fixtures/discontinuous-sequence.json", import.meta.url), "utf8");
+const firstTwoColumnWidth = 506;
+const firstTwoColumnWidthWithDoubledText = 1074;
 
 async function expectWithinWidth(elements: Locator, width: number) {
   for (const element of await elements.all()) {
@@ -22,6 +24,137 @@ async function recordNextClick(input: Locator) {
   });
 }
 
+for (const { scale, widths } of [
+  { scale: 100, widths: [320, 390, firstTwoColumnWidth - 1, firstTwoColumnWidth, 600, 768, 1024, 1280, 1440, 1920] },
+  { scale: 200, widths: [320, 390, 600, 768, 820, 1024, firstTwoColumnWidthWithDoubledText - 1, firstTwoColumnWidthWithDoubledText, 1280, 1440, 1920] },
+]) for (const width of widths) {
+  test(`verification fields stay in order at ${width}px with ${scale}% text`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/");
+    if (scale === 200) {
+      const font = width === 320 || width === 820 ? "monospace" : 'Verdana, "DejaVu Sans", sans-serif';
+      await page.addStyleTag({ content: `:root { font-size: 200%; font-family: ${font}; }` });
+    }
+    const panel = page.getByRole("region", { name: "Verify observation", exact: true });
+    const { id, time, scenario, metadata, editor, action, heading, examples, splitWords, pageWidth, rem } = await panel.evaluate(node => {
+      const bounds = (selector: string) => node.querySelector(selector)!.getBoundingClientRect().toJSON();
+      const textElements = document.querySelectorAll(
+        ".check-flow strong, .check-flow span, #verification-workflow .workflow-heading h2, #verification-workflow .example-action > button",
+      );
+      const splitWords = Array.from(textElements).flatMap(element => {
+        const text = element.firstChild!;
+        const range = document.createRange();
+        return Array.from(text.textContent!.matchAll(/\S+/g)).filter(word => {
+          range.setStart(text, word.index);
+          range.setEnd(text, word.index + word[0].length);
+          return range.getClientRects().length > 1;
+        }).map(word => word[0]);
+      });
+      return {
+        id: bounds("#verification-execution-id"),
+        time: bounds("#verification-executed-at"),
+        scenario: bounds("#verification-scenario"),
+        metadata: bounds(".verification-inputs"),
+        editor: bounds("#verification-observation-evidence"),
+        action: bounds("button[type=submit]"),
+        heading: bounds(".workflow-heading h2"),
+        examples: bounds(".example-actions"),
+        splitWords,
+        pageWidth: document.documentElement.scrollWidth,
+        rem: parseFloat(getComputedStyle(document.documentElement).fontSize),
+      };
+    });
+    expect(pageWidth).toBe(width);
+    expect(splitWords).toEqual([]);
+    expect(action.top - editor.bottom).toBeGreaterThan(0);
+    expect(action.top - editor.bottom).toBeLessThanOrEqual(1.25 * rem);
+    expect(action.left).toBeGreaterThanOrEqual(editor.left);
+    expect(action.right).toBeLessThanOrEqual(editor.right + 0.5);
+
+    const twoColumns = editor.top < metadata.bottom;
+    // The browser's default monospace size can put 820px on either side of the breakpoint.
+    if (width !== 820 || scale !== 200) {
+      expect(twoColumns).toBe(width >= (scale === 100 ? firstTwoColumnWidth : firstTwoColumnWidthWithDoubledText));
+    }
+    if (twoColumns) {
+      expect(editor.left).toBeGreaterThan(metadata.right);
+      expect(editor.width).toBeGreaterThan(metadata.width);
+      if (scale === 100 && width >= 768) expect(action.right).toBeCloseTo(editor.right, 0);
+      if (scale === 100 && width >= 1280) expect(action.bottom).toBeLessThanOrEqual(900);
+    } else {
+      expect(editor.left).toBeCloseTo(metadata.left, 0);
+      expect(editor.right).toBeCloseTo(metadata.right, 0);
+      expect(editor.top).toBeGreaterThan(metadata.bottom);
+    }
+
+    expect(time.top).toBeGreaterThan(id.bottom);
+    expect(time.left).toBeCloseTo(id.left, 0);
+    expect(scenario.top).toBeGreaterThan(time.bottom);
+    expect(scenario.left).toBeCloseTo(metadata.left, 0);
+    expect(scenario.right).toBeCloseTo(metadata.right, 0);
+
+    expect(heading.right <= examples.left || heading.bottom <= examples.top).toBe(true);
+    if (width === 768 && scale === 200) {
+      expect(examples.top).toBeGreaterThan(heading.bottom);
+      await panel.getByRole("button", { name: "Load failing example", exact: true }).hover();
+      const tooltip = panel.getByRole("tooltip");
+      await expect(tooltip).toBeVisible();
+      await expectWithinWidth(tooltip, width);
+    }
+  });
+}
+
+for (const { scale, widths } of [
+  { scale: 100, widths: [320, 390, firstTwoColumnWidth - 1, firstTwoColumnWidth, 768, 1024, 1440] },
+  { scale: 200, widths: [320, 390, 768, 1024, firstTwoColumnWidthWithDoubledText - 1, firstTwoColumnWidthWithDoubledText, 1440] },
+]) for (const width of widths) {
+  test(`workflow labels share their spacing below the divider at ${width}px with ${scale}% text`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/");
+    if (scale === 200) {
+      const font = width === 320 ? "monospace" : 'Verdana, "DejaVu Sans", sans-serif';
+      await page.addStyleTag({ content: `:root { font-size: 200%; font-family: ${font}; }` });
+    }
+
+    const labelOffsets = (panel: Locator, groupSelector: string, firstLabel: string) =>
+      panel.evaluate((node, { groupSelector, firstLabel }) => {
+        const heading = node.querySelector(".workflow-heading")!.getBoundingClientRect();
+        const firstGroup = node.querySelector(groupSelector)!.getBoundingClientRect();
+        const editor = node.querySelector(".evidence-input .field-label")!.getBoundingClientRect();
+        const labelTop = (label: Element) => {
+          const text = document.createRange();
+          text.selectNodeContents(label);
+          return text.getBoundingClientRect().top;
+        };
+        return {
+          headingInset: heading.top - node.getBoundingClientRect().top,
+          first: labelTop(node.querySelector(firstLabel)!) - heading.bottom,
+          editor: editor.top - heading.bottom,
+          group: firstGroup.top - heading.bottom,
+          sideBySide: editor.left >= firstGroup.right,
+        };
+      }, { groupSelector, firstLabel });
+
+    const verification = await labelOffsets(
+      page.getByRole("region", { name: "Verify observation", exact: true }),
+      ".verification-inputs", 'label[for="verification-execution-id"]',
+    );
+    await page.getByRole("button", { name: "Show Inspect evidence" }).click();
+    const panel = page.getByRole("region", { name: "Inspect evidence", exact: true });
+    await expect(panel.getByRole("group", { name: "Evidence type" })).toBeVisible();
+    const inspection = await labelOffsets(panel, ".evidence-types", ".evidence-types legend");
+
+    expect(inspection.headingInset).toBeCloseTo(verification.headingInset, 0);
+    expect(Math.abs(inspection.first - verification.first)).toBeLessThanOrEqual(1.5);
+    const twoColumns = width >= (scale === 100 ? firstTwoColumnWidth : firstTwoColumnWidthWithDoubledText);
+    for (const layout of [verification, inspection]) {
+      expect(layout.sideBySide).toBe(twoColumns);
+      if (twoColumns) expect(layout.editor).toBeCloseTo(layout.group, 0);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
+  });
+}
+
 for (const viewport of [
   { width: 2560, height: 1440 },
   { width: 1440, height: 900 },
@@ -30,7 +163,10 @@ for (const viewport of [
   { width: 1200, height: 900 },
   { width: 1199, height: 900 },
   { width: 1024, height: 768 },
+  { width: firstTwoColumnWidth, height: 768 },
+  { width: 820, height: 1024 },
   { width: 768, height: 1024 },
+  { width: 600, height: 900 },
   { width: 390, height: 480 },
   { width: 320, height: 800 },
   { width: 320, height: 480 },
@@ -54,35 +190,11 @@ for (const viewport of [
     const executionId = page.getByLabel("Execution ID", { exact: true });
     const editor = page.getByLabel("Observation evidence JSON", { exact: true });
     const action = page.getByRole("button", { name: "Verify observation", exact: true });
-    const metadataBounds = (await page.locator(".verification-inputs").boundingBox())!;
     const editorBounds = (await editor.boundingBox())!;
     const actionBounds = (await action.boundingBox())!;
     expect(editorBounds.height).toBeGreaterThanOrEqual(176);
     expect(actionBounds.y).toBeGreaterThanOrEqual(editorBounds.y + editorBounds.height);
-    if (viewport.width >= 1200) {
-      const firstLabel = (await page.locator('label[for="verification-execution-id"]').boundingBox())!;
-      const evidenceLabel = (await page.locator('label[for="verification-observation-evidence"]').boundingBox())!;
-      expect(firstLabel.y).toBeCloseTo(evidenceLabel.y, 0);
-      expect(actionBounds.x + actionBounds.width).toBeCloseTo(editorBounds.x + editorBounds.width, 0);
-      expect(actionBounds.width).toBeLessThan(editorBounds.width);
-      expect(actionBounds.y - (editorBounds.y + editorBounds.height)).toBeCloseTo(16, 0);
-      expect(editorBounds.x).toBeGreaterThan(metadataBounds.x + metadataBounds.width);
-      expect(editorBounds.y).toBeLessThan(metadataBounds.y + metadataBounds.height);
-      expect(editorBounds.width).toBeGreaterThanOrEqual(580);
-      expect(editorBounds.width / metadataBounds.width).toBeCloseTo(1.35, 1);
-      const idBounds = (await executionId.boundingBox())!;
-      const timeBounds = (await page.getByLabel("Execution time (UTC)", { exact: true }).boundingBox())!;
-      expect(timeBounds.y).toBeGreaterThan(idBounds.y + idBounds.height);
-      if (viewport.width >= 1280 && viewport.height >= 900) {
-        expect(actionBounds.y + actionBounds.height).toBeLessThanOrEqual(viewport.height);
-      }
-    } else {
-      expect(actionBounds.x).toBeCloseTo(editorBounds.x, 0);
-      expect(editorBounds.x).toBeCloseTo(metadataBounds.x, 0);
-      expect(editorBounds.width).toBeCloseTo(metadataBounds.width, 0);
-      expect(editorBounds.y).toBeGreaterThan(metadataBounds.y + metadataBounds.height);
-    }
-    for (const name of ["About Execution ID", "About Scenario", "About Observation evidence JSON"]) {
+    for (const name of ["About Execution ID", "About Execution time (UTC)", "About Scenario", "About Observation evidence JSON"]) {
       await page.getByRole("button", { name, exact: true }).focus();
       const tooltip = page.getByRole("tooltip");
       await expect(tooltip).toBeVisible();
@@ -126,6 +238,8 @@ for (const viewport of [
 
     const result = page.getByRole("region", { name: "Verified execution", exact: true });
     await expect(result.locator(".outcome-badge").filter({ hasText: "Verification outcome: FAIL" })).toBeInViewport();
+    const completedForm = (await page.locator(".verification-form").boundingBox())!;
+    expect((await result.boundingBox())!.y).toBeGreaterThan(completedForm.y + completedForm.height);
     await expect(result.getByText(longId, { exact: true })).toBeVisible();
     await expect(result.getByText("Verification result", { exact: true })).toBeVisible();
     const postState = result.getByRole("listitem").filter({ has: page.getByText("post_state_matches_requested_mode", { exact: true }) });
@@ -155,13 +269,13 @@ for (const viewport of [
     }
     expect(inspectionEditorBounds.height).toBeGreaterThanOrEqual(176);
     expect(inspectionAction.y).toBeGreaterThanOrEqual(inspectionEditorBounds.y + inspectionEditorBounds.height);
-    if (viewport.width >= 1200) {
+    if (viewport.width >= firstTwoColumnWidth) {
       expect(inspectionEditorBounds.x).toBeGreaterThan(types.x + types.width);
       expect(inspectionEditorBounds.y).toBeLessThan(types.y + types.height);
-      expect(inspectionEditorBounds.width).toBeGreaterThanOrEqual(580);
+      expect(inspectionEditorBounds.width).toBeGreaterThanOrEqual(225);
       expect(inspectionEditorBounds.width / types.width).toBeCloseTo(1.35, 1);
       expect(inspectionAction.x + inspectionAction.width).toBeCloseTo(inspectionEditorBounds.x + inspectionEditorBounds.width, 0);
-      expect(inspectionAction.width).toBeLessThan(inspectionEditorBounds.width);
+      if (viewport.width > 640) expect(inspectionAction.width).toBeLessThan(inspectionEditorBounds.width);
       expect(inspectionAction.y - (inspectionEditorBounds.y + inspectionEditorBounds.height)).toBeCloseTo(16, 0);
       if (viewport.width >= 1280 && viewport.height >= 900) {
         expect(inspectionAction.y + inspectionAction.height).toBeLessThanOrEqual(viewport.height);
@@ -252,6 +366,7 @@ for (const viewport of [
     await page.getByLabel("Execution ID", { exact: true }).focus();
     const tab = browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab";
     for (const control of [
+      page.getByRole("button", { name: "About Execution time (UTC)", exact: true }),
       page.getByLabel("Execution time (UTC)", { exact: true }),
       page.getByRole("button", { name: "About Scenario", exact: true }),
       page.getByLabel("Scenario", { exact: true }),
@@ -268,6 +383,8 @@ for (const viewport of [
     const result = page.getByRole("region", { name: "Verified execution", exact: true });
     await expect(result.locator(".outcome-badge").filter({ hasText: "Verification outcome: PASS" })).toBeInViewport();
     await expect(result.getByRole("heading", { name: "Verified execution", exact: true })).toBeFocused();
+    const completedForm = (await page.locator(".verification-form").boundingBox())!;
+    expect((await result.boundingBox())!.y).toBeGreaterThan(completedForm.y + completedForm.height);
   });
 }
 
@@ -279,6 +396,7 @@ for (const { width, textScale } of [
 ]) {
   for (const [field, helpId] of [
     ["Execution ID", "execution-id-help-description"],
+    ["Execution time (UTC)", "execution-time-help-description"],
     ["Scenario", "scenario-help-description"],
     ["Observation evidence JSON", "verification-observation-hint"],
     ["Evidence JSON", "inspection-evidence-hint"],
@@ -431,6 +549,7 @@ test("reading enlarged help does not open another help button beneath its text",
 
 for (const [field, helpId] of [
   ["Execution ID", "execution-id-help-description"],
+  ["Execution time (UTC)", "execution-time-help-description"],
   ["Scenario", "scenario-help-description"],
   ["Observation evidence JSON", "verification-observation-hint"],
   ["Evidence JSON", "inspection-evidence-hint"],

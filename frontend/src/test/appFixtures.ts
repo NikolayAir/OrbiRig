@@ -264,8 +264,15 @@ export const expectedVerifiedExecutionSequenceInspectionExample = {
   outcome: "PASS",
 };
 
+// A verification response adds the record's saved text to this display data. The
+// browser downloads that text without parsing it, so the tests only need texts
+// that differ between records. Inspection responses never contain the field.
+function savedText(record: object) {
+  return `${JSON.stringify({ schema_version: 1, ...record }, null, 2)}\n`;
+}
+
 // Use complete responses: a shortened mock can hide missing verification checks.
-export const verifiedExecution = {
+const verifiedExecutionDisplay = {
   execution: {
     execution_id: "exec-web-001",
     executed_at: "2026-08-17T10:15:30Z",
@@ -276,12 +283,17 @@ export const verifiedExecution = {
   outcome: "PASS",
 };
 
+export const verifiedExecution = {
+  ...verifiedExecutionDisplay,
+  verified_execution_evidence: savedText(verifiedExecutionDisplay),
+};
+
 // Change the observation and its check together, retaining a valid saved FAIL.
-export const failedTelemetryExecution = {
-  ...verifiedExecution,
+const failedTelemetryDisplay = {
+  ...verifiedExecutionDisplay,
   observation: { ...observation, telemetry: { operating_mode: "NOMINAL" } },
   invariant_results: [
-    ...verifiedExecution.invariant_results.slice(0, 3),
+    ...verifiedExecutionDisplay.invariant_results.slice(0, 3),
     {
       invariant_id: "telemetry_matches_post_state",
       expected: "SAFE",
@@ -290,6 +302,11 @@ export const failedTelemetryExecution = {
     },
   ],
   outcome: "FAIL",
+};
+
+export const failedTelemetryExecution = {
+  ...failedTelemetryDisplay,
+  verified_execution_evidence: savedText(failedTelemetryDisplay),
 };
 
 // Each set has 4 distinct IDs but does not cover all 4 required kinds of check.

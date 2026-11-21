@@ -317,6 +317,8 @@ describe("request and edited-input states", () => {
     render(<App />);
     selectInspectionWorkflow();
     const field = screen.getByLabelText("Evidence JSON");
+    expect(field).toHaveAttribute("placeholder", "Paste evidence JSON here…");
+    expect(field).toHaveValue("");
     fireEvent.change(field, { target: { value: empty } });
     fireEvent.click(screen.getByRole("button", { name: "Inspect evidence" }));
     expect(screen.getByRole("alert")).toHaveTextContent("Evidence JSON is required.");

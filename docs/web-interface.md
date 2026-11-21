@@ -18,7 +18,15 @@ The browser sends submitted JSON to the server for checking. On the public site,
 
 An [expected command rejection](verification.md#supported-scenarios) can pass. OrbiRig reports an input error before running the checks if the recorded command does not match the selected scenario. When entering your own record, follow the [rules for execution IDs and times](evidence-formats.md#execution-ids).
 
-You can save a verified record as a JSON file [from the command line](cli.md#verify-the-bundled-example) or [with the Python API](python.md#reopen-saved-verified-evidence).
+### Save and reopen a result
+
+Choose **Download result JSON** next to a completed verification to save it as `orbirig-verified-execution.json`. You can save a `PASS` or a `FAIL`. For a `FAIL`, the saved checks show which expected and actual values differed.
+
+The download reuses the result on screen. Changing an input clears the result and its download action.
+
+To reopen the file, switch to **Inspect evidence**, select **Verified execution**, paste the file's contents into **Evidence JSON** and choose **Inspect evidence**. OrbiRig recalculates the checks and shows the same scenario, check results and outcome.
+
+You can also save a verified record [from the command line](cli.md#verify-the-bundled-example) or [with the Python API](python.md#reopen-saved-verified-evidence).
 
 ## Inspect evidence
 
@@ -150,7 +158,7 @@ curl --header 'Content-Type: application/json' \
   http://127.0.0.1:8000/api/verify/observation
 ```
 
-The [request file](examples/verify-observation-request.json) contains all 4 fields, with the observation encoded as a JSON string. The response is HTTP `200` with 4 passing checks and `"outcome": "PASS"`; see the [complete response](examples/verify-observation-response.json).
+The [request file](examples/verify-observation-request.json) contains all 4 fields, with the observation encoded as a JSON string. The response is HTTP `200` with 4 passing checks, `"outcome": "PASS"` and the saved form of the record in `verified_execution_evidence`; see the [complete response](examples/verify-observation-response.json).
 
 To inspect the bundled verified record, send its JSON directly as the request body.
 
@@ -174,7 +182,9 @@ The HTTP status tells you whether the request succeeded. Read the response body 
 | `422` | A verification request or submitted evidence is invalid. |
 | `500` | An unexpected server error, separate from verification `FAIL`. |
 
-Successful responses contain display data. Use the CLI or the Python serialisation functions to create a versioned evidence document you can reopen later.
+Successful responses contain display data. A completed verification also returns `verified_execution_evidence`: the [verified execution evidence](evidence-formats.md#verified-execution-evidence) for the same record, as one JSON string. Python creates it with `serialize_verified_execution_evidence(...)`, so it uses schema version 1, the canonical field order and a final newline. For the bundled request, it matches [verified-execution.json](examples/verified-execution.json).
+
+Save that string unchanged as a UTF-8 file to reopen it later with `/api/inspect/verified-execution`. Only completed verification responses contain the field. Inspection and error responses do not.
 
 For HTTP `422` verification errors, `detail` contains a `code` and `message`. For example, selecting `safe_to_nominal_mode` for the example command, which requests `SAFE`, returns:
 
@@ -196,6 +206,8 @@ Invalid observation messages use the same field-level diagnostics. Metadata erro
 ### Request size limit
 
 Each endpoint limits the complete body to **4 MiB (4,194,304 bytes), inclusive**. Verification counts the encoded JSON wrapper and embedded evidence string. Inspection counts the submitted UTF-8 bytes. This HTTP limit does not apply to the Python evidence APIs.
+
+Saved evidence can be larger than the verification request. The API checks that the saved UTF-8 JSON also fits within 4 MiB, so **Inspect evidence** can reopen it. If a long **Execution ID** makes the saved document exceed the limit, verification returns HTTP `422` with `invalid_execution_metadata` and asks you to shorten the ID.
 
 Content-type checks run before body-size checks. The server enforces the size limit while reading, regardless of `Content-Length`. After an oversized request, the interface keeps entered values and selections and explains how to reduce the data before resubmitting.
 

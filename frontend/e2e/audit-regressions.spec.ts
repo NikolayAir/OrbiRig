@@ -69,6 +69,7 @@ for (const { width, textScale } of [
     await page.locator("html").evaluate((element, scale) => { element.style.fontSize = `${scale}%`; }, textScale);
     for (const [label, id] of [
       ["Execution ID", "execution-id-help-description"],
+      ["Execution time (UTC)", "execution-time-help-description"],
       ["Scenario", "scenario-help-description"],
       ["Observation evidence JSON", "verification-observation-hint"],
       ["Evidence JSON", "inspection-evidence-hint"],
@@ -124,7 +125,7 @@ for (const { width, textScale } of [
       await page.keyboard.press("Escape");
       await expect(tooltip).toBeHidden();
     }
-    for (const name of ["About Verify observation", "About Inspect evidence", "About Execution time (UTC)"]) {
+    for (const name of ["About Verify observation", "About Inspect evidence"]) {
       await expect(page.getByRole("button", { name, exact: true })).toHaveCount(0);
     }
     await page.mouse.move(0, 0);

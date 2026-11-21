@@ -285,8 +285,10 @@ jobs:
 
       - name: Run ${{ matrix.name }} browser tests
         working-directory: frontend
-        # Bound each engine's suite separately; the local default covers all 3 engines.
-        run: uv run --no-sync npm run test:e2e -- --project=${{ matrix.browser }} --global-timeout=600000
+        # Keep each engine bounded and allow for WebKit's longer runs on Ubuntu.
+        run: >-
+          uv run --no-sync npm run test:e2e -- --project=${{ matrix.browser }}
+          --global-timeout=${{ matrix.browser == 'webkit' && 900000 || 600000 }}
 
       - name: Upload browser reports, traces, screenshots and videos
         if: ${{ failure() }}

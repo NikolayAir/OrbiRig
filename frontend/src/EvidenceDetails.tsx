@@ -1,4 +1,4 @@
-import { type Dispatch, type SetStateAction, useId, useLayoutEffect, useMemo, useRef } from "react";
+import { type Dispatch, type ReactNode, type SetStateAction, useId, useLayoutEffect, useMemo, useRef } from "react";
 
 import { SUPPORTED_SCENARIOS } from "./workflowContent";
 
@@ -162,27 +162,33 @@ export function VerifiedExecutionDetails({
   record,
   headingId = "verified-execution",
   inspected = false,
+  actions,
 }: {
   record: VerifiedExecutionPresentation;
   headingId?: string;
   inspected?: boolean;
+  // VerificationPanel passes the download button for completed results.
+  actions?: ReactNode;
 }) {
   return (
-    <section aria-labelledby={headingId}>
-      <div className="result-heading">
-        <div>
-          <p className="result-context">
-            {inspected ? "Valid saved evidence" : "Verification result"}
-          </p>
-          <h2 id={headingId} tabIndex={-1}>Verified execution</h2>
+    <section aria-labelledby={headingId} className={actions ? "result-with-actions" : undefined}>
+      <div className="result-overview">
+        <div className="result-heading">
+          <div>
+            <p className="result-context">
+              {inspected ? "Valid saved evidence" : "Verification result"}
+            </p>
+            <h2 id={headingId} tabIndex={-1}>Verified execution</h2>
+          </div>
+          <OutcomeBadge outcome={record.outcome} />
         </div>
-        <OutcomeBadge outcome={record.outcome} />
+        <p className="result-description">
+          {record.outcome === "PASS"
+            ? "The recorded behaviour matches this execution's scenario."
+            : "One or more checks failed. Compare the expected and actual values in those checks."}
+        </p>
+        {actions && <div className="result-actions">{actions}</div>}
       </div>
-      <p className="result-description">
-        {record.outcome === "PASS"
-          ? "The recorded behaviour matches this execution's scenario."
-          : "One or more checks failed. Compare the expected and actual values in those checks."}
-      </p>
       <VerifiedExecutionFields record={record} />
     </section>
   );

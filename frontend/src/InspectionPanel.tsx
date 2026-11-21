@@ -173,6 +173,7 @@ export function InspectionPanel({
             ref={evidenceInputRef}
             aria-describedby={describedBy("inspection-evidence-hint", requiredError ? "inspection-evidence-error" : undefined)}
             aria-invalid={requiredError ? true : undefined}
+            placeholder="Paste evidence JSON here…"
             value={evidence}
             onChange={(event) => onEvidenceChange(event.target.value)}
             disabled={inspection.kind === "loading"}

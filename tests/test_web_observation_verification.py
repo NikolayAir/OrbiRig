@@ -13,6 +13,7 @@ CLIENT_WITH_SERVER_ERRORS = TestClient(
     raise_server_exceptions=False,
 )
 ENDPOINT = "/api/verify/observation"
+WEB_EVIDENCE_LIMIT = 4 * 1024 * 1024
 
 
 def _observation_document(
@@ -139,6 +140,205 @@ def test_explicit_non_default_scenario_controls_verification() -> None:
     payload = response.json()
     assert payload["execution"]["scenario_id"] == "safe_to_nominal_mode"
     assert payload["outcome"] == "PASS"
+
+
+def _expected_evidence_document(
+    *, execution_id: str = "exec-web-verify-001",
+) -> dict[str, object]:
+    # Define the expected fields and order independently of the evidence serialiser.
+    return {
+        "schema_version": 1,
+        "execution": {
+            "execution_id": execution_id,
+            "scenario_id": "nominal_to_safe_mode",
+            "executed_at": "2026-08-25T18:30:00Z",
+        },
+        "observation": {
+            "command": {
+                "command_type": "SET_OPERATING_MODE",
+                "target_mode": "SAFE",
+            },
+            "pre_state": {"operating_mode": "NOMINAL"},
+            "acknowledgement": {"accepted": True},
+            "post_state": {"operating_mode": "SAFE"},
+            "telemetry": {"operating_mode": "SAFE"},
+        },
+        "invariant_results": [
+            {
+                "invariant_id": "pre_state_matches_expected",
+                "passed": True,
+                "expected": "NOMINAL",
+                "actual": "NOMINAL",
+            },
+            {
+                "invariant_id": "acknowledgement_is_accepted",
+                "passed": True,
+                "expected": True,
+                "actual": True,
+            },
+            {
+                "invariant_id": "post_state_matches_requested_mode",
+                "passed": True,
+                "expected": "SAFE",
+                "actual": "SAFE",
+            },
+            {
+                "invariant_id": "telemetry_matches_post_state",
+                "passed": True,
+                "expected": "SAFE",
+                "actual": "SAFE",
+            },
+        ],
+        "outcome": "PASS",
+    }
+
+
+def test_pass_response_carries_the_canonical_evidence_text() -> None:
+    response = _post(_verification_request())
+
+    assert response.status_code == 200
+    assert response.json()["verified_execution_evidence"] == (
+        json.dumps(_expected_evidence_document(), indent=2) + "\n"
+    )
+
+
+def test_telemetry_mismatch_returns_canonical_fail_evidence() -> None:
+    document = _expected_evidence_document()
+    observation = document["observation"]
+    assert isinstance(observation, dict)
+    observation["telemetry"] = {"operating_mode": "NOMINAL"}
+    results = document["invariant_results"]
+    assert isinstance(results, list)
+    results[-1] = {
+        "invariant_id": "telemetry_matches_post_state",
+        "passed": False,
+        "expected": "SAFE",
+        "actual": "NOMINAL",
+    }
+    document["outcome"] = "FAIL"
+
+    response = _post(
+        _verification_request(
+            observation_evidence=json.dumps(
+                _observation_document(telemetry_mode="NOMINAL"),
+            ),
+        ),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["outcome"] == "FAIL"
+    assert response.json()["verified_execution_evidence"] == (
+        json.dumps(document, indent=2) + "\n"
+    )
+
+
+# Include the distinct check IDs for an expected rejection and an execution ID
+# whose spaces and Unicode characters must survive saving and reopening.
+_REOPENED_REQUESTS = {
+    "pass": _verification_request(),
+    "telemetry-mismatch": _verification_request(
+        observation_evidence=json.dumps(
+            _observation_document(telemetry_mode="NOMINAL"),
+        ),
+    ),
+    "expected-rejection": _verification_request(
+        scenario_id="nominal_to_nominal_rejection",
+        observation_evidence=json.dumps(
+            _observation_document(
+                target_mode="NOMINAL",
+                accepted=False,
+                post_mode="NOMINAL",
+                telemetry_mode="NOMINAL",
+            ),
+        ),
+    ),
+    "unicode-execution-id": _verification_request(
+        execution_id="  essai-é-🚀-𐐷  ",
+    ),
+}
+
+
+@pytest.mark.parametrize("request_document", _REOPENED_REQUESTS.values(), ids=_REOPENED_REQUESTS)
+def test_returned_evidence_reopens_with_the_same_presentation(request_document) -> None:
+    verified = _post(request_document).json()
+    evidence = verified.pop("verified_execution_evidence")
+
+    inspected = CLIENT.post(
+        "/api/inspect/verified-execution",
+        content=evidence.encode("utf-8"),
+        headers={"Content-Type": "text/plain; charset=utf-8"},
+    )
+
+    assert inspected.status_code == 200
+    # Inspection returns display data only, so the evidence field is absent.
+    assert inspected.json() == verified
+
+
+@pytest.mark.parametrize(
+    ("character", "request_budget"),
+    [("a", WEB_EVIDENCE_LIMIT), ("é", WEB_EVIDENCE_LIMIT // 2)],
+    ids=["ascii-at-request-limit", "unicode-expands-in-saved-evidence"],
+)
+def test_verification_rejects_evidence_over_the_inspection_limit(
+    character: str, request_budget: int,
+) -> None:
+    request = _verification_request(execution_id="")
+    # The outer request carries literal UTF-8, while saved evidence escapes Unicode.
+    wrapper_size = len(json.dumps(request, ensure_ascii=False).encode("utf-8"))
+    id_budget = request_budget - wrapper_size
+    character_size = len(character.encode("utf-8"))
+    request["execution_id"] = character * (id_budget // character_size)
+    body = json.dumps(request, ensure_ascii=False).encode("utf-8")
+    assert request_budget - character_size < len(body) <= request_budget
+
+    response = CLIENT.post(ENDPOINT, content=body, headers={"Content-Type": "application/json"})
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "detail": {
+            "code": "invalid_execution_metadata",
+            "field": "execution_id",
+            "message": (
+                "The saved evidence would exceed the web interface's 4 MiB inspection limit. "
+                "Shorten the Execution ID and try again."
+            ),
+        },
+    }
+
+
+def test_evidence_at_the_inspection_limit_can_be_reopened() -> None:
+    empty_id_evidence = json.dumps(_expected_evidence_document(execution_id=""), indent=2) + "\n"
+    id_size = WEB_EVIDENCE_LIMIT - len(empty_id_evidence.encode("utf-8"))
+    response = _post(_verification_request(execution_id="a" * id_size))
+
+    assert response.status_code == 200
+    verified = response.json()
+    evidence = verified.pop("verified_execution_evidence").encode("utf-8")
+    assert len(evidence) == WEB_EVIDENCE_LIMIT
+
+    inspected = CLIENT.post(
+        "/api/inspect/verified-execution",
+        content=evidence,
+        headers={"Content-Type": "text/plain; charset=utf-8"},
+    )
+
+    assert inspected.status_code == 200
+    assert inspected.json() == verified
+
+
+@pytest.mark.parametrize(
+    "request_document",
+    [
+        _verification_request(scenario_id="safe_to_nominal_mode"),
+        _verification_request(observation_evidence="{not-json}"),
+    ],
+    ids=["scenario-command-mismatch", "invalid-observation-evidence"],
+)
+def test_invalid_verification_request_returns_no_evidence_text(request_document) -> None:
+    response = _post(request_document)
+
+    assert response.status_code == 422
+    assert set(response.json()) == {"detail"}
 
 
 def test_unsupported_scenario_has_stable_error_category() -> None:

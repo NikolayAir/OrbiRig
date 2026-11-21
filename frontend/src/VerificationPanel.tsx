@@ -1,6 +1,7 @@
 import type { RefObject, SubmitEvent } from "react";
 import { LoadExampleButton } from "./LoadExampleButton";
 import { EvidenceRequestSizeError, RequestError } from "./RequestFeedback";
+import { downloadVerifiedExecutionEvidence } from "./downloadEvidence";
 import { describedBy, preventRepeatedRequestAction } from "./formHelpers";
 import type { FeedbackTargets } from "./useWorkflowFeedback";
 
@@ -62,10 +63,11 @@ export function VerificationPanel({
     cancelRef: verificationCancelRef,
   } = feedback;
   const verificationRequiredErrors = { ...errors };
-  if (verification.kind === "validation-failure" && verification.code === "invalid_execution_metadata") {
-    if (verification.field === "execution_id") verificationRequiredErrors.executionId = verification.message ?? "Execution ID must be non-blank text without surrogate code points.";
-    if (verification.field === "executed_at") verificationRequiredErrors.executedAt = verification.message ?? "Enter a valid UTC date and time.";
-  }
+  const metadataError = verification.kind === "validation-failure" && verification.code === "invalid_execution_metadata"
+    ? verification
+    : undefined;
+  if (metadataError?.field === "execution_id") verificationRequiredErrors.executionId = metadataError.message ?? "Execution ID must be non-blank text without surrogate code points.";
+  if (metadataError?.field === "executed_at") verificationRequiredErrors.executedAt = metadataError.message ?? "Enter a valid UTC date and time.";
   // A completed result already belongs to these inputs: the same check would repeat it exactly.
   const completed = verification.kind === "completed";
   const actionStatus = completed ? "Verification completed."
@@ -149,12 +151,17 @@ export function VerificationPanel({
           </div>
 
           <div className="form-field">
-            <label htmlFor="verification-executed-at">Execution time (UTC)</label>
+            <div className="field-label">
+              <label htmlFor="verification-executed-at">Execution time (UTC)</label>
+              <FieldHelp control={fieldHelp.executedAt} label="Execution time (UTC)" helpId="execution-time-help-description">
+                Enter the UTC time when the command ran, for example <code>2026-10-21T10:00:00Z</code>.
+              </FieldHelp>
+            </div>
             <input
               id="verification-executed-at"
               ref={executedAtInputRef}
               aria-describedby={describedBy(
-                "verification-executed-at-hint",
+                "execution-time-help-description",
                 verificationRequiredErrors.executedAt ? "verification-executed-at-error" : undefined,
               )}
               aria-invalid={
@@ -165,9 +172,6 @@ export function VerificationPanel({
               onChange={(event) => onInputChange("executedAt", event.target.value)}
               required
             />
-            <p id="verification-executed-at-hint" className="field-hint">
-              Use the time the command ran, for example <code>2026-10-21T10:00:00Z</code>.
-            </p>
             {verificationRequiredErrors.executedAt && (
               <p
                 className="field-error"
@@ -178,48 +182,48 @@ export function VerificationPanel({
               </p>
             )}
           </div>
-        </div>
 
-        <div className="form-field">
-          <div className="field-label">
-            <label htmlFor="verification-scenario">Scenario</label>
-            <FieldHelp control={fieldHelp.scenario} label="Scenario" helpId="scenario-help-description">
-              Choose what you expect the command to do. The rejection scenario covers a request
-              for NOMINAL when the mode is already NOMINAL.
-            </FieldHelp>
-          </div>
-          <select
-            id="verification-scenario"
-            ref={scenarioInputRef}
-            aria-describedby={describedBy(
-              "scenario-help-description",
-              verificationRequiredErrors.scenarioId
-                ? "verification-scenario-error"
-                : undefined,
-            )}
-            aria-invalid={
-              verificationRequiredErrors.scenarioId ? true : undefined
-            }
-            value={scenarioId}
-            onChange={(event) => onInputChange("scenarioId", event.target.value as ScenarioId | "")}
-            required
-          >
-            <option value="">Select a supported scenario</option>
-            {SUPPORTED_SCENARIOS.map((scenario) => (
-              <option key={scenario.value} value={scenario.value}>
-                {scenario.label}
-              </option>
-            ))}
-          </select>
-          {verificationRequiredErrors.scenarioId && (
-            <p
-              className="field-error"
-              id="verification-scenario-error"
-              role="alert"
+          <div className="form-field">
+            <div className="field-label">
+              <label htmlFor="verification-scenario">Scenario</label>
+              <FieldHelp control={fieldHelp.scenario} label="Scenario" helpId="scenario-help-description">
+                Choose what you expect the command to do. The rejection scenario covers a request
+                for NOMINAL when the mode is already NOMINAL.
+              </FieldHelp>
+            </div>
+            <select
+              id="verification-scenario"
+              ref={scenarioInputRef}
+              aria-describedby={describedBy(
+                "scenario-help-description",
+                verificationRequiredErrors.scenarioId
+                  ? "verification-scenario-error"
+                  : undefined,
+              )}
+              aria-invalid={
+                verificationRequiredErrors.scenarioId ? true : undefined
+              }
+              value={scenarioId}
+              onChange={(event) => onInputChange("scenarioId", event.target.value as ScenarioId | "")}
+              required
             >
-              {verificationRequiredErrors.scenarioId}
-            </p>
-          )}
+              <option value="">Select a supported scenario</option>
+              {SUPPORTED_SCENARIOS.map((scenario) => (
+                <option key={scenario.value} value={scenario.value}>
+                  {scenario.label}
+                </option>
+              ))}
+            </select>
+            {verificationRequiredErrors.scenarioId && (
+              <p
+                className="field-error"
+                id="verification-scenario-error"
+                role="alert"
+              >
+                {verificationRequiredErrors.scenarioId}
+              </p>
+            )}
+          </div>
         </div>
       </fieldset>
 
@@ -294,7 +298,10 @@ export function VerificationPanel({
       {verification.kind === "request-too-large" && <EvidenceRequestSizeError />}
 
       {verification.kind === "validation-failure" && (
-        <RequestError title="Input error" guidance={VERIFICATION_ERROR_GUIDANCE[verification.code]}>
+        <RequestError
+          title="Input error"
+          guidance={metadataError?.field && metadataError.message ? undefined : VERIFICATION_ERROR_GUIDANCE[verification.code]}
+        >
           {verification.message ?? VERIFICATION_ERROR_MESSAGES[verification.code]}
         </RequestError>
       )}
@@ -311,6 +318,16 @@ export function VerificationPanel({
         <VerifiedExecutionDetails
           record={verification.record}
           headingId="verified-observation-result"
+          // Editing an input clears the completed result and its download action.
+          actions={
+            <button
+              type="button"
+              className="secondary-action"
+              onClick={() => downloadVerifiedExecutionEvidence(verification.evidenceJson)}
+            >
+              Download result JSON
+            </button>
+          }
         />
       )}
     </div>

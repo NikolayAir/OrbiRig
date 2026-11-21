@@ -148,15 +148,19 @@ for (const width of [320, 1280]) {
     // Use a wide font on every platform: narrower system fonts can hide a split label.
     await page.addStyleTag({ content: ':root { font-family: Verdana, "DejaVu Sans", sans-serif; font-size: 200%; }' });
     await page.getByLabel("Observation evidence JSON", { exact: true }).fill(failed);
-    await page.locator("button[type=submit]").click();
+    const verify = page.getByRole("button", { name: "Verify observation", exact: true });
+    await verify.click();
     await expect(page.locator(".outcome-badge").filter({ hasText: "Verification outcome: FAIL" })).toBeVisible();
     await expect(page.locator(".action-status")).toHaveText("Verification completed.");
     await testInfo.attach("completed-fail", { body: await page.locator("#verification-workflow").screenshot(), contentType: "image/png" });
     await page.getByLabel("Execution ID", { exact: true }).fill("edited");
     await expect(page.locator(".action-status")).toHaveText(verificationChanged);
     const actions = page.locator(".form-actions");
+    // Leave the edited field before measuring the action row. Firefox can
+    // scroll back to the focused field after the test scrolls to the row.
+    await verify.focus();
     await actions.scrollIntoViewIfNeeded();
-    await expect(page.getByRole("button", { name: "Verify observation", exact: true })).toBeInViewport();
+    await expect(verify).toBeInViewport();
     await expect(page.locator(".action-status")).toBeInViewport();
     for (const element of await actions.locator("button, p").all()) {
       expect(await element.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
