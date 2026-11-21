@@ -375,7 +375,7 @@ for (const { width, height, textScale, columns } of [
     const tabKey = browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab";
     const dialogWidth = (await help.boundingBox())!.width;
     expect(dialogWidth).toBeLessThanOrEqual(width - 30);
-    if (width >= 1440 && textScale === 100) expect(dialogWidth).toBeCloseTo(1136, 0);
+    if (width >= 1440 && textScale === 100) expect(dialogWidth).toBeCloseTo(1281, 0);
 
     for (const [tab, count] of [["Verify observation", 2], ["Inspect evidence", 3]] as const) {
       await help.getByRole("tab", { name: tab, exact: true }).click();

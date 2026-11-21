@@ -23,6 +23,7 @@ async function recordNextClick(input: Locator) {
 }
 
 for (const viewport of [
+  { width: 2560, height: 1440 },
   { width: 1440, height: 900 },
   { width: 1366, height: 768 },
   { width: 1280, height: 800 },
@@ -49,7 +50,7 @@ for (const viewport of [
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(viewport.width);
     const appBounds = (await page.locator("main").boundingBox())!;
-    expect(appBounds.width).toBe(Math.min(viewport.width, 1280));
+    expect(appBounds.width).toBe(Math.min(viewport.width, 1448));
     const executionId = page.getByLabel("Execution ID", { exact: true });
     const editor = page.getByLabel("Observation evidence JSON", { exact: true });
     const action = page.getByRole("button", { name: "Verify observation", exact: true });

@@ -642,7 +642,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                   Exit code <code>0</code> means <strong>PASS</strong>, while <code>1</code> means
                   verification completed with <strong>FAIL</strong>. Invalid input returns <code>2</code>,
                   file or output errors return <code>3</code>, and unexpected internal
-                  errors <span className="keep-together">return <code>4</code></span>.
+                  errors return <code>4</code>.
                 </p>
                 <p>
                   <DocLink href={LINKS.cli}>CLI setup and full instructions</DocLink>
