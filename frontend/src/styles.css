@@ -622,6 +622,11 @@ button {
   padding: clamp(1.25rem, 3vw, 2rem);
 }
 
+#verification-workflow {
+  container: observation-form / inline-size;
+  padding-block-start: 1.25rem;
+}
+
 .workflow-heading {
   align-items: flex-start;
   border-bottom: 1px solid var(--line);
@@ -635,6 +640,31 @@ button {
 .workflow-heading > h2 {
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+#verification-workflow .workflow-heading {
+  align-items: center;
+  flex-flow: row wrap;
+  gap: 0.75rem 1.5rem;
+}
+
+#verification-workflow .workflow-heading > h2 {
+  /* Keep whole words on very narrow panels with enlarged text. */
+  font-size: min(1.35rem, 14cqi);
+}
+
+#verification-workflow .example-actions {
+  justify-content: flex-start;
+  max-width: 100%;
+}
+
+#verification-workflow .example-action > button {
+  padding-inline: min(1rem, 4cqi);
+}
+
+#verification-workflow .example-action.field-help [role="tooltip"] {
+  /* Keep wrapped actions' tooltips inside the panel's outer padding. */
+  max-width: min(17rem, calc(100% + 1rem));
 }
 
 .workflow-heading p {
@@ -743,8 +773,8 @@ legend {
 
 .metadata-fields {
   display: grid;
-  gap: 1.25rem;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.875rem 1.25rem;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .form-field {
@@ -766,6 +796,82 @@ legend {
 
 .metadata-fields > .form-field {
   margin-top: 0;
+}
+
+.metadata-fields .field-hint {
+  margin-block-end: 0;
+}
+
+.metadata-fields .field-hint code {
+  display: inline-block;
+  max-inline-size: 100%;
+}
+
+.verification-evidence .evidence-input {
+  margin-block-start: 1rem;
+  padding-block-start: 0.75rem;
+}
+
+.verification-evidence .form-actions {
+  border-top: 0;
+  margin-top: 1rem;
+  padding-top: 0;
+}
+
+/* Pair the first two fields only at intermediate widths. The upper limit keeps
+ * metadata stacked when a wide window reflows for enlarged text. */
+@container observation-form (38rem <= width < 75rem) and (width < 1200px) {
+  .metadata-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .metadata-fields > :last-child {
+    grid-column: 1 / -1;
+  }
+
+  /* Match the label rows that also contain a 44px help target. */
+  .metadata-fields > .form-field > label {
+    align-items: center;
+    display: flex;
+    margin-bottom: 0.4rem;
+    min-block-size: 2.75rem;
+  }
+}
+
+@container observation-form (min-width: 38rem) {
+  .verification-evidence .form-actions {
+    justify-content: flex-end;
+  }
+
+  .verification-evidence .action-status {
+    flex: 0 1 auto;
+    order: -1;
+    text-align: right;
+  }
+}
+
+/* Allow about 31rem for the metadata and 42rem for the editor, plus the gap. */
+@container observation-form (min-width: 75rem) {
+  .verification-form {
+    align-items: start;
+    display: grid;
+    gap: 2rem;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
+  }
+
+  .verification-evidence .evidence-input {
+    border: 0;
+    margin: 0;
+    padding: 0;
+  }
+}
+
+@container observation-form (max-width: 9rem) {
+  /* Make room for inputs at large text sizes within the existing panel. */
+  #verification-workflow .workflow-heading,
+  #verification-workflow .verification-form {
+    margin-inline: clamp(-1rem, (100cqi - 9rem) / 2, 0px);
+  }
 }
 
 label {
@@ -1738,15 +1844,12 @@ a[target="_blank"] {
 }
 
 /*
- * Show controls beside the JSON editor only in wide windows.
- * Give JSON more width while leaving room for the input fields and evidence types.
+ * Place inspection evidence types beside the JSON editor in wide windows.
+ * Give the editor more width than the evidence types.
  * The 0 minimum in minmax(0, ...) lets columns shrink even when their content is long.
  */
 @media (min-width: 75rem) {
-  /*
-   * Wider fonts wrap the check flow onto a second line. Tighter spacing around the
-   * guidance links and the form panel keeps the action visible at 1440x900.
-   */
+  /* Tighten the shared guidance spacing when wider fonts wrap the check flow. */
   .workflow-help {
     margin-bottom: 0.75rem;
     padding-bottom: 0.5rem;
@@ -1756,7 +1859,6 @@ a[target="_blank"] {
     padding-top: 1.5rem;
   }
 
-  .verification-form,
   .inspection-form {
     align-items: start;
     display: grid;
@@ -1764,23 +1866,16 @@ a[target="_blank"] {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
   }
 
-  .verification-form .metadata-fields {
-    grid-template-columns: 1fr;
-  }
-
-  .verification-evidence,
   .inspection-evidence {
     min-width: 0;
   }
 
-  .verification-evidence .evidence-input,
   .inspection-evidence .evidence-input {
     border: 0;
     margin: 0;
     padding: 0;
   }
 
-  .verification-evidence .form-actions,
   .inspection-evidence .form-actions {
     border: 0;
     justify-content: flex-end;
@@ -1789,7 +1884,7 @@ a[target="_blank"] {
   }
 
   /* Keep the status beside the action so wide layouts stay shorter. */
-  .action-status {
+  .inspection-evidence .action-status {
     flex: 1 1 0;
     order: -1;
     text-align: right;
@@ -1831,7 +1926,6 @@ a[target="_blank"] {
   }
 
   .workflow-switcher,
-  .metadata-fields,
   .evidence-types {
     grid-template-columns: 1fr;
   }

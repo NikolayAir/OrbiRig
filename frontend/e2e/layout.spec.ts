@@ -22,6 +22,96 @@ async function recordNextClick(input: Locator) {
   });
 }
 
+for (const { width, layout } of [
+  { width: 320, layout: "stacked" },
+  { width: 390, layout: "stacked" },
+  { width: 600, layout: "stacked" },
+  { width: 768, layout: "paired" },
+  { width: 820, layout: "paired" },
+  { width: 1024, layout: "paired" },
+  { width: 1199, layout: "paired" },
+  { width: 1200, layout: "paired" },
+  { width: 1280, layout: "paired" },
+  { width: 1440, layout: "desktop" },
+  { width: 1600, layout: "desktop" },
+  { width: 1920, layout: "desktop" },
+]) for (const scale of [100, 200]) {
+  test(`verification fields stay in order at ${width}px with ${scale}% text`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/");
+    if (scale === 200) {
+      const font = width === 320 || width === 820 ? "monospace" : 'Verdana, "DejaVu Sans", sans-serif';
+      await page.addStyleTag({ content: `:root { font-size: 200%; font-family: ${font}; }` });
+    }
+    const panel = page.getByRole("region", { name: "Verify observation", exact: true });
+    const { id, time, scenario, metadata, editor, action, heading, examples, splitWords, pageWidth, rem } = await panel.evaluate(node => {
+      const bounds = (selector: string) => node.querySelector(selector)!.getBoundingClientRect().toJSON();
+      const labels = node.querySelectorAll(".workflow-heading h2, .example-action > button");
+      const splitWords = Array.from(labels).flatMap(element => {
+        const text = element.firstChild!;
+        const range = document.createRange();
+        return Array.from(text.textContent!.matchAll(/\S+/g)).filter(word => {
+          range.setStart(text, word.index);
+          range.setEnd(text, word.index + word[0].length);
+          return range.getClientRects().length > 1;
+        }).map(word => word[0]);
+      });
+      return {
+        id: bounds("#verification-execution-id"),
+        time: bounds("#verification-executed-at"),
+        scenario: bounds("#verification-scenario"),
+        metadata: bounds(".verification-inputs"),
+        editor: bounds("#verification-observation-evidence"),
+        action: bounds("button[type=submit]"),
+        heading: bounds(".workflow-heading h2"),
+        examples: bounds(".example-actions"),
+        splitWords,
+        pageWidth: document.documentElement.scrollWidth,
+        rem: parseFloat(getComputedStyle(document.documentElement).fontSize),
+      };
+    });
+    expect(pageWidth).toBe(width);
+    expect(splitWords).toEqual([]);
+    expect(action.top - editor.bottom).toBeGreaterThan(0);
+    expect(action.top - editor.bottom).toBeLessThanOrEqual(1.25 * rem);
+    expect(action.left).toBeGreaterThanOrEqual(editor.left);
+    expect(action.right).toBeLessThanOrEqual(editor.right + 0.5);
+
+    const expectedLayout = scale === 100 ? layout : "stacked";
+    if (expectedLayout === "desktop") {
+      expect(editor.left).toBeGreaterThan(metadata.right);
+      expect(editor.top).toBeCloseTo(id.top, 0);
+      expect(editor.width).toBeGreaterThan(metadata.width);
+      expect(action.right).toBeCloseTo(editor.right, 0);
+      expect(action.bottom).toBeLessThanOrEqual(900);
+    } else {
+      expect(editor.left).toBeCloseTo(metadata.left, 0);
+      expect(editor.right).toBeCloseTo(metadata.right, 0);
+      expect(editor.top).toBeGreaterThan(metadata.bottom);
+    }
+
+    if (expectedLayout === "paired") {
+      expect(time.top).toBeCloseTo(id.top, 0);
+      expect(time.left).toBeGreaterThan(id.right);
+    } else {
+      expect(time.top).toBeGreaterThan(id.bottom);
+      expect(time.left).toBeCloseTo(id.left, 0);
+    }
+    expect(scenario.top).toBeGreaterThan(time.bottom);
+    expect(scenario.left).toBeCloseTo(metadata.left, 0);
+    expect(scenario.right).toBeCloseTo(metadata.right, 0);
+
+    expect(heading.right <= examples.left || heading.bottom <= examples.top).toBe(true);
+    if (width === 768 && scale === 200) {
+      expect(examples.top).toBeGreaterThan(heading.bottom);
+      await panel.getByRole("button", { name: "Load failing example", exact: true }).hover();
+      const tooltip = panel.getByRole("tooltip");
+      await expect(tooltip).toBeVisible();
+      await expectWithinWidth(tooltip, width);
+    }
+  });
+}
+
 for (const viewport of [
   { width: 2560, height: 1440 },
   { width: 1440, height: 900 },
@@ -30,7 +120,9 @@ for (const viewport of [
   { width: 1200, height: 900 },
   { width: 1199, height: 900 },
   { width: 1024, height: 768 },
+  { width: 820, height: 1024 },
   { width: 768, height: 1024 },
+  { width: 600, height: 900 },
   { width: 390, height: 480 },
   { width: 320, height: 800 },
   { width: 320, height: 480 },
@@ -54,34 +146,10 @@ for (const viewport of [
     const executionId = page.getByLabel("Execution ID", { exact: true });
     const editor = page.getByLabel("Observation evidence JSON", { exact: true });
     const action = page.getByRole("button", { name: "Verify observation", exact: true });
-    const metadataBounds = (await page.locator(".verification-inputs").boundingBox())!;
     const editorBounds = (await editor.boundingBox())!;
     const actionBounds = (await action.boundingBox())!;
     expect(editorBounds.height).toBeGreaterThanOrEqual(176);
     expect(actionBounds.y).toBeGreaterThanOrEqual(editorBounds.y + editorBounds.height);
-    if (viewport.width >= 1200) {
-      const firstLabel = (await page.locator('label[for="verification-execution-id"]').boundingBox())!;
-      const evidenceLabel = (await page.locator('label[for="verification-observation-evidence"]').boundingBox())!;
-      expect(firstLabel.y).toBeCloseTo(evidenceLabel.y, 0);
-      expect(actionBounds.x + actionBounds.width).toBeCloseTo(editorBounds.x + editorBounds.width, 0);
-      expect(actionBounds.width).toBeLessThan(editorBounds.width);
-      expect(actionBounds.y - (editorBounds.y + editorBounds.height)).toBeCloseTo(16, 0);
-      expect(editorBounds.x).toBeGreaterThan(metadataBounds.x + metadataBounds.width);
-      expect(editorBounds.y).toBeLessThan(metadataBounds.y + metadataBounds.height);
-      expect(editorBounds.width).toBeGreaterThanOrEqual(580);
-      expect(editorBounds.width / metadataBounds.width).toBeCloseTo(1.35, 1);
-      const idBounds = (await executionId.boundingBox())!;
-      const timeBounds = (await page.getByLabel("Execution time (UTC)", { exact: true }).boundingBox())!;
-      expect(timeBounds.y).toBeGreaterThan(idBounds.y + idBounds.height);
-      if (viewport.width >= 1280 && viewport.height >= 900) {
-        expect(actionBounds.y + actionBounds.height).toBeLessThanOrEqual(viewport.height);
-      }
-    } else {
-      expect(actionBounds.x).toBeCloseTo(editorBounds.x, 0);
-      expect(editorBounds.x).toBeCloseTo(metadataBounds.x, 0);
-      expect(editorBounds.width).toBeCloseTo(metadataBounds.width, 0);
-      expect(editorBounds.y).toBeGreaterThan(metadataBounds.y + metadataBounds.height);
-    }
     for (const name of ["About Execution ID", "About Scenario", "About Observation evidence JSON"]) {
       await page.getByRole("button", { name, exact: true }).focus();
       const tooltip = page.getByRole("tooltip");
@@ -126,6 +194,8 @@ for (const viewport of [
 
     const result = page.getByRole("region", { name: "Verified execution", exact: true });
     await expect(result.locator(".outcome-badge").filter({ hasText: "Verification outcome: FAIL" })).toBeInViewport();
+    const completedForm = (await page.locator(".verification-form").boundingBox())!;
+    expect((await result.boundingBox())!.y).toBeGreaterThan(completedForm.y + completedForm.height);
     await expect(result.getByText(longId, { exact: true })).toBeVisible();
     await expect(result.getByText("Verification result", { exact: true })).toBeVisible();
     const postState = result.getByRole("listitem").filter({ has: page.getByText("post_state_matches_requested_mode", { exact: true }) });
@@ -268,6 +338,8 @@ for (const viewport of [
     const result = page.getByRole("region", { name: "Verified execution", exact: true });
     await expect(result.locator(".outcome-badge").filter({ hasText: "Verification outcome: PASS" })).toBeInViewport();
     await expect(result.getByRole("heading", { name: "Verified execution", exact: true })).toBeFocused();
+    const completedForm = (await page.locator(".verification-form").boundingBox())!;
+    expect((await result.boundingBox())!.y).toBeGreaterThan(completedForm.y + completedForm.height);
   });
 }
 

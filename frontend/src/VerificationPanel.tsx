@@ -180,48 +180,48 @@ export function VerificationPanel({
               </p>
             )}
           </div>
-        </div>
 
-        <div className="form-field">
-          <div className="field-label">
-            <label htmlFor="verification-scenario">Scenario</label>
-            <FieldHelp control={fieldHelp.scenario} label="Scenario" helpId="scenario-help-description">
-              Choose what you expect the command to do. The rejection scenario covers a request
-              for NOMINAL when the mode is already NOMINAL.
-            </FieldHelp>
-          </div>
-          <select
-            id="verification-scenario"
-            ref={scenarioInputRef}
-            aria-describedby={describedBy(
-              "scenario-help-description",
-              verificationRequiredErrors.scenarioId
-                ? "verification-scenario-error"
-                : undefined,
-            )}
-            aria-invalid={
-              verificationRequiredErrors.scenarioId ? true : undefined
-            }
-            value={scenarioId}
-            onChange={(event) => onInputChange("scenarioId", event.target.value as ScenarioId | "")}
-            required
-          >
-            <option value="">Select a supported scenario</option>
-            {SUPPORTED_SCENARIOS.map((scenario) => (
-              <option key={scenario.value} value={scenario.value}>
-                {scenario.label}
-              </option>
-            ))}
-          </select>
-          {verificationRequiredErrors.scenarioId && (
-            <p
-              className="field-error"
-              id="verification-scenario-error"
-              role="alert"
+          <div className="form-field">
+            <div className="field-label">
+              <label htmlFor="verification-scenario">Scenario</label>
+              <FieldHelp control={fieldHelp.scenario} label="Scenario" helpId="scenario-help-description">
+                Choose what you expect the command to do. The rejection scenario covers a request
+                for NOMINAL when the mode is already NOMINAL.
+              </FieldHelp>
+            </div>
+            <select
+              id="verification-scenario"
+              ref={scenarioInputRef}
+              aria-describedby={describedBy(
+                "scenario-help-description",
+                verificationRequiredErrors.scenarioId
+                  ? "verification-scenario-error"
+                  : undefined,
+              )}
+              aria-invalid={
+                verificationRequiredErrors.scenarioId ? true : undefined
+              }
+              value={scenarioId}
+              onChange={(event) => onInputChange("scenarioId", event.target.value as ScenarioId | "")}
+              required
             >
-              {verificationRequiredErrors.scenarioId}
-            </p>
-          )}
+              <option value="">Select a supported scenario</option>
+              {SUPPORTED_SCENARIOS.map((scenario) => (
+                <option key={scenario.value} value={scenario.value}>
+                  {scenario.label}
+                </option>
+              ))}
+            </select>
+            {verificationRequiredErrors.scenarioId && (
+              <p
+                className="field-error"
+                id="verification-scenario-error"
+                role="alert"
+              >
+                {verificationRequiredErrors.scenarioId}
+              </p>
+            )}
+          </div>
         </div>
       </fieldset>
 
