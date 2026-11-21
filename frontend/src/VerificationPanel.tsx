@@ -246,6 +246,7 @@ export function VerificationPanel({
                 ? true
                 : undefined
             }
+            placeholder="Paste observation JSON here…"
             value={observationEvidence}
             onChange={(event) => onInputChange("observationEvidence", event.target.value)}
             disabled={verification.kind === "loading"}

@@ -60,6 +60,9 @@ describe("App verification", () => {
     expect(executedAt).toHaveAccessibleDescription(
       "Use the time the command ran, for example 2026-10-21T10:00:00Z.",
     );
+    const observationEvidence = screen.getByLabelText("Observation evidence JSON");
+    expect(observationEvidence).toHaveValue("");
+    expect(observationEvidence).toHaveAttribute("placeholder", "Paste observation JSON here…");
     expect(screen.queryByLabelText("Evidence JSON")).not.toBeInTheDocument();
   });
 
