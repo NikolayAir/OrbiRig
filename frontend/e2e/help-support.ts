@@ -54,3 +54,16 @@ export async function sectionPosition(details: Locator) {
     };
   });
 }
+
+export async function expectBottomClearance(details: Locator, atEnd = false) {
+  const { below, scrollTop, maxScrollTop } = await sectionPosition(details);
+  if (atEnd) {
+    // The scroll limit and the rendered content edge can round by up to a pixel.
+    expect(Math.abs(below - 20)).toBeLessThanOrEqual(1);
+    expect(maxScrollTop).toBeGreaterThan(0);
+    expect(Math.abs(scrollTop - maxScrollTop)).toBeLessThanOrEqual(1);
+  } else {
+    expect(below).toBeGreaterThanOrEqual(23.5);
+    expect(below).toBeLessThanOrEqual(25.5);
+  }
+}

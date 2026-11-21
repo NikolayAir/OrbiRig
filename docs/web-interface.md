@@ -2,7 +2,7 @@
 
 In the [OrbiRig web interface](https://orbirig-evidence-inspector.onrender.com/), use **Verify observation** to check a recorded command result against a **scenario**, the behaviour you expect. Use **Inspect evidence** to review an **evidence** document, which is JSON containing an observation or saved verification results. Both workflows use recorded data.
 
-The browser sends JSON to the server for checking. Use sample data that contains no private information on the public site.
+The browser sends submitted JSON to the server for checking. On the public site, use only non-sensitive example data.
 
 ## Verify an observation
 
@@ -66,7 +66,9 @@ Under **How it works**, choose **In the browser** or **From the command line**. 
 
 The guide keeps one section open at a time. Switching tabs or workflows, or reopening the guide, starts with the sections closed.
 
-Opening a section scrolls only as far as needed. The guide shows the full section if it fits and starts at its heading if it is too long. When there is room, it also shows the next heading. If the browser opens a section to reveal a search match, the guide keeps the match in view. Closing a section can shorten the scroll area. The browser may then move to the last available scroll position.
+Opening a section scrolls only as far as needed. If the full section fits, the guide shows it, along with the next heading if that fits too. Where possible, it leaves some space below the section or the next heading. A longer section starts at its heading.
+
+If the browser opens a section to reveal a search match, the guide keeps the match in view. Closing a section can shorten the scroll area. The browser may then move to the last available scroll position.
 
 If resizing changes which area scrolls while a section is open, the guide brings the section heading into view. A control with visible keyboard focus in the scrolling area takes priority.
 
@@ -117,7 +119,7 @@ uv run --no-sync python -m uvicorn orbirig.web:app
 
 Open <http://127.0.0.1:8000>. The build writes assets to the ignored `src/orbirig/static` directory. Python wheels and source distributions do not bundle those assets, so the complete interface requires this checkout-based build.
 
-FastAPI checks for `index.html` and the `assets` directory at startup. If either is missing, the API remains available and frontend URLs return `404`. A missing favicon returns `404` for `/favicon.png` without preventing the interface from loading. After rebuilding the frontend, restart FastAPI to serve the new files.
+FastAPI checks for `index.html` and the `assets` directory at startup. If either is missing, the API remains available and frontend URLs return `404`. The header and browser tab use the same SVG mark. `/favicon.png` supplies a transparent fallback for browsers that lack SVG favicon support, such as Safari before version 26. After rebuilding the frontend, restart FastAPI to serve the new files.
 
 The build uses [Vite 8's default browser targets](https://v8.vite.dev/guide/build#browser-compatibility): Chrome/Edge 111, Firefox 114 and Safari 16.4. These settings control generated code. Automated browser coverage and its limits are described in [Browser tests](../CONTRIBUTING.md#browser-tests).
 

@@ -76,15 +76,49 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/");
 });
 
-test("page identity loads the product mark alongside its name", async ({ page }) => {
+test("page identity shows the product name and mark", async ({ page }) => {
   await expect(page.locator(".brand")).toHaveText("OrbiRig");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "Check recorded command results",
   );
   const mark = page.locator(".brand img");
+  const icon = page.locator('link[rel="icon"][type="image/svg+xml"]');
+  await expect(icon).toHaveAttribute("href", "/assets/orbirig-mark.svg?v=2");
+  await expect(mark).toHaveAttribute("src", "/assets/orbirig-mark.svg#header");
   await expect(mark).toHaveAttribute("alt", "");
   await expect(mark).toHaveJSProperty("complete", true);
   expect(await mark.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThanOrEqual(40);
+});
+
+test("favicons use the canvas width and keep transparent corners", async ({ page }) => {
+  for (const type of ["image/svg+xml", "image/png"]) {
+    const icon = page.locator(`link[rel="icon"][type="${type}"]`);
+    const samples = await icon.evaluate(async (link: HTMLLinkElement) => {
+      const image = new Image();
+      image.src = link.href;
+      await image.decode();
+
+      return [16, 32].map(size => {
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = size;
+        const context = canvas.getContext("2d")!;
+        context.drawImage(image, 0, 0, size, size);
+        const { data } = context.getImageData(0, 0, size, size);
+        const columns = new Set<number>();
+        // Ignore faint antialiasing when measuring the visible width.
+        for (let pixel = 0; pixel < size * size; pixel++) {
+          if (data[4 * pixel + 3] >= 128) columns.add(pixel % size);
+        }
+        const corners = [0, size - 1, size * (size - 1), size * size - 1];
+        const transparent = corners.every(pixel => data[4 * pixel + 3] === 0);
+        return { size, width: columns.size, transparent };
+      });
+    });
+    for (const { size, width, transparent } of samples) {
+      expect(width, `${size}px ${type} mark width`).toBeGreaterThanOrEqual(size - 1);
+      expect(transparent, `${size}px ${type} corners`).toBe(true);
+    }
+  }
 });
 
 test("keyboard workflow selection stays separate from help and preserves edited input", async ({ page, browserName }) => {
@@ -198,7 +232,8 @@ for (const viewport of [
       expect(await activePanel.evaluate((element) => element.scrollTop)).toBe(0);
       const firstParagraph = help.locator(".workflow-help-content > p").first();
       await expect(firstParagraph).toBeInViewport();
-      expect(await chooser.evaluate((element) => element.getBoundingClientRect().top + window.scrollY)).toBe(chooserTop);
+      // Adding the scroll offset back to a fractional viewport position can round differently.
+      expect(await chooser.evaluate((element) => element.getBoundingClientRect().top + window.scrollY)).toBeCloseTo(chooserTop, 2);
       expect(await page.evaluate(() => window.scrollY)).toBe(initialScrollY);
       expect(await help.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
       expect(await activePanel.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
@@ -228,7 +263,9 @@ for (const viewport of [
       if (guide === "In the browser") {
         const webScope = help.getByText(/^An observation records the command/);
         await expect(webScope).toContainText("telemetry, a separate report of the mode");
-        await expect(help.getByText(/^For verification, choose the scenario/)).toContainText("The browser uses recorded data.");
+        await expect(help.getByText(/^For verification, choose the scenario/)).toHaveText(
+          /For inspection, provide the saved JSON document \(evidence\) you want to check\.$/,
+        );
         await webScope.scrollIntoViewIfNeeded();
         await expect(webScope).toBeInViewport();
         await expect(help.getByRole("tab", { name: "Verify observation", selected: true })).toBeVisible();
@@ -237,7 +274,7 @@ for (const viewport of [
         await expect(help.getByRole("tabpanel", { name: "Verify observation" })).toBeHidden();
         await expect(help.getByRole("tabpanel", { name: "Inspect evidence" })).toBeVisible();
         await expect(help.getByRole("region", { name: "CLI verification command" })).toHaveCount(0);
-        await expect(help.getByText(/^The command line checks an observation/)).toHaveCount(0);
+        await expect(help.getByText(/^The command line verifies an observation/)).toHaveCount(0);
         await help.getByRole("tabpanel", { name: "Inspect evidence" }).locator(".workflow-help-reference summary").click();
         await expect(help.getByRole("link")).toHaveCount(3);
         const browserTabs = help.getByRole("tablist", { name: "Browser instructions" });
@@ -401,7 +438,7 @@ for (const viewport of [
       await otherHelp.getByRole("button", { name: "Close", exact: true }).click();
       await expect(otherHelp).toBeHidden();
       await expect(otherTrigger).toBeFocused();
-      expect(await chooser.evaluate((element) => element.getBoundingClientRect().top + window.scrollY)).toBe(chooserTop);
+      expect(await chooser.evaluate((element) => element.getBoundingClientRect().top + window.scrollY)).toBeCloseTo(chooserTop, 2);
     });
   }
 }

@@ -252,14 +252,16 @@ describe("App help", () => {
     );
     expect(guidance.getByRole("tabpanel", { name: "In the browser" }).querySelector("p"))
       .toBe(browserPanel.getByText(/^An observation records the command/));
-    expect(browserPanel.queryByText(/^The command line checks an observation/)).not.toBeInTheDocument();
-    expect(guidance.getByText(/^For verification, choose the scenario/)).toHaveTextContent("The browser uses recorded data.");
+    expect(browserPanel.queryByText(/^The command line verifies an observation/)).not.toBeInTheDocument();
+    expect(browserPanel.getByText(/^For verification, choose the scenario/)).toHaveTextContent(
+      /For inspection, provide the saved JSON document \(evidence\) you want to check\.$/,
+    );
     expect(guidance.getByText(/^To try a sample/)).toHaveTextContent("choose Load example or Load failing example, then Verify observation.");
     expect(guidance.getByText(/means the recorded behaviour matches/)).toHaveTextContent(
       "PASS means the recorded behaviour matches the selected scenario. This can include a rejected command if rejection was expected.",
     );
     expect(guidance.getByText(/means the observation is valid/)).toHaveTextContent(
-      "FAIL means the observation is valid, but one or more verification checks do not meet their expectations. Invalid input, including a command that does not match the selected scenario, is reported as an error instead of FAIL.",
+      "FAIL means the observation is valid, but one or more verification checks do not meet their expectations. Invalid input is reported as an error, not as a FAIL result.",
     );
     expect(guidance.getByText(/^After a completed result/)).toHaveTextContent(
       "After a completed result, change an input to run Verify observation again. This clears the previous result.",
@@ -304,7 +306,8 @@ describe("App help", () => {
     fireEvent.click(summary);
 
     expect(link).toBeVisible();
-    expect(details).toHaveTextContent("You can use the Python API to verify command responses from an independent C#/.NET program against a scenario you choose.");
+    expect(within(details).getByText("You can use the Python API to verify command responses from an independent C#/.NET program against a scenario you choose.")).toBeVisible();
+    expect(within(details).getByText("The API starts a new process for each command. The same state file keeps the operating mode between runs.")).toBeVisible();
     const outcomes = within(details).getAllByRole("listitem");
     expect(outcomes).toHaveLength(3);
     expect(outcomes[0]).toHaveTextContent(/Round trip.*PASS.*second run starts in the mode the first one left/);
@@ -474,7 +477,7 @@ describe("App help", () => {
       return { dialog, panel, summary, followingHeading, details: summary.closest("details")! };
     }
 
-    it("scrolls the content panel just far enough to show a section that fits", () => {
+    it("scrolls the content panel just far enough to show a section with clearance", () => {
       const { panel, summary, followingHeading, details } = openExample();
       const pageScroll = vi.spyOn(window, "scrollTo");
       placeAt(panel, { top: 100, height: 400 });
@@ -485,11 +488,11 @@ describe("App help", () => {
 
       fireEvent.click(summary);
 
-      // The section ends 250px below the visible area, so the panel moves by that distance.
-      expect(panel.scrollTop).toBe(290);
+      // The section ends 250px below the visible area and needs another 24px of clearance.
+      expect(panel.scrollTop).toBe(314);
       // Closing it leaves the position alone.
       fireEvent.click(summary);
-      expect(panel.scrollTop).toBe(290);
+      expect(panel.scrollTop).toBe(314);
       expect(pageScroll).not.toHaveBeenCalled();
       expect(scrollIntoViewMock).not.toHaveBeenCalled();
     });
@@ -560,11 +563,11 @@ describe("App help", () => {
       "How it works",
     ]);
     const cliPanel = within(guidance.getByRole("tabpanel", { name: "From the command line" }));
-    expect(cliPanel.getByText(/^The command line checks an observation/)).toHaveTextContent(
-      "To try the example, open a terminal in the OrbiRig repository. Run uv sync --locked to install OrbiRig, then run the verification command.",
+    expect(cliPanel.getByText(/^To try the example, open a terminal/)).toHaveTextContent(
+      "To try the example, open a terminal in the OrbiRig repository root and run uv sync --locked to install OrbiRig. Then run the verification command:",
     );
     expect(guidance.getByRole("tabpanel", { name: "From the command line" }).querySelector("p"))
-      .toBe(cliPanel.getByText(/^The command line checks an observation/));
+      .toBe(cliPanel.getByText("The command line verifies an observation stored in a local JSON file."));
     expect(cliPanel.queryByText(/^An observation records the command/)).not.toBeInTheDocument();
     expect(command).toHaveAttribute("tabindex", "0");
     expect(command.querySelector("code")?.textContent).toBe([
@@ -573,8 +576,11 @@ describe("App help", () => {
       "  --execution-id demo-001 \\",
       "  --executed-at 2026-10-21T10:00:00Z",
     ].join("\n"));
-    expect(guidance.getByText(/The execution ID and UTC timestamp/)).toHaveTextContent(
-      "For your own recorded execution, use the path to your UTF-8 observation JSON file, choose the scenario you want to check and enter the command's ID and time.",
+    const ownObservation = cliPanel.getByText(/^To verify your own observation/);
+    expect(ownObservation).toBeVisible();
+    expect(ownObservation).toHaveTextContent(
+      "To verify your own observation, provide the path to its UTF-8 JSON file and choose the scenario to check. " +
+      "Choose an execution ID for the run and use the command's execution time in UTC.",
     );
     expect(guidance.getByText(/The command prints JSON evidence/)).toHaveTextContent(
       "The command prints JSON evidence containing the individual checks and overall PASS or FAIL result.",
@@ -591,7 +597,7 @@ describe("App help", () => {
     const section = summary.closest("details")!;
 
     // Setup, the command and the output summary are outside expandable sections.
-    expect(cli.getByText(/^The command line checks an observation/)).toBeVisible();
+    expect(cli.getByText(/^To try the example, open a terminal/)).toBeVisible();
     expect(cli.getByRole("region", { name: "CLI verification command" })).toBeVisible();
     const output = cli.getByText(/The command prints JSON evidence/);
     expect(output).toBeVisible();

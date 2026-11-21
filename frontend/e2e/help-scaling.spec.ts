@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-import { expectFocusedControlFullyVisible, sectionPosition } from "./help-support";
+import { expectBottomClearance, expectFocusedControlFullyVisible, sectionPosition } from "./help-support";
 
 const SECTIONS = [
   { guide: "In the browser", workflow: "Verify observation", title: "When a command returns no result" },
@@ -80,9 +80,56 @@ for (const { width, height, textScale } of [
   }
 }
 
-for (const { guide, width, height, textScale, scrollWhole, fit, largeTitle } of [
-  { guide: "browser", width: 1440, height: 900, textScale: 100, scrollWhole: false, fit: "both" },
-  { guide: "cli", width: 390, height: 680, textScale: 100, scrollWhole: false, fit: "both" },
+test("collapsed browser and command-line help have the same bottom spacing", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "In the browser", exact: true }).click();
+  const help = page.getByRole("dialog", { name: "How it works" });
+  for (const tab of ["In the browser", "From the command line"]) {
+    await help.getByRole("tab", { name: tab, exact: true }).click();
+    const panel = help.getByRole("tabpanel", { name: tab });
+    await expect(panel.locator("details[open]")).toHaveCount(0);
+    const lastSection = await sectionPosition(panel.locator("details:visible").last());
+    expect(lastSection.maxScrollTop).toBe(0);
+    expect(lastSection.below).toBeCloseTo(28, 0);
+  }
+});
+
+test("a one-pixel increase in a short window keeps the help header visible", async ({ page }) => {
+  const width = 390;
+  await page.setViewportSize({ width, height: 480 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "From the command line", exact: true }).click();
+  const help = page.getByRole("dialog", { name: "How it works" });
+  const heading = help.locator("summary", { hasText: "Verify a C#/.NET program" });
+
+  // Leave just enough room for one line and the collapsed panel's padding.
+  const height = await heading.evaluate(node => {
+    const panel = node.closest(".workflow-help-content")!;
+    const { paddingTop, paddingBottom } = getComputedStyle(panel);
+    const outsidePanel = window.innerHeight - panel.getBoundingClientRect().height;
+    return Math.ceil(outsidePanel + node.getBoundingClientRect().height +
+      parseFloat(paddingTop) + parseFloat(paddingBottom)) + 1;
+  });
+  await page.setViewportSize({ width, height });
+  await expect(help).toHaveAttribute("data-scroll-whole", "false");
+  await page.keyboard.press("Tab");
+  await heading.press("Enter");
+  await expect(heading.locator("..")).toHaveAttribute("open", "");
+  await expectFocusedControlFullyVisible(heading);
+
+  await page.setViewportSize({ width, height: height + 1 });
+  // Let the resize observer run before checking which area scrolls.
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  await expect(help).toHaveAttribute("data-scroll-whole", "false");
+  await expect(help.getByRole("button", { name: "Close", exact: true })).toBeInViewport({ ratio: 1 });
+  await expectFocusedControlFullyVisible(heading);
+});
+
+for (const { guide, width, height, textScale, scrollWhole, fit, largeTitle, atEnd } of [
+  { guide: "browser", width: 1440, height: 880, textScale: 100, scrollWhole: false, fit: "both" },
+  { guide: "browser", width: 390, height: 960, textScale: 100, scrollWhole: false, fit: "both", atEnd: true },
+  { guide: "cli", width: 390, height: 680, textScale: 100, scrollWhole: false, fit: "both", atEnd: true },
   { guide: "cli", width: 1440, height: 1000, textScale: 200, scrollWhole: false, fit: "both" },
   { guide: "cli", width: 1440, height: 260, textScale: 100, scrollWhole: true, fit: "both", largeTitle: true },
   { guide: "cli", width: 1440, height: 200, textScale: 100, scrollWhole: true, fit: "section" },
@@ -115,11 +162,10 @@ for (const { guide, width, height, textScale, scrollWhole, fit, largeTitle } of 
     if (fit === "both") {
       expect(opened.below).toBeGreaterThanOrEqual(-1);
       await expect(following).toBeInViewport({ ratio: 1 });
-      // The following heading should only just enter the visible area.
-      expect((await sectionPosition(following.locator(".."))).below).toBeLessThanOrEqual(1.5);
+      await expectBottomClearance(following.locator(".."), atEnd);
     } else if (fit === "section") {
-      // Leave the whole open section in view with its usual margin.
-      expect(Math.abs(opened.below - opened.margin)).toBeLessThanOrEqual(1.5);
+      // The open section gets clearance even when the following heading cannot fit.
+      await expectBottomClearance(details);
       await expect(following).not.toBeInViewport({ ratio: 1 });
     } else {
       expect(Math.abs(opened.above - opened.margin)).toBeLessThanOrEqual(1.5);
@@ -128,8 +174,8 @@ for (const { guide, width, height, textScale, scrollWhole, fit, largeTitle } of 
   });
 }
 
-test("opening a help section by mouse scrolls just far enough to show the following heading", async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
+test("opening a help section by mouse leaves space below the following heading", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 880 });
   await page.goto("/");
   await page.getByRole("button", { name: "In the browser", exact: true }).click();
   const help = page.getByRole("dialog", { name: "How it works" });
@@ -142,7 +188,7 @@ test("opening a help section by mouse scrolls just far enough to show the follow
   await expect(details).toHaveAttribute("open", "");
   await expect(details).toBeInViewport({ ratio: 1 });
   await expect(following).toBeInViewport({ ratio: 1 });
-  expect((await sectionPosition(following.locator(".."))).below).toBeLessThanOrEqual(1.5);
+  await expectBottomClearance(following.locator(".."));
 });
 
 test("reveals the following help heading when there is room for the outline but not the usual margin", async ({ page }) => {
@@ -176,6 +222,7 @@ test("reveals the following help heading when there is room for the outline but 
   await expect(details).toHaveAttribute("open", "");
   await expectFocusedControlFullyVisible(heading);
   await expect(following).toBeInViewport({ ratio: 1 });
+  expect((await sectionPosition(following.locator(".."))).below).toBeLessThan(16);
 });
 
 test.describe("on a touch screen", () => {
@@ -375,7 +422,7 @@ for (const { width, height, textScale, columns } of [
     const tabKey = browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab";
     const dialogWidth = (await help.boundingBox())!.width;
     expect(dialogWidth).toBeLessThanOrEqual(width - 30);
-    if (width >= 1440 && textScale === 100) expect(dialogWidth).toBeCloseTo(1136, 0);
+    if (width >= 1440 && textScale === 100) expect(dialogWidth).toBeCloseTo(1281, 0);
 
     for (const [tab, count] of [["Verify observation", 2], ["Inspect evidence", 3]] as const) {
       await help.getByRole("tab", { name: tab, exact: true }).click();

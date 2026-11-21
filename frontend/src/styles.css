@@ -36,7 +36,7 @@ body {
 main {
   box-sizing: border-box;
   margin: 0 auto;
-  max-width: 80rem;
+  max-width: 90.5rem;
   overflow-wrap: anywhere; /* Long IDs and JSON values must not widen the page. */
   padding: 2rem 2rem 4rem;
 }
@@ -225,7 +225,7 @@ a.workflow-help-trigger {
   overscroll-behavior: contain;
   padding: 0;
   position: fixed;
-  width: min(71rem, calc(100% - 2rem));
+  width: min(80.0625rem, calc(100% - 2rem));
 }
 
 .workflow-help-dialog::backdrop {
@@ -340,10 +340,6 @@ a.workflow-help-trigger {
   box-shadow: inset 0 0 0 2px var(--focus);
   outline: 1px solid var(--focus-edge);
   outline-offset: -3px;
-}
-
-.keep-together {
-  white-space: nowrap;
 }
 
 .workflow-help-workflows {
@@ -468,8 +464,11 @@ a.workflow-help-trigger {
 .workflow-help-example {
   border-top: 1px solid var(--line);
   margin-top: 1.25rem;
-  margin-bottom: 1rem;
   padding-top: 1rem;
+}
+
+.workflow-help-example:not(:last-child) {
+  margin-bottom: 1rem;
 }
 
 .workflow-help-example summary {
@@ -1906,6 +1905,16 @@ a[target="_blank"] {
 
   .workflow-help-content {
     padding: 1rem;
+  }
+
+  /*
+   * Match minimumBottomClearance in helpSectionScroll.ts at the scroll limit.
+   * Changing panel padding would also affect the choice of scroll mode.
+   */
+  .workflow-help-content:has(details[open])::after {
+    content: "";
+    display: block;
+    height: max(0px, 20px - 1rem);
   }
 
   .continuity-boundary-fields {

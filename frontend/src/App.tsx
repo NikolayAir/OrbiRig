@@ -21,8 +21,6 @@ import type {
   Workflow,
 } from "./workflowTypes";
 
-const orbirigMark = new URL("./assets/orbirig-mark.png", import.meta.url).href;
-
 export function App() {
   const [activeWorkflow, setActiveWorkflow] = useState<Workflow>("verification");
   // Keep inputs and requests above the conditional panels. Switching tasks must
@@ -217,7 +215,7 @@ export function App() {
     <main>
       <header className="page-header">
         <p className="brand">
-          <img src={orbirigMark} width="40" height="40" alt="" />
+          <img src="/assets/orbirig-mark.svg#header" width="40" height="40" alt="" />
           <span>OrbiRig</span>
         </p>
         <h1>Check recorded command results</h1>
@@ -226,7 +224,8 @@ export function App() {
           and SAFE is its protective mode.
         </p>
         <p className="field-hint">
-          The browser sends JSON to the server for checking. On the public site, use sample data without private information.
+          The browser sends submitted JSON to the server for checking.
+          On the public site, use only non-sensitive example data.
         </p>
         <ol className="check-flow" aria-label="How a check works">
           <li><strong>Expected behaviour</strong><span>Choose a scenario that says what you expect.</span></li>

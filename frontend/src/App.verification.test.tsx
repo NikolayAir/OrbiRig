@@ -24,7 +24,7 @@ describe("App verification", () => {
     const header = heading.closest("header")!;
     expect(within(header).getByText("OrbiRig", { exact: true })).toBeVisible();
     const mark = header.querySelector("img")!;
-    expect(mark.getAttribute("src")).toContain("orbirig-mark");
+    expect(mark).toHaveAttribute("src", "/assets/orbirig-mark.svg#header");
     expect(mark).toHaveAttribute("alt", "");
     expect(within(header).queryByRole("img")).not.toBeInTheDocument();
   });
@@ -52,10 +52,17 @@ describe("App verification", () => {
 
     expect(verificationChoice).toHaveAttribute("aria-pressed", "true");
     expect(inspectionChoice).toHaveAttribute("aria-pressed", "false");
-    expect(screen.getByLabelText("Execution ID")).toBeInTheDocument();
-    expect(screen.getByLabelText("Execution time (UTC)")).toHaveAccessibleDescription(
+    const executionId = screen.getByLabelText("Execution ID");
+    expect(executionId).toHaveValue("");
+    expect(executionId).toHaveAttribute("placeholder", "e.g. run-001");
+    const executedAt = screen.getByLabelText("Execution time (UTC)");
+    expect(executedAt).toHaveAttribute("placeholder", "YYYY-MM-DDTHH:mm:ssZ");
+    expect(executedAt).toHaveAccessibleDescription(
       "Use the time the command ran, for example 2026-10-21T10:00:00Z.",
     );
+    const observationEvidence = screen.getByLabelText("Observation evidence JSON");
+    expect(observationEvidence).toHaveValue("");
+    expect(observationEvidence).toHaveAttribute("placeholder", "Paste observation JSON here…");
     expect(screen.queryByLabelText("Evidence JSON")).not.toBeInTheDocument();
   });
 
