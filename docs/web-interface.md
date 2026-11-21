@@ -18,7 +18,15 @@ The browser sends submitted JSON to the server for checking. On the public site,
 
 An [expected command rejection](verification.md#supported-scenarios) can pass. OrbiRig reports an input error before running the checks if the recorded command does not match the selected scenario. When entering your own record, follow the [rules for execution IDs and times](evidence-formats.md#execution-ids).
 
-You can save a verified record as a JSON file [from the command line](cli.md#verify-the-bundled-example) or [with the Python API](python.md#reopen-saved-verified-evidence).
+### Save and reopen a result
+
+Choose **Download result JSON** next to a completed verification to save it as `orbirig-verified-execution.json`. You can save a `PASS` or a `FAIL`. For a `FAIL`, the saved checks show which expected and actual values differed.
+
+The download reuses the result on screen. Changing an input clears the result and its download action.
+
+To reopen the file, switch to **Inspect evidence**, select **Verified execution**, paste the file's contents into **Evidence JSON** and choose **Inspect evidence**. OrbiRig recalculates the checks and shows the same scenario, check results and outcome.
+
+You can also save a verified record [from the command line](cli.md#verify-the-bundled-example) or [with the Python API](python.md#reopen-saved-verified-evidence).
 
 ## Inspect evidence
 

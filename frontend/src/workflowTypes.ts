@@ -50,7 +50,9 @@ export type VerificationState =
   | { kind: "dirty" }
   | { kind: "loading" }
   | { kind: "cancelled" }
-  | { kind: "completed"; record: VerifiedExecutionPresentation }
+  // evidenceJson is the saved form of this record. It is kept as text so a
+  // download is exactly what Python produced for the result on screen.
+  | { kind: "completed"; record: VerifiedExecutionPresentation; evidenceJson: string }
   | { kind: "validation-failure"; code: VerificationErrorCode; message?: string; field?: "execution_id" | "executed_at" }
   | { kind: "request-too-large" }
   | { kind: "network-failure" }
