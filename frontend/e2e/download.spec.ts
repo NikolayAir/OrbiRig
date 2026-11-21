@@ -9,6 +9,8 @@ function observationFile(name: string): string {
 }
 
 const FILE_NAME = "orbirig-verified-execution.json";
+// Wider fonts expose word breaks that a narrower system font can hide.
+const ENLARGED_TEXT = ':root { font-family: Verdana, "DejaVu Sans", sans-serif; font-size: 200%; }';
 
 type Check = readonly [id: string, expected: string, actual: string, outcome: string];
 
@@ -261,55 +263,106 @@ test("no download is offered without a completed result for the current inputs",
   }
 });
 
-test("the download button works with the keyboard", async ({ page, browserName }) => {
-  // WebKit on macOS follows native Option-Tab navigation for non-text controls.
-  const tab = browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab";
-  await verify(page, "browser-execution", "nominal_to_safe_mode", observationFile("accepted.json"));
-  // After a completed check, the page moves focus to the result heading.
-  const heading = resultRegion(page).getByRole("heading", { name: "Verified execution", level: 2 });
-  await expect(heading).toBeFocused();
-
-  // The action follows the result heading, before the details it saves.
-  await page.keyboard.press(tab);
-  await expect(downloadButton(page)).toBeFocused();
-  await expect(downloadButton(page)).toHaveCSS("outline-style", "solid");
-
-  for (const key of ["Enter", "Space"]) {
-    const downloading = page.waitForEvent("download");
-    await page.keyboard.press(key);
-    const file = await savedFile(await downloading);
-    expect(JSON.parse(file.toString("utf8"))).toEqual(passingEvidence);
-    await expect(downloadButton(page)).toBeFocused();
-  }
-});
-
-for (const viewport of [
-  { width: 320, height: 480 },
-  { width: 390, height: 480 },
-  { width: 1280, height: 800 },
-]) {
-  test(`the download button fits the result at ${viewport.width}x${viewport.height}`, async ({ page }) => {
-    await page.setViewportSize(viewport);
+for (const enlarged of [false, true]) {
+  test(`the download button works with the keyboard${enlarged ? " at 320px with 200% text" : ""}`, async ({ page, browserName }) => {
+    // WebKit on macOS follows native Option-Tab navigation for non-text controls.
+    const tab = browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab";
+    if (enlarged) {
+      await page.setViewportSize({ width: 320, height: 480 });
+      await page.addStyleTag({ content: ENLARGED_TEXT });
+    }
     await verify(page, "browser-execution", "nominal_to_safe_mode", observationFile("accepted.json"));
+    // After a completed check, the page moves focus to the result heading.
+    const heading = resultRegion(page).getByRole("heading", { name: "Verified execution", level: 2 });
+    await expect(heading).toBeFocused();
+
+    // The action follows the result heading, before the details it saves.
+    await page.keyboard.press(tab);
+    await expect(downloadButton(page)).toBeFocused();
+    await expect(downloadButton(page)).toBeInViewport();
+    await expect(downloadButton(page)).toHaveCSS("outline-style", "solid");
+
+    for (const key of ["Enter", "Space"]) {
+      const downloading = page.waitForEvent("download");
+      await page.keyboard.press(key);
+      const file = await savedFile(await downloading);
+      expect(JSON.parse(file.toString("utf8"))).toEqual(passingEvidence);
+      await expect(downloadButton(page)).toBeFocused();
+    }
+  });
+}
+
+for (const { width, scale, inline } of [
+  { width: 1440, scale: 100, inline: true },
+  { width: 1440, scale: 200, inline: true },
+  { width: 768, scale: 100, inline: true },
+  { width: 768, scale: 200, inline: false },
+  { width: 390, scale: 100, inline: false },
+  { width: 390, scale: 200, inline: false },
+  { width: 320, scale: 100, inline: false },
+  { width: 320, scale: 200, inline: false },
+]) for (const outcome of ["PASS", "FAIL"]) {
+  test(`${outcome} download action fits at ${width}px with ${scale}% text`, async ({ page }) => {
+    await page.setViewportSize({ width, height: width <= 390 ? 480 : 900 });
+    if (scale === 200) {
+      await page.addStyleTag({ content: ENLARGED_TEXT });
+    }
+    const evidence = observationFile(outcome === "PASS" ? "accepted.json" : "mixed-results.json");
+    await verify(page, "browser-execution", "nominal_to_safe_mode", evidence);
+    const result = resultRegion(page);
+    await expect(result.getByText(`Verification outcome: ${outcome}`)).toBeVisible();
     await expect(downloadButton(page)).toBeVisible();
 
-    // Read all bounds together so they describe the same layout. Firefox
-    // reported 43.99997 for a 44px control through boundingBox(), so take
-    // the values directly from DOMRect.
-    const { button, description, details } = await page.evaluate(() => {
-      const rect = (selector: string) => document.querySelector(selector)!.getBoundingClientRect().toJSON();
+    // Read DOMRects together. Firefox can round a 44px control down in boundingBox().
+    const layout = await result.evaluate(section => {
+      const bounds = (selector: string) => section.querySelector(selector)!.getBoundingClientRect().toJSON();
+      const text = section.querySelectorAll(
+        ".result-context, .result-heading h2, .result-description, .result-actions button",
+      );
+      const splitWords = Array.from(text).flatMap(element => {
+        const node = element.firstChild!;
+        const range = document.createRange();
+        return Array.from(node.textContent!.matchAll(/\S+/g), word => {
+          range.setStart(node, word.index);
+          range.setEnd(node, word.index + word[0].length);
+          return range.getClientRects().length > 1 ? word[0] : null;
+        }).filter(word => word !== null);
+      });
       return {
-        button: rect(".result-actions button"),
-        description: rect(".result-description"),
-        details: rect(".verified-execution-fields"),
+        button: bounds(".result-actions button"),
+        description: bounds(".result-description"),
+        details: bounds(".verified-execution-fields"),
+        overview: bounds(".result-overview"),
+        title: bounds(".result-heading > div"),
+        badge: bounds(".result-heading > .outcome-badge"),
+        splitWords,
+        pageWidth: document.documentElement.scrollWidth,
       };
     });
-    expect(button.left).toBeGreaterThanOrEqual(0);
-    expect(button.right).toBeLessThanOrEqual(viewport.width);
+    const { button, description, details, overview, title, badge, splitWords, pageWidth } = layout;
+    expect(pageWidth).toBe(width);
+    expect(overview.left).toBeGreaterThanOrEqual(0);
+    expect(overview.right).toBeLessThanOrEqual(width);
+    expect(splitWords).toEqual([]);
     expect(button.height).toBeGreaterThanOrEqual(44);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(viewport.width);
-    // It sits between the outcome description and the execution details.
-    expect(button.top).toBeGreaterThanOrEqual(description.bottom);
-    expect(button.bottom).toBeLessThanOrEqual(details.top);
+    expect(title.right <= badge.left || title.bottom <= badge.top).toBe(true);
+    if (scale === 100) expect(button.width).toBeLessThan(overview.width);
+    for (const box of [title, button, badge, description]) {
+      expect(box.left).toBeGreaterThanOrEqual(overview.left);
+      expect(box.right).toBeLessThanOrEqual(overview.right + 0.05);
+    }
+    if (inline) {
+      expect(title.right).toBeLessThan(badge.left);
+      expect(badge.left - title.right).toBeLessThanOrEqual(scale === 100 ? 12.05 : 24.05);
+      expect(badge.right).toBeLessThan(button.left);
+      expect(button.bottom).toBeCloseTo(badge.bottom, 1);
+      expect(button.right).toBeCloseTo(overview.right, 1);
+      expect(description.top).toBeGreaterThan(Math.max(title.bottom, badge.bottom, button.bottom));
+      expect(details.top).toBeGreaterThan(description.bottom);
+    } else {
+      expect(description.top).toBeGreaterThan(Math.max(title.bottom, badge.bottom));
+      expect(button.top).toBeGreaterThan(description.bottom);
+      expect(details.top).toBeGreaterThan(button.bottom);
+    }
   });
 }

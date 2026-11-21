@@ -1286,12 +1286,62 @@ button:disabled {
   max-width: 76ch;
 }
 
-/* Actions on the result sit between its description and its details. */
-.result-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  margin: 0 0 1.5rem;
+.result-with-actions {
+  container: verification-result / inline-size;
+}
+
+.result-with-actions .result-overview {
+  margin-block-end: 1.5rem;
+}
+
+.result-with-actions .result-heading,
+.result-with-actions .result-description {
+  margin-bottom: 0.75rem;
+}
+
+.result-with-actions .result-heading {
+  align-items: flex-end;
+  justify-content: flex-start;
+}
+
+.result-with-actions .result-heading > div {
+  flex: 0 1 auto;
+}
+
+/* Move the action into the header while keeping it after the description in the DOM. */
+@container verification-result (min-width: 36rem) {
+  .result-overview {
+    display: grid;
+    grid-template: "heading actions"
+                   "description description" / minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 0.75rem;
+  }
+
+  .result-with-actions .result-heading {
+    grid-area: heading;
+    margin: 0;
+  }
+
+  .result-overview .result-actions {
+    grid-area: actions;
+  }
+
+  .result-with-actions .result-description {
+    grid-area: description;
+    margin: 0;
+  }
+}
+
+@container verification-result (max-width: 9rem) {
+  /* Use part of the panel's padding for enlarged text and leave room for focus outlines. */
+  .result-overview {
+    margin-inline: clamp(-1.0625rem, (100cqi - 7.625rem) / 2, 0px);
+  }
+
+  .result-overview .secondary-action {
+    padding-inline: 0.75rem;
+  }
 }
 
 .result-heading h2,
