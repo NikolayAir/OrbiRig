@@ -66,7 +66,9 @@ Under **How it works**, choose **In the browser** or **From the command line**. 
 
 The guide keeps one section open at a time. Switching tabs or workflows, or reopening the guide, starts with the sections closed.
 
-Opening a section scrolls only as far as needed. The guide shows the full section if it fits and starts at its heading if it is too long. When there is room, it also shows the next heading with some space below it. If the browser opens a section to reveal a search match, the guide keeps the match in view. Closing a section can shorten the scroll area. The browser may then move to the last available scroll position.
+Opening a section scrolls only as far as needed. If the full section fits, the guide shows it, along with the next heading if that fits too. Where possible, it leaves some space below the section or the next heading. A longer section starts at its heading.
+
+If the browser opens a section to reveal a search match, the guide keeps the match in view. Closing a section can shorten the scroll area. The browser may then move to the last available scroll position.
 
 If resizing changes which area scrolls while a section is open, the guide brings the section heading into view. A control with visible keyboard focus in the scrolling area takes priority.
 

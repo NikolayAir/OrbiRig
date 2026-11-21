@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { expectFocusedControlFullyVisible, sectionPosition } from "./help-support";
+import { expectBottomClearance, expectFocusedControlFullyVisible } from "./help-support";
 
 const GUIDE = "https://github.com/NikolayAir/OrbiRig/blob/main/docs/dotnet-stateful-target.md";
 
@@ -45,10 +45,7 @@ for (const { width, height, textScale, clearance } of [
     await expect(details).toContainText("The example saves the stale-telemetry result as JSON for inspection in the browser.");
     if (clearance) {
       await expect(guide).toBeInViewport({ ratio: 1 });
-      const opened = await sectionPosition(details);
-      expect(opened.below).toBeGreaterThanOrEqual(clearance === "end" ? 19.5 : 23.5);
-      expect(opened.below).toBeLessThanOrEqual(clearance === "end" ? 20.5 : 25.5);
-      if (clearance === "end") expect(opened.scrollTop).toBeCloseTo(opened.maxScrollTop, 0);
+      await expectBottomClearance(details, clearance === "end");
     }
     await page.keyboard.press(tab);
     await expectFocusedControlFullyVisible(guide);

@@ -1907,9 +1907,11 @@ a[target="_blank"] {
     padding: 1rem;
   }
 
-  /* Reserve enough scroll range beneath the last heading or link in an open guide. */
-  .workflow-help-content:has(details[open]) {
-    padding-bottom: max(1rem, 20px);
+  /* Add scroll range at the end while keeping the padding used to choose the scroll mode. */
+  .workflow-help-content:has(details[open])::after {
+    content: "";
+    display: block;
+    height: max(0px, 20px - 1rem);
   }
 
   .continuity-boundary-fields {
