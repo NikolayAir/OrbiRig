@@ -4,6 +4,8 @@ import { expect, test, type Locator } from "@playwright/test";
 
 const observation = readFileSync(new URL("./fixtures/mixed-results.json", import.meta.url), "utf8");
 const sequence = readFileSync(new URL("./fixtures/discontinuous-sequence.json", import.meta.url), "utf8");
+const firstTwoColumnWidth = 506;
+const firstTwoColumnWidthWithDoubledText = 1074;
 
 async function expectWithinWidth(elements: Locator, width: number) {
   for (const element of await elements.all()) {
@@ -22,19 +24,9 @@ async function recordNextClick(input: Locator) {
   });
 }
 
-for (const { width, layout } of [
-  { width: 320, layout: "stacked" },
-  { width: 390, layout: "stacked" },
-  { width: 600, layout: "stacked" },
-  { width: 768, layout: "paired" },
-  { width: 820, layout: "paired" },
-  { width: 1024, layout: "paired" },
-  { width: 1199, layout: "paired" },
-  { width: 1200, layout: "paired" },
-  { width: 1280, layout: "paired" },
-  { width: 1440, layout: "desktop" },
-  { width: 1600, layout: "desktop" },
-  { width: 1920, layout: "desktop" },
+for (const width of [
+  320, 390, 500, firstTwoColumnWidth - 1, firstTwoColumnWidth, 600, 768, 820, 1024,
+  firstTwoColumnWidthWithDoubledText - 1, firstTwoColumnWidthWithDoubledText, 1280, 1440, 1920,
 ]) for (const scale of [100, 200]) {
   test(`verification fields stay in order at ${width}px with ${scale}% text`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
@@ -77,26 +69,21 @@ for (const { width, layout } of [
     expect(action.left).toBeGreaterThanOrEqual(editor.left);
     expect(action.right).toBeLessThanOrEqual(editor.right + 0.5);
 
-    const expectedLayout = scale === 100 ? layout : "stacked";
-    if (expectedLayout === "desktop") {
+    const twoColumns = width >= (scale === 100 ? firstTwoColumnWidth : firstTwoColumnWidthWithDoubledText);
+    if (twoColumns) {
       expect(editor.left).toBeGreaterThan(metadata.right);
-      expect(editor.top).toBeCloseTo(id.top, 0);
+      expect(editor.top).toBeLessThan(metadata.bottom);
       expect(editor.width).toBeGreaterThan(metadata.width);
-      expect(action.right).toBeCloseTo(editor.right, 0);
-      expect(action.bottom).toBeLessThanOrEqual(900);
+      if (scale === 100 && width >= 768) expect(action.right).toBeCloseTo(editor.right, 0);
+      if (scale === 100 && width >= 1280) expect(action.bottom).toBeLessThanOrEqual(900);
     } else {
       expect(editor.left).toBeCloseTo(metadata.left, 0);
       expect(editor.right).toBeCloseTo(metadata.right, 0);
       expect(editor.top).toBeGreaterThan(metadata.bottom);
     }
 
-    if (expectedLayout === "paired") {
-      expect(time.top).toBeCloseTo(id.top, 0);
-      expect(time.left).toBeGreaterThan(id.right);
-    } else {
-      expect(time.top).toBeGreaterThan(id.bottom);
-      expect(time.left).toBeCloseTo(id.left, 0);
-    }
+    expect(time.top).toBeGreaterThan(id.bottom);
+    expect(time.left).toBeCloseTo(id.left, 0);
     expect(scenario.top).toBeGreaterThan(time.bottom);
     expect(scenario.left).toBeCloseTo(metadata.left, 0);
     expect(scenario.right).toBeCloseTo(metadata.right, 0);
@@ -112,6 +99,57 @@ for (const { width, layout } of [
   });
 }
 
+for (const width of [
+  320, 390, 500, firstTwoColumnWidth - 1, firstTwoColumnWidth, 768, 1024,
+  firstTwoColumnWidthWithDoubledText - 1, firstTwoColumnWidthWithDoubledText, 1440,
+]) for (const scale of [100, 200]) {
+  test(`workflow labels share their spacing below the divider at ${width}px with ${scale}% text`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/");
+    if (scale === 200) {
+      const font = width === 320 ? "monospace" : 'Verdana, "DejaVu Sans", sans-serif';
+      await page.addStyleTag({ content: `:root { font-size: 200%; font-family: ${font}; }` });
+    }
+
+    const labelOffsets = (panel: Locator, groupSelector: string, firstLabel: string) =>
+      panel.evaluate((node, { groupSelector, firstLabel }) => {
+        const heading = node.querySelector(".workflow-heading")!.getBoundingClientRect();
+        const firstGroup = node.querySelector(groupSelector)!.getBoundingClientRect();
+        const editor = node.querySelector(".evidence-input .field-label")!.getBoundingClientRect();
+        const labelTop = (label: Element) => {
+          const text = document.createRange();
+          text.selectNodeContents(label);
+          return text.getBoundingClientRect().top;
+        };
+        return {
+          headingInset: heading.top - node.getBoundingClientRect().top,
+          first: labelTop(node.querySelector(firstLabel)!) - heading.bottom,
+          editor: editor.top - heading.bottom,
+          group: firstGroup.top - heading.bottom,
+          sideBySide: editor.left >= firstGroup.right,
+        };
+      }, { groupSelector, firstLabel });
+
+    const verification = await labelOffsets(
+      page.getByRole("region", { name: "Verify observation", exact: true }),
+      ".verification-inputs", 'label[for="verification-execution-id"]',
+    );
+    await page.getByRole("button", { name: "Show Inspect evidence" }).click();
+    const panel = page.getByRole("region", { name: "Inspect evidence", exact: true });
+    await expect(panel.getByRole("group", { name: "Evidence type" })).toBeVisible();
+    const inspection = await labelOffsets(panel, ".evidence-types", ".evidence-types legend");
+
+    expect(inspection.headingInset).toBeCloseTo(verification.headingInset, 0);
+    expect(Math.abs(inspection.first - verification.first)).toBeLessThanOrEqual(1.5);
+    const twoColumns = width >= (scale === 100 ? firstTwoColumnWidth : firstTwoColumnWidthWithDoubledText);
+    for (const layout of [verification, inspection]) {
+      expect(layout.sideBySide).toBe(twoColumns);
+      if (twoColumns) expect(layout.editor).toBeCloseTo(layout.group, 0);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
+  });
+}
+
 for (const viewport of [
   { width: 2560, height: 1440 },
   { width: 1440, height: 900 },
@@ -120,6 +158,7 @@ for (const viewport of [
   { width: 1200, height: 900 },
   { width: 1199, height: 900 },
   { width: 1024, height: 768 },
+  { width: firstTwoColumnWidth, height: 768 },
   { width: 820, height: 1024 },
   { width: 768, height: 1024 },
   { width: 600, height: 900 },
@@ -225,13 +264,13 @@ for (const viewport of [
     }
     expect(inspectionEditorBounds.height).toBeGreaterThanOrEqual(176);
     expect(inspectionAction.y).toBeGreaterThanOrEqual(inspectionEditorBounds.y + inspectionEditorBounds.height);
-    if (viewport.width >= 1200) {
+    if (viewport.width >= firstTwoColumnWidth) {
       expect(inspectionEditorBounds.x).toBeGreaterThan(types.x + types.width);
       expect(inspectionEditorBounds.y).toBeLessThan(types.y + types.height);
-      expect(inspectionEditorBounds.width).toBeGreaterThanOrEqual(580);
+      expect(inspectionEditorBounds.width).toBeGreaterThanOrEqual(225);
       expect(inspectionEditorBounds.width / types.width).toBeCloseTo(1.35, 1);
       expect(inspectionAction.x + inspectionAction.width).toBeCloseTo(inspectionEditorBounds.x + inspectionEditorBounds.width, 0);
-      expect(inspectionAction.width).toBeLessThan(inspectionEditorBounds.width);
+      if (viewport.width > 640) expect(inspectionAction.width).toBeLessThan(inspectionEditorBounds.width);
       expect(inspectionAction.y - (inspectionEditorBounds.y + inspectionEditorBounds.height)).toBeCloseTo(16, 0);
       if (viewport.width >= 1280 && viewport.height >= 900) {
         expect(inspectionAction.y + inspectionAction.height).toBeLessThanOrEqual(viewport.height);
