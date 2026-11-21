@@ -42,6 +42,7 @@ main {
 }
 
 .page-header {
+  container-type: inline-size;
   margin-bottom: 0.75rem;
 }
 
@@ -142,6 +143,19 @@ h2 {
   color: var(--muted);
   font-size: 0.8125rem;
   line-height: 1.4;
+}
+
+/* Wrap whole cards when the header is too narrow for four readable steps. */
+@media (width > 40rem) {
+  @container (width < 40rem) {
+    .check-flow {
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 12.5rem), 1fr));
+    }
+
+    .check-flow li:not(:last-child)::after {
+      content: none;
+    }
+  }
 }
 
 .workflow-help {

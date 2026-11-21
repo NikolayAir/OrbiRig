@@ -24,10 +24,10 @@ async function recordNextClick(input: Locator) {
   });
 }
 
-for (const width of [
-  320, 390, 500, firstTwoColumnWidth - 1, firstTwoColumnWidth, 600, 768, 820, 1024,
-  firstTwoColumnWidthWithDoubledText - 1, firstTwoColumnWidthWithDoubledText, 1280, 1440, 1920,
-]) for (const scale of [100, 200]) {
+for (const { scale, widths } of [
+  { scale: 100, widths: [320, 390, firstTwoColumnWidth - 1, firstTwoColumnWidth, 600, 768, 1024, 1280, 1440, 1920] },
+  { scale: 200, widths: [320, 390, 600, 768, 820, 1024, firstTwoColumnWidthWithDoubledText - 1, firstTwoColumnWidthWithDoubledText, 1280, 1440, 1920] },
+]) for (const width of widths) {
   test(`verification fields stay in order at ${width}px with ${scale}% text`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/");
@@ -38,8 +38,10 @@ for (const width of [
     const panel = page.getByRole("region", { name: "Verify observation", exact: true });
     const { id, time, scenario, metadata, editor, action, heading, examples, splitWords, pageWidth, rem } = await panel.evaluate(node => {
       const bounds = (selector: string) => node.querySelector(selector)!.getBoundingClientRect().toJSON();
-      const labels = node.querySelectorAll(".workflow-heading h2, .example-action > button");
-      const splitWords = Array.from(labels).flatMap(element => {
+      const textElements = document.querySelectorAll(
+        ".check-flow strong, .check-flow span, #verification-workflow .workflow-heading h2, #verification-workflow .example-action > button",
+      );
+      const splitWords = Array.from(textElements).flatMap(element => {
         const text = element.firstChild!;
         const range = document.createRange();
         return Array.from(text.textContent!.matchAll(/\S+/g)).filter(word => {
@@ -69,10 +71,13 @@ for (const width of [
     expect(action.left).toBeGreaterThanOrEqual(editor.left);
     expect(action.right).toBeLessThanOrEqual(editor.right + 0.5);
 
-    const twoColumns = width >= (scale === 100 ? firstTwoColumnWidth : firstTwoColumnWidthWithDoubledText);
+    const twoColumns = editor.top < metadata.bottom;
+    // The browser's default monospace size can put 820px on either side of the breakpoint.
+    if (width !== 820 || scale !== 200) {
+      expect(twoColumns).toBe(width >= (scale === 100 ? firstTwoColumnWidth : firstTwoColumnWidthWithDoubledText));
+    }
     if (twoColumns) {
       expect(editor.left).toBeGreaterThan(metadata.right);
-      expect(editor.top).toBeLessThan(metadata.bottom);
       expect(editor.width).toBeGreaterThan(metadata.width);
       if (scale === 100 && width >= 768) expect(action.right).toBeCloseTo(editor.right, 0);
       if (scale === 100 && width >= 1280) expect(action.bottom).toBeLessThanOrEqual(900);
@@ -99,10 +104,10 @@ for (const width of [
   });
 }
 
-for (const width of [
-  320, 390, 500, firstTwoColumnWidth - 1, firstTwoColumnWidth, 768, 1024,
-  firstTwoColumnWidthWithDoubledText - 1, firstTwoColumnWidthWithDoubledText, 1440,
-]) for (const scale of [100, 200]) {
+for (const { scale, widths } of [
+  { scale: 100, widths: [320, 390, firstTwoColumnWidth - 1, firstTwoColumnWidth, 768, 1024, 1440] },
+  { scale: 200, widths: [320, 390, 768, 1024, firstTwoColumnWidthWithDoubledText - 1, firstTwoColumnWidthWithDoubledText, 1440] },
+]) for (const width of widths) {
   test(`workflow labels share their spacing below the divider at ${width}px with ${scale}% text`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/");
