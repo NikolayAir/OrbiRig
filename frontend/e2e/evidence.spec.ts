@@ -201,7 +201,8 @@ for (const viewport of [
       expect(await activePanel.evaluate((element) => element.scrollTop)).toBe(0);
       const firstParagraph = help.locator(".workflow-help-content > p").first();
       await expect(firstParagraph).toBeInViewport();
-      expect(await chooser.evaluate((element) => element.getBoundingClientRect().top + window.scrollY)).toBe(chooserTop);
+      // Adding the scroll offset back to a fractional viewport position can round differently.
+      expect(await chooser.evaluate((element) => element.getBoundingClientRect().top + window.scrollY)).toBeCloseTo(chooserTop, 2);
       expect(await page.evaluate(() => window.scrollY)).toBe(initialScrollY);
       expect(await help.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
       expect(await activePanel.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
@@ -406,7 +407,7 @@ for (const viewport of [
       await otherHelp.getByRole("button", { name: "Close", exact: true }).click();
       await expect(otherHelp).toBeHidden();
       await expect(otherTrigger).toBeFocused();
-      expect(await chooser.evaluate((element) => element.getBoundingClientRect().top + window.scrollY)).toBe(chooserTop);
+      expect(await chooser.evaluate((element) => element.getBoundingClientRect().top + window.scrollY)).toBeCloseTo(chooserTop, 2);
     });
   }
 }
