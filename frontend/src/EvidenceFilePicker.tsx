@@ -1,5 +1,6 @@
 import { type ReactNode, useId, useLayoutEffect, useRef, useState } from "react";
 import { ReplaceInputsDialog } from "./ReplaceInputsDialog";
+import { restoreButtonFocus } from "./formHelpers";
 
 // Bound the local read by the same byte limit as the HTTP request.
 const MAX_EVIDENCE_FILE_BYTES = 4 * 1024 * 1024;
@@ -168,7 +169,7 @@ export function EvidenceFilePicker({ picker, fieldLabel, submitLabel, disabled, 
           onConfirm={() => picker.applyFile(state.text)}
           onClose={() => {
             picker.closeConfirmation();
-            openFileButtonRef.current?.focus({ preventScroll: true });
+            restoreButtonFocus(openFileButtonRef.current);
           }}
         />
       )}

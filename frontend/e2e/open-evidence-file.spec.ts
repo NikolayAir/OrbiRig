@@ -188,4 +188,31 @@ for (const [workflow, field] of [
     await expect(open).toBeFocused();
     await expect(page.getByRole("button", { name: workflow, exact: true })).toBeEnabled();
   });
+
+  test(`closing file replacement after a resize brings the button into view in ${workflow}`, async ({ page, browserName }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/");
+    if (workflow === "Inspect evidence") {
+      await page.getByRole("button", { name: "Show Inspect evidence", exact: true }).click();
+    }
+    const input = page.getByLabel(field, { exact: true });
+    const open = page.getByRole("button", { name: "Open JSON file", exact: true });
+    await input.fill("edited draft");
+    const tab = browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab";
+    await page.getByRole("button", { name: `About ${field}`, exact: true }).focus();
+    await page.keyboard.press(tab);
+    await expect(open).toBeFocused();
+    await chooseFile(page, fixture("accepted.json"), button => button.press("Enter"));
+    const confirmation = page.getByRole("dialog", { name: `Replace ${field}?`, exact: true });
+    await expect(confirmation.getByRole("button", { name: "Cancel", exact: true })).toBeFocused();
+
+    await page.setViewportSize({ width: 320, height: 480 });
+    await page.keyboard.press("Escape");
+    await expect(confirmation).toHaveCount(0);
+    await expect(open).toBeFocused();
+    await expect(open).toBeInViewport({ ratio: 1 });
+    await expect(open).toHaveCSS("outline-style", "solid");
+    await expect(input).toHaveValue("edited draft");
+  });
 }

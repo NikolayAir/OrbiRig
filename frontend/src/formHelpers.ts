@@ -7,6 +7,15 @@ export function preventRepeatedRequestAction(event: ReactKeyboardEvent<HTMLFormE
   }
 }
 
+export function restoreButtonFocus(button: HTMLButtonElement | null) {
+  if (!button) return;
+  button.focus({ preventScroll: true });
+  const { top, bottom } = button.getBoundingClientRect();
+  if (top < 0 || bottom > window.innerHeight) {
+    button.scrollIntoView({ block: "nearest" });
+  }
+}
+
 export function wouldReplaceEditedValue(current: string, baseline: string, next: string): boolean {
   // Once text has been loaded, clearing it counts as an edit.
   return current !== baseline && current !== next && (baseline !== "" || current.trim() !== "");

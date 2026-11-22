@@ -1,5 +1,6 @@
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import { ReplaceInputsDialog } from "./ReplaceInputsDialog";
+import { restoreButtonFocus } from "./formHelpers";
 
 export type ExampleOption<Variant extends string> = {
   variant: Variant;
@@ -25,16 +26,6 @@ export function ExamplePicker<Variant extends string>({
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState<ExampleOption<Variant> | null>(null);
 
-  function restoreTriggerFocus() {
-    const trigger = triggerRef.current;
-    if (!trigger) return;
-    trigger.focus({ preventScroll: true });
-    const { top, bottom } = trigger.getBoundingClientRect();
-    if (top < 0 || bottom > window.innerHeight) {
-      trigger.scrollIntoView({ block: "nearest" });
-    }
-  }
-
   useLayoutEffect(() => {
     const trigger = triggerRef.current;
     const list = listRef.current;
@@ -57,7 +48,7 @@ export function ExamplePicker<Variant extends string>({
       if (event.key !== "Escape" || event.defaultPrevented) return;
       event.preventDefault();
       setOpen(false);
-      restoreTriggerFocus();
+      restoreButtonFocus(triggerRef.current);
     }
 
     position();
@@ -84,12 +75,12 @@ export function ExamplePicker<Variant extends string>({
       return;
     }
     onLoad(option.variant);
-    restoreTriggerFocus();
+    restoreButtonFocus(triggerRef.current);
   }
 
   function closeConfirmation() {
     setPending(null);
-    restoreTriggerFocus();
+    restoreButtonFocus(triggerRef.current);
   }
 
   return (
