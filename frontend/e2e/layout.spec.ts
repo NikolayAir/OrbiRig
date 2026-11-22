@@ -97,7 +97,7 @@ for (const { scale, widths } of [
     expect(heading.right <= examples.left || heading.bottom <= examples.top).toBe(true);
     expect(examples.width).toBeGreaterThanOrEqual(44);
     expect(examples.height).toBeGreaterThanOrEqual(44);
-    if (width === 390 && scale === 100) expect(examples.top).toBeLessThan(heading.bottom);
+    if (width >= 768 && scale === 100) expect(examples.top).toBeLessThan(heading.bottom);
   });
 }
 
@@ -727,30 +727,42 @@ test("forced colours keep the selected workflow marked separately from keyboard 
   const group = page.getByRole("group", { name: "Choose what to do" });
   const verify = group.getByRole("button", { name: "Show Verify observation", exact: true });
   const inspect = group.getByRole("button", { name: "Show Inspect evidence", exact: true });
+  const highlight = await page.evaluate(() => {
+    if (!matchMedia("(forced-colors: active)").matches) return null;
+    const sample = document.createElement("span");
+    sample.style.color = "Highlight";
+    document.body.append(sample);
+    const colour = getComputedStyle(sample).color;
+    sample.remove();
+    return colour;
+  });
+  const selectedColour = highlight ? { colour: highlight } : {};
   const marker = (choice: Locator) => choice.evaluate(button => {
-    const { borderBottomWidth, borderLeftWidth } = getComputedStyle(button, "::after");
-    return { bottom: parseFloat(borderBottomWidth), left: parseFloat(borderLeftWidth) };
+    const style = getComputedStyle(button, "::after");
+    const bottom = parseFloat(style.borderBottomWidth);
+    const left = parseFloat(style.borderLeftWidth);
+    return { bottom, left, colour: bottom > 0 ? style.borderBottomColor : style.borderLeftColor };
   });
 
   await expect(verify).toHaveAttribute("aria-pressed", "true");
-  expect(await marker(verify)).toEqual({ bottom: 3, left: 0 });
-  expect(await marker(inspect)).toEqual({ bottom: 0, left: 0 });
+  expect(await marker(verify)).toMatchObject({ bottom: 3, left: 0, ...selectedColour });
+  expect(await marker(inspect)).toMatchObject({ bottom: 0, left: 0 });
 
   await page.setViewportSize({ width: 320, height: 900 });
   await page.locator("html").evaluate(element => { element.style.fontSize = "200%"; });
   await page.keyboard.press("Tab");
   await inspect.focus();
   await expect(inspect).toHaveCSS("outline-style", "solid");
-  expect(await marker(verify)).toEqual({ bottom: 0, left: 3 });
-  expect(await marker(inspect)).toEqual({ bottom: 0, left: 0 });
+  expect(await marker(verify)).toMatchObject({ bottom: 0, left: 3, ...selectedColour });
+  expect(await marker(inspect)).toMatchObject({ bottom: 0, left: 0 });
 
   await page.keyboard.press("Enter");
   await expect(inspect).toHaveAttribute("aria-pressed", "true");
   await expect(verify).toHaveAttribute("aria-pressed", "false");
   await expect(inspect).toBeFocused();
   await expect(inspect).toHaveCSS("outline-style", "solid");
-  expect(await marker(inspect)).toEqual({ bottom: 0, left: 3 });
-  expect(await marker(verify)).toEqual({ bottom: 0, left: 0 });
+  expect(await marker(inspect)).toMatchObject({ bottom: 0, left: 3, ...selectedColour });
+  expect(await marker(verify)).toMatchObject({ bottom: 0, left: 0 });
 });
 
 for (const font of ["", "monospace"]) {

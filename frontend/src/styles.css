@@ -176,7 +176,7 @@ h2 {
 
 .workflow-help-actions {
   display: flex;
-  flex: 1;
+  flex: 1 1 auto;
   flex-wrap: wrap;
   gap: 0.25rem 1.5rem;
   min-width: 0;
@@ -228,6 +228,7 @@ a.workflow-help-trigger {
   align-items: center;
   box-sizing: border-box;
   display: inline-flex;
+  flex-wrap: wrap;
   font-weight: 650;
   margin-left: auto;
 }
@@ -1968,25 +1969,17 @@ a[target="_blank"] {
     border-inline-start-width: 3px;
   }
 
-  .workflow-help {
+  .workflow-help,
+  .workflow-help-actions {
     gap: 0.5rem 0.875rem;
   }
 
-  .workflow-help > h2 {
-    flex: 1 1 calc(100% - 9rem);
-  }
-
   .workflow-help-actions {
-    display: contents;
-  }
-
-  .workflow-help-actions > a {
-    margin-left: auto;
+    flex-basis: 100%;
     order: 1;
   }
 
   .workflow-help-actions > button {
-    order: 2;
     padding-inline: 0.5rem;
   }
 

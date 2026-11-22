@@ -148,7 +148,6 @@ for (const workflow of ["Verify observation", "Inspect evidence"] as const) {
       await picker.evaluate(element => element.scrollIntoView({ block: "end" }));
       const before = await layout();
       if (width >= 1440) expect(before.editor.left).toBeGreaterThan(before.fields.right);
-      if (width === 390 && scale === 100) expect(before.trigger.top).toBeLessThan(before.title.bottom);
 
       await picker.click();
       await expect(picker).toHaveAttribute("aria-expanded", "true");

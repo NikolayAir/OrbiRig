@@ -95,29 +95,41 @@ test("collapsed browser and command-line help have the same bottom spacing", asy
   }
 });
 
-test("the help buttons share a row at 393px and wrap on a narrower screen", async ({ page }) => {
-  await page.setViewportSize({ width: 393, height: 852 });
+test("narrow help keeps its buttons together below the heading and documentation", async ({ page }) => {
   await page.goto("/");
   const section = page.getByRole("region", { name: "How it works", exact: true });
+  const heading = section.getByRole("heading", { name: "How it works", exact: true });
   const browser = section.getByRole("button", { name: "In the browser", exact: true });
   const cli = section.getByRole("button", { name: "From the command line", exact: true });
   const documentation = section.getByRole("link", { name: "Documentation (opens in a new tab)", exact: true });
 
-  const browserBounds = (await browser.boundingBox())!;
-  const cliBounds = (await cli.boundingBox())!;
-  const documentationBounds = (await documentation.boundingBox())!;
-  expect(cliBounds.y).toBeCloseTo(browserBounds.y, 0);
-  expect(cliBounds.x).toBeGreaterThan(browserBounds.x + browserBounds.width);
-  expect(browserBounds.y).toBeGreaterThan(documentationBounds.y + documentationBounds.height);
-  expect(cliBounds.x + cliBounds.width).toBeLessThan(393);
-  expect(browserBounds.height).toBeGreaterThanOrEqual(44);
-  expect(cliBounds.height).toBeGreaterThanOrEqual(44);
-
-  await page.setViewportSize({ width: 320, height: 852 });
-  const wrappedBrowser = (await browser.boundingBox())!;
-  const wrappedCli = (await cli.boundingBox())!;
-  expect(wrappedCli.y).toBeGreaterThan(wrappedBrowser.y + wrappedBrowser.height);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
+  for (const [width, scale] of [[320, 100], [393, 100], [480, 100], [320, 200], [393, 200]]) {
+    await test.step(`at ${width}px with ${scale}% text`, async () => {
+      await page.setViewportSize({ width, height: 852 });
+      await page.locator("html").evaluate((element, scale) => { element.style.fontSize = `${scale}%`; }, scale);
+      // Use DOMRect dimensions to avoid rounding the 44px touch targets in Firefox.
+      const [title, link, browserButton, cliButton] = await Promise.all(
+        [heading, documentation, browser, cli].map(element => element.evaluate(node => {
+          const { x, y, width, height } = node.getBoundingClientRect();
+          const fitsContent = node.scrollWidth <= node.clientWidth && node.scrollHeight <= node.clientHeight;
+          return { x, y, width, height, fitsContent };
+        })),
+      );
+      expect(browserButton.y).toBeGreaterThanOrEqual(Math.max(title.y + title.height, link.y + link.height));
+      expect(cliButton.y).toBeGreaterThanOrEqual(browserButton.y);
+      expect(cliButton.x >= browserButton.x + browserButton.width
+        || cliButton.y >= browserButton.y + browserButton.height).toBe(true);
+      for (const bounds of [link, browserButton, cliButton]) {
+        expect(bounds.width).toBeGreaterThanOrEqual(44);
+        expect(bounds.height).toBeGreaterThanOrEqual(44);
+        expect(bounds.x).toBeGreaterThanOrEqual(0);
+        expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
+        expect(bounds.fitsContent).toBe(true);
+      }
+      if (width === 480) expect(cliButton.y).toBeCloseTo(browserButton.y, 0);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
+    });
+  }
 });
 
 test("the command-line tab uses the spare width beside the shorter tab", async ({ page }) => {
@@ -125,17 +137,30 @@ test("the command-line tab uses the spare width beside the shorter tab", async (
   await page.goto("/");
   await page.getByRole("button", { name: "In the browser", exact: true }).click();
   const tabs = page.getByRole("tablist", { name: "Help sections", exact: true });
-  const columns = () => tabs.evaluate(list => Array.from(list.querySelectorAll("button"), button => {
-    const { width, height, top } = button.getBoundingClientRect();
-    const label = document.createRange();
-    label.selectNodeContents(button.querySelector("span")!);
-    return { width, height, top: top - list.getBoundingClientRect().top, lines: label.getClientRects().length };
-  }));
+  const columns = () => tabs.evaluate(list => {
+    const rowTop = list.getBoundingClientRect().top;
+    return Array.from(list.querySelectorAll("button"), button => {
+      const bounds = button.getBoundingClientRect();
+      const label = document.createRange();
+      label.selectNodeContents(button.querySelector("span")!);
+      const lines = Array.from(label.getClientRects());
+      return {
+        width: bounds.width,
+        height: bounds.height,
+        top: bounds.top - rowTop,
+        lines: lines.length,
+        labelFits: lines.length > 0 && lines.every(line =>
+          line.left >= bounds.left && line.right <= bounds.right
+          && line.top >= bounds.top && line.bottom <= bounds.bottom),
+      };
+    });
+  });
 
   const before = await columns();
   const [browser, cli] = before;
   expect(browser.width).toBeLessThan(cli.width);
-  expect(cli.lines).toBe(1);
+  expect(browser.labelFits).toBe(true);
+  expect(cli.labelFits).toBe(true);
   expect(cli.height).toBeCloseTo(browser.height, 1);
   expect(cli.top).toBeCloseTo(browser.top, 1);
 
@@ -145,6 +170,11 @@ test("the command-line tab uses the spare width beside the shorter tab", async (
   await expect(cliTab).toBeFocused();
   await expect(cliTab).toHaveAttribute("aria-selected", "true");
   expect(await columns()).toEqual(before);
+
+  await page.setViewportSize({ width: 600, height: 900 });
+  const [, widerCli] = await columns();
+  expect(widerCli.labelFits).toBe(true);
+  expect(widerCli.lines).toBe(1);
 });
 
 test("a one-pixel increase in a short window keeps the help header visible", async ({ page }) => {
