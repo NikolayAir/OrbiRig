@@ -125,7 +125,7 @@ for (const [type, endpoint, message] of [
     const load = page.getByRole("button", { name: "Altered example", exact: true });
     await expect(load).toHaveAccessibleDescription(type === "Observation"
       ? "OrbiRig rejects the repeated field name."
-      : "OrbiRig rejects the altered check results.");
+      : "OrbiRig rejects evidence whose saved checks disagree with the recorded values.");
     await load.click();
     const pending = page.waitForResponse(`**/api/inspect/${endpoint}`);
     await page.locator("button[type=submit]").click();

@@ -390,7 +390,7 @@ function longSequenceDocument() {
 
 let longSequence: string | undefined;
 
-// Build on first use: the form compares examples with its inputs on every render.
+// Generate the long sequence on first selection and reuse its JSON.
 function longSequenceExample() {
   longSequence ??= pretty(longSequenceDocument());
   return longSequence;

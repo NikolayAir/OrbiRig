@@ -69,7 +69,7 @@ export function InspectionPanel({
     variant: "altered", label: "Altered example", tone: "negative",
     description: evidenceType === "observation"
       ? "OrbiRig rejects the repeated field name."
-      : "OrbiRig rejects the altered check results.",
+      : "OrbiRig rejects evidence whose saved checks disagree with the recorded values.",
   });
 
   return (<section
