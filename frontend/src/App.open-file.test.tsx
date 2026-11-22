@@ -21,6 +21,46 @@ function selectFile(file: File) {
 }
 
 const FILE_OPENED = "File opened in Evidence JSON. Choose Inspect evidence when ready.";
+const OBSERVATION_OPENED = "File opened in Observation evidence JSON. Choose Verify observation when ready.";
+
+it.each([
+  { workflow: "Inspect evidence", field: "Evidence JSON", select: selectInspectionWorkflow, switchAway: selectVerificationWorkflow },
+  { workflow: "Verify observation", field: "Observation evidence JSON", select: selectVerificationWorkflow, switchAway: selectInspectionWorkflow },
+])("$workflow blocks submission during a read and abandons it when switching tasks", ({ workflow, field, select, switchAway }) => {
+  let finishRead: (() => void) | undefined;
+  vi.spyOn(FileReader.prototype, "readAsArrayBuffer").mockImplementationOnce(function (this: FileReader) {
+    finishRead = () => {
+      Object.defineProperty(this, "result", { value: new TextEncoder().encode("late file").buffer });
+      this.dispatchEvent(new Event("load"));
+    };
+  });
+  const abort = vi.spyOn(FileReader.prototype, "abort");
+  render(<App />);
+  select();
+  chooseStandardExample();
+  const editor = screen.getByRole("textbox", { name: field });
+  expect(editor).toHaveValue(observationEvidenceDocument);
+
+  selectFile(new File(["late file"], "pending.json"));
+  expect(screen.getByRole("button", { name: "Opening file…" })).toHaveAttribute("aria-disabled", "true");
+  expect(screen.getByRole("button", { name: workflow })).toBeDisabled();
+  expect(editor).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Load example" })).toBeDisabled();
+  fireEvent.submit(editor.closest("form")!);
+  expect(fetchMock).not.toHaveBeenCalled();
+
+  switchAway();
+  expect(abort).toHaveBeenCalledTimes(1);
+  select();
+  act(() => finishRead!());
+
+  expect(screen.getByRole("textbox", { name: field })).toHaveValue(observationEvidenceDocument);
+  expect(screen.getByRole("button", { name: workflow })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Open JSON file" })).toBeEnabled();
+  expect(screen.queryByText(/^File opened in/)).not.toBeInTheDocument();
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(fetchMock).not.toHaveBeenCalled();
+});
 
 describe("Open JSON file", () => {
   it("opens raw text for the selected type and waits for explicit submission", async () => {
@@ -123,33 +163,6 @@ describe("Open JSON file", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("abandons a file read when switching away from inspection", () => {
-    let finishRead: (() => void) | undefined;
-    vi.spyOn(FileReader.prototype, "readAsArrayBuffer").mockImplementationOnce(function (this: FileReader) {
-      finishRead = () => {
-        Object.defineProperty(this, "result", { value: new TextEncoder().encode("late file").buffer });
-        this.dispatchEvent(new Event("load"));
-      };
-    });
-    render(<App />);
-    selectInspectionWorkflow();
-    fireEvent.change(evidenceInput(), { target: { value: "kept draft" } });
-
-    selectFile(new File(["late file"], "pending.json"));
-    expect(submitButton()).toBeDisabled();
-    expect(evidenceInput()).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Load example" })).toBeDisabled();
-    selectVerificationWorkflow();
-    selectInspectionWorkflow();
-    act(() => finishRead!());
-
-    expect(evidenceInput()).toHaveValue("kept draft");
-    expect(submitButton()).toBeEnabled();
-    expect(screen.queryByText(FILE_OPENED)).not.toBeInTheDocument();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
   it("uses the opened file as the baseline for later edits", async () => {
     render(<App />);
     selectInspectionWorkflow();
@@ -171,7 +184,6 @@ describe("Open JSON file", () => {
 });
 
 describe("Open JSON file for verification", () => {
-  const opened = "File opened in Observation evidence JSON. Choose Verify observation when ready.";
   const observationInput = () => screen.getByRole("textbox", { name: "Observation evidence JSON" });
   const verify = () => screen.getByRole("button", { name: "Verify observation" });
 
@@ -182,7 +194,7 @@ describe("Open JSON file for verification", () => {
     expect(observationInput()).toHaveAttribute("aria-invalid", "true");
     selectFile(new File([text], "observation.json"));
 
-    await screen.findByText(opened);
+    await screen.findByText(OBSERVATION_OPENED);
     expect(observationInput()).toHaveValue(text);
     expect(observationInput()).not.toHaveAttribute("aria-invalid");
     expect(screen.getByLabelText("Execution ID")).toHaveValue("");
@@ -225,13 +237,23 @@ describe("Open JSON file for verification", () => {
     fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => verifiedExecution });
     submitVerification({ evidence: observationEvidenceDocument });
     const result = await screen.findByRole("region", { name: "Verified execution" });
+    const changed = JSON.stringify({ evidence_format_version: 1, ...observation, telemetry: { operating_mode: "NOMINAL" } });
+    const differentFile = new File([changed], "different-observation.json");
+
+    selectFile(differentFile);
+    const confirmation = await screen.findByRole("dialog", { name: "Replace Observation evidence JSON?" });
+    expect(observationInput()).toHaveValue(observationEvidenceDocument);
+    expect(result).toBeInTheDocument();
+    fireEvent.click(within(confirmation).getByRole("button", { name: "Cancel" }));
+    expect(result).toBeInTheDocument();
+    expect(within(result).getByRole("button", { name: "Download result JSON" })).toBeEnabled();
+
     selectFile(new File([observationEvidenceDocument], "same-observation.json"));
-    await screen.findByText(opened);
+    await screen.findByText(OBSERVATION_OPENED);
     expect(result).toBeInTheDocument();
 
     // The identical file establishes the baseline for the next replacement.
-    const changed = JSON.stringify({ evidence_format_version: 1, ...observation, telemetry: { operating_mode: "NOMINAL" } });
-    selectFile(new File([changed], "different-observation.json"));
+    selectFile(differentFile);
     await screen.findByText("Inputs changed. Verify to check the current values.");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(observationInput()).toHaveValue(changed);
