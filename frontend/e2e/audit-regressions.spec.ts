@@ -81,8 +81,9 @@ for (const { width, textScale } of [
       const geometry = await button.evaluate(element => {
         const rect = element.getBoundingClientRect();
         const field = element.closest(".form-field")!;
-        const input = field.querySelector("input, select, textarea")!.getBoundingClientRect();
-        const label = field.querySelector("label")!.getBoundingClientRect();
+        const fieldLabel = field.querySelector("label")!;
+        const input = fieldLabel.control!.getBoundingClientRect();
+        const label = fieldLabel.getBoundingClientRect();
         const hit = document.elementFromPoint(rect.left + 1, rect.top + rect.height / 2);
         return {
           width: rect.width, height: rect.height, bottom: rect.bottom, inputTop: input.top,
