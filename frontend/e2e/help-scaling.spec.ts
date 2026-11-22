@@ -630,8 +630,8 @@ for (const { height, textScale, fontFamily } of [
       // scrollIntoView() alone could conceal an overflow:hidden regression.
       await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
       await wheelTo(page, help.locator(".workflow-help-reference summary").first(), 1);
-      await wheelTo(page, close, -1, 1);
-      await expect(help.getByRole("heading", { name: "How it works" })).toBeInViewport();
+      // Close can scroll into view before the title when the header wraps.
+      await wheelTo(page, help.getByRole("heading", { name: "How it works" }), -1);
       await expect(close).toBeInViewport({ ratio: 1 });
       await close.click();
       await expect(help).toBeHidden();
