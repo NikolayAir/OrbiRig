@@ -153,7 +153,7 @@ The server decodes both request types as UTF-8. Send JSON without a byte-order m
 
 For verification, `scenario_id` is one of the [scenario string values](verification.md#supported-scenarios). `observation_evidence` contains JSON as a string, not a nested object. FastAPI passes this string unchanged to `deserialize_execution_evidence(...)`, then delegates verification to `build_verified_execution_record(...)`.
 
-For inspection, FastAPI decodes the submitted text and passes it to the matching evidence reader for validation. For both verification and inspection, the frontend submits the textarea value without parsing and re-serialising it, preserving duplicate keys for server-side rejection. The browser displays Python's results rather than defining its own verification rules.
+For inspection, FastAPI decodes the submitted text and passes it to the matching evidence reader for validation. In both forms, the browser submits evidence as text, preserving repeated field names for Python to reject. If you open a file, the browser preserves its original line endings for submission until you edit the evidence text. The browser displays the results supplied by Python.
 
 ### Send an example request
 
