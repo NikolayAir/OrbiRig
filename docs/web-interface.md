@@ -7,8 +7,10 @@ The browser sends submitted JSON to the server for checking. On the public site,
 ## Verify an observation
 
 1. Switch to the **Verify observation** workflow.
-2. Open **Load example** and choose **Standard example** to fill in a sample. To verify your own observation, select a **Scenario** and fill in **Execution ID**, **Execution time (UTC)** and **Observation evidence JSON**. The execution time is when the command ran, for example `2026-10-21T10:00:00Z`.
+2. Open **Load example** and choose **Standard example** to fill in a sample. To verify your own observation, select a **Scenario** and fill in **Execution ID** and **Execution time (UTC)**. The execution time is when the command ran, for example `2026-10-21T10:00:00Z`. Choose **Open JSON file** or paste the observation into **Observation evidence JSON**.
 3. Choose **Verify observation** to see the expected and actual values for each check and the overall `PASS` or `FAIL`.
+
+Choose a UTF-8 file of up to 4 MiB without a byte-order mark (BOM). Opening it fills only **Observation evidence JSON**. OrbiRig asks before replacing edited text. When you submit, the [request size limit](#request-size-limit) includes the execution metadata and the encoded observation.
 
 **Standard example** uses the selected scenario or **NOMINAL to SAFE** when you have not selected one. The screenshot shows the default example after you choose **Verify observation**.
 

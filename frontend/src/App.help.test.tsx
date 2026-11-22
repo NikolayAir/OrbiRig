@@ -242,7 +242,7 @@ describe("App help", () => {
     ).toEqual([
       "For your own observation, select a Scenario, such as NOMINAL to SAFE.",
       "Enter an Execution ID and the time the command ran in Execution time (UTC).",
-      "Paste the observation into the Observation evidence JSON field.",
+      "Choose Open JSON file or paste the observation into Observation evidence JSON.",
       "Choose Verify observation to see the individual checks and overall PASS or FAIL result.",
     ]);
 

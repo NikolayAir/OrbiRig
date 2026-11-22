@@ -522,7 +522,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                   <li>
                     Enter an <strong>Execution ID</strong> and the time the command ran in <strong>Execution time (UTC)</strong>.
                   </li>
-                  <li>Paste the observation into the <strong>Observation evidence JSON</strong> field.</li>
+                  <li>Choose <strong>Open JSON file</strong> or paste the observation into <strong>Observation evidence JSON</strong>.</li>
                   <li>
                     Choose <strong>Verify observation</strong> to see the individual checks
                     and overall <strong>PASS</strong> or <strong>FAIL</strong> result.

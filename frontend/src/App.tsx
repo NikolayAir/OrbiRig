@@ -50,7 +50,7 @@ export function App() {
   const scenarioInputRef = useRef<HTMLSelectElement>(null);
   const observationEvidenceInputRef = useRef<HTMLTextAreaElement>(null);
   const inspectionEvidenceInputRef = useRef<HTMLTextAreaElement>(null);
-  const verificationExampleBaselineRef = useRef({ executionId: "", executedAt: "", observationEvidence: "" });
+  const verificationInputBaselineRef = useRef({ executionId: "", executedAt: "", observationEvidence: "" });
   const inspectionEvidenceBaselineRef = useRef("");
   // A new request replaces the completed or edited state. Keep that history so
   // edits after a cancelled or failed retry still prompt for a new check.
@@ -61,9 +61,13 @@ export function App() {
     const example = verificationExample(scenarioId || DEFAULT_VERIFICATION_SCENARIO, variant);
     return (["executionId", "executedAt", "observationEvidence"] as const).some(field => wouldReplaceEditedValue(
       verificationInputs[field],
-      verificationExampleBaselineRef.current[field],
+      verificationInputBaselineRef.current[field],
       example[field],
     ));
+  }
+
+  function observationNeedsConfirmation(next: string) {
+    return wouldReplaceEditedValue(observationEvidence, verificationInputBaselineRef.current.observationEvidence, next);
   }
 
   function inspectionNeedsConfirmation(next: string) {
@@ -118,9 +122,19 @@ export function App() {
       || executedAt !== example.executedAt
       || scenarioId !== selectedScenario
       || observationEvidence !== example.observationEvidence;
-    verificationExampleBaselineRef.current = example;
+    verificationInputBaselineRef.current = example;
     setVerificationInputs({ ...example, scenarioId: selectedScenario });
     setVerificationRequiredErrors({});
+    if (inputsChanged || verification.state.kind !== "completed") {
+      clearVerificationResult(inputsChanged);
+    }
+  }
+
+  function replaceObservationEvidence(value: string) {
+    const inputsChanged = observationEvidence !== value;
+    verificationInputBaselineRef.current = { ...verificationInputBaselineRef.current, observationEvidence: value };
+    setVerificationInputs(current => ({ ...current, observationEvidence: value }));
+    clearVerificationRequiredError("observationEvidence");
     if (inputsChanged || verification.state.kind !== "completed") {
       clearVerificationResult(inputsChanged);
     }
@@ -304,6 +318,8 @@ export function App() {
           feedback={feedback.verificationTargets}
           fieldHelp={fieldHelp}
           requiresConfirmation={verificationNeedsConfirmation}
+          requiresFileConfirmation={observationNeedsConfirmation}
+          onOpenFile={replaceObservationEvidence}
           onInputChange={changeVerificationInput}
           onLoadExample={loadVerificationExample}
           onSubmit={verifyObservation}

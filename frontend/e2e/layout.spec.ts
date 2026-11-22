@@ -224,7 +224,8 @@ for (const viewport of [
     await page.getByLabel("Scenario", { exact: true }).selectOption("nominal_to_safe_mode");
     await editor.fill(JSON.stringify(JSON.parse(observation)));
     expect(await editor.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
-    await expectWithinWidth(page.locator(".verification-form input, .verification-form select, .verification-form textarea, .primary-action"), viewport.width);
+    const controls = page.locator(".verification-form").locator("input, select, textarea, button").filter({ visible: true });
+    await expectWithinWidth(controls, viewport.width);
     await page.getByRole("button", { name: "Verify observation", exact: true }).click();
 
     const result = page.getByRole("region", { name: "Verified execution", exact: true });
@@ -365,6 +366,7 @@ for (const viewport of [
       page.getByRole("button", { name: "About Scenario", exact: true }),
       page.getByLabel("Scenario", { exact: true }),
       page.getByRole("button", { name: "About Observation evidence JSON", exact: true }),
+      page.getByRole("button", { name: "Open JSON file", exact: true }),
       page.getByLabel("Observation evidence JSON", { exact: true }),
       page.getByRole("button", { name: "Verify observation", exact: true }),
     ]) {
@@ -624,7 +626,7 @@ for (const [field, helpId] of [
     await expect(tooltip).toBeHidden();
     await expect(help).toBeFocused();
     await page.keyboard.press(tab);
-    const nextControl = field === "Evidence JSON"
+    const nextControl = field === "Evidence JSON" || field === "Observation evidence JSON"
       ? page.getByRole("button", { name: "Open JSON file", exact: true })
       : page.getByLabel(field, { exact: true });
     await expect(nextControl).toBeFocused();

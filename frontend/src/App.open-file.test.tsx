@@ -2,8 +2,8 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
-import { observation, observationEvidenceDocument } from "./test/appFixtures";
-import { chooseStandardExample, fetchMock, selectInspectionWorkflow, selectVerificationWorkflow, setupAppTests } from "./test/appTestSupport";
+import { observation, observationEvidenceDocument, verifiedExecution } from "./test/appFixtures";
+import { chooseStandardExample, fetchMock, selectInspectionWorkflow, selectVerificationWorkflow, setupAppTests, submitVerification } from "./test/appTestSupport";
 
 setupAppTests();
 afterEach(() => vi.restoreAllMocks());
@@ -167,5 +167,77 @@ describe("Open JSON file", () => {
     expect(screen.queryByRole("dialog", { name: "Replace current inputs?" })).not.toBeInTheDocument();
     expect(evidenceInput()).toHaveValue(observationEvidenceDocument);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("Open JSON file for verification", () => {
+  const opened = "File opened in Observation evidence JSON. Choose Verify observation when ready.";
+  const observationInput = () => screen.getByRole("textbox", { name: "Observation evidence JSON" });
+  const verify = () => screen.getByRole("button", { name: "Verify observation" });
+
+  it("fills the observation while leaving missing execution details empty", async () => {
+    const text = '{"execution_id":"from-file","executed_at":"2026-08-17T08:00:00Z","scenario_id":"safe_to_nominal_mode"}';
+    render(<App />);
+    fireEvent.click(verify());
+    expect(observationInput()).toHaveAttribute("aria-invalid", "true");
+    selectFile(new File([text], "observation.json"));
+
+    await screen.findByText(opened);
+    expect(observationInput()).toHaveValue(text);
+    expect(observationInput()).not.toHaveAttribute("aria-invalid");
+    expect(screen.getByLabelText("Execution ID")).toHaveValue("");
+    expect(screen.getByLabelText("Execution time (UTC)")).toHaveValue("");
+    expect(screen.getByLabelText("Scenario")).toHaveValue("");
+    expect(screen.getByLabelText("Execution ID")).toHaveAttribute("aria-invalid", "true");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it.each(["cancel", "read error", "size limit"] as const)("preserves the checked input and result after %s", async action => {
+    fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => verifiedExecution });
+    submitVerification({ evidence: observationEvidenceDocument });
+    const result = await screen.findByRole("region", { name: "Verified execution" });
+    const button = screen.getByRole("button", { name: "Open JSON file" });
+
+    if (action === "cancel") {
+      fireEvent.change(screen.getByLabelText("Evidence file", { selector: "input" }), { target: { files: [] } });
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    } else if (action === "read error") {
+      vi.spyOn(FileReader.prototype, "readAsArrayBuffer").mockImplementationOnce(
+        function (this: FileReader) { this.dispatchEvent(new Event("error")); },
+      );
+      selectFile(new File(["unreadable"], "observation.json"));
+      expect(button).toHaveAccessibleDescription(/could not be read/);
+    } else {
+      selectFile(new File([new Uint8Array(4 * 1024 * 1024 + 1)], "oversized.json"));
+      expect(button).toHaveAccessibleDescription(/exceeds 4 MiB/);
+    }
+
+    expect(observationInput()).toHaveValue(observationEvidenceDocument);
+    expect(screen.getByLabelText("Execution ID")).toHaveValue("exec-web-verify-001");
+    expect(screen.getByLabelText("Execution time (UTC)")).toHaveValue("2026-08-25T18:30:00Z");
+    expect(screen.getByLabelText("Scenario")).toHaveValue("nominal_to_safe_mode");
+    expect(result).toBeInTheDocument();
+    expect(within(result).getByRole("button", { name: "Download result JSON" })).toBeEnabled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears the result only when a file changes the observation", async () => {
+    fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => verifiedExecution });
+    submitVerification({ evidence: observationEvidenceDocument });
+    const result = await screen.findByRole("region", { name: "Verified execution" });
+    selectFile(new File([observationEvidenceDocument], "same-observation.json"));
+    await screen.findByText(opened);
+    expect(result).toBeInTheDocument();
+
+    // The identical file establishes the baseline for the next replacement.
+    const changed = JSON.stringify({ evidence_format_version: 1, ...observation, telemetry: { operating_mode: "NOMINAL" } });
+    selectFile(new File([changed], "different-observation.json"));
+    await screen.findByText("Inputs changed. Verify to check the current values.");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(observationInput()).toHaveValue(changed);
+    expect(result).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Download result JSON" })).not.toBeInTheDocument();
+    expect(verify()).toBeEnabled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
