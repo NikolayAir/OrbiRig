@@ -244,13 +244,11 @@ export function VerificationPanel({
       <div className="verification-evidence">
         <div className="form-field evidence-input">
           <EvidenceFilePicker picker={filePicker} fieldLabel="Observation evidence JSON" submitLabel="Verify observation" disabled={verifying}>
-            <div className="field-label">
-              <label htmlFor="verification-observation-evidence">Observation evidence JSON</label>
-              <FieldHelp control={fieldHelp.observationEvidence} label="Observation evidence JSON" helpId="verification-observation-hint">
-                Include the command, whether it was accepted (acknowledgement), the operating mode before and after
-                the command was handled, and the separately reported mode (telemetry).
-              </FieldHelp>
-            </div>
+            <label htmlFor="verification-observation-evidence">Observation evidence JSON</label>
+            <FieldHelp control={fieldHelp.observationEvidence} label="Observation evidence JSON" helpId="verification-observation-hint">
+              Include the command, whether it was accepted (acknowledgement), the operating mode before and after
+              the command was handled, and the separately reported mode (telemetry).
+            </FieldHelp>
           </EvidenceFilePicker>
           <textarea
             id="verification-observation-evidence"

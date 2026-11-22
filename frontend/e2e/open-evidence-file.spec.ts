@@ -12,6 +12,77 @@ async function chooseFile(page: Page, buffer: Buffer, openPicker: (button: Locat
   await (await choosing).setFiles({ name: "evidence.json", mimeType: "application/json", buffer });
 }
 
+const mobileWidths = [320, 375, 393, 414, 440];
+for (const { scale, widths } of [
+  { scale: 100, widths: [...mobileWidths, 1440] },
+  { scale: 200, widths: [...mobileWidths, 1440, 2560] },
+]) for (const width of widths) {
+  test(`Open JSON file fits both editors at ${width}px with ${scale}% text`, async ({ page, browserName }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/");
+    if (scale === 200) {
+      await page.addStyleTag({ content: ':root { font-size: 200%; font-family: Verdana, "DejaVu Sans", sans-serif; }' });
+    }
+    const tab = browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab";
+
+    for (const field of ["Observation evidence JSON", "Evidence JSON"]) {
+      if (field === "Evidence JSON") {
+        await page.getByRole("button", { name: "Show Inspect evidence", exact: true }).click();
+      }
+      const open = page.getByRole("button", { name: "Open JSON file", exact: true });
+      const text = open.locator(".evidence-file-action-label");
+      await expect(open.locator("svg")).toBeVisible();
+      if (width === 320 || (scale === 200 && mobileWidths.includes(width))) {
+        await expect(text).toBeHidden();
+      }
+      if ((width === 1440 && scale === 100) || width === 2560) {
+        await expect(text).toBeVisible();
+      }
+      await page.getByRole("button", { name: `About ${field}`, exact: true }).focus();
+      await expect(page.getByRole("tooltip")).toBeVisible();
+      await page.keyboard.press(tab);
+      await expect(open).toBeFocused();
+      await expect(open).toHaveCSS("outline-style", "solid");
+      const position = await open.evaluate(button => {
+        const heading = button.parentElement!;
+        const label = heading.querySelector("label")!;
+        const text = label.firstChild!;
+        const range = document.createRange();
+        const fragmented = Array.from(text.textContent!.matchAll(/\S+/g)).some(word => {
+          range.setStart(text, word.index);
+          range.setEnd(text, word.index + word[0].length);
+          return range.getClientRects().length > 1;
+        });
+        const box = button.getBoundingClientRect();
+        const reference = label.getBoundingClientRect();
+        const help = heading.querySelector(".field-help-button")!.getBoundingClientRect();
+        const tooltip = heading.querySelector('[role="tooltip"]')!.getBoundingClientRect();
+        const style = getComputedStyle(button);
+        const outline = parseFloat(style.outlineOffset) + parseFloat(style.outlineWidth);
+        return {
+          width: box.width,
+          height: box.height,
+          beside: box.left >= reference.right - 0.5 && box.top < reference.bottom && box.bottom > reference.top,
+          below: box.top >= reference.bottom,
+          besideHelp: box.left >= help.right - 0.5 && box.top < help.bottom && box.bottom > help.top,
+          focusFits: box.left >= outline && box.right + outline <= window.innerWidth,
+          tooltipClearsButton: tooltip.top >= box.bottom,
+          fragmented,
+          scrollWidth: document.documentElement.scrollWidth,
+        };
+      });
+      expect(position.width).toBeGreaterThanOrEqual(44);
+      expect(position.height).toBeGreaterThanOrEqual(44);
+      expect(position.beside || (scale === 200 && position.below)).toBe(true);
+      if (scale === 100 || width === 320) expect(position.besideHelp).toBe(true);
+      expect(position.focusFits).toBe(true);
+      expect(position.tooltipClearsButton).toBe(true);
+      expect(position.fragmented).toBe(false);
+      expect(position.scrollWidth).toBe(width);
+    }
+  });
+}
+
 test("a file with repeated JSON fields is sent as read and rejected by inspection", async ({ page }) => {
   const text = fixture("duplicate-keys.json.txt").toString("utf8").replaceAll("\n", "\r\n");
   const file = Buffer.from(text);

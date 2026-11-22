@@ -117,7 +117,7 @@ for (const { scale, widths } of [
       panel.evaluate((node, { groupSelector, firstLabel }) => {
         const heading = node.querySelector(".workflow-heading")!.getBoundingClientRect();
         const firstGroup = node.querySelector(groupSelector)!.getBoundingClientRect();
-        const editor = node.querySelector(".evidence-input .field-label")!.getBoundingClientRect();
+        const editor = node.querySelector(".evidence-editor-heading")!.getBoundingClientRect();
         const labelTop = (label: Element) => {
           const text = document.createRange();
           text.selectNodeContents(label);

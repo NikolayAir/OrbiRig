@@ -107,6 +107,7 @@ export function EvidenceFilePicker({ picker, fieldLabel, submitLabel, disabled, 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const openFileButtonRef = useRef<HTMLButtonElement>(null);
   const reading = state.kind === "reading";
+  const actionLabel = reading ? "Opening file…" : "Open JSON file";
 
   return (
     <>
@@ -117,6 +118,7 @@ export function EvidenceFilePicker({ picker, fieldLabel, submitLabel, disabled, 
           className="secondary-action"
           ref={openFileButtonRef}
           disabled={disabled}
+          aria-label={actionLabel}
           aria-disabled={reading || undefined}
           aria-describedby={state.kind === "error" ? errorId : undefined}
           onClick={event => {
@@ -130,7 +132,7 @@ export function EvidenceFilePicker({ picker, fieldLabel, submitLabel, disabled, 
             <path d="M3 18V6a2 2 0 0 1 2-2h4l3 3h6a2 2 0 0 1 2 2v2" />
             <path d="m3 18 3-7h15a1 1 0 0 1 .94 1.35l-2.3 6.35A2 2 0 0 1 17.76 20H5a2 2 0 0 1-2-2Z" />
           </svg>
-          {reading ? "Opening file…" : "Open JSON file"}
+          <span className="evidence-file-action-label">{actionLabel}</span>
         </button>
         <input
           type="file"
