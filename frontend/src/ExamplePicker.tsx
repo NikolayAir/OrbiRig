@@ -3,7 +3,7 @@ import { useId, useLayoutEffect, useRef, useState } from "react";
 export type ExampleOption<Variant extends string> = {
   variant: Variant;
   label: string;
-  description?: string;
+  description: string;
   tone?: "negative";
 };
 
@@ -131,12 +131,12 @@ export function ExamplePicker<Variant extends string>({
               className="secondary-action example-option"
               data-tone={option.tone}
               aria-label={option.label}
-              aria-describedby={option.description ? descriptionId : undefined}
+              aria-describedby={descriptionId}
               disabled={disabled}
               onClick={() => choose(option)}
             >
               {option.label}
-              {option.description && <small id={descriptionId}>{option.description}</small>}
+              <small id={descriptionId}>{option.description}</small>
             </button>
           );
         })}

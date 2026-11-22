@@ -31,6 +31,8 @@ describe("App examples", () => {
     fireEvent.click(trigger);
 
     expect(trigger).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: "Standard example" }))
+      .toHaveAccessibleDescription("An observation that passes verification.");
     expect(screen.getByRole("button", { name: "Failing example" }))
       .toHaveAccessibleDescription("The reported mode differs from the recorded ending mode.");
     expect(screen.getByLabelText("Execution ID")).toHaveValue("");

@@ -50,7 +50,12 @@ export function InspectionPanel({
   const completed = isInspectionComplete(inspection);
   const actionStatus = completed ? inspectionCompletedStatus(inspection)
     : inspection.kind === "dirty" ? INSPECTION_INPUTS_CHANGED : undefined;
-  const options: ExampleOption<InspectionExampleVariant>[] = [{ variant: "passing", label: "Standard example" }];
+  const options: ExampleOption<InspectionExampleVariant>[] = [{
+    variant: "passing", label: "Standard example",
+    description: evidenceType === "observation"
+      ? "A valid observation to inspect."
+      : "Valid saved evidence with a PASS outcome.",
+  }];
   if (evidenceType === "verified-execution-sequence") {
     options.push({
       variant: "long", label: "Long sequence", tone: "negative",

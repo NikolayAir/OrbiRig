@@ -96,6 +96,9 @@ test("the inspection picker shows the options for the selected evidence type", a
     await picker.click();
     await expect(options.getByRole("button")).toHaveCount(labels.length);
     for (const label of labels) await expect(options.getByRole("button", { name: label, exact: true })).toBeVisible();
+    await expect(options.getByRole("button", { name: "Standard example", exact: true })).toHaveAccessibleDescription(
+      type === "Observation" ? "A valid observation to inspect." : "Valid saved evidence with a PASS outcome.",
+    );
     await page.getByRole("heading", { name: "Inspect evidence", exact: true }).click();
     await expect(options).toBeHidden();
   }

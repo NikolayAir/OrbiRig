@@ -24,7 +24,11 @@ import type {
 import type { useVerificationFieldHelp } from "./useVerificationFieldHelp";
 
 const verificationExamples: ExampleOption<ExampleVariant>[] = [
-  { variant: "passing", label: "Standard example" },
+  {
+    variant: "passing",
+    label: "Standard example",
+    description: "An observation that passes verification.",
+  },
   {
     variant: "failing",
     label: "Failing example",
