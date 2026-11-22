@@ -63,6 +63,11 @@ export function selectVerificationWorkflow() {
   );
 }
 
+export function chooseStandardExample() {
+  fireEvent.click(screen.getByRole("button", { name: "Load example" }));
+  fireEvent.click(screen.getByRole("button", { name: "Standard example" }));
+}
+
 export function selectVerifiedExecutionSequence() {
   fireEvent.click(
     screen.getByRole("radio", { name: "Verified execution sequence" }),

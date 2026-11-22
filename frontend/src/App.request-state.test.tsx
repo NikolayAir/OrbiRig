@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { App } from "./App";
 import { observation, verifiedExecution, failedTelemetryExecution } from "./test/appFixtures";
 import {
+  chooseStandardExample,
   setupAppTests, submitVerification, submitEvidence, fetchMock, deferred,
   selectInspectionWorkflow, selectVerificationWorkflow, scrollIntoViewMock,
 } from "./test/appTestSupport";
@@ -40,14 +41,14 @@ describe("request and edited-input states", () => {
     render(<App />);
     if (inspection) selectInspectionWorkflow();
     const load = screen.getByRole("button", { name: "Load example" });
-    fireEvent.click(load);
+    chooseStandardExample();
     fireEvent.click(screen.getByRole("button", { name: inspection ? "Inspect evidence" : "Verify observation" }));
     const resultName = inspection ? "Observation details" : "Verified execution";
     await screen.findByRole("region", { name: resultName });
     await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("completed."));
     act(() => load.focus());
     scrollIntoViewMock.mockClear();
-    fireEvent.click(load);
+    chooseStandardExample();
     expect(screen.getByRole("region", { name: resultName })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: inspection ? "Inspect evidence" : "Verify observation" })).toHaveAccessibleDescription(
       inspection ? "Inspection completed. Evidence is valid." : "Verification completed.",
@@ -60,7 +61,7 @@ describe("request and edited-input states", () => {
     const original = (field as HTMLInputElement).value;
     fireEvent.change(field, { target: { value: `${original} ` } });
     fireEvent.change(field, { target: { value: original } });
-    fireEvent.click(load);
+    chooseStandardExample();
     expect(screen.queryByRole("region", { name: resultName })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: inspection ? "Inspect evidence" : "Verify observation" })).toHaveAccessibleDescription(
       inspection ? inspectionChanged : verificationChanged,
@@ -184,7 +185,7 @@ describe("request and edited-input states", () => {
       fetchMock.mockResolvedValueOnce(respond(payload));
       render(<App />);
       if (inspection) selectInspectionWorkflow();
-      fireEvent.click(screen.getByRole("button", { name: "Load example" }));
+      chooseStandardExample();
       fireEvent.click(screen.getByRole("button", { name: action }));
       await screen.findByRole("region", { name: resultName });
     }
@@ -237,7 +238,7 @@ describe("request and edited-input states", () => {
       fireEvent.change(field, { target: { value: `${original} ` } });
       fireEvent.change(field, { target: { value: original } });
       await cancelRetry(action);
-      fireEvent.click(screen.getByRole("button", { name: "Load example" }));
+      chooseStandardExample();
       expect(screen.queryByText(changed)).not.toBeInTheDocument();
       expect(screen.queryByRole("region", { name: resultName })).not.toBeInTheDocument();
       expect(screen.getByRole("button", { name: action })).toBeEnabled();
@@ -246,7 +247,7 @@ describe("request and edited-input states", () => {
     it("does not prompt after a first request that never completed", async () => {
       render(<App />);
       if (inspection) selectInspectionWorkflow();
-      fireEvent.click(screen.getByRole("button", { name: "Load example" }));
+      chooseStandardExample();
       await cancelRetry(action);
       const field = screen.getByLabelText(fieldLabel) as HTMLInputElement;
       fireEvent.change(field, { target: { value: `${field.value} ` } });

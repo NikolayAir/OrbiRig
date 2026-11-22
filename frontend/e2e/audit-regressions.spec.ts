@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { chooseExample } from "./example-support";
 
 test("field help remains hoverable and dismissible across the gap", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -159,7 +160,7 @@ test("touch dismisses help only after an intentional backdrop tap", async ({ bro
 
 test("server time errors identify the field and keep verification outcomes separate", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Load example", exact: true }).click();
+  await chooseExample(page);
   const time = page.getByLabel("Execution time (UTC)", { exact: true });
   await time.fill("2026-02-30T10:00:00Z");
   await page.getByRole("button", { name: "Verify observation", exact: true }).click();

@@ -7,14 +7,14 @@ The browser sends submitted JSON to the server for checking. On the public site,
 ## Verify an observation
 
 1. Switch to the **Verify observation** workflow.
-2. Choose **Load example** to fill in a sample. To verify your own observation, select a **Scenario** and fill in **Execution ID**, **Execution time (UTC)** and **Observation evidence JSON**. The execution time is when the command ran, for example `2026-10-21T10:00:00Z`.
+2. Open **Load example** and choose **Standard example** to fill in a sample. To verify your own observation, select a **Scenario** and fill in **Execution ID**, **Execution time (UTC)** and **Observation evidence JSON**. The execution time is when the command ran, for example `2026-10-21T10:00:00Z`.
 3. Choose **Verify observation** to see the expected and actual values for each check and the overall `PASS` or `FAIL`.
 
-**Load example** uses the selected scenario or **NOMINAL to SAFE** when you have not selected one. The screenshot shows the default example after you choose **Verify observation**.
+**Standard example** uses the selected scenario or **NOMINAL to SAFE** when you have not selected one. The screenshot shows the default example after you choose **Verify observation**.
 
 ![The verification form and a PASS result for the NOMINAL-to-SAFE example](images/orbirig-web-interface.png)
 
-**Load failing example** fills in an observation whose telemetry (a separate report of the operating mode) disagrees with the recorded ending mode. Verifying it gives `FAIL`.
+**Failing example** fills in an observation whose telemetry (a separate report of the operating mode) disagrees with the recorded ending mode. Verifying it gives `FAIL`.
 
 An [expected command rejection](verification.md#supported-scenarios) can pass. OrbiRig reports an input error before running the checks if the recorded command does not match the selected scenario. When entering your own record, follow the [rules for execution IDs and times](evidence-formats.md#execution-ids).
 
@@ -31,7 +31,7 @@ You can also save a verified record [from the command line](cli.md#verify-the-bu
 ## Inspect evidence
 
 1. Switch to the **Inspect evidence** workflow.
-2. Select the **Evidence type**. Paste the saved document into **Evidence JSON** or choose **Load example**.
+2. Select the **Evidence type**. Paste the saved document into **Evidence JSON** or choose a sample from **Load example**.
 3. Choose **Inspect evidence** to check the document and view its contents.
 
 | Type | What inspection shows and checks |
@@ -42,10 +42,11 @@ You can also save a verified record [from the command line](cli.md#verify-the-bu
 
 ### Choose an inspection example
 
-- **Load example** fills in valid JSON for the selected evidence type.
-- **Load failing example** gives a valid saved `FAIL` when you select a verified type. In the sequence example, each record passes and the continuity check fails.
-- **Load long sequence** gives 100 records to browse and filter, including failed telemetry and continuity checks.
-- **Load altered example** gives invalid evidence. The observation repeats a field name. The verified examples contain saved results that disagree with the recorded values.
+Open **Load example** to see the examples available for the selected evidence type. **Standard example** fills in valid JSON for that type.
+
+- **Failing example** gives a valid saved `FAIL` when you select a verified type. In the sequence example, each record passes and the continuity check fails.
+- **Long sequence** gives 100 records to browse and filter, including failed telemetry and continuity checks.
+- **Altered example** gives invalid evidence. The observation repeats a field name. The verified examples contain saved results that disagree with the recorded values.
 
 ### Find failures in a sequence
 
@@ -109,7 +110,7 @@ cd frontend
 npm run dev
 ```
 
-Open the URL printed by Vite, normally <http://localhost:5173>. Vite forwards `/api` requests to FastAPI at `127.0.0.1:8000`. To verify the example observation, choose **Load example**, then **Verify observation**.
+Open the URL printed by Vite, normally <http://localhost:5173>. Vite forwards `/api` requests to FastAPI at `127.0.0.1:8000`. To verify the example observation, open **Load example**, choose **Standard example**, then choose **Verify observation**.
 
 For the full development environment, checks and browser-test setup, see [CONTRIBUTING.md](../CONTRIBUTING.md).
 

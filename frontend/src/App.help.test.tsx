@@ -256,7 +256,7 @@ describe("App help", () => {
     expect(browserPanel.getByText(/^For verification, choose the scenario/)).toHaveTextContent(
       /For inspection, provide the saved JSON document \(evidence\) you want to check\.$/,
     );
-    expect(guidance.getByText(/^To try a sample/)).toHaveTextContent("choose Load example or Load failing example, then Verify observation.");
+    expect(guidance.getByText(/^Open\b/, { selector: "p" })).toHaveTextContent("Standard example or Failing example. Then choose Verify observation.");
     expect(guidance.getByText(/means the recorded behaviour matches/)).toHaveTextContent(
       "PASS means the recorded behaviour matches the selected scenario. This can include a rejected command if rejection was expected.",
     );
@@ -272,7 +272,7 @@ describe("App help", () => {
       within(inspectionSteps).getAllByRole("listitem").map((step) => step.textContent?.replace(/\s+/g, " ").trim()),
     ).toEqual([
       "Select the Evidence type that matches your document.",
-      "Paste the document into Evidence JSON or choose Load example.",
+      "Paste the document into Evidence JSON or choose a sample from Load example.",
       "Choose Inspect evidence to see the recorded values and any saved verification results.",
     ]);
     const observationInspection = guidance.getByText(/Inspecting an observation validates/);
@@ -827,7 +827,7 @@ describe("App help", () => {
     selectInspectionWorkflow();
     const help = screen.getByRole("button", { name: "About Evidence JSON" });
     const input = screen.getByLabelText("Evidence JSON", { exact: true });
-    const description = "Paste the full JSON document for the evidence type you chose. Choose Load example to see the format.";
+    const description = "Paste the full JSON document for the evidence type you chose. Use Load example to choose a sample document.";
     expect(help).toHaveAccessibleDescription(description);
     expect(input).toHaveAccessibleDescription(description);
     fireEvent.change(input, { target: { value: "preserved JSON" } });

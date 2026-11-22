@@ -506,7 +506,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                 hidden={browserWorkflow !== "verification"}
                 tabIndex={0}
               >
-                <p>To try a sample, choose <strong>Load example</strong> or <strong>Load failing example</strong>, then <strong>Verify observation</strong>.</p>
+                <p>Open <strong>Load example</strong> and choose <strong>Standard example</strong> or <strong>Failing example</strong>. Then choose <strong>Verify observation</strong>.</p>
                 <ol>
                   <li>
                     For your own observation, select a <strong>Scenario</strong>, such as <strong>NOMINAL to SAFE</strong>.
@@ -589,7 +589,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                     Select the <strong>Evidence type</strong> that matches your document.
                   </li>
                   <li>
-                    Paste the document into <strong>Evidence JSON</strong> or choose <strong>Load example</strong>.
+                    Paste the document into <strong>Evidence JSON</strong> or choose a sample from <strong>Load example</strong>.
                   </li>
                   <li>
                     Choose <strong>Inspect evidence</strong> to see the recorded values

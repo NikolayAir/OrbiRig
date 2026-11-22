@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 
 import { expect, test } from "@playwright/test";
+import { chooseExample } from "./example-support";
 
 const example = (filename: string) => readFileSync(new URL(`../../docs/examples/${filename}`, import.meta.url), "utf8");
 
@@ -73,7 +74,7 @@ for (const [scenario, acknowledgement] of [
   test(`standard examples produce PASS with ${acknowledgement} acknowledgement: ${scenario}`, async ({ page }) => {
     await page.goto("/");
     await page.getByLabel("Scenario", { exact: true }).selectOption(scenario);
-    await page.getByRole("button", { name: "Load example", exact: true }).click();
+    await chooseExample(page);
     const pending = page.waitForResponse("**/api/verify/observation");
     await page.getByRole("button", { name: "Verify observation", exact: true }).click();
     const response = await pending;

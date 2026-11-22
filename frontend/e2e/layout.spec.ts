@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 
 import { expect, test, type Locator } from "@playwright/test";
+import { chooseExample } from "./example-support";
 
 const observation = readFileSync(new URL("./fixtures/mixed-results.json", import.meta.url), "utf8");
 const sequence = readFileSync(new URL("./fixtures/discontinuous-sequence.json", import.meta.url), "utf8");
@@ -25,8 +26,8 @@ async function recordNextClick(input: Locator) {
 }
 
 for (const { scale, widths } of [
-  { scale: 100, widths: [320, 390, firstTwoColumnWidth - 1, firstTwoColumnWidth, 600, 768, 1024, 1280, 1440, 1920] },
-  { scale: 200, widths: [320, 390, 600, 768, 820, 1024, firstTwoColumnWidthWithDoubledText - 1, firstTwoColumnWidthWithDoubledText, 1280, 1440, 1920] },
+  { scale: 100, widths: [320, 375, 390, 430, firstTwoColumnWidth - 1, firstTwoColumnWidth, 600, 768, 1024, 1280, 1440, 1920] },
+  { scale: 200, widths: [320, 375, 390, 430, 600, 768, 820, 1024, firstTwoColumnWidthWithDoubledText - 1, firstTwoColumnWidthWithDoubledText, 1280, 1440, 1920] },
 ]) for (const width of widths) {
   test(`verification fields stay in order at ${width}px with ${scale}% text`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
@@ -39,7 +40,7 @@ for (const { scale, widths } of [
     const { id, time, scenario, metadata, editor, action, heading, examples, splitWords, pageWidth, rem } = await panel.evaluate(node => {
       const bounds = (selector: string) => node.querySelector(selector)!.getBoundingClientRect().toJSON();
       const textElements = document.querySelectorAll(
-        ".check-flow strong, .check-flow span, #verification-workflow .workflow-heading h2, #verification-workflow .example-action > button",
+        ".check-flow strong, .check-flow span, #verification-workflow .workflow-heading h2, #verification-workflow .example-picker-trigger > span:first-child",
       );
       const splitWords = Array.from(textElements).flatMap(element => {
         const text = element.firstChild!;
@@ -58,7 +59,7 @@ for (const { scale, widths } of [
         editor: bounds("#verification-observation-evidence"),
         action: bounds("button[type=submit]"),
         heading: bounds(".workflow-heading h2"),
-        examples: bounds(".example-actions"),
+        examples: bounds(".example-picker-trigger"),
         splitWords,
         pageWidth: document.documentElement.scrollWidth,
         rem: parseFloat(getComputedStyle(document.documentElement).fontSize),
@@ -94,13 +95,9 @@ for (const { scale, widths } of [
     expect(scenario.right).toBeCloseTo(metadata.right, 0);
 
     expect(heading.right <= examples.left || heading.bottom <= examples.top).toBe(true);
-    if (width === 768 && scale === 200) {
-      expect(examples.top).toBeGreaterThan(heading.bottom);
-      await panel.getByRole("button", { name: "Load failing example", exact: true }).hover();
-      const tooltip = panel.getByRole("tooltip");
-      await expect(tooltip).toBeVisible();
-      await expectWithinWidth(tooltip, width);
-    }
+    expect(examples.width).toBeGreaterThanOrEqual(44);
+    expect(examples.height).toBeGreaterThanOrEqual(44);
+    if (width === 390 && scale === 100) expect(examples.top).toBeLessThan(heading.bottom);
   });
 }
 
@@ -211,16 +208,10 @@ for (const viewport of [
     await expectWithinWidth(page.getByRole("alert"), viewport.width);
 
     const example = page.getByRole("button", { name: "Load example", exact: true });
-    await expect(example).toHaveAccessibleDescription("Replaces current inputs");
-    const exampleHint = page.getByText("Replaces current inputs", { exact: true });
-    await expect(exampleHint).toBeHidden();
-    await example.hover();
-    await expect(exampleHint).toBeVisible();
-    await expectWithinWidth(exampleHint, viewport.width);
     const exampleBounds = (await example.boundingBox())!;
     const inputBounds = (await executionId.boundingBox())!;
     expect(exampleBounds.y + exampleBounds.height).toBeLessThan(inputBounds.y);
-    await example.click();
+    await chooseExample(page);
     await expect(executionId).toHaveValue("example-execution-001");
     await expect(page.getByLabel("Scenario", { exact: true })).toHaveValue("nominal_to_safe_mode");
     expect(await editor.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
@@ -316,7 +307,7 @@ for (const viewport of [
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/");
     await page.getByRole("button", { name: "Show Inspect evidence", exact: true }).click();
-    await page.getByRole("button", { name: "Load example", exact: true }).click();
+    await chooseExample(page);
     const editor = page.getByLabel("Evidence JSON", { exact: true });
     const observationText = await editor.inputValue();
     const observation = page.getByRole("radio", { name: "Observation", exact: true });
@@ -362,7 +353,7 @@ for (const viewport of [
     await page.setViewportSize(viewport);
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/");
-    await page.getByRole("button", { name: "Load example", exact: true }).click();
+    await chooseExample(page);
     await page.getByLabel("Execution ID", { exact: true }).focus();
     const tab = browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab";
     for (const control of [
@@ -418,10 +409,13 @@ for (const { width, textScale } of [
       const tooltip = page.locator(`#${helpId}`);
       // Start reading from the middle of the viewport; edge positioning is a separate concern.
       await help.evaluate(element => element.scrollIntoView({ block: "center" }));
-      const positions = () => page.locator(".workflow-panel input, .workflow-panel select, .workflow-panel textarea, .workflow-panel button").evaluateAll(elements => elements.map(element => {
-        const bounds = element.getBoundingClientRect();
-        return { x: bounds.x + window.scrollX, y: bounds.y + window.scrollY, width: bounds.width, height: bounds.height };
-      }));
+      const positions = () => page
+        .locator(".workflow-panel input, .workflow-panel select, .workflow-panel textarea, .workflow-panel button")
+        .filter({ visible: true })
+        .evaluateAll(elements => elements.map(element => {
+          const bounds = element.getBoundingClientRect();
+          return { x: bounds.x + window.scrollX, y: bounds.y + window.scrollY, width: bounds.width, height: bounds.height };
+        }));
       const initialPositions = await positions();
       const expectStablePositions = async () => {
         const current = await positions();
@@ -789,7 +783,7 @@ for (const font of ["", "monospace"]) {
     const sequence = page.getByRole("radio", { name: "Verified execution sequence", exact: true });
     await sequence.check();
     await expect(sequence).toBeChecked();
-    await page.getByRole("button", { name: "Load example", exact: true }).click();
+    await chooseExample(page);
     await expect(page.getByLabel("Evidence JSON", { exact: true })).not.toHaveValue("");
   });
 }

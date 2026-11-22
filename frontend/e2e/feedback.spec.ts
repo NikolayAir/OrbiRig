@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 
 import { expect, test, type Page } from "@playwright/test";
+import { chooseExample } from "./example-support";
 
 type Workflow = "verification" | "inspection";
 
@@ -13,7 +14,7 @@ async function prepare(page: Page, workflow: Workflow) {
   if (workflow === "inspection") {
     await page.getByRole("button", { name: "Show Inspect evidence" }).click();
   }
-  await page.getByRole("button", { name: "Load example", exact: true }).click();
+  await chooseExample(page);
 }
 
 async function holdResponse(page: Page) {

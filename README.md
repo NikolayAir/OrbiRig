@@ -21,12 +21,12 @@ The three supported scenarios use a simplified, non-operational spacecraft model
 The hosted interface runs on Render's free plan. After 15 minutes of inactivity, the service spins down, so the next visit may take about a minute to load.
 
 1. Open the [OrbiRig web interface](https://orbirig-evidence-inspector.onrender.com/) and select the **Verify observation** workflow.
-2. Choose **Load example** to fill in the inputs, then choose **Verify observation** to run the checks. The default example records an accepted change from `NOMINAL` to `SAFE` and gives `PASS`.
-3. Choose **Load failing example**, then **Verify observation**. The screenshot shows a `FAIL` result because telemetry reports `NOMINAL` while the recorded ending mode is `SAFE`.
+2. Open **Load example** and choose **Standard example** to fill in the inputs, then choose **Verify observation** to run the checks. The default example records an accepted change from `NOMINAL` to `SAFE` and gives `PASS`.
+3. Open **Load example**, choose **Failing example**, then choose **Verify observation**. The screenshot shows a `FAIL` result because telemetry reports `NOMINAL` while the recorded ending mode is `SAFE`.
 
 ![A verification result with three passing checks and one failed telemetry check](docs/images/orbirig-web-verification.png)
 
-To explore saved records, switch to **Inspect evidence**, select an evidence type, choose **Load example**, then submit it with the **Inspect evidence** button.
+To explore saved records, switch to **Inspect evidence**, select an evidence type, open **Load example** and choose **Standard example**, then submit it with the **Inspect evidence** button.
 
 See the [web-interface guide](docs/web-interface.md) to run it locally or use the HTTP endpoints.
 

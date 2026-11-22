@@ -1,5 +1,5 @@
 import type { Dispatch, RefObject, SetStateAction, SubmitEvent } from "react";
-import { LoadExampleButton } from "./LoadExampleButton";
+import { ExamplePicker, type ExampleOption } from "./ExamplePicker";
 import { FieldHelp } from "./FieldHelp";
 import type { InspectionExampleVariant } from "./examples";
 import { EvidenceRequestSizeError, RequestError } from "./RequestFeedback";
@@ -50,6 +50,27 @@ export function InspectionPanel({
   const completed = isInspectionComplete(inspection);
   const actionStatus = completed ? inspectionCompletedStatus(inspection)
     : inspection.kind === "dirty" ? INSPECTION_INPUTS_CHANGED : undefined;
+  const options: ExampleOption<InspectionExampleVariant>[] = [{ variant: "passing", label: "Standard example" }];
+  if (evidenceType === "verified-execution-sequence") {
+    options.push({
+      variant: "long", label: "Long sequence", tone: "negative",
+      description: "100 records across 4 pages, including failed telemetry and continuity checks.",
+    });
+  }
+  if (evidenceType !== "observation") {
+    options.push({
+      variant: "failing", label: "Failing example", tone: "negative",
+      description: evidenceType === "verified-execution"
+        ? "Valid saved evidence with a FAIL outcome."
+        : "Valid saved evidence with a failed check between records.",
+    });
+  }
+  options.push({
+    variant: "altered", label: "Altered example", tone: "negative",
+    description: evidenceType === "observation"
+      ? "OrbiRig rejects the repeated field name."
+      : "OrbiRig rejects the altered check results.",
+  });
 
   return (<section
     className="workflow-panel"
@@ -58,49 +79,12 @@ export function InspectionPanel({
   >
     <div className="workflow-heading">
       <h2 id="evidence-inspection">Inspect evidence</h2>
-      <div className="example-actions">
-        <LoadExampleButton
-          description="Replaces evidence JSON"
-          disabled={inspection.kind === "loading"}
-          requiresConfirmation={requiresConfirmation("passing")}
-          onLoad={() => loadInspectionExample("passing")}
-        />
-        {evidenceType === "verified-execution-sequence" && (
-          <LoadExampleButton
-            label="Load long sequence"
-            tone="negative"
-            tooltipClassName="long-sequence-example-hint"
-            description="100 records across 4 pages, with failed telemetry and continuity checks. Replaces evidence JSON"
-            disabled={inspection.kind === "loading"}
-            requiresConfirmation={requiresConfirmation("long")}
-            onLoad={() => loadInspectionExample("long")}
-          />
-        )}
-        {evidenceType !== "observation" && (
-          <LoadExampleButton
-            label="Load failing example"
-            tone="negative"
-            tooltipClassName={evidenceType === "verified-execution-sequence" ? "sequence-continuity-example-hint" : undefined}
-            description={`${evidenceType === "verified-execution"
-              ? "Valid saved evidence with a FAIL outcome."
-              : "Both records pass. The first ending mode differs from the second starting mode."} Replaces evidence JSON`}
-            disabled={inspection.kind === "loading"}
-            requiresConfirmation={requiresConfirmation("failing")}
-            onLoad={() => loadInspectionExample("failing")}
-          />
-        )}
-        <LoadExampleButton
-          label="Load altered example"
-          tone="negative"
-          tooltipClassName={evidenceType === "observation" ? "observation-altered-example-hint" : undefined}
-          description={`${evidenceType === "observation"
-            ? "Repeats a field name, so the evidence is rejected."
-            : "OrbiRig rejects saved checks that disagree with the recorded values."} Replaces evidence JSON`}
-          disabled={inspection.kind === "loading"}
-          requiresConfirmation={requiresConfirmation("altered")}
-          onLoad={() => loadInspectionExample("altered")}
-        />
-      </div>
+      <ExamplePicker
+        options={options}
+        disabled={inspection.kind === "loading"}
+        requiresConfirmation={requiresConfirmation}
+        onLoad={loadInspectionExample}
+      />
     </div>
 
     <form className="inspection-form" noValidate onKeyDown={preventRepeatedRequestAction} onSubmit={inspectEvidence}>
@@ -164,7 +148,7 @@ export function InspectionPanel({
             <label htmlFor="evidence">Evidence JSON</label>
             <FieldHelp control={evidenceHelp} label="Evidence JSON" helpId="inspection-evidence-hint">
               Paste the full JSON document for the evidence type you chose.
-              Choose Load example to see the format.
+              Use Load example to choose a sample document.
             </FieldHelp>
           </div>
           <textarea

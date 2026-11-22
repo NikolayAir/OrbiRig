@@ -669,107 +669,87 @@ button {
 }
 
 .workflow-heading {
-  align-items: flex-start;
+  align-items: center;
   border-bottom: 1px solid var(--line);
   display: flex;
-  gap: 1.5rem;
-  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
   margin-bottom: 0.75rem;
   padding-bottom: 0.75rem;
 }
 
 .workflow-heading > h2 {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-#verification-workflow .workflow-heading {
-  align-items: center;
-  flex-flow: row wrap;
-  gap: 0.75rem 1.5rem;
-}
-
-#verification-workflow .workflow-heading > h2 {
-  /* Keep whole words on very narrow panels with enlarged text. */
+  flex: 1 1 min-content;
   font-size: min(1.35rem, 14cqi);
+  overflow-wrap: normal;
 }
 
-#verification-workflow .example-actions {
-  justify-content: flex-start;
-  max-width: 100%;
+.example-picker {
+  margin-inline-start: auto;
+  max-inline-size: 100%;
+  position: relative;
 }
 
-#verification-workflow .example-action > button {
-  padding-inline: min(1rem, 4cqi);
+.example-picker > .example-picker-trigger {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.375rem;
+  max-inline-size: 100%;
+  padding-inline: min(1rem, 2.5cqi);
 }
 
-#verification-workflow .example-action.field-help [role="tooltip"] {
-  /* Keep wrapped actions' tooltips inside the panel's outer padding. */
-  max-width: min(17rem, calc(100% + 1rem));
-}
-
-.workflow-heading p {
-  font-size: 0.9375rem;
-  line-height: 1.6;
-  max-width: 66ch;
-}
-
-.example-actions {
-  display: flex;
-  flex: 0 1 auto;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  justify-content: flex-end;
-  min-width: 0;
-}
-
-/* Keep an open tooltip above the neighbouring example button. */
-.example-action:hover,
-.example-action:focus-within {
-  z-index: 3;
-}
-
-.example-action {
-  align-items: flex-end;
-  display: flex;
+.example-chevron {
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
   flex: 0 0 auto;
-  flex-direction: column;
-  gap: 0.4rem;
-  isolation: isolate;
-  max-width: 100%;
-  min-width: 0;
-  position: relative;
+  height: 0.375rem;
+  transform: translateY(-20%) rotate(45deg);
+  width: 0.375rem;
 }
 
-.example-action > button {
-  max-width: 100%;
-  overflow-wrap: anywhere;
-  /*
-   * The tooltip extends an invisible area across the gap to its button.
-   * Keep that area behind the button so it cannot block clicks.
-   */
-  position: relative;
-  z-index: 2;
+.example-picker-trigger[aria-expanded="true"] .example-chevron {
+  transform: translateY(20%) rotate(225deg);
 }
 
-.example-action.field-help [role="tooltip"] {
-  left: auto;
-  max-width: min(16rem, calc(100vw - 4.5rem));
-  right: 0;
-  width: max-content;
+.example-options {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  box-shadow: 0 3px 12px rgb(21 62 86 / 15%);
+  box-sizing: border-box;
+  gap: 0.375rem;
+  inset-block-start: calc(100% + 0.5rem);
+  inset-inline-end: 0;
+  inline-size: min(20rem, 100cqi);
+  max-block-size: max(0px, calc(var(--example-available-height, 100dvh) - 1rem));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Leave room for the buttons' focus outlines inside the scrolling list. */
+  padding: 0.375rem;
+  position: absolute;
+  scroll-padding-block: 0.375rem;
+  z-index: 4;
 }
 
-.example-action.field-help .verification-failing-example-hint,
-.example-action.field-help .observation-altered-example-hint {
-  max-width: min(17rem, calc(100vw - 4.5rem));
+.example-options:not([hidden]) {
+  display: grid;
 }
 
-.example-action.field-help .sequence-continuity-example-hint {
-  max-width: min(15rem, calc(100vw - 4.5rem));
+.example-options[data-side="above"] {
+  inset-block: auto calc(100% + 0.5rem);
 }
 
-.example-action.field-help .long-sequence-example-hint {
-  max-width: min(17.5rem, calc(100vw - 4.5rem));
+.example-options .example-option {
+  padding: 0.5rem min(0.75rem, 2.5cqi);
+  text-align: start;
+}
+
+.example-option small {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.4;
+  margin-block-start: 0.25rem;
 }
 
 .example-confirmation {
@@ -1027,23 +1007,6 @@ label,
 .field-help[data-dismissed="true"] [role="tooltip"] {
   opacity: 0;
   visibility: hidden;
-}
-
-.example-action [role="tooltip"] {
-  pointer-events: auto;
-}
-
-/*
- * Cover the gap between button and tooltip with an invisible area (hover bridge).
- * This keeps the tooltip open while the pointer crosses the gap.
- */
-.example-action [role="tooltip"]::before {
-  bottom: 100%;
-  content: "";
-  height: 1rem;
-  left: 0;
-  position: absolute;
-  width: 100%;
 }
 
 input:not([type="radio"]),
@@ -1935,15 +1898,6 @@ a[target="_blank"] {
     grid-template-columns: 1fr;
   }
 
-  .workflow-heading {
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .example-actions {
-    justify-content: flex-start;
-  }
-
   /* Plain titles keep the form close to the top and do not look like buttons. */
   .check-flow {
     display: flex;
@@ -1972,15 +1926,6 @@ a[target="_blank"] {
 
   .check-flow span {
     display: none;
-  }
-
-  .example-action {
-    align-items: flex-start;
-  }
-
-  .example-action.field-help [role="tooltip"] {
-    left: 0;
-    right: auto;
   }
 
   .form-actions .primary-action {
