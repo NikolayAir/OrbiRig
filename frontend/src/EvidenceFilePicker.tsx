@@ -55,10 +55,14 @@ export function useEvidenceFilePicker(requiresConfirmation: (text: string) => bo
 
       let text: string;
       try {
-        // Preserve the source text, including a BOM, for Python's JSON reader.
+        // Keep a leading BOM visible for the file check below.
         text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
       } catch {
         reportReadError("The file is not valid UTF-8. Save it as UTF-8 and try again.");
+        return;
+      }
+      if (text.startsWith("\ufeff")) {
+        reportReadError("The file starts with a UTF-8 byte-order mark (BOM). Save it as UTF-8 without a BOM and try again.");
         return;
       }
       if (!text.trim()) {

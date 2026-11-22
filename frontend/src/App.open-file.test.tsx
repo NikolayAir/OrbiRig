@@ -63,7 +63,7 @@ it.each([
 
 describe("Open JSON file", () => {
   it("opens raw text for the selected type and waits for explicit submission", async () => {
-    const text = '\ufeff{\r\n  "execution_id": "run-Δ",\r\n  "execution_id": "another-run"\r\n}\r\n';
+    const text = '{\r\n  "execution_id": "run-Δ",\r\n  "execution_id": "another-run"\r\n}\r\n';
     fetchMock.mockResolvedValue({ ok: false, status: 422 });
     render(<App />);
     selectInspectionWorkflow();
@@ -203,7 +203,7 @@ describe("Open JSON file for verification", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it.each(["cancel", "read error", "size limit"] as const)("preserves the checked input and result after %s", async action => {
+  it.each(["cancel", "read error", "size limit", "UTF-8 BOM"] as const)("preserves the checked input and result after %s", async action => {
     fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => verifiedExecution });
     submitVerification({ evidence: observationEvidenceDocument });
     const result = await screen.findByRole("region", { name: "Verified execution" });
@@ -218,11 +218,17 @@ describe("Open JSON file for verification", () => {
       );
       selectFile(new File(["unreadable"], "observation.json"));
       expect(button).toHaveAccessibleDescription(/could not be read/);
-    } else {
+    } else if (action === "size limit") {
       selectFile(new File([new Uint8Array(4 * 1024 * 1024 + 1)], "oversized.json"));
       expect(button).toHaveAccessibleDescription(/exceeds 4 MiB/);
+    } else {
+      selectFile(new File([`\ufeff${observationEvidenceDocument}`], "observation-with-bom.json"));
+      expect(await screen.findByRole("alert")).toHaveTextContent("byte-order mark (BOM)");
+      expect(button).toHaveAccessibleDescription(/UTF-8 without a BOM/);
     }
 
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByText(FILE_OPENED)).not.toBeInTheDocument();
     expect(observationInput()).toHaveValue(observationEvidenceDocument);
     expect(screen.getByLabelText("Execution ID")).toHaveValue("exec-web-verify-001");
     expect(screen.getByLabelText("Execution time (UTC)")).toHaveValue("2026-08-25T18:30:00Z");
