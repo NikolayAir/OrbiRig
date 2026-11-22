@@ -757,13 +757,13 @@ button {
   margin-block-start: 0.25rem;
 }
 
-.example-confirmation {
+.replace-inputs-dialog {
   overflow: auto;
   padding: 1.25rem;
   width: min(28rem, calc(100% - 2rem));
 }
 
-.example-confirmation p {
+.replace-inputs-dialog p {
   color: var(--muted);
   margin: 1rem 0;
 }

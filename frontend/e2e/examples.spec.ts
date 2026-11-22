@@ -69,6 +69,7 @@ for (const width of [1440, 768, 320]) {
   for (const workflow of ["Verify observation", "Inspect evidence"]) {
     test(`${workflow} protects manual inputs when loading an example at ${width}px`, async ({ page, browserName }) => {
       await page.setViewportSize({ width, height: 800 });
+      await page.emulateMedia({ reducedMotion: "reduce" });
       await page.goto("/");
       if (workflow === "Inspect evidence") {
         await page.getByRole("button", { name: "Show Inspect evidence" }).click();
@@ -89,7 +90,8 @@ for (const width of [1440, 768, 320]) {
       const result = workflow === "Verify observation"
         ? page.getByRole("region", { name: "Verified execution", exact: true })
         : page.getByRole("region", { name: "Observation details", exact: true });
-      await expect(result).toBeVisible();
+      // Wait for the result to take focus before returning to the example picker.
+      await expect(result.getByRole("heading", { level: 2 })).toBeFocused();
       if (workflow === "Verify observation") {
         await expect(result.locator(".outcome-badge").filter({ hasText: "Verification outcome: PASS" })).toBeVisible();
       } else {
