@@ -1,7 +1,7 @@
-import { useLayoutEffect, useRef, useState, type ChangeEvent, type Dispatch, type RefObject, type SetStateAction, type SubmitEvent } from "react";
+import type { Dispatch, RefObject, SetStateAction, SubmitEvent } from "react";
+import { EvidenceFilePicker, useEvidenceFilePicker } from "./EvidenceFilePicker";
 import { ExamplePicker, type ExampleOption } from "./ExamplePicker";
 import { FieldHelp } from "./FieldHelp";
-import { ReplaceInputsDialog } from "./ReplaceInputsDialog";
 import type { InspectionExampleVariant } from "./examples";
 import { EvidenceRequestSizeError, RequestError } from "./RequestFeedback";
 import { describedBy, preventRepeatedRequestAction } from "./formHelpers";
@@ -16,15 +16,6 @@ import {
 } from "./EvidenceDetails";
 import { INSPECTION_CANCELLED, INSPECTION_INPUTS_CHANGED, inspectionCompletedStatus, invalidEvidenceGuidance, invalidEvidenceMessage, isInspectionComplete } from "./workflowContent";
 import type { EvidenceType, InspectionState } from "./workflowTypes";
-
-// Match the inclusive inspection request limit in src/orbirig/web.py.
-const MAX_EVIDENCE_FILE_BYTES = 4 * 1024 * 1024;
-const FILE_READ_ERROR = "The file could not be read. Choose another JSON file.";
-
-type FileOpenState =
-  | { kind: "idle" | "reading" | "opened" }
-  | { kind: "error"; message: string }
-  | { kind: "confirm"; text: string };
 
 type Props = {
   evidenceType: EvidenceType;
@@ -60,88 +51,9 @@ export function InspectionPanel({
     submitRef: inspectionSubmitRef,
     cancelRef: inspectionCancelRef,
   } = feedback;
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const openFileButtonRef = useRef<HTMLButtonElement>(null);
-  const fileReaderRef = useRef<FileReader | null>(null);
-  const [fileOpen, setFileOpen] = useState<FileOpenState>({ kind: "idle" });
-  const readingFile = fileOpen.kind === "reading";
+  const filePicker = useEvidenceFilePicker(requiresFileConfirmation, onOpenFile);
   const inspecting = inspection.kind === "loading";
-  const inputsLocked = inspecting || readingFile;
-
-  useLayoutEffect(() => () => {
-    const reader = fileReaderRef.current;
-    fileReaderRef.current = null;
-    reader?.abort();
-  }, []);
-
-  function applyFile(text: string) {
-    onOpenFile(text);
-    setFileOpen({ kind: "opened" });
-  }
-
-  function openSelectedFile(event: ChangeEvent<HTMLInputElement>) {
-    const input = event.currentTarget;
-    const file = input.files?.[0];
-    // Choosing the same file again must dispatch a new change event.
-    input.value = "";
-    if (!file || inputsLocked || fileReaderRef.current) return;
-    if (file.size > MAX_EVIDENCE_FILE_BYTES) {
-      setFileOpen({ kind: "error", message: "The JSON file exceeds 4 MiB. Choose a smaller evidence document." });
-      return;
-    }
-
-    const reader = new FileReader();
-    fileReaderRef.current = reader;
-    setFileOpen({ kind: "reading" });
-
-    function reportReadError(message: string) {
-      if (fileReaderRef.current !== reader) return;
-      fileReaderRef.current = null;
-      setFileOpen({ kind: "error", message });
-    }
-
-    reader.onerror = () => reportReadError(FILE_READ_ERROR);
-    reader.onload = () => {
-      // Switching workflows unmounts the panel and abandons this read.
-      if (fileReaderRef.current !== reader) return;
-      const bytes = reader.result;
-      if (bytes === null || typeof bytes === "string") {
-        reportReadError(FILE_READ_ERROR);
-        return;
-      }
-
-      let text: string;
-      try {
-        // Preserve the source text, including a BOM, for the existing inspector.
-        text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
-      } catch {
-        reportReadError("The file is not valid UTF-8. Save it as UTF-8 and try again.");
-        return;
-      }
-      if (!text.trim()) {
-        reportReadError("The file contains no JSON text. Choose an evidence document.");
-        return;
-      }
-
-      fileReaderRef.current = null;
-      if (requiresFileConfirmation(text)) {
-        setFileOpen({ kind: "confirm", text });
-      } else {
-        applyFile(text);
-      }
-    };
-
-    try {
-      reader.readAsArrayBuffer(file);
-    } catch {
-      reportReadError(FILE_READ_ERROR);
-    }
-  }
-
-  function closeFileConfirmation() {
-    setFileOpen(current => current.kind === "confirm" ? { kind: "idle" } : current);
-    openFileButtonRef.current?.focus({ preventScroll: true });
-  }
+  const inputsLocked = inspecting || filePicker.state.kind === "reading";
 
   const completed = isInspectionComplete(inspection);
   const actionStatus = completed ? inspectionCompletedStatus(inspection)
@@ -185,19 +97,14 @@ export function InspectionPanel({
         disabled={inputsLocked}
         requiresConfirmation={requiresConfirmation}
         onLoad={variant => {
-          setFileOpen({ kind: "idle" });
-          loadInspectionExample(variant);
+          if (filePicker.clearFeedback()) loadInspectionExample(variant);
         }}
       />
     </div>
 
     <form className="inspection-form" noValidate onKeyDown={preventRepeatedRequestAction} onSubmit={event => {
-      if (fileReaderRef.current) {
-        event.preventDefault();
-        return;
-      }
-      setFileOpen({ kind: "idle" });
-      void inspectEvidence(event);
+      if (filePicker.clearFeedback()) void inspectEvidence(event);
+      else event.preventDefault();
     }}>
       <fieldset
         className="evidence-types"
@@ -255,7 +162,7 @@ export function InspectionPanel({
 
       <div className="inspection-evidence">
         <div className="form-field evidence-input">
-          <div className="inspection-editor-heading">
+          <EvidenceFilePicker picker={filePicker} fieldLabel="Evidence JSON" submitLabel="Inspect evidence" disabled={inspecting}>
             <div className="field-label">
               <label htmlFor="evidence">Evidence JSON</label>
               <FieldHelp control={evidenceHelp} label="Evidence JSON" helpId="inspection-evidence-hint">
@@ -263,55 +170,7 @@ export function InspectionPanel({
                 Use Load example to choose a sample.
               </FieldHelp>
             </div>
-            <button
-              type="button"
-              className="secondary-action"
-              ref={openFileButtonRef}
-              disabled={inspecting}
-              aria-disabled={readingFile || undefined}
-              aria-describedby={fileOpen.kind === "error" ? "inspection-file-error" : undefined}
-              onClick={event => {
-                if (fileReaderRef.current) return;
-                event.currentTarget.focus({ preventScroll: true });
-                fileInputRef.current?.click();
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
-                <path d="M3 18V6a2 2 0 0 1 2-2h4l3 3h6a2 2 0 0 1 2 2v2" />
-                <path d="m3 18 3-7h15a1 1 0 0 1 .94 1.35l-2.3 6.35A2 2 0 0 1 17.76 20H5a2 2 0 0 1-2-2Z" />
-              </svg>
-              {readingFile ? "Opening file…" : "Open JSON file"}
-            </button>
-            <input
-              type="file"
-              aria-label="Evidence file"
-              accept=".json,application/json"
-              ref={fileInputRef}
-              onChange={openSelectedFile}
-              disabled={inputsLocked}
-              hidden
-            />
-          </div>
-          <p
-            aria-live="polite"
-            aria-atomic="true"
-            className={fileOpen.kind === "opened" ? "field-hint" : "visually-hidden"}
-          >
-            {fileOpen.kind === "opened" ? "File opened in Evidence JSON. Choose Inspect evidence when ready." : ""}
-          </p>
-          {fileOpen.kind === "error" && (
-            <p id="inspection-file-error" className="field-error" role="alert">{fileOpen.message}</p>
-          )}
-          {fileOpen.kind === "confirm" && (
-            <ReplaceInputsDialog
-              title="Replace Evidence JSON?"
-              description="Opening this file will replace your edited Evidence JSON."
-              actionLabel="Replace Evidence JSON"
-              onConfirm={() => applyFile(fileOpen.text)}
-              onClose={closeFileConfirmation}
-            />
-          )}
+          </EvidenceFilePicker>
           <textarea
             id="evidence"
             name="evidence"
@@ -321,8 +180,7 @@ export function InspectionPanel({
             placeholder="Paste evidence JSON here…"
             value={evidence}
             onChange={event => {
-              setFileOpen({ kind: "idle" });
-              onEvidenceChange(event.target.value);
+              if (filePicker.clearFeedback()) onEvidenceChange(event.target.value);
             }}
             disabled={inputsLocked}
             spellCheck={false}
