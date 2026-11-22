@@ -95,6 +95,58 @@ test("collapsed browser and command-line help have the same bottom spacing", asy
   }
 });
 
+test("the help buttons share a row at 393px and wrap on a narrower screen", async ({ page }) => {
+  await page.setViewportSize({ width: 393, height: 852 });
+  await page.goto("/");
+  const section = page.getByRole("region", { name: "How it works", exact: true });
+  const browser = section.getByRole("button", { name: "In the browser", exact: true });
+  const cli = section.getByRole("button", { name: "From the command line", exact: true });
+  const documentation = section.getByRole("link", { name: "Documentation (opens in a new tab)", exact: true });
+
+  const browserBounds = (await browser.boundingBox())!;
+  const cliBounds = (await cli.boundingBox())!;
+  const documentationBounds = (await documentation.boundingBox())!;
+  expect(cliBounds.y).toBeCloseTo(browserBounds.y, 0);
+  expect(cliBounds.x).toBeGreaterThan(browserBounds.x + browserBounds.width);
+  expect(browserBounds.y).toBeGreaterThan(documentationBounds.y + documentationBounds.height);
+  expect(cliBounds.x + cliBounds.width).toBeLessThan(393);
+  expect(browserBounds.height).toBeGreaterThanOrEqual(44);
+  expect(cliBounds.height).toBeGreaterThanOrEqual(44);
+
+  await page.setViewportSize({ width: 320, height: 852 });
+  const wrappedBrowser = (await browser.boundingBox())!;
+  const wrappedCli = (await cli.boundingBox())!;
+  expect(wrappedCli.y).toBeGreaterThan(wrappedBrowser.y + wrappedBrowser.height);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
+});
+
+test("the command-line tab uses the spare width beside the shorter tab", async ({ page }) => {
+  await page.setViewportSize({ width: 430, height: 900 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "In the browser", exact: true }).click();
+  const tabs = page.getByRole("tablist", { name: "Help sections", exact: true });
+  const columns = () => tabs.evaluate(list => Array.from(list.querySelectorAll("button"), button => {
+    const { width, height, top } = button.getBoundingClientRect();
+    const label = document.createRange();
+    label.selectNodeContents(button.querySelector("span")!);
+    return { width, height, top: top - list.getBoundingClientRect().top, lines: label.getClientRects().length };
+  }));
+
+  const before = await columns();
+  const [browser, cli] = before;
+  expect(browser.width).toBeLessThan(cli.width);
+  expect(cli.lines).toBe(1);
+  expect(cli.height).toBeCloseTo(browser.height, 1);
+  expect(cli.top).toBeCloseTo(browser.top, 1);
+
+  await tabs.getByRole("tab", { name: "In the browser", exact: true }).focus();
+  await page.keyboard.press("ArrowRight");
+  const cliTab = tabs.getByRole("tab", { name: "From the command line", exact: true });
+  await expect(cliTab).toBeFocused();
+  await expect(cliTab).toHaveAttribute("aria-selected", "true");
+  expect(await columns()).toEqual(before);
+});
+
 test("a one-pixel increase in a short window keeps the help header visible", async ({ page }) => {
   const width = 390;
   await page.setViewportSize({ width, height: 480 });

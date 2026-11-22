@@ -8,6 +8,31 @@ import type { Workflow } from "./workflowTypes";
 type HelpSection = "browser" | "cli";
 type ExpandableSection = "python-example" | "verification-results" | "inspection-results" | "cli-results" | "dotnet-example";
 
+function HelpSectionLabel({ section }: { section: HelpSection }) {
+  const browser = section === "browser";
+  return (
+    <>
+      <svg
+        className="workflow-help-icon"
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+        focusable="false"
+      >
+        <rect x="3" y="4" width="18" height="16" rx="2" />
+        <path d={browser ? "M3 9h18 M6.5 6.5h.01 M9.5 6.5h.01" : "m7 9 3 3-3 3m6 0h4"} />
+      </svg>
+      <span>{browser ? "In the browser" : "From the command line"}</span>
+    </>
+  );
+}
+
 // One shared state value controls expanded sections. Selecting a section closes
 // the previous section in the same update.
 function ExpandableHelpSection({ id, className, title, openSection, onOpenChange, children }: {
@@ -292,7 +317,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
           tabIndex={0}
           onClick={(event) => openHelp("browser", event.currentTarget)}
         >
-          In the browser
+          <HelpSectionLabel section="browser" />
         </button>
         <button
           type="button"
@@ -302,9 +327,16 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
           tabIndex={0}
           onClick={(event) => openHelp("cli", event.currentTarget)}
         >
-          From the command line
+          <HelpSectionLabel section="cli" />
         </button>
-        <DocLink href={LINKS.documentation} className="workflow-help-trigger">Documentation</DocLink>
+        <DocLink href={LINKS.documentation} className="workflow-help-trigger">
+          <svg className="doc-link-icon" width="15" height="15" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+            strokeLinejoin="round" aria-hidden="true" focusable="false">
+            <path d="M12 6a5 5 0 0 0-4-2H3v15h5a5 5 0 0 1 4 2 5 5 0 0 1 4-2h5V4h-5a5 5 0 0 0-4 2Zm0 0v15" />
+          </svg>
+          Documentation
+        </DocLink>
       </div>
       <dialog
         ref={dialogRef}
@@ -395,7 +427,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
               onClick={() => selectHelp("browser")}
               onKeyDown={(event) => navigateTabs(event, "browser")}
             >
-              In the browser
+              <HelpSectionLabel section="browser" />
             </button>
             <button
               ref={cliTabRef}
@@ -409,7 +441,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
               onClick={() => selectHelp("cli")}
               onKeyDown={(event) => navigateTabs(event, "cli")}
             >
-              From the command line
+              <HelpSectionLabel section="cli" />
             </button>
           </div>
         </div>
