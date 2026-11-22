@@ -95,6 +95,121 @@ test("collapsed browser and command-line help have the same bottom spacing", asy
   }
 });
 
+test("compact help keeps visual and keyboard order aligned", async ({ page, browserName }) => {
+  await page.goto("/");
+  const summary = page.getByRole("list", { name: "How a check works" });
+  const section = page.getByRole("region", { name: "How it works", exact: true });
+  const heading = section.getByRole("heading", { name: "How it works", exact: true });
+  const browser = section.getByRole("button", { name: "In the browser", exact: true });
+  const cli = section.getByRole("button", { name: "From the command line", exact: true });
+  const documentation = section.getByRole("link", { name: "Documentation (opens in a new tab)", exact: true });
+  const macWebKit = browserName === "webkit" && process.platform === "darwin";
+  const next = macWebKit ? "Alt+Tab" : "Tab";
+  const previous = macWebKit ? "Alt+Shift+Tab" : "Shift+Tab";
+
+  for (const [width, scale] of [[1440, 100], [320, 100], [393, 100], [480, 100], [320, 200], [393, 200]]) {
+    await test.step(`at ${width}px with ${scale}% text`, async () => {
+      await page.setViewportSize({ width, height: 852 });
+      await page.locator("html").evaluate((element, scale) => { element.style.fontSize = `${scale}%`; }, scale);
+      // Use DOMRect dimensions to avoid rounding the 44px touch targets in Firefox.
+      const [flow, help, title, link, browserButton, cliButton] = await Promise.all(
+        [summary, section, heading, documentation, browser, cli].map(element => element.evaluate(node => {
+          const { x, y, width, height } = node.getBoundingClientRect();
+          const fitsContent = node.scrollWidth <= node.clientWidth && node.scrollHeight <= node.clientHeight;
+          return { x, y, width, height, fitsContent };
+        })),
+      );
+      const rem = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
+      const gapAbove = help.y - (flow.y + flow.height);
+      expect(gapAbove).toBeGreaterThanOrEqual(0);
+      expect(gapAbove).toBeLessThanOrEqual(rem / 2);
+      if (width === 1440) {
+        expect(browserButton.x).toBeGreaterThanOrEqual(link.x + link.width);
+        expect(browserButton.y).toBeLessThan(link.y + link.height);
+      } else {
+        const gapBelow = browserButton.y - Math.max(title.y + title.height, link.y + link.height);
+        expect(gapBelow).toBeGreaterThanOrEqual(0);
+        expect(gapBelow).toBeLessThanOrEqual(rem / 2);
+        if (scale === 100) {
+          expect(link.x + link.width).toBeCloseTo(help.x + help.width, 0);
+        }
+      }
+      if (scale === 100) {
+        expect(link.x).toBeGreaterThanOrEqual(title.x + title.width);
+        expect(link.y).toBeLessThan(title.y + title.height);
+      }
+      expect(cliButton.y).toBeGreaterThanOrEqual(browserButton.y);
+      expect(cliButton.x >= browserButton.x + browserButton.width
+        || cliButton.y >= browserButton.y + browserButton.height).toBe(true);
+      for (const bounds of [link, browserButton, cliButton]) {
+        expect(bounds.width).toBeGreaterThanOrEqual(44);
+        expect(bounds.height).toBeGreaterThanOrEqual(44);
+        expect(bounds.x).toBeGreaterThanOrEqual(0);
+        expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
+        expect(bounds.fitsContent).toBe(true);
+      }
+      if (width >= 480) expect(cliButton.y).toBeCloseTo(browserButton.y, 0);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
+
+      await documentation.focus();
+      await page.keyboard.press(next);
+      await expect(browser).toBeFocused();
+      await page.keyboard.press(next);
+      await expect(cli).toBeFocused();
+      await page.keyboard.press(previous);
+      await expect(browser).toBeFocused();
+      await page.keyboard.press(previous);
+      await expect(documentation).toBeFocused();
+      await expect(documentation).toHaveCSS("outline-offset", "4px");
+    });
+  }
+});
+
+test("the command-line tab uses the spare width beside the shorter tab", async ({ page }) => {
+  await page.setViewportSize({ width: 430, height: 900 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "In the browser", exact: true }).click();
+  const tabs = page.getByRole("tablist", { name: "Help sections", exact: true });
+  const columns = () => tabs.evaluate(list => {
+    const rowTop = list.getBoundingClientRect().top;
+    return Array.from(list.querySelectorAll("button"), button => {
+      const bounds = button.getBoundingClientRect();
+      const label = document.createRange();
+      label.selectNodeContents(button.querySelector("span")!);
+      const lines = Array.from(label.getClientRects());
+      return {
+        width: bounds.width,
+        height: bounds.height,
+        top: bounds.top - rowTop,
+        lines: lines.length,
+        labelFits: lines.length > 0 && lines.every(line =>
+          line.left >= bounds.left && line.right <= bounds.right
+          && line.top >= bounds.top && line.bottom <= bounds.bottom),
+      };
+    });
+  });
+
+  const before = await columns();
+  const [browser, cli] = before;
+  expect(browser.width).toBeLessThan(cli.width);
+  expect(browser.labelFits).toBe(true);
+  expect(cli.labelFits).toBe(true);
+  expect(cli.height).toBeCloseTo(browser.height, 1);
+  expect(cli.top).toBeCloseTo(browser.top, 1);
+
+  await tabs.getByRole("tab", { name: "In the browser", exact: true }).focus();
+  await page.keyboard.press("ArrowRight");
+  const cliTab = tabs.getByRole("tab", { name: "From the command line", exact: true });
+  await expect(cliTab).toBeFocused();
+  await expect(cliTab).toHaveAttribute("aria-selected", "true");
+  expect(await columns()).toEqual(before);
+
+  await page.setViewportSize({ width: 600, height: 900 });
+  const [, widerCli] = await columns();
+  expect(widerCli.labelFits).toBe(true);
+  expect(widerCli.lines).toBe(1);
+});
+
 test("a one-pixel increase in a short window keeps the help header visible", async ({ page }) => {
   const width = 390;
   await page.setViewportSize({ width, height: 480 });
@@ -472,10 +587,15 @@ for (const { height, textScale, fontFamily } of [
 ]) {
   test.describe(`help at 320x${height} with ${textScale}% text${fontFamily ? ` in ${fontFamily}` : ""}`, () => {
     async function wheelTo(page: Page, target: Locator, direction: number, ratio = 0) {
-      // Engines may limit one wheel event to a fraction of the viewport.
-      // Short steps also avoid skipping the target in very short windows.
+      const step = await target.evaluate(element => {
+        const dialog = element.closest("dialog")!;
+        const panel = element.closest(".workflow-help-content");
+        const scroller = dialog.dataset.scrollWhole === "true" ? dialog : panel ?? dialog;
+        // Keep each scroll shorter than the visible area so successive views overlap.
+        return Math.floor(scroller.clientHeight * 0.75);
+      });
       await expect(async () => {
-        await page.mouse.wheel(0, direction * Math.min(800, height / 2));
+        await page.mouse.wheel(0, direction * step);
         await expect(target).toBeInViewport({ ratio, timeout: 100 });
       }).toPass({ timeout: 10_000, intervals: [50] });
     }
@@ -510,8 +630,8 @@ for (const { height, textScale, fontFamily } of [
       // scrollIntoView() alone could conceal an overflow:hidden regression.
       await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
       await wheelTo(page, help.locator(".workflow-help-reference summary").first(), 1);
-      await wheelTo(page, close, -1, 1);
-      await expect(help.getByRole("heading", { name: "How it works" })).toBeInViewport();
+      // Close can scroll into view before the title when the header wraps.
+      await wheelTo(page, help.getByRole("heading", { name: "How it works" }), -1);
       await expect(close).toBeInViewport({ ratio: 1 });
       await close.click();
       await expect(help).toBeHidden();

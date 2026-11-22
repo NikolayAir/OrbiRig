@@ -257,7 +257,13 @@ export function App() {
           aria-pressed={activeWorkflow === "verification"}
           onClick={() => { if (activeWorkflow !== "verification") fieldHelp.closePinned(); setActiveWorkflow("verification"); }}
         >
-          <span>Verify observation</span>
+          <span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+              <path d="m3 5 2 2 4-4m-6 9 2 2 4-4m-6 9 2 2 4-4M12 5h9m-9 7h9m-9 7h9" />
+            </svg>
+            Verify observation
+          </span>
           <small id="verification-workflow-description">Compare a recorded result with a scenario.</small>
         </button>
         <button
@@ -268,7 +274,15 @@ export function App() {
           aria-pressed={activeWorkflow === "inspection"}
           onClick={() => { if (activeWorkflow !== "inspection") fieldHelp.closePinned(); setActiveWorkflow("inspection"); }}
         >
-          <span>Inspect evidence</span>
+          <span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+              <path d="M13 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10Zm0 0v7h7" />
+              <circle cx="10.5" cy="13.5" r="2.5" />
+              <path d="m12.25 15.25 2.25 2.25" />
+            </svg>
+            Inspect evidence
+          </span>
           <small id="inspection-workflow-description">Read a JSON document and check that any saved results match its data.</small>
         </button>
       </div>
@@ -319,7 +333,14 @@ export function App() {
           <p>Built with a Python verification core, FastAPI, React and TypeScript.</p>
         </div>
         <p>
-          <DocLink href={LINKS.source}>Source code</DocLink>
+          <DocLink href={LINKS.source}>
+            <svg className="doc-link-icon" width="15" height="15" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+              strokeLinejoin="round" aria-hidden="true" focusable="false">
+              <path d="m7 7-5 5 5 5m10-10 5 5-5 5M14 4l-4 16" />
+            </svg>
+            Source code
+          </DocLink>
         </p>
       </footer>
     </main>

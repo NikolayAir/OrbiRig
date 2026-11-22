@@ -1,5 +1,5 @@
 import type { RefObject, SubmitEvent } from "react";
-import { LoadExampleButton } from "./LoadExampleButton";
+import { ExamplePicker, type ExampleOption } from "./ExamplePicker";
 import { EvidenceRequestSizeError, RequestError } from "./RequestFeedback";
 import { downloadVerifiedExecutionEvidence } from "./downloadEvidence";
 import { describedBy, preventRepeatedRequestAction } from "./formHelpers";
@@ -22,6 +22,20 @@ import type {
   VerificationState,
 } from "./workflowTypes";
 import type { useVerificationFieldHelp } from "./useVerificationFieldHelp";
+
+const verificationExamples: ExampleOption<ExampleVariant>[] = [
+  {
+    variant: "passing",
+    label: "Standard example",
+    description: "An observation that passes verification.",
+  },
+  {
+    variant: "failing",
+    label: "Failing example",
+    description: "The reported mode differs from the recorded ending mode.",
+    tone: "negative",
+  },
+];
 
 type Props = {
   input: VerificationInputs;
@@ -80,23 +94,12 @@ export function VerificationPanel({
   >
     <div className="workflow-heading">
       <h2 id="observation-verification">Verify observation</h2>
-      <div className="example-actions">
-        <LoadExampleButton
-          description="Replaces current inputs"
-          disabled={verification.kind === "loading"}
-          requiresConfirmation={verificationNeedsConfirmation("passing")}
-          onLoad={() => loadVerificationExample("passing")}
-        />
-        <LoadExampleButton
-          label="Load failing example"
-          tone="negative"
-          tooltipClassName="verification-failing-example-hint"
-          description="Telemetry reports a different mode from the recorded ending mode. Replaces current inputs"
-          disabled={verification.kind === "loading"}
-          requiresConfirmation={verificationNeedsConfirmation("failing")}
-          onLoad={() => loadVerificationExample("failing")}
-        />
-      </div>
+      <ExamplePicker
+        options={verificationExamples}
+        disabled={verification.kind === "loading"}
+        requiresConfirmation={verificationNeedsConfirmation}
+        onLoad={loadVerificationExample}
+      />
     </div>
 
     <form
@@ -255,7 +258,7 @@ export function VerificationPanel({
             onChange={(event) => onInputChange("observationEvidence", event.target.value)}
             disabled={verification.kind === "loading"}
             spellCheck={false}
-            rows={7}
+            rows={8}
             required
           />
           {verificationRequiredErrors.observationEvidence && (

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { chooseExample } from "./example-support";
 
 for (const [type, endpoint] of [
   ["Observation", "observation"],
@@ -9,7 +10,7 @@ for (const [type, endpoint] of [
     await page.goto("/");
     await page.getByRole("button", { name: "Show Inspect evidence", exact: true }).click();
     await page.getByRole("radio", { name: type, exact: true }).check();
-    await page.getByRole("button", { name: "Load example", exact: true }).click();
+    await chooseExample(page);
     const pending = page.waitForResponse(`**/api/inspect/${endpoint}`);
     await page.getByRole("button", { name: "Inspect evidence", exact: true }).click();
     const response = await pending;
@@ -39,7 +40,7 @@ for (const { scenario, label, reportedTelemetry, expectedTelemetry } of [
   test(`the failing ${label} example produces FAIL only for telemetry`, async ({ page }) => {
     await page.goto("/");
     await page.getByLabel("Scenario", { exact: true }).selectOption(scenario);
-    await page.getByRole("button", { name: "Load failing example", exact: true }).click();
+    await chooseExample(page, "Failing example");
     await page.getByRole("button", { name: "Verify observation", exact: true }).click();
     const result = page.getByRole("region", { name: "Verified execution", exact: true });
     await expect(result.locator(".outcome-badge").filter({ hasText: "Verification outcome: FAIL" })).toBeVisible();
@@ -54,18 +55,22 @@ test("failing and altered examples use the FAIL colours while the standard examp
   await page.goto("/");
   await page.getByRole("button", { name: "Show Inspect evidence" }).click();
   await page.getByRole("radio", { name: "Verified execution", exact: true }).check();
+  await page.getByRole("button", { name: "Load example", exact: true }).click();
   const failColour = "rgb(150, 63, 45)";
-  await expect(page.getByRole("button", { name: "Load failing example", exact: true })).toHaveCSS("color", failColour);
-  await expect(page.getByRole("button", { name: "Load altered example", exact: true })).toHaveCSS("color", failColour);
-  await expect(page.getByRole("button", { name: "Load example", exact: true })).not.toHaveCSS("color", failColour);
+  await expect(page.getByRole("button", { name: "Failing example", exact: true })).toHaveCSS("color", failColour);
+  await expect(page.getByRole("button", { name: "Altered example", exact: true })).toHaveCSS("color", failColour);
+  await expect(page.getByRole("button", { name: "Standard example", exact: true })).not.toHaveCSS("color", failColour);
 });
 
 test("the failing saved execution stays valid evidence with a FAIL outcome", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Show Inspect evidence" }).click();
-  await expect(page.getByRole("button", { name: "Load failing example", exact: true })).toHaveCount(0);
+  const more = page.getByRole("button", { name: "Load example", exact: true });
+  await more.click();
+  await expect(page.getByRole("button", { name: "Failing example", exact: true })).toHaveCount(0);
   await page.getByRole("radio", { name: "Verified execution", exact: true }).check();
-  await page.getByRole("button", { name: "Load failing example", exact: true }).click();
+  await more.click();
+  await page.getByRole("button", { name: "Failing example", exact: true }).click();
   await page.locator("button[type=submit]").click();
   await expect(page.locator(".outcome-badge").filter({ hasText: "Verification outcome: FAIL" })).toBeVisible();
   await expect(page.getByRole("alert")).toHaveCount(0);
@@ -76,7 +81,8 @@ test("the failing sequence fails continuity while each record passes", async ({ 
   await page.goto("/");
   await page.getByRole("button", { name: "Show Inspect evidence" }).click();
   await page.getByRole("radio", { name: "Verified execution sequence", exact: true }).check();
-  await page.getByRole("button", { name: "Load failing example", exact: true }).click();
+  await page.getByRole("button", { name: "Load example", exact: true }).click();
+  await page.getByRole("button", { name: "Failing example", exact: true }).click();
   await page.locator("button[type=submit]").click();
   const result = page.getByRole("region", { name: "Verified execution sequence", exact: true });
   await expect(result).toContainText("Sequence totals: 2 members. Failed members: 0. Failed continuity checks: 1.");
@@ -85,10 +91,14 @@ test("the failing sequence fails continuity while each record passes", async ({ 
 test("the long sequence is paged and its failures can be found across every page", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Show Inspect evidence" }).click();
-  await expect(page.getByRole("button", { name: "Load long sequence", exact: true })).toHaveCount(0);
+  const more = page.getByRole("button", { name: "Load example", exact: true });
+  await more.click();
+  await expect(page.getByRole("button", { name: "Long sequence", exact: true })).toHaveCount(0);
   await page.getByRole("radio", { name: "Verified execution sequence", exact: true }).check();
-  const load = page.getByRole("button", { name: "Load long sequence", exact: true });
+  await more.click();
+  const load = page.getByRole("button", { name: "Long sequence", exact: true });
   await expect(load).toHaveCSS("color", "rgb(150, 63, 45)");
+  await expect(load).toHaveAccessibleDescription("100 records across 4 pages, including failed telemetry and continuity checks.");
   await load.click();
   await page.locator("button[type=submit]").click();
   const result = page.getByRole("region", { name: "Verified execution sequence", exact: true });
@@ -111,10 +121,11 @@ for (const [type, endpoint, message] of [
     await page.goto("/");
     await page.getByRole("button", { name: "Show Inspect evidence" }).click();
     await page.getByRole("radio", { name: type, exact: true }).check();
-    const load = page.getByRole("button", { name: "Load altered example", exact: true });
+    await page.getByRole("button", { name: "Load example", exact: true }).click();
+    const load = page.getByRole("button", { name: "Altered example", exact: true });
     await expect(load).toHaveAccessibleDescription(type === "Observation"
-      ? "Repeats a field name, so the evidence is rejected. Replaces evidence JSON"
-      : "OrbiRig rejects saved checks that disagree with the recorded values. Replaces evidence JSON");
+      ? "OrbiRig rejects the repeated field name."
+      : "OrbiRig rejects evidence whose saved checks disagree with the recorded values.");
     await load.click();
     const pending = page.waitForResponse(`**/api/inspect/${endpoint}`);
     await page.locator("button[type=submit]").click();

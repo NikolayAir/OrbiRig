@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
+import { chooseExample } from "./example-support";
 
 const accepted = readFileSync(new URL("./fixtures/accepted.json", import.meta.url), "utf8");
 const failed = readFileSync(new URL("./fixtures/incorrect-behaviour.json", import.meta.url), "utf8");
@@ -11,7 +12,7 @@ async function prepare(page: Page, inspection = false) {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
   if (inspection) await page.getByRole("button", { name: "Show Inspect evidence" }).click();
-  await page.getByRole("button", { name: "Load example", exact: true }).click();
+  await chooseExample(page);
 }
 
 for (const field of ["Execution ID", "Execution time (UTC)", "Scenario", "Observation evidence JSON", "Evidence JSON", "Evidence type"]) {
