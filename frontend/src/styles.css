@@ -1965,10 +1965,6 @@ a[target="_blank"] {
     column-gap: 0.875rem;
   }
 
-  .workflow-help-actions {
-    flex-basis: 100%;
-  }
-
   .workflow-help-actions > button {
     padding-inline: 0.5rem;
   }

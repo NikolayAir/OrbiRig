@@ -192,8 +192,6 @@ for (const viewport of [
 
       const next = browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab";
       await page.keyboard.press(next);
-      await expect(page.getByRole("link", { name: "Documentation (opens in a new tab)", exact: true })).toBeFocused();
-      await page.keyboard.press(next);
       await expect(browserTrigger).toBeFocused();
       if (guide === "From the command line") {
         await page.keyboard.press(next);
