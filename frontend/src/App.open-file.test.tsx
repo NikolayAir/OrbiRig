@@ -20,8 +20,7 @@ function selectFile(file: File) {
   fireEvent.change(screen.getByLabelText("Evidence file", { selector: "input" }), { target: { files: [file] } });
 }
 
-const FILE_OPENED = "File opened in Evidence JSON. Choose Inspect evidence when ready.";
-const OBSERVATION_OPENED = "File opened in Observation evidence JSON. Choose Verify observation when ready.";
+const FILE_OPENED = "File opened.";
 
 it.each([
   { workflow: "Inspect evidence", field: "Evidence JSON", select: selectInspectionWorkflow, switchAway: selectVerificationWorkflow },
@@ -57,7 +56,7 @@ it.each([
   expect(screen.getByRole("textbox", { name: field })).toHaveValue(observationEvidenceDocument);
   expect(screen.getByRole("button", { name: workflow })).toBeEnabled();
   expect(screen.getByRole("button", { name: "Open JSON file" })).toBeEnabled();
-  expect(screen.queryByText(/^File opened in/)).not.toBeInTheDocument();
+  expect(screen.queryByText(FILE_OPENED)).not.toBeInTheDocument();
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   expect(fetchMock).not.toHaveBeenCalled();
 });
@@ -75,7 +74,7 @@ describe("Open JSON file", () => {
     expect(evidenceInput()).toHaveAttribute("aria-invalid", "true");
     selectFile(new File([text], "verified-execution.json"));
 
-    await screen.findByText(FILE_OPENED);
+    expect(await screen.findByText(FILE_OPENED)).toHaveAttribute("aria-live", "polite");
     // A textarea displays newlines as LF, while the request uses the stored text.
     expect(evidenceInput()).toHaveValue(text.replaceAll("\r\n", "\n"));
     expect(evidenceInput()).not.toHaveAttribute("aria-invalid");
@@ -194,7 +193,7 @@ describe("Open JSON file for verification", () => {
     expect(observationInput()).toHaveAttribute("aria-invalid", "true");
     selectFile(new File([text], "observation.json"));
 
-    await screen.findByText(OBSERVATION_OPENED);
+    expect(await screen.findByText(FILE_OPENED)).toHaveAttribute("aria-live", "polite");
     expect(observationInput()).toHaveValue(text);
     expect(observationInput()).not.toHaveAttribute("aria-invalid");
     expect(screen.getByLabelText("Execution ID")).toHaveValue("");
@@ -249,7 +248,7 @@ describe("Open JSON file for verification", () => {
     expect(within(result).getByRole("button", { name: "Download result JSON" })).toBeEnabled();
 
     selectFile(new File([observationEvidenceDocument], "same-observation.json"));
-    await screen.findByText(OBSERVATION_OPENED);
+    await screen.findByText(FILE_OPENED);
     expect(result).toBeInTheDocument();
 
     // The identical file establishes the baseline for the next replacement.

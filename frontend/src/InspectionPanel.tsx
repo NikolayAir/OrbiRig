@@ -162,7 +162,7 @@ export function InspectionPanel({
 
       <div className="inspection-evidence">
         <div className="form-field evidence-input">
-          <EvidenceFilePicker picker={filePicker} fieldLabel="Evidence JSON" submitLabel="Inspect evidence" disabled={inspecting}>
+          <EvidenceFilePicker picker={filePicker} fieldLabel="Evidence JSON" disabled={inspecting}>
             <label htmlFor="evidence">Evidence JSON</label>
             <FieldHelp control={evidenceHelp} label="Evidence JSON" helpId="inspection-evidence-hint">
               Use Open JSON file (the folder icon) or paste the full document for the selected evidence type.

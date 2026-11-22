@@ -100,7 +100,7 @@ test("a file with repeated JSON fields is sent as read and rejected by inspectio
   await chooseFile(page, file);
 
   await expect(page.getByLabel("Evidence JSON", { exact: true })).toHaveValue(text.replaceAll("\r\n", "\n"));
-  await expect(page.getByText("File opened in Evidence JSON.", { exact: false })).toBeVisible();
+  await expect(page.getByText("File opened.", { exact: true })).toBeVisible();
   expect(requests).toHaveLength(0);
 
   const submitted = page.waitForResponse("**/api/inspect/observation");

@@ -97,12 +97,11 @@ export function useEvidenceFilePicker(requiresConfirmation: (text: string) => bo
 type Props = {
   picker: ReturnType<typeof useEvidenceFilePicker>;
   fieldLabel: string;
-  submitLabel: string;
   disabled: boolean;
   children: ReactNode;
 };
 
-export function EvidenceFilePicker({ picker, fieldLabel, submitLabel, disabled, children }: Props) {
+export function EvidenceFilePicker({ picker, fieldLabel, disabled, children }: Props) {
   const { state } = picker;
   const errorId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -156,7 +155,7 @@ export function EvidenceFilePicker({ picker, fieldLabel, submitLabel, disabled, 
         aria-atomic="true"
         className={state.kind === "opened" ? "field-hint" : "visually-hidden"}
       >
-        {state.kind === "opened" ? `File opened in ${fieldLabel}. Choose ${submitLabel} when ready.` : ""}
+        {state.kind === "opened" ? "File opened." : ""}
       </p>
       {state.kind === "error" && (
         <p id={errorId} className="field-error" role="alert">{state.message}</p>
