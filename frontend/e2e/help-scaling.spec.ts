@@ -554,10 +554,15 @@ for (const { height, textScale, fontFamily } of [
 ]) {
   test.describe(`help at 320x${height} with ${textScale}% text${fontFamily ? ` in ${fontFamily}` : ""}`, () => {
     async function wheelTo(page: Page, target: Locator, direction: number, ratio = 0) {
-      // Engines may limit one wheel event to a fraction of the viewport.
-      // Short steps also avoid skipping the target in very short windows.
+      const step = await target.evaluate(element => {
+        const dialog = element.closest("dialog")!;
+        const panel = element.closest(".workflow-help-content");
+        const scroller = dialog.dataset.scrollWhole === "true" ? dialog : panel ?? dialog;
+        // Keep each scroll shorter than the visible area so successive views overlap.
+        return Math.floor(scroller.clientHeight * 0.75);
+      });
       await expect(async () => {
-        await page.mouse.wheel(0, direction * Math.min(800, height / 2));
+        await page.mouse.wheel(0, direction * step);
         await expect(target).toBeInViewport({ ratio, timeout: 100 });
       }).toPass({ timeout: 10_000, intervals: [50] });
     }
