@@ -554,7 +554,7 @@ a.workflow-help-trigger {
 }
 
 .workflow-switcher {
-  background: var(--soft);
+  background: #e3edf5;
   border: 1px solid var(--line);
   border-radius: 0.75rem 0.75rem 0 0;
   display: grid;
@@ -574,7 +574,7 @@ button {
   background: transparent;
   border: 0;
   border-radius: 0.75rem 0.75rem 0 0;
-  color: var(--ink);
+  color: #40566b;
   min-height: 5.5rem;
   min-width: 0;
   padding: 1rem 1.5rem;
@@ -593,12 +593,27 @@ button {
 
 .workflow-choice[aria-pressed="true"] {
   background: var(--surface);
-  box-shadow: inset 0 -3px 0 var(--accent);
   color: var(--heading);
 }
 
+.workflow-choice[aria-pressed="true"]::after {
+  border: solid var(--accent);
+  border-width: 0 0 3px;
+  border-radius: inherit;
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+}
+
+@media (forced-colors: active) {
+  .workflow-choice[aria-pressed="true"]::after {
+    border-color: Highlight;
+  }
+}
+
 .workflow-choice:hover:not(:disabled) {
-  background: #edf3f7;
+  background: #dbe7f1;
 }
 
 .workflow-choice[aria-pressed="true"]:hover:not(:disabled) {
@@ -606,16 +621,11 @@ button {
 }
 
 .workflow-choice:active:not(:disabled) {
-  background: #e8f0f5;
+  background: #d7e4ef;
 }
 
 .workflow-choice:focus-visible {
   z-index: 1;
-}
-
-/* Combine the focus ring and selection underline; both use box-shadow. */
-.workflow-choice[aria-pressed="true"]:focus-visible {
-  box-shadow: var(--focus-ring), inset 0 -3px 0 var(--accent);
 }
 
 .workflow-choice > span,
@@ -2006,13 +2016,10 @@ a[target="_blank"] {
     border-radius: 0;
   }
 
-  .workflow-choice[aria-pressed="true"] {
-    /* Stacked choices use a left marker instead of the desktop underline. */
-    box-shadow: inset 3px 0 0 var(--accent);
-  }
-
-  .workflow-choice[aria-pressed="true"]:focus-visible {
-    box-shadow: var(--focus-ring), inset 3px 0 0 var(--accent);
+  .workflow-choice[aria-pressed="true"]::after {
+    /* Stacked choices mark the left edge. */
+    border-block-end-width: 0;
+    border-inline-start-width: 3px;
   }
 
   .workflow-help {

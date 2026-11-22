@@ -726,6 +726,39 @@ for (const { width, scale } of [
   }
 }
 
+test("forced colours keep the selected workflow marked separately from keyboard focus", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.emulateMedia({ forcedColors: "active" });
+  await page.goto("/");
+  const group = page.getByRole("group", { name: "Choose what to do" });
+  const verify = group.getByRole("button", { name: "Show Verify observation", exact: true });
+  const inspect = group.getByRole("button", { name: "Show Inspect evidence", exact: true });
+  const marker = (choice: Locator) => choice.evaluate(button => {
+    const { borderBottomWidth, borderLeftWidth } = getComputedStyle(button, "::after");
+    return { bottom: parseFloat(borderBottomWidth), left: parseFloat(borderLeftWidth) };
+  });
+
+  await expect(verify).toHaveAttribute("aria-pressed", "true");
+  expect(await marker(verify)).toEqual({ bottom: 3, left: 0 });
+  expect(await marker(inspect)).toEqual({ bottom: 0, left: 0 });
+
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.locator("html").evaluate(element => { element.style.fontSize = "200%"; });
+  await page.keyboard.press("Tab");
+  await inspect.focus();
+  await expect(inspect).toHaveCSS("outline-style", "solid");
+  expect(await marker(verify)).toEqual({ bottom: 0, left: 3 });
+  expect(await marker(inspect)).toEqual({ bottom: 0, left: 0 });
+
+  await page.keyboard.press("Enter");
+  await expect(inspect).toHaveAttribute("aria-pressed", "true");
+  await expect(verify).toHaveAttribute("aria-pressed", "false");
+  await expect(inspect).toBeFocused();
+  await expect(inspect).toHaveCSS("outline-style", "solid");
+  expect(await marker(inspect)).toEqual({ bottom: 0, left: 3 });
+  expect(await marker(verify)).toEqual({ bottom: 0, left: 0 });
+});
+
 for (const font of ["", "monospace"]) {
   test(`forms reflow with doubled text at 320px using ${font || "the default font"}`, async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 800 });
