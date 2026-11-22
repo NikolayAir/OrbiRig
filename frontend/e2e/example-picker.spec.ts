@@ -1,6 +1,42 @@
 import { expect, test } from "@playwright/test";
 import { chooseExample } from "./example-support";
 
+test("Escape brings Load example back into view after page scrolling", async ({ page }) => {
+  await page.setViewportSize({ width: 393, height: 480 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
+  const picker = page.getByRole("button", { name: "Load example", exact: true });
+  await picker.focus();
+  await page.keyboard.press("Enter");
+  await expect(picker).toHaveAttribute("aria-expanded", "true");
+
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await expect(picker).not.toBeInViewport();
+
+  await page.keyboard.press("Escape");
+  await expect(picker).toHaveAttribute("aria-expanded", "false");
+  await expect(picker).toBeFocused();
+  await expect(picker).toBeInViewport({ ratio: 1 });
+});
+
+test("enlarging the text keeps the open example list within the viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 600 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Show Inspect evidence", exact: true }).click();
+  await page.getByRole("radio", { name: "Verified execution sequence", exact: true }).check();
+  const picker = page.getByRole("button", { name: "Load example", exact: true });
+  await picker.evaluate(element => element.scrollIntoView({ block: "start" }));
+  await picker.press("Enter");
+  const list = page.locator(".example-options");
+  await expect(list).toBeInViewport({ ratio: 1 });
+
+  await page.locator("html").evaluate(element => { element.style.fontSize = "150%"; });
+
+  await expect(picker).toBeInViewport({ ratio: 1 });
+  await expect(list).toBeInViewport({ ratio: 1 });
+});
+
 for (const { width, height } of [{ width: 320, height: 480 }, { width: 393, height: 820 }]) {
   test(`Tab keeps option outlines visible at ${width}x${height} with doubled text`, async ({ page, browserName }) => {
     await page.setViewportSize({ width, height });

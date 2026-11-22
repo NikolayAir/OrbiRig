@@ -25,8 +25,14 @@ export function ExamplePicker<Variant extends string>({
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState<ExampleOption<Variant> | null>(null);
 
-  function focusTrigger() {
-    triggerRef.current?.focus({ preventScroll: true });
+  function restoreTriggerFocus() {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+    trigger.focus({ preventScroll: true });
+    const { top, bottom } = trigger.getBoundingClientRect();
+    if (top < 0 || bottom > window.innerHeight) {
+      trigger.scrollIntoView({ block: "nearest" });
+    }
   }
 
   useLayoutEffect(() => {
@@ -51,15 +57,19 @@ export function ExamplePicker<Variant extends string>({
       if (event.key !== "Escape" || event.defaultPrevented) return;
       event.preventDefault();
       setOpen(false);
-      focusTrigger();
+      restoreTriggerFocus();
     }
 
     position();
+    // Enlarging text can resize the trigger without resizing the window.
+    const observer = new ResizeObserver(position);
+    observer.observe(trigger);
     window.addEventListener("resize", position);
     window.addEventListener("scroll", position);
     document.addEventListener("pointerdown", dismissFromOutside);
     document.addEventListener("keydown", dismissWithEscape);
     return () => {
+      observer.disconnect();
       window.removeEventListener("resize", position);
       window.removeEventListener("scroll", position);
       document.removeEventListener("pointerdown", dismissFromOutside);
@@ -78,13 +88,13 @@ export function ExamplePicker<Variant extends string>({
       return;
     }
     onLoad(option.variant);
-    focusTrigger();
+    restoreTriggerFocus();
   }
 
   function closeConfirmation() {
     dialogRef.current?.close();
     setPending(null);
-    focusTrigger();
+    restoreTriggerFocus();
   }
 
   return (
@@ -102,8 +112,8 @@ export function ExamplePicker<Variant extends string>({
         aria-expanded={open}
         aria-controls={`${id}-options`}
         disabled={disabled}
-        onClick={() => {
-          focusTrigger();
+        onClick={(event) => {
+          event.currentTarget.focus({ preventScroll: true });
           setOpen(value => !value);
         }}
       >
