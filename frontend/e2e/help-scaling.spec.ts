@@ -95,27 +95,42 @@ test("collapsed browser and command-line help have the same bottom spacing", asy
   }
 });
 
-test("narrow help keeps its buttons together below the heading and documentation", async ({ page }) => {
+test("compact help keeps visual and keyboard order aligned", async ({ page, browserName }) => {
   await page.goto("/");
+  const summary = page.getByRole("list", { name: "How a check works" });
   const section = page.getByRole("region", { name: "How it works", exact: true });
   const heading = section.getByRole("heading", { name: "How it works", exact: true });
   const browser = section.getByRole("button", { name: "In the browser", exact: true });
   const cli = section.getByRole("button", { name: "From the command line", exact: true });
   const documentation = section.getByRole("link", { name: "Documentation (opens in a new tab)", exact: true });
+  const macWebKit = browserName === "webkit" && process.platform === "darwin";
+  const next = macWebKit ? "Alt+Tab" : "Tab";
+  const previous = macWebKit ? "Alt+Shift+Tab" : "Shift+Tab";
 
-  for (const [width, scale] of [[320, 100], [393, 100], [480, 100], [320, 200], [393, 200]]) {
+  for (const [width, scale] of [[1440, 100], [320, 100], [393, 100], [480, 100], [320, 200], [393, 200]]) {
     await test.step(`at ${width}px with ${scale}% text`, async () => {
       await page.setViewportSize({ width, height: 852 });
       await page.locator("html").evaluate((element, scale) => { element.style.fontSize = `${scale}%`; }, scale);
       // Use DOMRect dimensions to avoid rounding the 44px touch targets in Firefox.
-      const [title, link, browserButton, cliButton] = await Promise.all(
-        [heading, documentation, browser, cli].map(element => element.evaluate(node => {
+      const [flow, help, title, link, browserButton, cliButton] = await Promise.all(
+        [summary, section, heading, documentation, browser, cli].map(element => element.evaluate(node => {
           const { x, y, width, height } = node.getBoundingClientRect();
           const fitsContent = node.scrollWidth <= node.clientWidth && node.scrollHeight <= node.clientHeight;
           return { x, y, width, height, fitsContent };
         })),
       );
-      expect(browserButton.y).toBeGreaterThanOrEqual(Math.max(title.y + title.height, link.y + link.height));
+      const rem = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
+      const gapAbove = help.y - (flow.y + flow.height);
+      const gapBelow = browserButton.y - Math.max(title.y + title.height, link.y + link.height);
+      for (const gap of [gapAbove, gapBelow]) {
+        expect(gap).toBeGreaterThanOrEqual(0);
+        expect(gap).toBeLessThanOrEqual(rem / 2);
+      }
+      if (scale === 100) {
+        expect(link.x).toBeGreaterThanOrEqual(title.x + title.width);
+        expect(link.y).toBeLessThan(title.y + title.height);
+        expect(link.x + link.width).toBeCloseTo(help.x + help.width, 0);
+      }
       expect(cliButton.y).toBeGreaterThanOrEqual(browserButton.y);
       expect(cliButton.x >= browserButton.x + browserButton.width
         || cliButton.y >= browserButton.y + browserButton.height).toBe(true);
@@ -126,8 +141,19 @@ test("narrow help keeps its buttons together below the heading and documentation
         expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
         expect(bounds.fitsContent).toBe(true);
       }
-      if (width === 480) expect(cliButton.y).toBeCloseTo(browserButton.y, 0);
+      if (width >= 480) expect(cliButton.y).toBeCloseTo(browserButton.y, 0);
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
+
+      await documentation.focus();
+      await page.keyboard.press(next);
+      await expect(browser).toBeFocused();
+      await page.keyboard.press(next);
+      await expect(cli).toBeFocused();
+      await page.keyboard.press(previous);
+      await expect(browser).toBeFocused();
+      await page.keyboard.press(previous);
+      await expect(documentation).toBeFocused();
+      await expect(documentation).toHaveCSS("outline-offset", "4px");
     });
   }
 });

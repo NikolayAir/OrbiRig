@@ -308,6 +308,14 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
   return (
     <section className="workflow-help" aria-labelledby="workflow-help-section-title">
       <h2 id="workflow-help-section-title">How it works</h2>
+      <DocLink href={LINKS.documentation} className="workflow-help-trigger">
+        <svg className="doc-link-icon" width="15" height="15" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+          strokeLinejoin="round" aria-hidden="true" focusable="false">
+          <path d="M12 6a5 5 0 0 0-4-2H3v15h5a5 5 0 0 1 4 2 5 5 0 0 1 4-2h5V4h-5a5 5 0 0 0-4 2Zm0 0v15" />
+        </svg>
+        Documentation
+      </DocLink>
       <div className="workflow-help-actions">
         <button
           type="button"
@@ -330,14 +338,6 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
           <HelpSectionLabel section="cli" />
         </button>
       </div>
-      <DocLink href={LINKS.documentation} className="workflow-help-trigger">
-        <svg className="doc-link-icon" width="15" height="15" viewBox="0 0 24 24"
-          fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
-          strokeLinejoin="round" aria-hidden="true" focusable="false">
-          <path d="M12 6a5 5 0 0 0-4-2H3v15h5a5 5 0 0 1 4 2 5 5 0 0 1 4-2h5V4h-5a5 5 0 0 0-4 2Zm0 0v15" />
-        </svg>
-        Documentation
-      </DocLink>
       <dialog
         ref={dialogRef}
         id="workflow-help-dialog"
