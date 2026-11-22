@@ -242,7 +242,7 @@ describe("App help", () => {
     ).toEqual([
       "For your own observation, select a Scenario, such as NOMINAL to SAFE.",
       "Enter an Execution ID and the time the command ran in Execution time (UTC).",
-      "Choose Open JSON file or paste the observation into Observation evidence JSON.",
+      "Choose Open JSON file (the folder icon) or paste the observation into Observation evidence JSON.",
       "Choose Verify observation to see the individual checks and overall PASS or FAIL result.",
     ]);
 
@@ -272,7 +272,7 @@ describe("App help", () => {
       within(inspectionSteps).getAllByRole("listitem").map((step) => step.textContent?.replace(/\s+/g, " ").trim()),
     ).toEqual([
       "Select the Evidence type that matches your document.",
-      "Choose Open JSON file or paste the document into Evidence JSON. To try a sample, use Load example.",
+      "Choose Open JSON file (the folder icon) or paste the document into Evidence JSON. To try a sample, use Load example.",
       "Choose Inspect evidence to see the recorded values and any saved verification results.",
     ]);
     const observationInspection = guidance.getByText(/Inspecting an observation validates/);
@@ -827,7 +827,7 @@ describe("App help", () => {
     selectInspectionWorkflow();
     const help = screen.getByRole("button", { name: "About Evidence JSON" });
     const input = screen.getByLabelText("Evidence JSON", { exact: true });
-    const description = "Use Open JSON file or paste the full document for the selected evidence type. Use Load example to choose a sample.";
+    const description = "Use Open JSON file (the folder icon) or paste the full document for the selected evidence type. Use Load example to choose a sample.";
     expect(help).toHaveAccessibleDescription(description);
     expect(input).toHaveAccessibleDescription(description);
     fireEvent.change(input, { target: { value: "preserved JSON" } });

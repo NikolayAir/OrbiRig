@@ -4,6 +4,8 @@ In the [OrbiRig web interface](https://orbirig-evidence-inspector.onrender.com/)
 
 The browser sends submitted JSON to the server for checking. On the public site, use only non-sensitive example data.
 
+On narrow screens, **Open JSON file** appears as a folder icon beside the JSON field.
+
 ## Verify an observation
 
 1. Switch to the **Verify observation** workflow.

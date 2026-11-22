@@ -79,7 +79,7 @@ export async function inspectEvidenceRequest(
       method: "POST",
       signal,
       headers: { "Content-Type": "text/plain; charset=utf-8" },
-      body: evidence, // Python must receive the exact textarea text.
+      body: evidence, // Send the source text, including line endings from an opened file.
     });
     if (signal.aborted) return null;
     if (response.status === 413) return { kind: "request-too-large" };

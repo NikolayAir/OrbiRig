@@ -522,7 +522,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                   <li>
                     Enter an <strong>Execution ID</strong> and the time the command ran in <strong>Execution time (UTC)</strong>.
                   </li>
-                  <li>Choose <strong>Open JSON file</strong> or paste the observation into <strong>Observation evidence JSON</strong>.</li>
+                  <li>Choose <strong>Open JSON file</strong> (the folder icon) or paste the observation into <strong>Observation evidence JSON</strong>.</li>
                   <li>
                     Choose <strong>Verify observation</strong> to see the individual checks
                     and overall <strong>PASS</strong> or <strong>FAIL</strong> result.
@@ -597,7 +597,7 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                     Select the <strong>Evidence type</strong> that matches your document.
                   </li>
                   <li>
-                    Choose <strong>Open JSON file</strong> or paste the document into <strong>Evidence JSON</strong>.
+                    Choose <strong>Open JSON file</strong> (the folder icon) or paste the document into <strong>Evidence JSON</strong>.
                     To try a sample, use <strong>Load example</strong>.
                   </li>
                   <li>

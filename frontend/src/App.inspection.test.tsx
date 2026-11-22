@@ -96,7 +96,7 @@ describe("App inspection", () => {
     expect(verifiedExecutionOption).toHaveAccessibleDescription("One command run with its scenario and check results.");
     expect(sequenceOption).toHaveAccessibleDescription("Two or more verified records with checks between them.");
     expect(screen.getByRole("button", { name: "Load example" })).toHaveAttribute("aria-expanded", "false");
-    expect(screen.getByLabelText("Evidence JSON")).toHaveAccessibleDescription("Use Open JSON file or paste the full document for the selected evidence type. Use Load example to choose a sample.");
+    expect(screen.getByLabelText("Evidence JSON")).toHaveAccessibleDescription("Use Open JSON file (the folder icon) or paste the full document for the selected evidence type. Use Load example to choose a sample.");
 
     fireEvent.click(verifiedExecutionOption);
 

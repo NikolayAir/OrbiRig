@@ -26,7 +26,7 @@ The hosted interface runs on Render's free plan. After 15 minutes of inactivity,
 
 ![A verification result with three passing checks and one failed telemetry check](docs/images/orbirig-web-verification.png)
 
-To inspect saved records, switch to **Inspect evidence** and select an evidence type. Choose **Open JSON file** beside **Evidence JSON**, or choose **Standard example** from **Load example** to try a bundled document. Then choose **Inspect evidence**.
+To inspect saved records, switch to **Inspect evidence** and select an evidence type. Choose **Open JSON file** (the folder icon beside **Evidence JSON**), or choose **Standard example** from **Load example** to try a bundled document. Then choose **Inspect evidence**.
 
 See the [web-interface guide](docs/web-interface.md) to run it locally or use the HTTP endpoints.
 
