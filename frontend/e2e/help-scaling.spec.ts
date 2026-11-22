@@ -121,15 +121,22 @@ test("compact help keeps visual and keyboard order aligned", async ({ page, brow
       );
       const rem = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
       const gapAbove = help.y - (flow.y + flow.height);
-      const gapBelow = browserButton.y - Math.max(title.y + title.height, link.y + link.height);
-      for (const gap of [gapAbove, gapBelow]) {
-        expect(gap).toBeGreaterThanOrEqual(0);
-        expect(gap).toBeLessThanOrEqual(rem / 2);
+      expect(gapAbove).toBeGreaterThanOrEqual(0);
+      expect(gapAbove).toBeLessThanOrEqual(rem / 2);
+      if (width === 1440) {
+        expect(browserButton.x).toBeGreaterThanOrEqual(link.x + link.width);
+        expect(browserButton.y).toBeLessThan(link.y + link.height);
+      } else {
+        const gapBelow = browserButton.y - Math.max(title.y + title.height, link.y + link.height);
+        expect(gapBelow).toBeGreaterThanOrEqual(0);
+        expect(gapBelow).toBeLessThanOrEqual(rem / 2);
+        if (scale === 100) {
+          expect(link.x + link.width).toBeCloseTo(help.x + help.width, 0);
+        }
       }
       if (scale === 100) {
         expect(link.x).toBeGreaterThanOrEqual(title.x + title.width);
         expect(link.y).toBeLessThan(title.y + title.height);
-        expect(link.x + link.width).toBeCloseTo(help.x + help.width, 0);
       }
       expect(cliButton.y).toBeGreaterThanOrEqual(browserButton.y);
       expect(cliButton.x >= browserButton.x + browserButton.width

@@ -176,7 +176,6 @@ h2 {
 
 .workflow-help-actions {
   display: flex;
-  flex: 1 1 100%;
   flex-wrap: wrap;
   gap: 0.25rem 1.5rem;
   min-width: 0;
@@ -1964,6 +1963,10 @@ a[target="_blank"] {
   .workflow-help,
   .workflow-help-actions {
     column-gap: 0.875rem;
+  }
+
+  .workflow-help-actions {
+    flex-basis: 100%;
   }
 
   .workflow-help-actions > button {
