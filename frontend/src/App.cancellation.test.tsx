@@ -33,6 +33,8 @@ describe("App cancellation", () => {
         : ["Evidence JSON"];
       const values = labels.map((label) => (screen.getByLabelText(label, { exact: true }) as HTMLInputElement).value);
       const cancel = screen.getByRole("button", { name: "Cancel request" });
+      const openFile = screen.getByRole("button", { name: "Open JSON file" });
+      expect(openFile).toBeDisabled();
       expect(cancel).toBeEnabled();
       act(() => cancel.focus());
       fireEvent.click(cancel);
@@ -48,6 +50,7 @@ describe("App cancellation", () => {
       });
       expect(screen.getByRole("status")).toHaveTextContent(cancelled);
       expect(screen.getByRole("button", { name: "Load example" })).toBeEnabled();
+      expect(openFile).toBeEnabled();
       expect(screen.queryByRole("button", { name: "Cancel request" })).not.toBeInTheDocument();
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
       expect(scrollIntoViewMock).not.toHaveBeenCalled();

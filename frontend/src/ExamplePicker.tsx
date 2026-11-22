@@ -1,4 +1,6 @@
 import { useId, useLayoutEffect, useRef, useState } from "react";
+import { ReplaceInputsDialog } from "./ReplaceInputsDialog";
+import { restoreButtonFocus } from "./formHelpers";
 
 export type ExampleOption<Variant extends string> = {
   variant: Variant;
@@ -21,19 +23,8 @@ export function ExamplePicker<Variant extends string>({
   const pickerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState<ExampleOption<Variant> | null>(null);
-
-  function restoreTriggerFocus() {
-    const trigger = triggerRef.current;
-    if (!trigger) return;
-    trigger.focus({ preventScroll: true });
-    const { top, bottom } = trigger.getBoundingClientRect();
-    if (top < 0 || bottom > window.innerHeight) {
-      trigger.scrollIntoView({ block: "nearest" });
-    }
-  }
 
   useLayoutEffect(() => {
     const trigger = triggerRef.current;
@@ -57,7 +48,7 @@ export function ExamplePicker<Variant extends string>({
       if (event.key !== "Escape" || event.defaultPrevented) return;
       event.preventDefault();
       setOpen(false);
-      restoreTriggerFocus();
+      restoreButtonFocus(triggerRef.current);
     }
 
     position();
@@ -77,10 +68,6 @@ export function ExamplePicker<Variant extends string>({
     };
   }, [open]);
 
-  useLayoutEffect(() => {
-    if (pending && dialogRef.current && !dialogRef.current.open) dialogRef.current.showModal();
-  }, [pending]);
-
   function choose(option: ExampleOption<Variant>) {
     setOpen(false);
     if (requiresConfirmation(option.variant)) {
@@ -88,13 +75,12 @@ export function ExamplePicker<Variant extends string>({
       return;
     }
     onLoad(option.variant);
-    restoreTriggerFocus();
+    restoreButtonFocus(triggerRef.current);
   }
 
   function closeConfirmation() {
-    dialogRef.current?.close();
     setPending(null);
-    restoreTriggerFocus();
+    restoreButtonFocus(triggerRef.current);
   }
 
   return (
@@ -142,32 +128,13 @@ export function ExamplePicker<Variant extends string>({
         })}
       </div>
       {pending && (
-        <dialog
-          ref={dialogRef}
-          className="workflow-help-dialog example-confirmation"
-          aria-labelledby={`${id}-title`}
-          aria-describedby={`${id}-message`}
-          onCancel={event => {
-            event.preventDefault();
-            closeConfirmation();
-          }}
-        >
-          <h2 id={`${id}-title`}>Replace current inputs?</h2>
-          <p id={`${id}-message`}>
-            Loading the example will replace your current form inputs, including any unsaved changes.
-          </p>
-          <div className="form-actions confirmation-actions">
-            <button type="button" className="secondary-action" autoFocus onClick={closeConfirmation}>
-              Cancel
-            </button>
-            <button type="button" className="primary-action" onClick={() => {
-              onLoad(pending.variant);
-              closeConfirmation();
-            }}>
-              Load {pending.label.toLowerCase()}
-            </button>
-          </div>
-        </dialog>
+        <ReplaceInputsDialog
+          title="Replace current inputs?"
+          description="Loading the example will replace your current form inputs, including any unsaved changes."
+          actionLabel={`Load ${pending.label.toLowerCase()}`}
+          onConfirm={() => onLoad(pending.variant)}
+          onClose={closeConfirmation}
+        />
       )}
     </div>
   );

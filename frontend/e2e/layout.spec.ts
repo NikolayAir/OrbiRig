@@ -25,6 +25,18 @@ async function recordNextClick(input: Locator) {
   });
 }
 
+function wordsSplitAcrossLines(elements: Element[]) {
+  return elements.flatMap(element => {
+    const text = element.firstChild!;
+    const range = document.createRange();
+    return Array.from(text.textContent!.matchAll(/\S+/g)).filter(word => {
+      range.setStart(text, word.index);
+      range.setEnd(text, word.index + word[0].length);
+      return range.getClientRects().length > 1;
+    }).map(word => word[0]);
+  });
+}
+
 for (const { scale, widths } of [
   { scale: 100, widths: [320, 375, 390, 430, firstTwoColumnWidth - 1, firstTwoColumnWidth, 600, 768, 1024, 1280, 1440, 1920] },
   { scale: 200, widths: [320, 375, 390, 430, 600, 768, 820, 1024, firstTwoColumnWidthWithDoubledText - 1, firstTwoColumnWidthWithDoubledText, 1280, 1440, 1920] },
@@ -37,20 +49,8 @@ for (const { scale, widths } of [
       await page.addStyleTag({ content: `:root { font-size: 200%; font-family: ${font}; }` });
     }
     const panel = page.getByRole("region", { name: "Verify observation", exact: true });
-    const { id, time, scenario, metadata, editor, action, heading, examples, splitWords, pageWidth, rem } = await panel.evaluate(node => {
+    const { id, time, scenario, metadata, editor, action, heading, examples, pageWidth, rem } = await panel.evaluate(node => {
       const bounds = (selector: string) => node.querySelector(selector)!.getBoundingClientRect().toJSON();
-      const textElements = document.querySelectorAll(
-        ".check-flow strong, .check-flow span, #verification-workflow .workflow-heading h2, #verification-workflow .example-picker-trigger > span:first-child",
-      );
-      const splitWords = Array.from(textElements).flatMap(element => {
-        const text = element.firstChild!;
-        const range = document.createRange();
-        return Array.from(text.textContent!.matchAll(/\S+/g)).filter(word => {
-          range.setStart(text, word.index);
-          range.setEnd(text, word.index + word[0].length);
-          return range.getClientRects().length > 1;
-        }).map(word => word[0]);
-      });
       return {
         id: bounds("#verification-execution-id"),
         time: bounds("#verification-executed-at"),
@@ -60,13 +60,15 @@ for (const { scale, widths } of [
         action: bounds("button[type=submit]"),
         heading: bounds(".workflow-heading h2"),
         examples: bounds(".example-picker-trigger"),
-        splitWords,
         pageWidth: document.documentElement.scrollWidth,
         rem: parseFloat(getComputedStyle(document.documentElement).fontSize),
       };
     });
+    const textElements = page.locator(
+      ".check-flow strong, .check-flow span, #verification-workflow .workflow-heading h2, #verification-workflow .example-picker-trigger > span:first-child",
+    );
     expect(pageWidth).toBe(width);
-    expect(splitWords).toEqual([]);
+    expect(await textElements.evaluateAll(wordsSplitAcrossLines)).toEqual([]);
     expect(action.top - editor.bottom).toBeGreaterThan(0);
     expect(action.top - editor.bottom).toBeLessThanOrEqual(1.25 * rem);
     expect(action.left).toBeGreaterThanOrEqual(editor.left);
@@ -117,7 +119,7 @@ for (const { scale, widths } of [
       panel.evaluate((node, { groupSelector, firstLabel }) => {
         const heading = node.querySelector(".workflow-heading")!.getBoundingClientRect();
         const firstGroup = node.querySelector(groupSelector)!.getBoundingClientRect();
-        const editor = node.querySelector(".evidence-input .field-label")!.getBoundingClientRect();
+        const editor = node.querySelector(".evidence-editor-heading")!.getBoundingClientRect();
         const labelTop = (label: Element) => {
           const text = document.createRange();
           text.selectNodeContents(label);
@@ -224,7 +226,8 @@ for (const viewport of [
     await page.getByLabel("Scenario", { exact: true }).selectOption("nominal_to_safe_mode");
     await editor.fill(JSON.stringify(JSON.parse(observation)));
     expect(await editor.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
-    await expectWithinWidth(page.locator(".verification-form input, .verification-form select, .verification-form textarea, .primary-action"), viewport.width);
+    const controls = page.locator(".verification-form").locator("input, select, textarea, button").filter({ visible: true });
+    await expectWithinWidth(controls, viewport.width);
     await page.getByRole("button", { name: "Verify observation", exact: true }).click();
 
     const result = page.getByRole("region", { name: "Verified execution", exact: true });
@@ -308,6 +311,7 @@ for (const viewport of [
     await page.goto("/");
     await page.getByRole("button", { name: "Show Inspect evidence", exact: true }).click();
     await chooseExample(page);
+    const tab = browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab";
     const editor = page.getByLabel("Evidence JSON", { exact: true });
     const observationText = await editor.inputValue();
     const observation = page.getByRole("radio", { name: "Observation", exact: true });
@@ -325,12 +329,14 @@ for (const viewport of [
       expect(await radio.locator("..").evaluate(element => getComputedStyle(element).outlineStyle)).toBe("solid");
       await expect(editor).toHaveValue(observationText);
     }
-    await page.keyboard.press(browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab");
+    await page.keyboard.press(tab);
     await expect(page.getByRole("button", { name: "About Evidence JSON", exact: true })).toBeFocused();
-    await page.keyboard.press(browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab");
+    await page.keyboard.press(tab);
+    await expect(page.getByRole("button", { name: "Open JSON file", exact: true })).toBeFocused();
+    await page.keyboard.press(tab);
     await expect(editor).toBeFocused();
     await editor.fill(sequence);
-    await page.keyboard.press(browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab");
+    await page.keyboard.press(tab);
     const action = page.getByRole("button", { name: "Inspect evidence", exact: true });
     await expect(action).toBeFocused();
     await expect(action).toBeInViewport();
@@ -362,6 +368,7 @@ for (const viewport of [
       page.getByRole("button", { name: "About Scenario", exact: true }),
       page.getByLabel("Scenario", { exact: true }),
       page.getByRole("button", { name: "About Observation evidence JSON", exact: true }),
+      page.getByRole("button", { name: "Open JSON file", exact: true }),
       page.getByLabel("Observation evidence JSON", { exact: true }),
       page.getByRole("button", { name: "Verify observation", exact: true }),
     ]) {
@@ -427,6 +434,22 @@ for (const { width, textScale } of [
           }
         }
       };
+      const clickVisibleInput = async () => {
+        await expect(input).toBeInViewport();
+        const point = await input.evaluate(element => {
+          const bounds = element.getBoundingClientRect();
+          // Hovering help can scroll the middle of a tall editor off screen.
+          const top = Math.max(0, bounds.top);
+          const bottom = Math.min(window.innerHeight, bounds.bottom);
+          return { x: bounds.x + bounds.width / 2, y: (top + bottom) / 2 };
+        });
+        const clicks = await recordNextClick(input);
+        await page.mouse.move(point.x, point.y);
+        await page.mouse.click(point.x, point.y);
+        expect(await clicks.jsonValue()).toEqual([true]);
+        await expect(input).toBeFocused();
+        await expect(tooltip).toBeHidden();
+      };
       await help.hover();
       await expect(tooltip).toBeVisible();
       await expectStablePositions();
@@ -466,16 +489,7 @@ for (const { width, textScale } of [
       // Hover-only help must also let a normal click reach the editor or dropdown beneath it.
       await input.scrollIntoViewIfNeeded();
       await help.hover();
-      const hoverPoint = await input.evaluate(element => {
-        const bounds = element.getBoundingClientRect();
-        return { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
-      });
-      const hoverClicks = await recordNextClick(input);
-      await page.mouse.move(hoverPoint.x, hoverPoint.y);
-      await page.mouse.click(hoverPoint.x, hoverPoint.y);
-      expect(await hoverClicks.jsonValue()).toEqual([true]);
-      await expect(input).toBeFocused();
-      await expect(tooltip).toBeHidden();
+      await clickVisibleInput();
       await expectStablePositions();
       if (field === "Scenario") await page.keyboard.press("Escape");
       await help.hover();
@@ -490,16 +504,7 @@ for (const { width, textScale } of [
       await page.mouse.click(clickX, clickBounds.y + clickBounds.height - 2);
       await expect(help.locator("..")).toHaveAttribute("data-open", "true");
       await input.scrollIntoViewIfNeeded();
-      const point = await input.evaluate(element => {
-        const bounds = element.getBoundingClientRect();
-        return { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
-      });
-      const clicks = await recordNextClick(input);
-      await page.mouse.move(point.x, point.y);
-      await page.mouse.click(point.x, point.y);
-      expect(await clicks.jsonValue()).toEqual([true]);
-      await expect(input).toBeFocused();
-      await expect(tooltip).toBeHidden();
+      await clickVisibleInput();
       if (field === "Scenario") await page.keyboard.press("Escape");
       await page.mouse.move(0, 0);
       await help.hover();
@@ -623,7 +628,10 @@ for (const [field, helpId] of [
     await expect(tooltip).toBeHidden();
     await expect(help).toBeFocused();
     await page.keyboard.press(tab);
-    await expect(page.getByLabel(field, { exact: true })).toBeFocused();
+    const nextControl = field === "Evidence JSON" || field === "Observation evidence JSON"
+      ? page.getByRole("button", { name: "Open JSON file", exact: true })
+      : page.getByLabel(field, { exact: true });
+    await expect(nextControl).toBeFocused();
     await page.keyboard.press(optionTab ? "Alt+Shift+Tab" : "Shift+Tab");
     await expect(help).toBeFocused();
     await expect(tooltip).toBeVisible();
@@ -765,14 +773,18 @@ test("forced colours keep the selected workflow marked separately from keyboard 
   expect(await marker(verify)).toMatchObject({ bottom: 0, left: 0 });
 });
 
-for (const font of ["", "monospace"]) {
-  test(`forms reflow with doubled text at 320px using ${font || "the default font"}`, async ({ page }) => {
+for (const { name, family } of [
+  { name: "the default font", family: "" },
+  { name: "monospace", family: "monospace" },
+  { name: "a wider sans-serif font", family: 'Verdana, "DejaVu Sans", sans-serif' },
+]) {
+  test(`forms reflow with doubled text at 320px using ${name}`, async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 800 });
     await page.goto("/");
     await page.locator("html").evaluate((element, font) => {
       element.style.fontSize = "200%";
       if (font) element.style.fontFamily = font;
-    }, font);
+    }, family);
 
     // Wider glyphs expose text overflow even on hosts with a compact system font.
     for (const element of await page.locator(
@@ -790,6 +802,9 @@ for (const font of ["", "monospace"]) {
     await expectWithinWidth(page.getByRole("tooltip"), 320);
     await page.keyboard.press("Escape");
     await expectWithinWidth(page.locator(".evidence-types label"), 320);
+    const cardText = page.locator(".evidence-types label > span > span, .evidence-types label small");
+    await expect(cardText).toHaveCount(6);
+    expect(await cardText.evaluateAll(wordsSplitAcrossLines)).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
 
     const sequence = page.getByRole("radio", { name: "Verified execution sequence", exact: true });

@@ -1,4 +1,5 @@
 import type { RefObject, SubmitEvent } from "react";
+import { EvidenceFilePicker, useEvidenceFilePicker } from "./EvidenceFilePicker";
 import { ExamplePicker, type ExampleOption } from "./ExamplePicker";
 import { EvidenceRequestSizeError, RequestError } from "./RequestFeedback";
 import { downloadVerifiedExecutionEvidence } from "./downloadEvidence";
@@ -50,6 +51,8 @@ type Props = {
   feedback: FeedbackTargets;
   fieldHelp: ReturnType<typeof useVerificationFieldHelp>;
   requiresConfirmation: (variant: ExampleVariant) => boolean;
+  requiresFileConfirmation: (text: string) => boolean;
+  onOpenFile: (text: string) => void;
   onInputChange: <Key extends keyof VerificationInputs>(field: Key, value: VerificationInputs[Key]) => void;
   onLoadExample: (variant: ExampleVariant) => void;
   onSubmit: (event: SubmitEvent<HTMLFormElement>) => Promise<void>;
@@ -61,7 +64,7 @@ export function VerificationPanel({
   state: verification, errors,
   inputRefs,
   feedback,
-  fieldHelp, requiresConfirmation: verificationNeedsConfirmation, onInputChange,
+  fieldHelp, requiresConfirmation: verificationNeedsConfirmation, requiresFileConfirmation, onOpenFile, onInputChange,
   onLoadExample: loadVerificationExample, onSubmit: verifyObservation, onCancel: cancelVerification,
 }: Props) {
   const { executionId, executedAt, scenarioId, observationEvidence } = input;
@@ -76,6 +79,9 @@ export function VerificationPanel({
     submitRef: verificationSubmitRef,
     cancelRef: verificationCancelRef,
   } = feedback;
+  const filePicker = useEvidenceFilePicker(requiresFileConfirmation, onOpenFile);
+  const verifying = verification.kind === "loading";
+  const inputsLocked = verifying || filePicker.state.kind === "reading";
   const verificationRequiredErrors = { ...errors };
   const metadataError = verification.kind === "validation-failure" && verification.code === "invalid_execution_metadata"
     ? verification
@@ -96,9 +102,11 @@ export function VerificationPanel({
       <h2 id="observation-verification">Verify observation</h2>
       <ExamplePicker
         options={verificationExamples}
-        disabled={verification.kind === "loading"}
+        disabled={inputsLocked}
         requiresConfirmation={verificationNeedsConfirmation}
-        onLoad={loadVerificationExample}
+        onLoad={variant => {
+          if (filePicker.clearFeedback()) loadVerificationExample(variant);
+        }}
       />
     </div>
 
@@ -106,11 +114,14 @@ export function VerificationPanel({
       className="verification-form"
       noValidate
       onKeyDown={preventRepeatedRequestAction}
-      onSubmit={verifyObservation}
+      onSubmit={event => {
+        if (filePicker.clearFeedback()) void verifyObservation(event);
+        else event.preventDefault();
+      }}
     >
       <fieldset
         className="verification-inputs"
-        disabled={verification.kind === "loading"}
+        disabled={inputsLocked}
       >
         <legend className="visually-hidden">Verification input</legend>
 
@@ -232,13 +243,13 @@ export function VerificationPanel({
 
       <div className="verification-evidence">
         <div className="form-field evidence-input">
-          <div className="field-label">
+          <EvidenceFilePicker picker={filePicker} fieldLabel="Observation evidence JSON" disabled={verifying}>
             <label htmlFor="verification-observation-evidence">Observation evidence JSON</label>
             <FieldHelp control={fieldHelp.observationEvidence} label="Observation evidence JSON" helpId="verification-observation-hint">
               Include the command, whether it was accepted (acknowledgement), the operating mode before and after
               the command was handled, and the separately reported mode (telemetry).
             </FieldHelp>
-          </div>
+          </EvidenceFilePicker>
           <textarea
             id="verification-observation-evidence"
             ref={observationEvidenceInputRef}
@@ -255,8 +266,10 @@ export function VerificationPanel({
             }
             placeholder="Paste observation JSON here…"
             value={observationEvidence}
-            onChange={(event) => onInputChange("observationEvidence", event.target.value)}
-            disabled={verification.kind === "loading"}
+            onChange={event => {
+              if (filePicker.clearFeedback()) onInputChange("observationEvidence", event.target.value);
+            }}
+            disabled={inputsLocked}
             spellCheck={false}
             rows={8}
             required
@@ -277,13 +290,13 @@ export function VerificationPanel({
             ref={verificationSubmitRef}
             type="submit"
             className="primary-action"
-            disabled={verification.kind === "loading" || completed}
+            disabled={inputsLocked || completed}
             data-completed={completed || undefined}
             aria-describedby={actionStatus ? "verification-action-status" : undefined}
           >
-            {verification.kind === "loading" ? "Verifying…" : "Verify observation"}
+            {verifying ? "Verifying…" : "Verify observation"}
           </button>
-          {verification.kind === "loading" && (
+          {verifying && (
             <button ref={verificationCancelRef} type="button" name="cancel-request" className="secondary-action" onClick={cancelVerification}>
               Cancel request
             </button>

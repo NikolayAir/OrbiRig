@@ -198,7 +198,7 @@ for (const workflow of ["Verify observation", "Inspect evidence"] as const) {
     const dialog = page.getByRole("dialog", { name: "Replace current inputs?" });
     await expect(dialog.getByRole("button", { name: "Cancel", exact: true })).toBeFocused();
     await page.keyboard.press("Escape");
-    await expect(page.locator(".example-confirmation")).toHaveCount(0);
+    await expect(page.locator(".replace-inputs-dialog")).toHaveCount(0);
     await expect(picker).toBeFocused();
     await expect(editor).toHaveValue("Unsaved evidence");
 

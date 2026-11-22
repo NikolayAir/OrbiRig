@@ -4,11 +4,15 @@ In the [OrbiRig web interface](https://orbirig-evidence-inspector.onrender.com/)
 
 The browser sends submitted JSON to the server for checking. On the public site, use only non-sensitive example data.
 
+On narrow screens, **Open JSON file** appears as a folder icon beside the JSON field.
+
 ## Verify an observation
 
 1. Switch to the **Verify observation** workflow.
-2. Open **Load example** and choose **Standard example** to fill in a sample. To verify your own observation, select a **Scenario** and fill in **Execution ID**, **Execution time (UTC)** and **Observation evidence JSON**. The execution time is when the command ran, for example `2026-10-21T10:00:00Z`.
+2. Open **Load example** and choose **Standard example** to fill in a sample. To verify your own observation, select a **Scenario** and fill in **Execution ID** and **Execution time (UTC)**. The execution time is when the command ran, for example `2026-10-21T10:00:00Z`. Choose **Open JSON file** or paste the observation into **Observation evidence JSON**.
 3. Choose **Verify observation** to see the expected and actual values for each check and the overall `PASS` or `FAIL`.
+
+Choose a UTF-8 file of up to 4 MiB without a byte-order mark (BOM). Opening it fills only **Observation evidence JSON**. OrbiRig asks before replacing edited text. When you submit, the [request size limit](#request-size-limit) includes the execution metadata and the encoded observation.
 
 **Standard example** uses the selected scenario or **NOMINAL to SAFE** when you have not selected one. The screenshot shows the default example after you choose **Verify observation**.
 
@@ -24,15 +28,17 @@ Choose **Download result JSON** next to a completed verification to save it as `
 
 The download reuses the result on screen. Changing an input clears the result and its download action.
 
-To reopen the file, switch to **Inspect evidence**, select **Verified execution**, paste the file's contents into **Evidence JSON** and choose **Inspect evidence**. OrbiRig recalculates the checks and shows the same scenario, check results and outcome.
+To reopen the file, switch to **Inspect evidence**, select **Verified execution** and choose **Open JSON file**. Select the downloaded file, then choose **Inspect evidence**. OrbiRig recalculates the checks and shows the same scenario, check results and outcome.
 
 You can also save a verified record [from the command line](cli.md#verify-the-bundled-example) or [with the Python API](python.md#reopen-saved-verified-evidence).
 
 ## Inspect evidence
 
 1. Switch to the **Inspect evidence** workflow.
-2. Select the **Evidence type**. Paste the saved document into **Evidence JSON** or choose a sample from **Load example**.
+2. Select the **Evidence type**. Choose **Open JSON file**, paste the contents into **Evidence JSON** or choose a sample from **Load example**.
 3. Choose **Inspect evidence** to check the document and view its contents.
+
+Opening a file reads it in the browser and fills **Evidence JSON**. Use UTF-8 without a byte-order mark (BOM) and a file size of up to 4 MiB. OrbiRig asks before replacing edited text. Choose **Inspect evidence** when you are ready to send the document to the server for checking.
 
 | Type | What inspection shows and checks |
 | --- | --- |
@@ -147,7 +153,7 @@ The server decodes both request types as UTF-8. Send JSON without a byte-order m
 
 For verification, `scenario_id` is one of the [scenario string values](verification.md#supported-scenarios). `observation_evidence` contains JSON as a string, not a nested object. FastAPI passes this string unchanged to `deserialize_execution_evidence(...)`, then delegates verification to `build_verified_execution_record(...)`.
 
-For inspection, FastAPI decodes the submitted text and passes it to the matching evidence reader for validation. For both verification and inspection, the frontend submits the textarea value without parsing and re-serialising it, preserving duplicate keys for server-side rejection. The browser displays Python's results rather than defining its own verification rules.
+For inspection, FastAPI decodes the submitted text and passes it to the matching evidence reader for validation. In both forms, the browser submits evidence as text, preserving repeated field names for Python to reject. If you open a file, the browser preserves its original line endings for submission until you edit the evidence text. The browser displays the results supplied by Python.
 
 ### Send an example request
 

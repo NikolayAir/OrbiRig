@@ -1,4 +1,5 @@
 import type { Dispatch, RefObject, SetStateAction, SubmitEvent } from "react";
+import { EvidenceFilePicker, useEvidenceFilePicker } from "./EvidenceFilePicker";
 import { ExamplePicker, type ExampleOption } from "./ExamplePicker";
 import { FieldHelp } from "./FieldHelp";
 import type { InspectionExampleVariant } from "./examples";
@@ -27,6 +28,8 @@ type Props = {
   feedback: FeedbackTargets;
   evidenceHelp: FieldHelpControl;
   requiresConfirmation: (variant: InspectionExampleVariant) => boolean;
+  requiresFileConfirmation: (text: string) => boolean;
+  onOpenFile: (text: string) => void;
   onEvidenceTypeChange: (type: EvidenceType) => void;
   onEvidenceChange: (value: string) => void;
   onLoadExample: (variant: InspectionExampleVariant) => void;
@@ -39,7 +42,8 @@ export function InspectionPanel({
   requiredError, evidenceInputRef,
   sequenceView, onSequenceViewChange,
   feedback, evidenceHelp,
-  requiresConfirmation, onEvidenceTypeChange: selectEvidenceType, onEvidenceChange,
+  requiresConfirmation, requiresFileConfirmation, onOpenFile,
+  onEvidenceTypeChange: selectEvidenceType, onEvidenceChange,
   onLoadExample: loadInspectionExample, onSubmit: inspectEvidence, onCancel: cancelInspection,
 }: Props) {
   const {
@@ -47,6 +51,10 @@ export function InspectionPanel({
     submitRef: inspectionSubmitRef,
     cancelRef: inspectionCancelRef,
   } = feedback;
+  const filePicker = useEvidenceFilePicker(requiresFileConfirmation, onOpenFile);
+  const inspecting = inspection.kind === "loading";
+  const inputsLocked = inspecting || filePicker.state.kind === "reading";
+
   const completed = isInspectionComplete(inspection);
   const actionStatus = completed ? inspectionCompletedStatus(inspection)
     : inspection.kind === "dirty" ? INSPECTION_INPUTS_CHANGED : undefined;
@@ -86,16 +94,21 @@ export function InspectionPanel({
       <h2 id="evidence-inspection">Inspect evidence</h2>
       <ExamplePicker
         options={options}
-        disabled={inspection.kind === "loading"}
+        disabled={inputsLocked}
         requiresConfirmation={requiresConfirmation}
-        onLoad={loadInspectionExample}
+        onLoad={variant => {
+          if (filePicker.clearFeedback()) loadInspectionExample(variant);
+        }}
       />
     </div>
 
-    <form className="inspection-form" noValidate onKeyDown={preventRepeatedRequestAction} onSubmit={inspectEvidence}>
+    <form className="inspection-form" noValidate onKeyDown={preventRepeatedRequestAction} onSubmit={event => {
+      if (filePicker.clearFeedback()) void inspectEvidence(event);
+      else event.preventDefault();
+    }}>
       <fieldset
         className="evidence-types"
-        disabled={inspection.kind === "loading"}
+        disabled={inputsLocked}
       >
         <legend>Evidence type</legend>
         <label>
@@ -149,13 +162,13 @@ export function InspectionPanel({
 
       <div className="inspection-evidence">
         <div className="form-field evidence-input">
-          <div className="field-label">
+          <EvidenceFilePicker picker={filePicker} fieldLabel="Evidence JSON" disabled={inspecting}>
             <label htmlFor="evidence">Evidence JSON</label>
             <FieldHelp control={evidenceHelp} label="Evidence JSON" helpId="inspection-evidence-hint">
-              Paste the full JSON document for the evidence type you chose.
-              Use Load example to choose a sample document.
+              Use Open JSON file (the folder icon) or paste the full document for the selected evidence type.
+              Use Load example to choose a sample.
             </FieldHelp>
-          </div>
+          </EvidenceFilePicker>
           <textarea
             id="evidence"
             name="evidence"
@@ -164,8 +177,10 @@ export function InspectionPanel({
             aria-invalid={requiredError ? true : undefined}
             placeholder="Paste evidence JSON here…"
             value={evidence}
-            onChange={(event) => onEvidenceChange(event.target.value)}
-            disabled={inspection.kind === "loading"}
+            onChange={event => {
+              if (filePicker.clearFeedback()) onEvidenceChange(event.target.value);
+            }}
+            disabled={inputsLocked}
             spellCheck={false}
             rows={8}
             required
@@ -177,13 +192,13 @@ export function InspectionPanel({
             ref={inspectionSubmitRef}
             type="submit"
             className="primary-action"
-            disabled={inspection.kind === "loading" || completed}
+            disabled={inputsLocked || completed}
             data-completed={completed || undefined}
             aria-describedby={actionStatus ? "inspection-action-status" : undefined}
           >
-            {inspection.kind === "loading" ? "Inspecting…" : "Inspect evidence"}
+            {inspecting ? "Inspecting…" : "Inspect evidence"}
           </button>
-          {inspection.kind === "loading" && (
+          {inspecting && (
             <button ref={inspectionCancelRef} type="button" name="cancel-request" className="secondary-action" onClick={cancelInspection}>
               Cancel request
             </button>
