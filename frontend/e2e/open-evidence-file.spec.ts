@@ -24,6 +24,7 @@ for (const { scale, widths } of [
       await page.addStyleTag({ content: ':root { font-size: 200%; font-family: Verdana, "DejaVu Sans", sans-serif; }' });
     }
     const tab = browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab";
+    const wide = (width === 1440 && scale === 100) || width === 2560;
 
     for (const field of ["Observation evidence JSON", "Evidence JSON"]) {
       if (field === "Evidence JSON") {
@@ -35,7 +36,7 @@ for (const { scale, widths } of [
       if (width === 320 || (scale === 200 && mobileWidths.includes(width))) {
         await expect(text).toBeHidden();
       }
-      if ((width === 1440 && scale === 100) || width === 2560) {
+      if (wide) {
         await expect(text).toBeVisible();
       }
       await page.getByRole("button", { name: `About ${field}`, exact: true }).focus();
@@ -53,6 +54,8 @@ for (const { scale, widths } of [
           range.setEnd(text, word.index + word[0].length);
           return range.getClientRects().length > 1;
         });
+        range.selectNodeContents(label);
+        const labelLines = range.getClientRects().length;
         const box = button.getBoundingClientRect();
         const reference = label.getBoundingClientRect();
         const help = heading.querySelector(".field-help-button")!.getBoundingClientRect();
@@ -68,6 +71,7 @@ for (const { scale, widths } of [
           focusFits: box.left >= outline && box.right + outline <= window.innerWidth,
           tooltipClearsButton: tooltip.top >= box.bottom,
           fragmented,
+          labelLines,
           scrollWidth: document.documentElement.scrollWidth,
         };
       });
@@ -78,6 +82,7 @@ for (const { scale, widths } of [
       expect(position.focusFits).toBe(true);
       expect(position.tooltipClearsButton).toBe(true);
       expect(position.fragmented).toBe(false);
+      if (wide) expect(position.labelLines).toBe(1);
       expect(position.scrollWidth).toBe(width);
     }
   });

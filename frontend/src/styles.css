@@ -924,7 +924,8 @@ label,
 .evidence-editor-heading > label {
   flex: 1 1 min-content;
   margin: 0;
-  max-inline-size: max-content;
+  /* Let WebKit grow the label past its minimum-content width. */
+  max-inline-size: fit-content;
   min-inline-size: 0;
   overflow-wrap: break-word;
 }
