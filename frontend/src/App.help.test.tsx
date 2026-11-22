@@ -888,11 +888,13 @@ describe("App help", () => {
     }
   });
 
-  it("offers the documentation beside the help actions", () => {
+  it("offers the same documentation link in both help layouts", () => {
     render(<App />);
     const section = within(screen.getByRole("region", { name: "How it works" }));
-    expect(section.getByRole("link", { name: /^Documentation/ })).toHaveAttribute(
-      "href", "https://github.com/NikolayAir/OrbiRig#documentation",
-    );
+    const links = section.getAllByRole("link", { name: /^Documentation/ });
+    expect(links).toHaveLength(2);
+    for (const link of links) {
+      expect(link).toHaveAttribute("href", "https://github.com/NikolayAir/OrbiRig#documentation");
+    }
   });
 });

@@ -107,10 +107,14 @@ test("compact help keeps visual and keyboard order aligned", async ({ page, brow
   const next = macWebKit ? "Alt+Tab" : "Tab";
   const previous = macWebKit ? "Alt+Shift+Tab" : "Shift+Tab";
 
-  for (const [width, scale] of [[1440, 100], [320, 100], [393, 100], [480, 100], [320, 200], [393, 200]]) {
+  const widths = [320, 375, 393, 430, 480, 1440];
+  const sizes = widths.flatMap(width => [100, 200].map(scale => ({ width, scale })));
+  for (const { width, scale } of sizes) {
     await test.step(`at ${width}px with ${scale}% text`, async () => {
       await page.setViewportSize({ width, height: 852 });
       await page.locator("html").evaluate((element, scale) => { element.style.fontSize = `${scale}%`; }, scale);
+      await expect(documentation).toHaveCount(1);
+      const compact = width <= 640;
       // Use DOMRect dimensions to avoid rounding the 44px touch targets in Firefox.
       const [flow, help, title, link, browserButton, cliButton] = await Promise.all(
         [summary, section, heading, documentation, browser, cli].map(element => element.evaluate(node => {
@@ -123,24 +127,31 @@ test("compact help keeps visual and keyboard order aligned", async ({ page, brow
       const gapAbove = help.y - (flow.y + flow.height);
       expect(gapAbove).toBeGreaterThanOrEqual(0);
       expect(gapAbove).toBeLessThanOrEqual(rem / 2);
-      if (width === 1440) {
-        expect(browserButton.x).toBeGreaterThanOrEqual(link.x + link.width);
-        expect(browserButton.y).toBeLessThan(link.y + link.height);
-      } else {
-        const gapBelow = browserButton.y - Math.max(title.y + title.height, link.y + link.height);
-        expect(gapBelow).toBeGreaterThanOrEqual(0);
-        expect(gapBelow).toBeLessThanOrEqual(rem / 2);
-        if (scale === 100) {
-          expect(link.x + link.width).toBeCloseTo(help.x + help.width, 0);
+      const desktopRow = !compact && scale === 100;
+      const visualOrder = compact
+        ? [title, link, browserButton, cliButton]
+        : [title, browserButton, cliButton, link];
+      expect(title.x).toBeCloseTo(help.x, 0);
+      expect(link.x + link.width).toBeCloseTo(help.x + help.width, 0);
+      for (const [index, second] of visualOrder.slice(1).entries()) {
+        const first = visualOrder[index];
+        const sameRow = first.y < second.y + second.height && second.y < first.y + first.height;
+        if (sameRow) {
+          expect(second.x).toBeGreaterThanOrEqual(first.x + first.width);
+        } else {
+          expect(second.y).toBeGreaterThanOrEqual(first.y + first.height);
         }
+        if (desktopRow) expect(sameRow).toBe(true);
       }
-      if (scale === 100) {
-        expect(link.x).toBeGreaterThanOrEqual(title.x + title.width);
-        expect(link.y).toBeLessThan(title.y + title.height);
+      if (desktopRow) {
+        expect(browserButton.x - (title.x + title.width)).toBeLessThanOrEqual(1.5 * rem + 0.5);
       }
-      expect(cliButton.y).toBeGreaterThanOrEqual(browserButton.y);
-      expect(cliButton.x >= browserButton.x + browserButton.width
-        || cliButton.y >= browserButton.y + browserButton.height).toBe(true);
+      if (compact) {
+        if (scale === 100) expect(link.y).toBeLessThan(title.y + title.height);
+        const gapBeforeButtons = browserButton.y - Math.max(title.y + title.height, link.y + link.height);
+        expect(gapBeforeButtons).toBeGreaterThanOrEqual(0);
+        expect(gapBeforeButtons).toBeLessThanOrEqual(rem / 2);
+      }
       for (const bounds of [link, browserButton, cliButton]) {
         expect(bounds.width).toBeGreaterThanOrEqual(44);
         expect(bounds.height).toBeGreaterThanOrEqual(44);
@@ -148,19 +159,16 @@ test("compact help keeps visual and keyboard order aligned", async ({ page, brow
         expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
         expect(bounds.fitsContent).toBe(true);
       }
-      if (width >= 480) expect(cliButton.y).toBeCloseTo(browserButton.y, 0);
+      if (width >= 480 && scale === 100) expect(cliButton.y).toBeCloseTo(browserButton.y, 0);
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
 
-      await documentation.focus();
-      await page.keyboard.press(next);
-      await expect(browser).toBeFocused();
-      await page.keyboard.press(next);
-      await expect(cli).toBeFocused();
-      await page.keyboard.press(previous);
-      await expect(browser).toBeFocused();
-      await page.keyboard.press(previous);
-      await expect(documentation).toBeFocused();
-      await expect(documentation).toHaveCSS("outline-offset", "4px");
+      const [first, second, last] = compact ? [documentation, browser, cli] : [browser, cli, documentation];
+      await first.focus();
+      for (const [key, control] of [[next, second], [next, last], [previous, second], [previous, first]] as const) {
+        await page.keyboard.press(key);
+        await expect(control).toBeFocused();
+        if (control === documentation) await expect(documentation).toHaveCSS("outline-offset", "4px");
+      }
     });
   }
 });

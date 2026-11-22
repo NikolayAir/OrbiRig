@@ -232,6 +232,10 @@ a.workflow-help-trigger {
   margin-inline-start: auto;
 }
 
+a.workflow-help-compact-link {
+  display: none;
+}
+
 .workflow-help-trigger:hover {
   color: var(--accent-strong);
   text-decoration-thickness: 2px;
@@ -1967,6 +1971,14 @@ a[target="_blank"] {
 
   .workflow-help-actions {
     flex-basis: 100%;
+  }
+
+  a.workflow-help-compact-link {
+    display: inline-flex;
+  }
+
+  a.workflow-help-wide-link {
+    display: none;
   }
 
   .workflow-help-actions > button {
