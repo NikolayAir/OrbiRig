@@ -44,8 +44,8 @@ You can also save a verified record [from the command line](cli.md#verify-the-bu
 
 Open **Load example** to see the examples available for the selected evidence type. **Standard example** fills in valid JSON for that type.
 
-- **Failing example** gives a valid saved `FAIL` when you select a verified type. In the sequence example, each record passes and the continuity check fails.
-- **Long sequence** gives 100 records to browse and filter, including failed telemetry and continuity checks.
+- **Failing example** is available for **Verified execution** and **Verified execution sequence**. Both examples are valid saved evidence with a `FAIL` outcome. In the sequence example, each record passes and the continuity check fails.
+- With **Verified execution sequence**, **Long sequence** gives you 100 records to browse and filter, including failed telemetry and continuity checks.
 - **Altered example** gives invalid evidence. The observation repeats a field name. The verified examples contain saved results that disagree with the recorded values.
 
 ### Find failures in a sequence
