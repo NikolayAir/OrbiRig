@@ -597,7 +597,8 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                     Select the <strong>Evidence type</strong> that matches your document.
                   </li>
                   <li>
-                    Paste the document into <strong>Evidence JSON</strong> or choose a sample from <strong>Load example</strong>.
+                    Choose <strong>Open JSON file</strong> or paste the document into <strong>Evidence JSON</strong>.
+                    To try a sample, use <strong>Load example</strong>.
                   </li>
                   <li>
                     Choose <strong>Inspect evidence</strong> to see the recorded values

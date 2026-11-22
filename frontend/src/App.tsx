@@ -51,7 +51,7 @@ export function App() {
   const observationEvidenceInputRef = useRef<HTMLTextAreaElement>(null);
   const inspectionEvidenceInputRef = useRef<HTMLTextAreaElement>(null);
   const verificationExampleBaselineRef = useRef({ executionId: "", executedAt: "", observationEvidence: "" });
-  const inspectionExampleBaselineRef = useRef("");
+  const inspectionEvidenceBaselineRef = useRef("");
   // A new request replaces the completed or edited state. Keep that history so
   // edits after a cancelled or failed retry still prompt for a new check.
   const verificationHadResultRef = useRef(false);
@@ -66,8 +66,8 @@ export function App() {
     ));
   }
 
-  function inspectionNeedsConfirmation(variant: InspectionExampleVariant) {
-    return wouldReplaceEditedValue(evidence, inspectionExampleBaselineRef.current, inspectionExample(evidenceType, variant) ?? "");
+  function inspectionNeedsConfirmation(next: string) {
+    return wouldReplaceEditedValue(evidence, inspectionEvidenceBaselineRef.current, next);
   }
 
   function clearVerificationRequiredError(field: VerificationRequiredField) {
@@ -126,16 +126,19 @@ export function App() {
     }
   }
 
-  function loadInspectionExample(variant: InspectionExampleVariant) {
-    const example = inspectionExample(evidenceType, variant);
-    if (example === undefined) return;
-    const inputsChanged = evidence !== example;
-    inspectionExampleBaselineRef.current = example;
-    setEvidence(example);
+  function replaceInspectionEvidence(value: string) {
+    const inputsChanged = evidence !== value;
+    inspectionEvidenceBaselineRef.current = value;
+    setEvidence(value);
     setInspectionRequiredError(false);
     if (inputsChanged || !isInspectionComplete(inspection.state)) {
       clearInspectionResult(inputsChanged);
     }
+  }
+
+  function loadInspectionExample(variant: InspectionExampleVariant) {
+    const example = inspectionExample(evidenceType, variant);
+    if (example !== undefined) replaceInspectionEvidence(example);
   }
 
   function cancelVerification() {
@@ -319,7 +322,9 @@ export function App() {
           sequenceView={sequenceView}
           onSequenceViewChange={setSequenceView}
           feedback={feedback.inspectionTargets}
-          requiresConfirmation={inspectionNeedsConfirmation}
+          requiresConfirmation={variant => inspectionNeedsConfirmation(inspectionExample(evidenceType, variant) ?? "")}
+          requiresFileConfirmation={inspectionNeedsConfirmation}
+          onOpenFile={replaceInspectionEvidence}
           onEvidenceTypeChange={selectEvidenceType}
           onEvidenceChange={changeInspectionEvidence}
           onLoadExample={loadInspectionExample}

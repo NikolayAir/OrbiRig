@@ -308,6 +308,7 @@ for (const viewport of [
     await page.goto("/");
     await page.getByRole("button", { name: "Show Inspect evidence", exact: true }).click();
     await chooseExample(page);
+    const tab = browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab";
     const editor = page.getByLabel("Evidence JSON", { exact: true });
     const observationText = await editor.inputValue();
     const observation = page.getByRole("radio", { name: "Observation", exact: true });
@@ -325,12 +326,14 @@ for (const viewport of [
       expect(await radio.locator("..").evaluate(element => getComputedStyle(element).outlineStyle)).toBe("solid");
       await expect(editor).toHaveValue(observationText);
     }
-    await page.keyboard.press(browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab");
+    await page.keyboard.press(tab);
     await expect(page.getByRole("button", { name: "About Evidence JSON", exact: true })).toBeFocused();
-    await page.keyboard.press(browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab");
+    await page.keyboard.press(tab);
+    await expect(page.getByRole("button", { name: "Open JSON file", exact: true })).toBeFocused();
+    await page.keyboard.press(tab);
     await expect(editor).toBeFocused();
     await editor.fill(sequence);
-    await page.keyboard.press(browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab");
+    await page.keyboard.press(tab);
     const action = page.getByRole("button", { name: "Inspect evidence", exact: true });
     await expect(action).toBeFocused();
     await expect(action).toBeInViewport();
@@ -623,7 +626,10 @@ for (const [field, helpId] of [
     await expect(tooltip).toBeHidden();
     await expect(help).toBeFocused();
     await page.keyboard.press(tab);
-    await expect(page.getByLabel(field, { exact: true })).toBeFocused();
+    const nextControl = field === "Evidence JSON"
+      ? page.getByRole("button", { name: "Open JSON file", exact: true })
+      : page.getByLabel(field, { exact: true });
+    await expect(nextControl).toBeFocused();
     await page.keyboard.press(optionTab ? "Alt+Shift+Tab" : "Shift+Tab");
     await expect(help).toBeFocused();
     await expect(tooltip).toBeVisible();

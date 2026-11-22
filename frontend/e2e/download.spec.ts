@@ -173,8 +173,13 @@ async function reopen(page: Page, file: Buffer): Promise<ResultView> {
   expect(Array.from(file.subarray(0, 3))).not.toEqual([0xef, 0xbb, 0xbf]);
   await page.getByRole("button", { name: "Show Inspect evidence" }).click();
   await page.getByRole("radio", { name: "Verified execution", exact: true }).check();
-  await page.getByLabel("Evidence JSON", { exact: true }).fill(file.toString("utf8"));
+  const choosing = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "Open JSON file", exact: true }).click();
+  await (await choosing).setFiles({ name: FILE_NAME, mimeType: "application/json", buffer: file });
+  await expect(page.getByLabel("Evidence JSON", { exact: true })).toHaveValue(file.toString("utf8"));
+  const submitted = page.waitForRequest("**/api/inspect/verified-execution");
   await page.getByRole("button", { name: "Inspect evidence", exact: true }).click();
+  expect((await submitted).postDataBuffer()).toEqual(file);
   const reopened = resultRegion(page);
   await expect(reopened.getByText("Valid saved evidence")).toBeVisible();
   await expect(page.getByRole("alert")).toHaveCount(0);

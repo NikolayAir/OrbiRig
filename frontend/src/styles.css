@@ -911,6 +911,25 @@ label,
   margin: 0;
 }
 
+/* Keep the file action beside the editor label when both fit. */
+.inspection-editor-heading {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.75rem;
+  margin-bottom: 0.4rem;
+}
+
+.inspection-editor-heading .field-label {
+  flex: 1 1 auto;
+  margin: 0;
+}
+
+.inspection-editor-heading > button {
+  max-inline-size: 100%;
+  padding-inline: 0.625rem;
+}
+
 .field-help {
   display: inline-flex;
   flex: 0 0 auto;

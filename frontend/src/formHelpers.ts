@@ -8,7 +8,7 @@ export function preventRepeatedRequestAction(event: ReactKeyboardEvent<HTMLFormE
 }
 
 export function wouldReplaceEditedValue(current: string, baseline: string, next: string): boolean {
-  // Clearing a loaded example is still an edit; initial whitespace alone is not.
+  // Once text has been loaded, clearing it counts as an edit.
   return current !== baseline && current !== next && (baseline !== "" || current.trim() !== "");
 }
 

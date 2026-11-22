@@ -24,15 +24,17 @@ Choose **Download result JSON** next to a completed verification to save it as `
 
 The download reuses the result on screen. Changing an input clears the result and its download action.
 
-To reopen the file, switch to **Inspect evidence**, select **Verified execution**, paste the file's contents into **Evidence JSON** and choose **Inspect evidence**. OrbiRig recalculates the checks and shows the same scenario, check results and outcome.
+To reopen the file, switch to **Inspect evidence**, select **Verified execution** and choose **Open JSON file**. Select the downloaded file, then choose **Inspect evidence**. OrbiRig recalculates the checks and shows the same scenario, check results and outcome.
 
 You can also save a verified record [from the command line](cli.md#verify-the-bundled-example) or [with the Python API](python.md#reopen-saved-verified-evidence).
 
 ## Inspect evidence
 
 1. Switch to the **Inspect evidence** workflow.
-2. Select the **Evidence type**. Paste the saved document into **Evidence JSON** or choose a sample from **Load example**.
+2. Select the **Evidence type**. Choose **Open JSON file**, paste the contents into **Evidence JSON** or choose a sample from **Load example**.
 3. Choose **Inspect evidence** to check the document and view its contents.
+
+Opening a file reads it in the browser and fills **Evidence JSON**. Use UTF-8 without a byte-order mark (BOM) and a file size of up to 4 MiB. OrbiRig asks before replacing edited text. Choose **Inspect evidence** when you are ready to send the document to the server for checking.
 
 | Type | What inspection shows and checks |
 | --- | --- |
