@@ -430,6 +430,22 @@ for (const { width, textScale } of [
           }
         }
       };
+      const clickVisibleInput = async () => {
+        await expect(input).toBeInViewport();
+        const point = await input.evaluate(element => {
+          const bounds = element.getBoundingClientRect();
+          // Hovering help can scroll the middle of a tall editor off screen.
+          const top = Math.max(0, bounds.top);
+          const bottom = Math.min(window.innerHeight, bounds.bottom);
+          return { x: bounds.x + bounds.width / 2, y: (top + bottom) / 2 };
+        });
+        const clicks = await recordNextClick(input);
+        await page.mouse.move(point.x, point.y);
+        await page.mouse.click(point.x, point.y);
+        expect(await clicks.jsonValue()).toEqual([true]);
+        await expect(input).toBeFocused();
+        await expect(tooltip).toBeHidden();
+      };
       await help.hover();
       await expect(tooltip).toBeVisible();
       await expectStablePositions();
@@ -469,16 +485,7 @@ for (const { width, textScale } of [
       // Hover-only help must also let a normal click reach the editor or dropdown beneath it.
       await input.scrollIntoViewIfNeeded();
       await help.hover();
-      const hoverPoint = await input.evaluate(element => {
-        const bounds = element.getBoundingClientRect();
-        return { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
-      });
-      const hoverClicks = await recordNextClick(input);
-      await page.mouse.move(hoverPoint.x, hoverPoint.y);
-      await page.mouse.click(hoverPoint.x, hoverPoint.y);
-      expect(await hoverClicks.jsonValue()).toEqual([true]);
-      await expect(input).toBeFocused();
-      await expect(tooltip).toBeHidden();
+      await clickVisibleInput();
       await expectStablePositions();
       if (field === "Scenario") await page.keyboard.press("Escape");
       await help.hover();
@@ -493,16 +500,7 @@ for (const { width, textScale } of [
       await page.mouse.click(clickX, clickBounds.y + clickBounds.height - 2);
       await expect(help.locator("..")).toHaveAttribute("data-open", "true");
       await input.scrollIntoViewIfNeeded();
-      const point = await input.evaluate(element => {
-        const bounds = element.getBoundingClientRect();
-        return { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
-      });
-      const clicks = await recordNextClick(input);
-      await page.mouse.move(point.x, point.y);
-      await page.mouse.click(point.x, point.y);
-      expect(await clicks.jsonValue()).toEqual([true]);
-      await expect(input).toBeFocused();
-      await expect(tooltip).toBeHidden();
+      await clickVisibleInput();
       if (field === "Scenario") await page.keyboard.press("Escape");
       await page.mouse.move(0, 0);
       await help.hover();
