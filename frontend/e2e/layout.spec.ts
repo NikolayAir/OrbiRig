@@ -25,6 +25,18 @@ async function recordNextClick(input: Locator) {
   });
 }
 
+function wordsSplitAcrossLines(elements: Element[]) {
+  return elements.flatMap(element => {
+    const text = element.firstChild!;
+    const range = document.createRange();
+    return Array.from(text.textContent!.matchAll(/\S+/g)).filter(word => {
+      range.setStart(text, word.index);
+      range.setEnd(text, word.index + word[0].length);
+      return range.getClientRects().length > 1;
+    }).map(word => word[0]);
+  });
+}
+
 for (const { scale, widths } of [
   { scale: 100, widths: [320, 375, 390, 430, firstTwoColumnWidth - 1, firstTwoColumnWidth, 600, 768, 1024, 1280, 1440, 1920] },
   { scale: 200, widths: [320, 375, 390, 430, 600, 768, 820, 1024, firstTwoColumnWidthWithDoubledText - 1, firstTwoColumnWidthWithDoubledText, 1280, 1440, 1920] },
@@ -37,20 +49,8 @@ for (const { scale, widths } of [
       await page.addStyleTag({ content: `:root { font-size: 200%; font-family: ${font}; }` });
     }
     const panel = page.getByRole("region", { name: "Verify observation", exact: true });
-    const { id, time, scenario, metadata, editor, action, heading, examples, splitWords, pageWidth, rem } = await panel.evaluate(node => {
+    const { id, time, scenario, metadata, editor, action, heading, examples, pageWidth, rem } = await panel.evaluate(node => {
       const bounds = (selector: string) => node.querySelector(selector)!.getBoundingClientRect().toJSON();
-      const textElements = document.querySelectorAll(
-        ".check-flow strong, .check-flow span, #verification-workflow .workflow-heading h2, #verification-workflow .example-picker-trigger > span:first-child",
-      );
-      const splitWords = Array.from(textElements).flatMap(element => {
-        const text = element.firstChild!;
-        const range = document.createRange();
-        return Array.from(text.textContent!.matchAll(/\S+/g)).filter(word => {
-          range.setStart(text, word.index);
-          range.setEnd(text, word.index + word[0].length);
-          return range.getClientRects().length > 1;
-        }).map(word => word[0]);
-      });
       return {
         id: bounds("#verification-execution-id"),
         time: bounds("#verification-executed-at"),
@@ -60,13 +60,15 @@ for (const { scale, widths } of [
         action: bounds("button[type=submit]"),
         heading: bounds(".workflow-heading h2"),
         examples: bounds(".example-picker-trigger"),
-        splitWords,
         pageWidth: document.documentElement.scrollWidth,
         rem: parseFloat(getComputedStyle(document.documentElement).fontSize),
       };
     });
+    const textElements = page.locator(
+      ".check-flow strong, .check-flow span, #verification-workflow .workflow-heading h2, #verification-workflow .example-picker-trigger > span:first-child",
+    );
     expect(pageWidth).toBe(width);
-    expect(splitWords).toEqual([]);
+    expect(await textElements.evaluateAll(wordsSplitAcrossLines)).toEqual([]);
     expect(action.top - editor.bottom).toBeGreaterThan(0);
     expect(action.top - editor.bottom).toBeLessThanOrEqual(1.25 * rem);
     expect(action.left).toBeGreaterThanOrEqual(editor.left);
@@ -771,14 +773,18 @@ test("forced colours keep the selected workflow marked separately from keyboard 
   expect(await marker(verify)).toMatchObject({ bottom: 0, left: 0 });
 });
 
-for (const font of ["", "monospace"]) {
-  test(`forms reflow with doubled text at 320px using ${font || "the default font"}`, async ({ page }) => {
+for (const { name, family } of [
+  { name: "the default font", family: "" },
+  { name: "monospace", family: "monospace" },
+  { name: "a wider sans-serif font", family: 'Verdana, "DejaVu Sans", sans-serif' },
+]) {
+  test(`forms reflow with doubled text at 320px using ${name}`, async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 800 });
     await page.goto("/");
     await page.locator("html").evaluate((element, font) => {
       element.style.fontSize = "200%";
       if (font) element.style.fontFamily = font;
-    }, font);
+    }, family);
 
     // Wider glyphs expose text overflow even on hosts with a compact system font.
     for (const element of await page.locator(
@@ -796,6 +802,9 @@ for (const font of ["", "monospace"]) {
     await expectWithinWidth(page.getByRole("tooltip"), 320);
     await page.keyboard.press("Escape");
     await expectWithinWidth(page.locator(".evidence-types label"), 320);
+    const cardText = page.locator(".evidence-types label > span > span, .evidence-types label small");
+    await expect(cardText).toHaveCount(6);
+    expect(await cardText.evaluateAll(wordsSplitAcrossLines)).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
 
     const sequence = page.getByRole("radio", { name: "Verified execution sequence", exact: true });

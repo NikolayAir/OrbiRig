@@ -881,14 +881,6 @@ fieldset {
   }
 }
 
-@container observation-form (max-width: 9rem) {
-  /* Make room for inputs at large text sizes within the existing panel. */
-  #verification-workflow .workflow-heading,
-  #verification-workflow .verification-form {
-    margin-inline: clamp(-1rem, (100cqi - 9rem) / 2, 0px);
-  }
-}
-
 label,
 .evidence-types > legend {
   display: block;
@@ -1292,10 +1284,12 @@ button:disabled,
   border-radius: 0.5rem;
   cursor: pointer;
   display: flex;
+  flex-wrap: wrap;
   font-size: 0.875rem;
   line-height: 1.5;
   margin: 0;
   padding: 1rem;
+  row-gap: 0.25rem;
 }
 
 .evidence-types label small {
@@ -1307,8 +1301,10 @@ button:disabled,
 }
 
 .evidence-types label > span {
+  /* Give the text its own row when its longest word needs the width. */
+  flex: 1 1 min-content;
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .evidence-types input[type="radio"] {
@@ -1332,6 +1328,19 @@ button:disabled,
   box-shadow: var(--focus-ring);
   outline: 1px solid var(--focus-edge);
   outline-offset: 4px;
+}
+
+@container (max-width: 9rem) {
+  /* Give both forms more of the panel width when text is enlarged. */
+  .workflow-panel > .workflow-heading,
+  .verification-form,
+  .inspection-form {
+    margin-inline: clamp(-1rem, (100cqi - 9rem) / 2, 0px);
+  }
+
+  .evidence-types label {
+    padding: 0.625rem 0.5rem;
+  }
 }
 
 .workflow-feedback {
