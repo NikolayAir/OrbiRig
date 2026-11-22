@@ -930,6 +930,11 @@ label,
   padding-inline: 0.625rem;
 }
 
+.inspection-editor-heading > button > svg {
+  margin-inline-end: 0.375rem;
+  vertical-align: middle;
+}
+
 .field-help {
   display: inline-flex;
   flex: 0 0 auto;
