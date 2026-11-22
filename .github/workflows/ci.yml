@@ -285,10 +285,10 @@ jobs:
 
       - name: Run ${{ matrix.name }} browser tests
         working-directory: frontend
-        # Keep each engine bounded and allow for WebKit's longer runs on Ubuntu.
+        # Allow extra time for Firefox and WebKit's longer runs on Ubuntu.
         run: >-
           uv run --no-sync npm run test:e2e -- --project=${{ matrix.browser }}
-          --global-timeout=${{ matrix.browser == 'webkit' && 900000 || 600000 }}
+          --global-timeout=${{ matrix.browser == 'chromium' && 600000 || 900000 }}
 
       - name: Upload browser reports, traces, screenshots and videos
         if: ${{ failure() }}
