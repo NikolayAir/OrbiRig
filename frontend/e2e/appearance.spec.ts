@@ -1,0 +1,165 @@
+import { expect, test, type Locator } from "@playwright/test";
+
+import { chooseExample } from "./example-support";
+
+test("uses System and the matching palette before React loads", async ({ page }) => {
+  await page.route("**/src/main.tsx", route => route.abort());
+  await page.addInitScript(() => {
+    localStorage.setItem("orbirig-color-theme", "invalid");
+  });
+
+  const root = page.locator("html");
+  for (const [system, theme, background] of [
+    ["light", "day", "rgb(236, 242, 247)"],
+    ["dark", "night", "rgb(14, 25, 40)"],
+  ] as const) {
+    await page.emulateMedia({ colorScheme: system });
+    await page.goto("/");
+    await expect(root).toHaveAttribute("data-theme", theme);
+    await expect(root).toHaveCSS("color-scheme", system);
+    await expect(root).toHaveCSS("background-color", background);
+    await expect(page.getByRole("combobox", { name: "Color theme" })).toHaveCount(0);
+  }
+
+  await page.unroute("**/src/main.tsx");
+  await page.reload();
+  await expect(page.getByRole("combobox", { name: "Color theme" })).toHaveValue("system");
+});
+
+test("tracks OS changes only while System is selected", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.goto("/");
+  const root = page.locator("html");
+  const theme = page.getByRole("combobox", { name: "Color theme" });
+  await expect(theme).toHaveValue("system");
+
+  await page.emulateMedia({ colorScheme: "dark" });
+  await expect(root).toHaveCSS("color-scheme", "dark");
+  await theme.selectOption("day");
+  await expect(root).toHaveCSS("color-scheme", "light");
+  await page.reload();
+  await expect(theme).toHaveValue("day");
+  await expect(root).toHaveCSS("color-scheme", "light");
+
+  await theme.selectOption("night");
+  await page.emulateMedia({ colorScheme: "light" });
+  await expect(root).toHaveCSS("color-scheme", "dark");
+  await page.route("**/src/main.tsx", route => route.abort());
+  await page.reload();
+  await expect(root).toHaveCSS("background-color", "rgb(14, 25, 40)");
+  await expect(theme).toHaveCount(0);
+  await page.unroute("**/src/main.tsx");
+
+  await page.reload();
+  await expect(theme).toHaveValue("night");
+  await theme.selectOption("system");
+  await expect(root).toHaveCSS("color-scheme", "light");
+  await page.emulateMedia({ colorScheme: "dark" });
+  await expect(root).toHaveCSS("color-scheme", "dark");
+});
+
+test("applies a theme on the current page when browser storage is blocked", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "localStorage", {
+      get() { throw new DOMException("Storage denied", "SecurityError"); },
+    });
+  });
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto("/");
+  const root = page.locator("html");
+  const theme = page.getByRole("combobox", { name: "Color theme" });
+
+  await expect(theme).toHaveValue("system");
+  await expect(root).toHaveCSS("color-scheme", "dark");
+  await theme.selectOption("day");
+  await expect(root).toHaveCSS("color-scheme", "light");
+  await page.reload();
+  await expect(theme).toHaveValue("system");
+  await expect(root).toHaveCSS("color-scheme", "dark");
+});
+
+async function expectReadable(control: Locator) {
+  await expect(control).toBeVisible();
+  const ratio = await control.evaluate(element => {
+    const { color, backgroundColor } = getComputedStyle(element);
+    const luminance = (rgb: string) => {
+      const [red, green, blue] = rgb.match(/\d+/g)!.map(component => {
+        const value = Number(component) / 255;
+        return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+    };
+    const light = luminance(color);
+    const dark = luminance(backgroundColor);
+    return (Math.max(light, dark) + 0.05) / (Math.min(light, dark) + 0.05);
+  });
+  expect(ratio).toBeGreaterThanOrEqual(4.5);
+}
+
+for (const palette of ["day", "night"]) {
+  test(`keeps forms, help and evidence feedback readable in ${palette}`, async ({ page, browserName }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/");
+    const theme = page.getByRole("combobox", { name: "Color theme" });
+    await theme.selectOption(palette);
+
+    await expectReadable(theme);
+    await expectReadable(page.getByRole("combobox", { name: "Scenario" }));
+    const editor = page.getByRole("textbox", { name: "Observation evidence JSON" });
+    await expectReadable(editor);
+    const fieldHelp = page.getByRole("button", { name: "About Execution ID" });
+    await fieldHelp.focus();
+    await expectReadable(page.getByRole("tooltip"));
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("tooltip")).toHaveCount(0);
+    await expect(fieldHelp).toBeFocused();
+
+    const load = page.getByRole("button", { name: "Load example", exact: true });
+    await load.click();
+    await expectReadable(page.getByRole("button", { name: "Standard example" }));
+    const failing = page.getByRole("button", { name: "Failing example" });
+    await expectReadable(failing);
+    const tab = browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab";
+    await page.keyboard.press(tab);
+    await expect(page.getByRole("button", { name: "Standard example" })).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(load).toBeFocused();
+    await expect(load).toHaveAttribute("aria-expanded", "false");
+
+    await chooseExample(page);
+    const verify = page.getByRole("button", { name: "Verify observation", exact: true });
+    await expectReadable(verify);
+    await verify.click();
+    const result = page.getByRole("region", { name: "Verified execution", exact: true });
+    await expectReadable(result.locator(".result-heading .outcome-badge[data-outcome=PASS]"));
+    await expectReadable(verify);
+
+    await chooseExample(page, "Failing example");
+    await verify.click();
+    await expectReadable(result.locator(".result-heading .outcome-badge[data-outcome=FAIL]"));
+    const observed = await editor.inputValue();
+    await theme.selectOption(palette === "day" ? "night" : "day");
+    await expect(result.locator(".result-heading .outcome-badge")).toHaveAttribute("data-outcome", "FAIL");
+    await expect(editor).toHaveValue(observed);
+    await theme.selectOption(palette);
+
+    const browserHelp = page.getByRole("button", { name: "In the browser" });
+    await browserHelp.click();
+    await expectReadable(page.getByRole("dialog", { name: "How it works" }));
+    await page.keyboard.press("Escape");
+    await expect(browserHelp).toBeFocused();
+
+    await page.getByRole("button", { name: "Show Inspect evidence" }).click();
+    await page.getByRole("radio", { name: "Verified execution", exact: true }).check();
+    const inspect = page.getByRole("button", { name: "Inspect evidence", exact: true });
+    await chooseExample(page, "Failing example");
+    await inspect.click();
+    await expectReadable(result.locator(".result-heading .outcome-badge[data-outcome=FAIL]"));
+    await expect(page.getByRole("alert")).toHaveCount(0);
+
+    await chooseExample(page, "Altered example");
+    await inspect.click();
+    await expectReadable(page.getByRole("alert").filter({ hasText: "Invalid evidence" }));
+    await expect(result).toHaveCount(0);
+  });
+}

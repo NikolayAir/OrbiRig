@@ -1,4 +1,6 @@
 :root {
+  color-scheme: light;
+
   --ink: #213547;
   --heading: #153e56;
   --muted: #536779;
@@ -50,6 +52,51 @@
   font-synthesis: none;
 }
 
+:root[data-theme="night"] {
+  color-scheme: dark;
+
+  --ink: #d7e4ef;
+  --heading: #ebf4fe;
+  --muted: #a8bbcf;
+  --canvas: #0e1928;
+  --surface: #162437;
+  --soft: #1b2c41;
+  --line: #384e64;
+  --surface-hover: #24394f;
+  --surface-pressed: #304a63;
+
+  --accent: #86c5ef;
+  --accent-strong: #addbfa;
+  --accent-hover: #9bd2f8;
+  --on-accent: #122438;
+  --control-line: #728aa2;
+  --control-hover: #9cb7d0;
+  --disabled-surface: #2a3c4e;
+  --disabled-ink: #afc1d3;
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath d='m4 6 4 4 4-4' fill='none' stroke='%23b0cbe4' stroke-width='1.5'/%3E%3C/svg%3E");
+
+  --switcher-surface: #1e3045;
+  --switcher-hover: #263d56;
+  --selected-soft: #1e4356;
+  --selected-ink: #b1e5ef;
+  --tooltip-surface: #243b53;
+  --tooltip-ink: #edf7ff;
+  --dialog-backdrop: rgb(4 11 21 / 72%);
+  --shadow-rgb: 3 9 19;
+
+  --focus: #52d9eb;
+  --focus-edge: #a4edf8;
+
+  --positive: #9bdfbf;
+  --positive-soft: #193a35;
+  --positive-line: #60a588;
+  --negative: #ffc1af;
+  --negative-soft: #432b30;
+  --negative-line: #ba8177;
+  --negative-hover: #56343a;
+  --negative-pressed: #633d44;
+}
+
 body {
   background: var(--canvas);
   line-height: 1.5;
@@ -69,6 +116,15 @@ main {
   margin-bottom: 0.375rem;
 }
 
+.header-toolbar {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
 .brand {
   align-items: center;
   color: var(--muted);
@@ -78,7 +134,7 @@ main {
   font-weight: 650;
   gap: 0.625rem;
   letter-spacing: 0.04em;
-  margin: 0 0 0.75rem;
+  margin: 0;
 }
 
 .brand > span {
@@ -89,6 +145,46 @@ main {
   flex: 0 0 auto;
   height: 2.25rem;
   width: 2.25rem;
+}
+
+.appearance-settings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  max-inline-size: 100%;
+}
+
+.appearance-control {
+  color: var(--accent);
+  margin: 0;
+  max-inline-size: 100%;
+  position: relative;
+}
+
+.appearance-control select {
+  background-color: var(--soft);
+  background-position: right 0.625rem center;
+  font-size: 0.875rem;
+  min-block-size: max(44px, 2.75rem);
+  min-inline-size: 44px;
+  padding: 0.5rem 2rem 0.5rem 2rem;
+}
+
+.appearance-control select:hover {
+  background-color: var(--surface-hover);
+}
+
+.appearance-icon {
+  block-size: 1rem;
+  fill: none;
+  inline-size: 1rem;
+  inset-block-start: 50%;
+  inset-inline-start: 0.625rem;
+  pointer-events: none;
+  position: absolute;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  transform: translateY(-50%);
 }
 
 h1,

@@ -1,4 +1,5 @@
 import { type SubmitEvent, useRef, useState } from "react";
+import { AppearanceSettings } from "./AppearanceSettings";
 import { DocLink } from "./DocLink";
 import { WorkflowHelp } from "./WorkflowHelp";
 import { VerificationPanel } from "./VerificationPanel";
@@ -231,10 +232,13 @@ export function App() {
   return (
     <main>
       <header className="page-header">
-        <p className="brand">
-          <img src="/assets/orbirig-mark.svg#header" width="40" height="40" alt="" />
-          <span>OrbiRig</span>
-        </p>
+        <div className="header-toolbar">
+          <p className="brand">
+            <img src="/assets/orbirig-mark.svg#header" width="40" height="40" alt="" />
+            <span>OrbiRig</span>
+          </p>
+          <AppearanceSettings />
+        </div>
         <h1>Check recorded command results</h1>
         <p>
           OrbiRig uses a simplified spacecraft model. NOMINAL is its normal mode
