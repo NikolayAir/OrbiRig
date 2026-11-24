@@ -239,15 +239,17 @@ export function App() {
           </p>
           <AppearanceSettings />
         </div>
-        <h1>Check recorded command results</h1>
-        <p>
-          OrbiRig uses a simplified spacecraft model. NOMINAL is its normal mode
-          and SAFE is its protective mode.
-        </p>
-        <p className="field-hint">
-          The browser sends submitted JSON to the server for checking.
-          On the public site, use only non-sensitive example data.
-        </p>
+        <div className="header-intro">
+          <h1>Check recorded command results</h1>
+          <p>
+            OrbiRig uses a simplified spacecraft model. NOMINAL is its normal mode
+            and SAFE is its protective mode.
+          </p>
+          <p className="field-hint">
+            The browser sends submitted JSON to the server for checking.
+            On the public site, use only non-sensitive example data.
+          </p>
+        </div>
         <ol className="check-flow" aria-label="How a check works">
           <li><strong>Expected behaviour</strong><span>Choose a scenario that says what you expect.</span></li>
           <li><strong>Observation</strong><span>The command and what the program reported.</span></li>
