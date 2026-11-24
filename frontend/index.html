@@ -5,19 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
     <script>
-      // Read the preference before the stylesheet or React bundle can paint.
+      // Set appearance before loading the stylesheet and the app.
       {
-        let preference;
-        try {
-          preference = localStorage.getItem("orbirig-color-theme");
-        } catch {
-          // The system palette is also the fallback when storage is unavailable.
+        function savedPreference(key) {
+          try {
+            return localStorage.getItem(key);
+          } catch {
+            return null;
+          }
         }
-        const theme = preference === "day" || preference === "night" ? preference : "system";
-        document.documentElement.dataset.themePreference = theme;
-        document.documentElement.dataset.theme = theme === "system"
+        const { dataset } = document.documentElement;
+        const theme = savedPreference("orbirig-color-theme");
+        const size = savedPreference("orbirig-text-size");
+        dataset.themePreference = theme === "day" || theme === "night" ? theme : "system";
+        dataset.theme = dataset.themePreference === "system"
           ? (matchMedia("(prefers-color-scheme: dark)").matches ? "night" : "day")
-          : theme;
+          : dataset.themePreference;
+        dataset.textSize = size === "small" || size === "large" ? size : "medium";
       }
     </script>
     <link rel="stylesheet" href="/src/styles.css" />

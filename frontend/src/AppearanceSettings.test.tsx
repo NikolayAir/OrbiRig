@@ -10,6 +10,7 @@ afterEach(() => {
   localStorage.clear();
   delete root.dataset.theme;
   delete root.dataset.themePreference;
+  delete root.dataset.textSize;
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -46,5 +47,19 @@ it("applies a new theme even when saving fails", () => {
   render(<AppearanceSettings />);
   fireEvent.change(screen.getByRole("combobox", { name: "Color theme" }), { target: { value: "night" } });
 
+  expect(root).toHaveAttribute("data-theme", "night");
+});
+
+it("defaults to Medium and saves a new text size without changing the theme", () => {
+  root.dataset.themePreference = "night";
+  root.dataset.textSize = "invalid";
+  render(<AppearanceSettings />);
+  const size = screen.getByRole("combobox", { name: "Text size" });
+
+  expect(size).toHaveValue("medium");
+  fireEvent.change(size, { target: { value: "small" } });
+
+  expect(localStorage.getItem("orbirig-text-size")).toBe("small");
+  expect(root).toHaveAttribute("data-text-size", "small");
   expect(root).toHaveAttribute("data-theme", "night");
 });

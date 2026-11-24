@@ -4,6 +4,8 @@ In the [OrbiRig web interface](https://orbirig-evidence-inspector.onrender.com/)
 
 The browser sends submitted JSON to the server for checking. On the public site, use only non-sensitive example data.
 
+In the header, **Color theme** offers **System**, **Day** and **Night**. **System** follows your device's light or dark setting. **Text size** offers **Small**, **Medium** and **Large**, with **Medium** selected by default. Your browser remembers the choices when it allows local storage.
+
 On narrow screens, **Open JSON file** appears as a folder icon beside the JSON field.
 
 ## Verify an observation
