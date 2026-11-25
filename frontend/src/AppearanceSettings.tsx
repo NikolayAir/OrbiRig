@@ -3,6 +3,8 @@ import { useLayoutEffect, useState } from "react";
 // index.html reads these preferences before the app renders.
 const THEME_KEY = "orbirig-color-theme";
 const TEXT_SIZE_KEY = "orbirig-text-size";
+const SYSTEM_LABEL = "System";
+const MEDIUM_LABEL = "Medium";
 
 type Theme = "system" | "day" | "night";
 type TextSize = "small" | "medium" | "large";
@@ -60,19 +62,19 @@ export function AppearanceSettings() {
 
   return (
     <div className="appearance-settings">
-      <label className="appearance-control">
+      <label className="appearance-control" data-width-label={SYSTEM_LABEL}>
         <span className="visually-hidden">Color theme</span>
         <svg className="appearance-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
           <circle cx="10" cy="10" r="7" />
           <path d="M10 3a7 7 0 0 0 0 14Z" fill="currentColor" stroke="none" />
         </svg>
         <select value={theme} onChange={event => chooseTheme(event.currentTarget.value as Theme)}>
-          <option value="system">System</option>
+          <option value="system">{SYSTEM_LABEL}</option>
           <option value="day">Day</option>
           <option value="night">Night</option>
         </select>
       </label>
-      <label className="appearance-control">
+      <label className="appearance-control" data-width-label={MEDIUM_LABEL}>
         <span className="visually-hidden">Text size</span>
         <svg className="appearance-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"
           strokeLinecap="round" strokeLinejoin="round">
@@ -80,7 +82,7 @@ export function AppearanceSettings() {
         </svg>
         <select value={textSize} onChange={event => chooseTextSize(event.currentTarget.value as TextSize)}>
           <option value="small">Small</option>
-          <option value="medium">Medium</option>
+          <option value="medium">{MEDIUM_LABEL}</option>
           <option value="large">Large</option>
         </select>
       </label>

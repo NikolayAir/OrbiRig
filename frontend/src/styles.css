@@ -169,7 +169,10 @@ main {
 }
 
 .appearance-control {
+  --appearance-padding-inline: 1.75rem;
+
   color: var(--accent);
+  font-size: 0.875rem;
   margin: 0;
   max-inline-size: 100%;
   position: relative;
@@ -178,10 +181,10 @@ main {
 .appearance-control select {
   background-color: var(--soft);
   background-position: right 0.5rem center;
-  font-size: 0.875rem;
+  font-size: inherit;
   min-block-size: var(--touch-target);
   min-inline-size: 44px;
-  padding: 0.5rem 1.75rem;
+  padding: 0.5rem var(--appearance-padding-inline);
 }
 
 .appearance-control select:hover {
@@ -199,6 +202,87 @@ main {
   stroke: currentColor;
   stroke-width: 1.6;
   transform: translateY(-50%);
+}
+
+@supports (appearance: base-select) and selector(::picker(select)) and (position-try-fallbacks: --centre-appearance-picker) {
+  @media (forced-colors: none) and (min-height: 10em) {
+    .appearance-control {
+      display: grid;
+    }
+
+    /* Keep the trigger width stable as the selected label changes. */
+    .appearance-control::before {
+      border-inline: 1px solid transparent;
+      content: attr(data-width-label) / "";
+      grid-area: 1 / 1;
+      padding-inline: var(--appearance-padding-inline);
+      visibility: hidden;
+      white-space: nowrap;
+    }
+
+    .appearance-control select {
+      appearance: base-select;
+      grid-area: 1 / 1;
+    }
+
+    .appearance-control select::picker-icon {
+      display: none;
+    }
+
+    .appearance-control select::picker(select) {
+      appearance: base-select;
+      background: var(--surface);
+      border: 1px solid var(--control-line);
+      border-radius: 0.5rem;
+      box-shadow: 0 0.25rem 1rem rgb(var(--shadow-rgb) / 20%);
+      color: var(--ink);
+      margin-block: 0.25rem;
+      max-block-size: calc(100dvh - 1rem);
+      max-inline-size: calc(100dvw - 1rem);
+      overflow: auto;
+      overscroll-behavior: contain;
+      padding: 0.25rem;
+      position-area: block-end span-inline-start;
+      position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline, --centre-appearance-picker;
+      position-try-order: normal;
+    }
+
+    @position-try --centre-appearance-picker {
+      align-self: center;
+      inline-size: max-content;
+      inset: 0.5rem;
+      justify-self: center;
+      margin: auto;
+      position-area: none;
+    }
+
+    .appearance-control option {
+      border-radius: 0.25rem;
+      line-height: 1.25;
+      min-block-size: 44px;
+      padding: 0.125em 0.5em;
+    }
+
+    @media (hover: hover) and (pointer: fine) and (not (any-pointer: coarse)) {
+      .appearance-control option {
+        min-block-size: 1.75rem;
+      }
+    }
+
+    .appearance-control option:checked {
+      color: var(--accent-strong);
+    }
+
+    .appearance-control option:is(:focus-visible, :hover) {
+      background: var(--selected-soft);
+      color: var(--selected-ink);
+    }
+
+    .appearance-control option:focus-visible {
+      outline: 1px solid var(--focus-edge);
+      outline-offset: -1px;
+    }
+  }
 }
 
 h1,
