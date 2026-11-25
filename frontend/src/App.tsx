@@ -4,6 +4,7 @@ import { DocLink } from "./DocLink";
 import { WorkflowHelp } from "./WorkflowHelp";
 import { VerificationPanel } from "./VerificationPanel";
 import { InspectionPanel } from "./InspectionPanel";
+import { OrbitalDiagram } from "./OrbitalDiagram";
 import type { SequenceView } from "./EvidenceDetails";
 import { type ExampleVariant, type InspectionExampleVariant, inspectionExample, verificationExample } from "./examples";
 import { wouldReplaceEditedValue } from "./formHelpers";
@@ -240,15 +241,18 @@ export function App() {
           <AppearanceSettings />
         </div>
         <div className="header-intro">
-          <h1>Check recorded command results</h1>
-          <p>
-            OrbiRig uses a simplified spacecraft model. NOMINAL is its normal mode
-            and SAFE is its protective mode.
-          </p>
-          <p className="field-hint">
-            The browser sends submitted JSON to the server for checking.
-            On the public site, use only non-sensitive example data.
-          </p>
+          <div>
+            <h1>Check recorded command results</h1>
+            <p>
+              OrbiRig uses a simplified spacecraft model. NOMINAL is its normal mode
+              and SAFE is its protective mode.
+            </p>
+            <p className="field-hint">
+              The browser sends submitted JSON to the server for checking.
+              On the public site, use only non-sensitive example data.
+            </p>
+          </div>
+          <OrbitalDiagram />
         </div>
         <ol className="check-flow" aria-label="How a check works">
           <li><strong>Expected behaviour</strong><span>Choose a scenario that says what you expect.</span></li>

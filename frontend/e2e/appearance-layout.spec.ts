@@ -114,3 +114,45 @@ test("forced colours retain native selectors and visible keyboard focus", async 
   await expect(size).toBeFocused();
   await expect(size).toHaveCSS("outline-style", "solid");
 });
+
+test("the orbital illustration stays clear of the header copy and controls", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  const diagram = page.locator(".orbital-diagram");
+  const theme = page.getByRole("combobox", { name: "Color theme" });
+  const satellite = diagram.locator(".orbital-satellite");
+  await theme.selectOption("day");
+  await expect(diagram).toBeVisible();
+  await expect(diagram).toHaveAttribute("aria-hidden", "true");
+  await expect(diagram).toHaveAttribute("focusable", "false");
+  const dayStroke = await satellite.evaluate(element => getComputedStyle(element).stroke);
+  await theme.selectOption("night");
+  await expect(satellite).not.toHaveCSS("stroke", dayStroke);
+
+  let previousArtworkWidth = Infinity;
+  for (const width of [1440, 1120, 1040]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(diagram).toBeVisible();
+    const { copy, artwork, toolbar, flow } = await page.locator(".page-header").evaluate(header => {
+      const bounds = (selector: string) => header.querySelector(selector)!.getBoundingClientRect().toJSON();
+      return {
+        copy: bounds(".header-intro > div"),
+        artwork: bounds(".orbital-diagram"),
+        toolbar: bounds(".header-toolbar"),
+        flow: bounds(".check-flow"),
+      };
+    });
+    expect(artwork.left).toBeGreaterThan(copy.right);
+    expect(artwork.top).toBeGreaterThan(toolbar.bottom);
+    expect(artwork.bottom).toBeLessThan(flow.top);
+    expect(artwork.height).toBeLessThanOrEqual(copy.height);
+    expect(artwork.width).toBeLessThan(previousArtworkWidth);
+    previousArtworkWidth = artwork.width;
+  }
+
+  await page.setViewportSize({ width: 1008, height: 900 });
+  await expect(diagram).toBeHidden();
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.locator("html").evaluate(element => { element.style.fontSize = "200%"; });
+  await expect(diagram).toBeHidden();
+});

@@ -223,8 +223,45 @@ h2 {
   margin: 0;
 }
 
+.header-intro {
+  align-items: center;
+  display: flex;
+  gap: 1.5rem;
+}
+
+.header-intro > div {
+  flex: 1;
+  min-inline-size: 0;
+}
+
 .header-intro p {
   margin: 0.375rem 0 0;
+}
+
+.orbital-diagram {
+  color: var(--control-line);
+  display: none;
+  flex: none;
+  inline-size: min(24cqi, 20rem, calc(100cqi - 51rem));
+  max-block-size: 5.5rem;
+}
+
+.orbital-satellite {
+  opacity: 0.78;
+  stroke: var(--accent);
+}
+
+/* Allow 51rem for the copy and gap, plus at least 9rem for the illustration. */
+@container (min-width: 60rem) {
+  .orbital-diagram {
+    display: block;
+  }
+}
+
+@media (forced-colors: active) {
+  .orbital-diagram {
+    display: none;
+  }
 }
 
 /* The arrows are decorative: the numbered list already gives the order to assistive technology. */
