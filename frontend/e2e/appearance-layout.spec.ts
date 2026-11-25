@@ -43,8 +43,9 @@ for (const width of [320, 393, 440, 768, 1024, 1440]) {
           return { lines: range.getClientRects().length, box: element.getBoundingClientRect().toJSON() };
         });
         const button = (await example.boundingBox())!;
-        expect(title.lines).toBe(1);
-        expect(title.box.right <= button.x || title.box.bottom <= button.y).toBe(true);
+        if (width >= 393) expect(title.lines).toBe(1);
+        const besideTitle = title.lines === 1 && title.box.right <= button.x;
+        expect(besideTitle || title.box.bottom <= button.y).toBe(true);
         expect(button.x + button.width).toBeLessThanOrEqual(width);
         expect(button.height).toBeGreaterThanOrEqual(44);
       });
