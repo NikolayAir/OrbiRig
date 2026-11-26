@@ -54,15 +54,19 @@ for (const width of [320, 393, 440, 768, 1024, 1440]) {
   });
 }
 
-test("settings and example options stay reachable at 320px with doubled text", async ({ page, browserName }) => {
+test("settings and example options stay reachable at 320px with Large and doubled text", async ({ page, browserName }) => {
   await page.setViewportSize({ width: 320, height: 430 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
-  await page.locator("html").evaluate(element => { element.style.fontSize = "200%"; });
 
+  const root = page.locator("html");
   const theme = page.getByRole("combobox", { name: "Color theme" });
   const size = page.getByRole("combobox", { name: "Text size" });
   const optionTab = browserName === "webkit" && process.platform === "darwin";
+  await root.evaluate(element => { element.style.fontSize = "calc(200% * var(--text-scale))"; });
+  await size.selectOption("large");
+  await expect(root).toHaveCSS("font-size", "36px");
+
   await theme.selectOption("night");
   await theme.focus();
   await page.keyboard.press(optionTab ? "Alt+Tab" : "Tab");
@@ -72,6 +76,7 @@ test("settings and example options stay reachable at 320px with doubled text", a
   await page.keyboard.press(optionTab ? "Alt+Shift+Tab" : "Shift+Tab");
   await expect(theme).toBeFocused();
   await expect(theme).toHaveCSS("outline-style", "solid");
+  await expect(theme).toBeInViewport({ ratio: 1 });
 
   const example = page.getByRole("button", { name: "Load example" });
   for (const workflow of ["Verify observation", "Inspect evidence"]) {

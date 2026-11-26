@@ -92,8 +92,11 @@ async function expectReadable(control: Locator) {
   await expect(control).toBeVisible();
   const ratio = await control.evaluate(element => {
     const { color, backgroundColor } = getComputedStyle(element);
+    // These checks use each element's own opaque background.
     const luminance = (rgb: string) => {
-      const [red, green, blue] = rgb.match(/\d+/g)!.map(component => {
+      const channels = /^rgb\((\d+), (\d+), (\d+)\)$/.exec(rgb);
+      if (!channels) throw new Error("Expected an opaque RGB colour, got " + rgb);
+      const [red, green, blue] = channels.slice(1).map(component => {
         const value = Number(component) / 255;
         return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
       });

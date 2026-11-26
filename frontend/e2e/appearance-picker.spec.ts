@@ -76,14 +76,17 @@ test("appearance lists use the active palette and support keyboard selection", a
 test("appearance lists use native controls on very short viewports", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 140 });
   await page.goto("/");
+  const root = page.locator("html");
   const theme = page.getByRole("combobox", { name: "Color theme", exact: true });
   const size = page.getByRole("combobox", { name: "Text size", exact: true });
-  await expect(theme).toHaveCSS("appearance", "none");
-  await expect(size).toHaveCSS("appearance", "none");
+  await root.evaluate(element => { element.style.fontSize = "calc(200% * var(--text-scale))"; });
   await theme.selectOption("night");
   await size.selectOption("large");
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "night");
-  await expect(page.locator("html")).toHaveAttribute("data-text-size", "large");
+  await expect(root).toHaveAttribute("data-theme", "night");
+  await expect(root).toHaveCSS("font-size", "36px");
+  await expect(theme).toHaveCSS("appearance", "none");
+  await expect(size).toHaveCSS("appearance", "none");
+  expect(await root.evaluate(element => element.scrollWidth)).toBe(320);
 });
 
 test("themed options fit and respond to touch at narrow widths and enlarged text", async ({ browser, browserName, baseURL }) => {
@@ -92,14 +95,20 @@ test("themed options fit and respond to touch at narrow widths and enlarged text
     const page = await context.newPage();
     await page.goto("/");
     test.skip(!await page.evaluate(supportsAppearancePicker), "Customisable selects unavailable in this engine");
+    const root = page.locator("html");
     const theme = page.getByRole("combobox", { name: "Color theme", exact: true });
     const size = page.getByRole("combobox", { name: "Text size", exact: true });
 
-    for (const [width, height, fontSize] of [[320, 568, ""], [561, 225, "200%"]] as const) {
+    for (const [width, height, fontSize, expectedSize] of [
+      [320, 568, "", "18px"],
+      [561, 225, "calc(200% * var(--text-scale))", "36px"],
+    ] as const) {
       await page.setViewportSize({ width, height });
-      await page.locator("html").evaluate((root, value) => { root.style.fontSize = value; }, fontSize);
+      await root.evaluate((element, value) => { element.style.fontSize = value; }, fontSize);
       await theme.selectOption("night");
       await size.selectOption("large");
+      await expect(root).toHaveCSS("font-size", expectedSize);
+      expect(await root.evaluate(element => element.scrollWidth)).toBe(width);
 
       for (const [select, label] of [[theme, "Day"], [size, "Medium"]] as const) {
         await select.tap();
