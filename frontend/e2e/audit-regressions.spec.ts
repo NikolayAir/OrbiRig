@@ -108,10 +108,14 @@ for (const { width, textScale } of [
           return range.getClientRects().length;
         })).toBe(1);
       }
-      const positions = () => page.locator(".workflow-panel input, .workflow-panel select, .workflow-panel textarea").evaluateAll(elements => elements.map(element => {
-        const rect = element.getBoundingClientRect();
-        return { x: rect.x + window.scrollX, y: rect.y + window.scrollY, width: rect.width, height: rect.height };
-      }));
+      // The hidden file input has an empty rectangle, so its coordinates only reflect scrolling.
+      const positions = () => page
+        .locator(".workflow-panel input, .workflow-panel select, .workflow-panel textarea")
+        .filter({ visible: true })
+        .evaluateAll(elements => elements.map(element => {
+          const rect = element.getBoundingClientRect();
+          return { x: rect.x + window.scrollX, y: rect.y + window.scrollY, width: rect.width, height: rect.height };
+        }));
       const before = await positions();
       await button.hover();
       const tooltip = page.locator(`#${id}`);
