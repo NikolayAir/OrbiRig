@@ -126,7 +126,7 @@ On rejection, the target returns the normal observation. If you set both flags f
 
 ## Inspect the saved FAIL record in the browser
 
-The example writes the stale-telemetry record to `dotnet-stale-telemetry.json` in the current directory. To inspect it, [run the web interface locally](web-interface.md#run-locally), switch to the **Inspect evidence** workflow and select **Verified execution**. Paste the file's contents into **Evidence JSON** and choose **Inspect evidence**.
+The example writes the stale-telemetry record to `dotnet-stale-telemetry.json` in the current directory. In the [local web interface](web-interface.md#run-locally), switch to **Inspect evidence** and select **Verified execution**. Choose **Open JSON file**, select the saved file, then choose **Inspect evidence**.
 
 OrbiRig recalculates the checks and accepts the saved `FAIL` because the results match. The failed telemetry check shows expected `SAFE` and actual `NOMINAL`.
 
