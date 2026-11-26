@@ -39,6 +39,21 @@ export function ExamplePicker<Variant extends string>({
       const above = below < list.scrollHeight + clearance && top > below;
       list.dataset.side = above ? "above" : "below";
       list.style.setProperty("--example-available-height", `${above ? top : below}px`);
+
+      // Tab can scroll the page and give the list more room after the
+      // browser has already scrolled to the focused option.
+      const focused = document.activeElement;
+      if (!(focused instanceof HTMLButtonElement) || !list.contains(focused) || !focused.matches(":focus-visible")) return;
+      const style = getComputedStyle(focused);
+      const outline = Math.max(0, parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset));
+      const option = focused.getBoundingClientRect();
+      if (option.height + 2 * outline > list.clientHeight) return;
+
+      const listTop = list.getBoundingClientRect().top + list.clientTop;
+      const clippedTop = option.top - outline - listTop;
+      const clippedBottom = option.bottom + outline - listTop - list.clientHeight;
+      if (clippedTop < 0) list.scrollTop += Math.floor(clippedTop);
+      else if (clippedBottom > 0) list.scrollTop += Math.ceil(clippedBottom);
     };
 
     function dismissFromOutside(event: PointerEvent) {
