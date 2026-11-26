@@ -184,9 +184,20 @@ jobs:
 
   # Isolate SDK setup from Python checks; this job opts into real-target tests.
   dotnet:
-    name: .NET 10 interoperability / Ubuntu
-    runs-on: ubuntu-latest
+    name: .NET 10 interoperability / ${{ matrix.os == 'ubuntu-latest' && 'Ubuntu' || 'macOS' }}
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 10
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: >-
+          ${{ fromJSON(
+            (github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'release/'))
+            && '["ubuntu-latest", "macos-latest"]'
+            || '["ubuntu-latest"]'
+          ) }}
+
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: "1"
       DOTNET_NOLOGO: "1"
@@ -220,7 +231,25 @@ jobs:
         env:
           # Explicit opt-in makes a missing SDK or failed build fail this job.
           ORBIRIG_TEST_DOTNET: "1"
-        run: uv run --no-sync python -m pytest -q --no-cov tests/test_dotnet_stateful_target.py
+        run: |
+          report="$RUNNER_TEMP/dotnet-interoperability.xml"
+          uv run --no-sync python -m pytest -q --no-cov --junitxml="$report" tests/test_dotnet_stateful_target.py
+          uv run --no-sync python - "$report" <<'PY'
+          import sys
+          from xml.etree import ElementTree
+
+          expected_skip = "requires macOS immutable file flags" if sys.platform == "linux" else None
+          unexpected = []
+          for case in ElementTree.parse(sys.argv[1]).iter("testcase"):
+              skipped = case.find("skipped")
+              if skipped is None:
+                  continue
+              reason = skipped.get("message", "")
+              if skipped.get("type") != "pytest.skip" or reason != expected_skip:
+                  unexpected.append(f"{case.get('name')}: {reason}")
+          if unexpected:
+              raise SystemExit("Unexpected .NET interoperability skips:\n" + "\n".join(unexpected))
+          PY
 
   browser:
     name: ${{ matrix.name }} / Ubuntu

@@ -168,14 +168,14 @@ The HTML report is saved in `frontend/playwright-report/`. Failed tests retain t
 
 The [Checks workflow](.github/workflows/ci.yml) selects this matrix:
 
-| Trigger | Python versions and operating systems | Total jobs |
-| --- | --- | --- |
-| Ordinary pull request | Python 3.12–3.15 on Ubuntu; Python 3.12 on macOS and Windows | 11 |
-| Pull request from `release/*` | Python 3.12–3.15 on Ubuntu, macOS and Windows | 17 |
-| Manual `workflow_dispatch` | Python 3.12–3.15 on Ubuntu, macOS and Windows | 17 |
-| Push to `main` | Python 3.12–3.15 on Ubuntu | 9 |
+| Trigger | Python versions and operating systems | .NET interoperability | Total jobs |
+| --- | --- | --- | --- |
+| Ordinary pull request | Python 3.12–3.15 on Ubuntu, with Python 3.12 on macOS and Windows | Ubuntu | 11 |
+| Pull request from `release/*` | Python 3.12–3.15 on Ubuntu, macOS and Windows | Ubuntu and macOS | 18 |
+| Manual `workflow_dispatch` | Python 3.12–3.15 on Ubuntu, macOS and Windows | Ubuntu and macOS | 18 |
+| Push to `main` | Python 3.12–3.15 on Ubuntu | Ubuntu | 9 |
 
-Totals include 3 Ubuntu browser jobs, 1 .NET interoperability job and the final `CI passed` job. Python and .NET jobs have a 10-minute timeout, browser jobs 30 minutes and `CI passed` 1 minute. Playwright allows 20 minutes per engine in CI and 20 minutes for all 3 engines in a local run. Individual test and assertion timeouts are unchanged.
+Totals include 3 Ubuntu browser jobs, the .NET interoperability jobs shown above and the final `CI passed` job. Python and .NET jobs have a 10-minute timeout, browser jobs 30 minutes and `CI passed` 1 minute. Playwright allows 20 minutes per engine in CI and 20 minutes for all 3 engines in a local run. Individual test and assertion timeouts are unchanged.
 
 Python setup uses `check-latest: true` to select the latest available patch in each chosen series. A newer patch is downloaded when the runner's cached version is older.
 
@@ -187,9 +187,9 @@ The Ubuntu `Python 3.12` job also runs Ruff, Pyright and branch coverage. It typ
 
 `Chromium / Ubuntu`, `Firefox / Ubuntu` and `WebKit / Ubuntu` each install Python 3.12, the Node.js version from `.node-version` and the selected browser with system dependencies. They type-check the frontend and browser tests, then run that engine's full E2E suite with 1 worker. Chromium uses the headless shell. These jobs run for every listed trigger, independently of the Python compatibility matrix. If a browser job fails, the others keep running. That job uploads any available reports, traces, screenshots and videos as `<browser>-failure-diagnostics` for 7 days.
 
-`.NET 10 interoperability / Ubuntu` installs Python 3.12, the .NET 10 SDK and the `test` extra. It runs only the [real-target interoperability tests](tests/test_dotnet_stateful_target.py) with `ORBIRIG_TEST_DOTNET=1`, making missing SDKs and failed builds errors rather than skips. The fixture builds the console program once. Some tests verify it through the Python subprocess API; others run the compiled DLL directly to check exit status, output and state files. See the [.NET guide](docs/dotnet-stateful-target.md#automated-checks) for the same optional local command. This job does not extend the Python compatibility matrix or add .NET to the deployed runtime. Its result participates in `CI passed`, so a failure also prevents that deployment prerequisite from succeeding.
+Each .NET interoperability job installs Python 3.12, the .NET 10 SDK and the `test` extra. It runs the [real-target interoperability tests](tests/test_dotnet_stateful_target.py) with `ORBIRIG_TEST_DOTNET=1`. A missing SDK or a failed build fails the job. Only the tests that require macOS immutable file flags may skip on Ubuntu. macOS requires the full suite to pass. See the [.NET guide](docs/dotnet-stateful-target.md#automated-checks) for the local command and supported environments.
 
-`CI passed` waits for the Python 3.12 job, compatibility matrix, browser matrix and .NET interoperability job. Every selected job must succeed; failures, cancellations and skipped jobs make the gate fail. This includes all 4 Ubuntu Python versions and .NET interoperability on pushes to `main`.
+`CI passed` waits for the Python 3.12 job and the compatibility, browser and .NET interoperability matrices. Every selected job must succeed. Failures, cancellations and skipped jobs make the gate fail. This includes all 4 Ubuntu Python versions and .NET interoperability on pushes to `main`.
 
 The repository's active [Protect main ruleset](https://github.com/NikolayAir/OrbiRig/rules/20544719) requires pull requests and the `Python 3.12` and `CI passed` checks. Required checks are GitHub settings, separate from the workflow; verify the live rules and the checked commit before merging. The `macos-latest` runner does not establish compatibility with older macOS versions.
 
