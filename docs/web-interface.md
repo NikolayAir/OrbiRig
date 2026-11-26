@@ -4,6 +4,10 @@ In the [OrbiRig web interface](https://orbirig-evidence-inspector.onrender.com/)
 
 The browser sends submitted JSON to the server for checking. On the public site, use only non-sensitive example data.
 
+In the header, **Color theme** defaults to **System**, which follows your device's light or dark setting. Choose **Day** or **Night** to keep a fixed palette. **Text size** offers **Small**, **Medium** and **Large**, with **Medium** selected by default.
+
+Your browser remembers both choices when it allows local storage. When storage is unavailable, the choices apply for the current page. Changing either setting preserves your current inputs and results.
+
 On narrow screens, **Open JSON file** appears as a folder icon beside the JSON field.
 
 ## Verify an observation
@@ -14,9 +18,9 @@ On narrow screens, **Open JSON file** appears as a folder icon beside the JSON f
 
 Choose a UTF-8 file of up to 4 MiB without a byte-order mark (BOM). Opening it fills only **Observation evidence JSON**. OrbiRig asks before replacing edited text. When you submit, the [request size limit](#request-size-limit) includes the execution metadata and the encoded observation.
 
-**Standard example** uses the selected scenario or **NOMINAL to SAFE** when you have not selected one. The screenshot shows the default example after you choose **Verify observation**.
+**Standard example** uses the selected scenario or **NOMINAL to SAFE** when you have not selected one. The screenshot shows the completed default example in **Day** with **Medium** text.
 
-![The verification form and a PASS result for the NOMINAL-to-SAFE example](images/orbirig-web-interface.png)
+![Day theme and Medium text above the verification form and a PASS result for the NOMINAL-to-SAFE example](images/orbirig-web-interface.png)
 
 **Failing example** fills in an observation whose telemetry (a separate report of the operating mode) disagrees with the recorded ending mode. Verifying it gives `FAIL`.
 

@@ -1,30 +1,112 @@
 :root {
-  /* Keep backgrounds pale so buttons and result colours stand out. */
+  color-scheme: light;
+
   --ink: #213547;
   --heading: #153e56;
   --muted: #536779;
   --canvas: #ecf2f7;
   --surface: #fff;
   --soft: #f5f9fc;
-  --line: #cfdeeb; /* Light section borders; text inputs use a darker border. */
-  --accent: #1e659b; /* Shared blue for actions and selected navigation. */
+  --line: #cfdeeb;
+  --surface-hover: #eaf3fa;
+  --surface-pressed: #dbe8f1;
+
+  --accent: #1e659b;
   --accent-strong: #174d78;
+  --accent-hover: #195989;
+  --on-accent: #fff;
+  --control-line: #6f8aa0;
+  --control-hover: #4e7693;
+  --disabled-surface: #e1e9ef;
+  --disabled-ink: #4d6272;
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath d='m4 6 4 4 4-4' fill='none' stroke='%23243f53' stroke-width='1.5'/%3E%3C/svg%3E");
+
+  --switcher-surface: #e3edf5;
+  --switcher-hover: #dbe7f1;
+  --selected-soft: #daf2f8;
+  --selected-ink: #155267;
+  --tooltip-surface: #1e3545;
+  --tooltip-ink: #fff;
+  --dialog-backdrop: rgb(23 43 58 / 48%);
+  --shadow-rgb: 21 62 86;
+
   --focus: #00f3ff;
   --focus-edge: #007c91;
-  /*
-   * The inner 2px shadow uses the surface colour to separate the control border
-   * from the outer cyan ring. The 4px shadow leaves a visible 2px cyan band.
-   */
+  /* Separate the outer focus band from the control border. */
   --focus-ring: 0 0 0 2px var(--surface), 0 0 0 4px var(--focus);
+
   --positive: #1c624b;
   --positive-soft: #edf7f2;
+  --positive-line: #7ab19d;
   /* FAIL results and request errors share colours; their text explains the difference. */
   --negative: #963f2d;
   --negative-soft: #fff4f0;
+  --negative-line: #b97b6c;
+  --negative-hover: #ffe9e2;
+  --negative-pressed: #fbdcd2;
+
+  --text-scale: 1;
+  --touch-target: max(44px, 2.75rem);
+
+  accent-color: var(--accent);
   color: var(--ink);
   background: var(--canvas);
+  font-size: calc(100% * var(--text-scale));
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
   font-synthesis: none;
+}
+
+:root[data-theme="night"] {
+  color-scheme: dark;
+
+  --ink: #d7e4ef;
+  --heading: #ebf4fe;
+  --muted: #a8bbcf;
+  --canvas: #0e1928;
+  --surface: #162437;
+  --soft: #1b2c41;
+  --line: #384e64;
+  --surface-hover: #24394f;
+  --surface-pressed: #304a63;
+
+  --accent: #86c5ef;
+  --accent-strong: #addbfa;
+  --accent-hover: #9bd2f8;
+  --on-accent: #122438;
+  --control-line: #728aa2;
+  --control-hover: #9cb7d0;
+  --disabled-surface: #2a3c4e;
+  --disabled-ink: #afc1d3;
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath d='m4 6 4 4 4-4' fill='none' stroke='%23b0cbe4' stroke-width='1.5'/%3E%3C/svg%3E");
+
+  --switcher-surface: #1e3045;
+  --switcher-hover: #263d56;
+  --selected-soft: #1e4356;
+  --selected-ink: #b1e5ef;
+  --tooltip-surface: #243b53;
+  --tooltip-ink: #edf7ff;
+  --dialog-backdrop: rgb(4 11 21 / 72%);
+  --shadow-rgb: 3 9 19;
+
+  --focus: #52d9eb;
+  --focus-edge: #a4edf8;
+
+  --positive: #9bdfbf;
+  --positive-soft: #193a35;
+  --positive-line: #60a588;
+  --negative: #ffc1af;
+  --negative-soft: #432b30;
+  --negative-line: #ba8177;
+  --negative-hover: #56343a;
+  --negative-pressed: #633d44;
+}
+
+:root[data-text-size="small"] {
+  --text-scale: 0.9375;
+}
+
+:root[data-text-size="large"] {
+  --text-scale: 1.125;
 }
 
 body {
@@ -38,7 +120,7 @@ main {
   margin: 0 auto;
   max-width: 90.5rem;
   overflow-wrap: anywhere; /* Long IDs and JSON values must not widen the page. */
-  padding: 2rem 2rem 4rem;
+  padding: 1rem 2rem 4rem;
 }
 
 .page-header {
@@ -46,16 +128,27 @@ main {
   margin-bottom: 0.375rem;
 }
 
-.brand {
+.header-toolbar {
   align-items: center;
-  color: #466176;
+  border-bottom: 1px solid var(--line);
   display: flex;
   flex-wrap: wrap;
-  font-size: 1.25rem;
-  font-weight: 650;
-  gap: 0.625rem;
+  gap: 0.5rem 0.75rem;
+  justify-content: space-between;
+  margin-block-end: 0.875rem;
+  padding-block-end: 0.5rem;
+}
+
+.brand {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  gap: 0.375rem;
   letter-spacing: 0.04em;
-  margin: 0 0 0.75rem;
+  margin: 0;
 }
 
 .brand > span {
@@ -64,8 +157,132 @@ main {
 
 .brand img {
   flex: 0 0 auto;
-  height: 2.25rem;
-  width: 2.25rem;
+  height: 2rem;
+  width: 2rem;
+}
+
+.appearance-settings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  max-inline-size: 100%;
+}
+
+.appearance-control {
+  --appearance-padding-inline: 1.75rem;
+
+  color: var(--accent);
+  font-size: 0.875rem;
+  margin: 0;
+  max-inline-size: 100%;
+  position: relative;
+}
+
+.appearance-control select {
+  background-color: var(--soft);
+  background-position: right 0.5rem center;
+  font-size: inherit;
+  min-block-size: var(--touch-target);
+  min-inline-size: 44px;
+  padding: 0.5rem var(--appearance-padding-inline);
+}
+
+.appearance-control select:hover {
+  background-color: var(--surface-hover);
+}
+
+.appearance-icon {
+  block-size: 1rem;
+  fill: none;
+  inline-size: 1rem;
+  inset-block-start: 50%;
+  inset-inline-start: 0.5rem;
+  pointer-events: none;
+  position: absolute;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  transform: translateY(-50%);
+}
+
+@supports (appearance: base-select) and selector(::picker(select)) and (position-try-fallbacks: --centre-appearance-picker) {
+  @media (forced-colors: none) and (min-height: 10em) {
+    .appearance-control {
+      display: grid;
+    }
+
+    /* Keep the trigger width stable as the selected label changes. */
+    .appearance-control::before {
+      border-inline: 1px solid transparent;
+      content: attr(data-width-label) / "";
+      grid-area: 1 / 1;
+      padding-inline: var(--appearance-padding-inline);
+      visibility: hidden;
+      white-space: nowrap;
+    }
+
+    .appearance-control select {
+      appearance: base-select;
+      grid-area: 1 / 1;
+    }
+
+    .appearance-control select::picker-icon {
+      display: none;
+    }
+
+    .appearance-control select::picker(select) {
+      appearance: base-select;
+      background: var(--surface);
+      border: 1px solid var(--control-line);
+      border-radius: 0.5rem;
+      box-shadow: 0 0.25rem 1rem rgb(var(--shadow-rgb) / 20%);
+      color: var(--ink);
+      margin-block: 0.25rem;
+      max-block-size: calc(100dvh - 1rem);
+      max-inline-size: calc(100dvw - 1rem);
+      overflow: auto;
+      overscroll-behavior: contain;
+      padding: 0.25rem;
+      position-area: block-end span-inline-start;
+      position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline, --centre-appearance-picker;
+      position-try-order: normal;
+    }
+
+    @position-try --centre-appearance-picker {
+      align-self: center;
+      inline-size: max-content;
+      inset: 0.5rem;
+      justify-self: center;
+      margin: auto;
+      position-area: none;
+    }
+
+    .appearance-control option {
+      border-radius: 0.25rem;
+      line-height: 1.25;
+      min-block-size: 44px;
+      padding: 0.125em 0.5em;
+    }
+
+    @media (hover: hover) and (pointer: fine) and (not (any-pointer: coarse)) {
+      .appearance-control option {
+        min-block-size: 1.75rem;
+      }
+    }
+
+    .appearance-control option:checked {
+      color: var(--accent-strong);
+    }
+
+    .appearance-control option:is(:focus-visible, :hover) {
+      background: var(--selected-soft);
+      color: var(--selected-ink);
+    }
+
+    .appearance-control option:focus-visible {
+      outline: 1px solid var(--focus-edge);
+      outline-offset: -1px;
+    }
+  }
 }
 
 h1,
@@ -79,10 +296,10 @@ h6 {
 
 h1 {
   color: var(--accent-strong);
-  font-size: clamp(1.5rem, 2.7vw, 2rem);
+  font-size: clamp(1.5rem, calc(2.7vw * var(--text-scale)), 2rem);
   letter-spacing: -0.025em;
   line-height: 1.25;
-  margin: 0 0 0.625rem;
+  margin: 0;
 }
 
 h2 {
@@ -90,16 +307,45 @@ h2 {
   margin: 0;
 }
 
-.page-header > .field-hint,
-.workflow-heading p {
-  color: var(--muted);
-  line-height: 1.5;
-  margin: 0.5rem 0 0;
+.header-intro {
+  align-items: center;
+  display: flex;
+  gap: 1.5rem;
 }
 
-.page-header > .field-hint {
-  line-height: 1.6;
-  margin: 0;
+.header-intro > div {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.header-intro p {
+  margin: 0.375rem 0 0;
+}
+
+.orbital-diagram {
+  color: var(--control-line);
+  display: none;
+  flex: none;
+  inline-size: min(24cqi, 20rem, calc(100cqi - 51rem));
+  max-block-size: 5.5rem;
+}
+
+.orbital-satellite {
+  opacity: 0.78;
+  stroke: var(--accent);
+}
+
+/* Allow 51rem for the copy and gap, plus at least 9rem for the illustration. */
+@container (min-width: 60rem) {
+  .orbital-diagram {
+    display: block;
+  }
+}
+
+@media (forced-colors: active) {
+  .orbital-diagram {
+    display: none;
+  }
 }
 
 /* The arrows are decorative: the numbered list already gives the order to assistive technology. */
@@ -113,12 +359,12 @@ h2 {
 }
 
 .check-flow li {
-  background: var(--surface);
+  background: var(--soft);
   border: 1px solid var(--line);
-  border-radius: 0.5rem;
+  border-radius: 0.375rem;
   display: grid;
-  gap: 0.2rem;
-  padding: 0.625rem 0.75rem;
+  gap: 0.125rem;
+  padding: 0.45rem 0.625rem;
   position: relative;
 }
 
@@ -188,7 +434,7 @@ h2 {
   color: var(--accent);
   font-size: 0.875rem;
   line-height: 1.5;
-  min-height: 2.75rem;
+  min-height: var(--touch-target);
   padding: 0.5rem 0.125rem;
   text-align: left;
   text-decoration: underline;
@@ -220,7 +466,7 @@ button.workflow-help-trigger {
 }
 
 button.workflow-help-trigger:hover {
-  background: #eaf3fa;
+  background: var(--surface-hover);
 }
 
 a.workflow-help-trigger {
@@ -242,14 +488,14 @@ a.workflow-help-compact-link {
 }
 
 .workflow-help-trigger:active {
-  background: #e8f0f5;
+  background: var(--surface-pressed);
 }
 
 .workflow-help-dialog {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 0.75rem;
-  box-shadow: 0 1rem 3rem rgb(23 43 58 / 20%);
+  box-shadow: 0 1rem 3rem rgb(var(--shadow-rgb) / 24%);
   box-sizing: border-box;
   color: inherit;
   inset: 0;
@@ -263,7 +509,7 @@ a.workflow-help-compact-link {
 }
 
 .workflow-help-dialog::backdrop {
-  background: rgb(23 43 58 / 48%);
+  background: var(--dialog-backdrop);
 }
 
 /* Apply the flex layout only while open so a closed native dialog stays hidden. */
@@ -288,7 +534,7 @@ a.workflow-help-compact-link {
 }
 
 .workflow-help-heading h2 {
-  color: #31546a;
+  color: var(--heading);
 }
 
 .workflow-help-tabs {
@@ -305,14 +551,14 @@ a.workflow-help-compact-link {
   color: var(--ink);
   display: inline-flex;
   flex: 0 0 auto;
-  height: 2.75rem;
+  height: var(--touch-target);
   justify-content: center;
   padding: 0;
-  width: 2.75rem;
+  width: var(--touch-target);
 }
 
 .workflow-help-close:hover {
-  background: #dfe9ee;
+  background: var(--surface-pressed);
 }
 
 .workflow-help-close:active {
@@ -326,7 +572,7 @@ a.workflow-help-compact-link {
   color: var(--muted);
   font-size: 0.9375rem;
   line-height: 1.4;
-  min-height: 2.75rem;
+  min-height: var(--touch-target);
   overflow-wrap: anywhere;
   padding: 0.75rem;
   scroll-margin-block: 0.375rem;
@@ -339,7 +585,7 @@ a.workflow-help-compact-link {
 }
 
 .workflow-help-tab:hover {
-  background: #edf3f7;
+  background: var(--surface-hover);
   color: var(--accent-strong);
 }
 
@@ -396,7 +642,7 @@ a.workflow-help-compact-link {
   font-size: 0.875rem;
   font-weight: 500;
   line-height: 1.4;
-  min-height: 2.75rem;
+  min-height: var(--touch-target);
   min-width: 0;
   padding: 0.375rem 0.625rem;
   position: relative;
@@ -419,13 +665,13 @@ a.workflow-help-compact-link {
 }
 
 .workflow-help-workflows [aria-selected="true"] {
-  background: #daf2f8;
-  color: #155267;
+  background: var(--selected-soft);
+  color: var(--selected-ink);
   font-weight: 650;
 }
 
 .workflow-help-workflows [aria-selected="true"]:hover {
-  color: #155267;
+  color: var(--selected-ink);
 }
 
 .workflow-help-reference {
@@ -558,7 +804,7 @@ a.workflow-help-trigger:focus-visible,
 }
 
 .workflow-switcher {
-  background: #e3edf5;
+  background: var(--switcher-surface);
   border: 1px solid var(--line);
   border-radius: 0.75rem 0.75rem 0 0;
   display: grid;
@@ -578,7 +824,7 @@ button {
   background: transparent;
   border: 0;
   border-radius: 0.75rem 0.75rem 0 0;
-  color: #40566b;
+  color: var(--muted);
   min-height: 5.5rem;
   min-width: 0;
   padding: 1rem 1.5rem;
@@ -617,15 +863,15 @@ button {
 }
 
 .workflow-choice:hover:not(:disabled) {
-  background: #dbe7f1;
+  background: var(--switcher-hover);
 }
 
 .workflow-choice[aria-pressed="true"]:hover:not(:disabled) {
-  background: #f8fbfd;
+  background: var(--soft);
 }
 
 .workflow-choice:active:not(:disabled) {
-  background: #d7e4ef;
+  background: var(--surface-pressed);
 }
 
 .workflow-choice:focus-visible {
@@ -652,7 +898,7 @@ button {
 
 .workflow-panel,
 .workflow-feedback > section {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 0.5rem;
   padding: clamp(1.25rem, 3vw, 1.75rem);
@@ -662,7 +908,7 @@ button {
 .workflow-panel {
   border-top: 0;
   border-radius: 0 0 0.75rem 0.75rem;
-  box-shadow: 0 3px 12px rgb(21 62 86 / 6%);
+  box-shadow: 0 3px 12px rgb(var(--shadow-rgb) / 8%);
   container-type: inline-size;
   padding: clamp(1.25rem, 3vw, 2rem);
   padding-block-start: 1.25rem;
@@ -677,14 +923,16 @@ button {
   border-bottom: 1px solid var(--line);
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem 1rem;
+  gap: 0.4rem 0.875rem;
   margin-bottom: 0.75rem;
   padding-bottom: 0.75rem;
 }
 
 .workflow-heading > h2 {
-  flex: 1 1 min-content;
+  /* Wrap the example button before squeezing the heading into two lines. */
+  flex: 1 1 auto;
   font-size: min(1.35rem, 14cqi);
+  max-inline-size: 100%;
   overflow-wrap: normal;
 }
 
@@ -720,7 +968,7 @@ button {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 0.5rem;
-  box-shadow: 0 3px 12px rgb(21 62 86 / 15%);
+  box-shadow: 0 3px 12px rgb(var(--shadow-rgb) / 25%);
   box-sizing: border-box;
   gap: 0.375rem;
   inset-block-start: calc(100% + 0.5rem);
@@ -930,7 +1178,7 @@ label,
   justify-content: center;
   margin-inline-start: auto;
   max-inline-size: 100%;
-  min-block-size: max(44px, 2.75rem);
+  min-block-size: var(--touch-target);
   min-inline-size: 44px;
   padding-inline: 0.625rem;
   scroll-margin-block: 0.375rem;
@@ -970,11 +1218,11 @@ label,
   color: var(--accent);
   display: inline-flex;
   font-size: 0.75rem;
-  height: 2.75rem;
+  height: var(--touch-target);
   justify-content: center;
   line-height: 1;
   padding: 0;
-  width: 2.75rem;
+  width: var(--touch-target);
   flex: 0 0 auto;
   position: relative;
   z-index: 0;
@@ -982,8 +1230,8 @@ label,
 }
 
 .field-help-button::before {
-  background: #eef3f6;
-  border: 1px solid #9fb7c5;
+  background: var(--surface-hover);
+  border: 1px solid var(--control-line);
   border-radius: 50%;
   content: "";
   inset: 0.625rem;
@@ -996,17 +1244,17 @@ label,
 }
 
 .field-help-button:hover::before {
-  background: #dfe9ee;
-  border-color: #5c8da7;
+  background: var(--surface-pressed);
+  border-color: var(--control-hover);
 }
 
 .field-help [role="tooltip"] {
-  background: #1e3545;
-  border: 1px solid var(--heading);
+  background: var(--tooltip-surface);
+  border: 1px solid var(--control-line);
   border-radius: 0.3125rem;
   box-sizing: border-box;
-  box-shadow: 0 2px 6px rgb(12 40 58 / 18%);
-  color: #fff;
+  box-shadow: 0 2px 6px rgb(var(--shadow-rgb) / 24%);
+  color: var(--tooltip-ink);
   font-size: 0.8125rem;
   font-weight: 500;
   left: 0;
@@ -1059,7 +1307,7 @@ input:not([type="radio"]),
 select,
 textarea {
   background: var(--surface);
-  border: 1px solid #748fa6;
+  border: 1px solid var(--control-line);
   border-radius: 0.5rem;
   box-sizing: border-box;
   color: inherit;
@@ -1072,7 +1320,8 @@ textarea {
 /* Native macOS select styling can ignore padding when sizing its menu button. */
 select {
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath d='m4 6 4 4 4-4' fill='none' stroke='%23243f53' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-image: var(--select-chevron);
+  background-size: 1rem;
   background-position: right 0.875rem center;
   background-repeat: no-repeat;
   min-height: 3.125rem;
@@ -1113,7 +1362,7 @@ textarea {
 input:not([type="radio"]):hover:not(:disabled),
 select:hover:not(:disabled),
 textarea:hover:not(:disabled) {
-  border-color: #6488a3;
+  border-color: var(--control-hover);
 }
 
 button:focus-visible,
@@ -1143,14 +1392,14 @@ textarea:focus-visible {
 input:disabled,
 select:disabled,
 textarea:disabled {
-  background: #edf1f3;
-  color: #637480;
+  background: var(--disabled-surface);
+  color: var(--disabled-ink);
 }
 
 input[aria-invalid="true"],
 select[aria-invalid="true"],
 textarea[aria-invalid="true"] {
-  border-color: #a74833;
+  border-color: var(--negative);
 }
 
 .field-error {
@@ -1180,20 +1429,23 @@ textarea[aria-invalid="true"] {
 /* Solid blue gives submission more emphasis than the pale secondary actions. */
 .form-actions .primary-action {
   background: var(--accent);
-  box-shadow: 0 1px 1px rgb(23 43 58 / 14%);
-  color: #fff;
+  box-shadow: 0 1px 1px rgb(var(--shadow-rgb) / 18%);
+  color: var(--on-accent);
   border-radius: 0.5rem;
-  min-height: 2.875rem;
+  min-height: max(44px, 2.875rem);
   padding: 0.8rem 1.25rem;
 }
 
-/* Unlike a pending request, a checked result has nothing to wait for. */
-.form-actions .primary-action[data-completed] {
-  background: #dfe6eb;
+.form-actions .primary-action:disabled {
+  background: var(--disabled-surface);
   box-shadow: none;
-  color: #4d6272;
-  cursor: not-allowed;
+  color: var(--disabled-ink);
   opacity: 1;
+}
+
+/* A completed result blocks another submission until the inputs change. */
+.form-actions .primary-action[data-completed] {
+  cursor: not-allowed;
 }
 
 /* Focus moves between Submit and Cancel in code, including after pointer submission. */
@@ -1205,11 +1457,11 @@ textarea[aria-invalid="true"] {
 }
 
 .form-actions .primary-action:hover:not(:disabled) {
-  background: #195989;
+  background: var(--accent-hover);
 }
 
 .form-actions .primary-action:focus-visible {
-  box-shadow: var(--focus-ring), 0 1px 1px rgb(23 43 58 / 14%);
+  box-shadow: var(--focus-ring), 0 1px 1px rgb(var(--shadow-rgb) / 18%);
 }
 
 .form-actions .primary-action:active:not(:disabled) {
@@ -1217,37 +1469,37 @@ textarea[aria-invalid="true"] {
 }
 
 .secondary-action {
-  background: #f8fbfc;
-  border-color: #8ba8b7;
+  background: var(--soft);
+  border-color: var(--control-line);
   color: var(--accent);
-  min-height: 2.75rem;
+  min-height: var(--touch-target);
   padding: 0.7rem 1rem;
 }
 
 .secondary-action:hover:not(:disabled) {
-  background: #edf5f8;
-  border-color: #5c8da7;
+  background: var(--surface-hover);
+  border-color: var(--control-hover);
 }
 
 .secondary-action:active:not(:disabled) {
-  background: #e1ebf1;
+  background: var(--surface-pressed);
   border-color: var(--accent);
 }
 
 /* Match the FAIL palette on examples that lead to a FAIL outcome or rejected evidence. */
 .secondary-action[data-tone="negative"] {
   background: var(--negative-soft);
-  border-color: #dfb3a6;
+  border-color: var(--negative-line);
   color: var(--negative);
 }
 
 .secondary-action[data-tone="negative"]:hover:not(:disabled) {
-  background: #ffe9e2;
+  background: var(--negative-hover);
   border-color: var(--negative);
 }
 
 .secondary-action[data-tone="negative"]:active:not(:disabled) {
-  background: #fbdcd2;
+  background: var(--negative-pressed);
   border-color: var(--negative);
 }
 
@@ -1273,7 +1525,7 @@ button:disabled,
   .evidence-types > legend {
     align-items: center;
     display: flex;
-    min-block-size: 2.75rem;
+    min-block-size: var(--touch-target);
   }
 }
 
@@ -1308,7 +1560,6 @@ button:disabled,
 }
 
 .evidence-types input[type="radio"] {
-  accent-color: var(--accent);
   flex: 0 0 auto;
   height: 1rem;
   margin: 0.2rem 0.625rem 0 0;
@@ -1316,12 +1567,12 @@ button:disabled,
 }
 
 .evidence-types label:has(input[type="radio"]:checked) {
-  background: #f0f6fa;
+  background: var(--surface-hover);
   border-color: var(--accent);
 }
 
 .evidence-types label:hover {
-  border-color: #769cad;
+  border-color: var(--control-hover);
 }
 
 .evidence-types label:focus-within {
@@ -1354,18 +1605,18 @@ button:disabled,
 
 .workflow-feedback > .feedback-progress,
 .workflow-feedback > [role="alert"] {
-  background: #f3f8fa;
-  border: 1px solid #cfe0e7;
+  background: var(--soft);
+  border: 1px solid var(--line);
   border-left: 0.25rem solid var(--accent);
   border-radius: 0.3125rem;
-  color: #244758;
+  color: var(--ink);
   margin: 0;
   padding: 0.75rem 1rem;
 }
 
 .workflow-feedback > [role="alert"] {
   background: var(--negative-soft);
-  border-color: #dfb3a6;
+  border-color: var(--negative-line);
   border-left-color: var(--negative);
   color: var(--negative);
 }
@@ -1529,10 +1780,10 @@ button:disabled,
 }
 
 .outcome-badge {
-  background: #edf3f5;
-  border: 1px solid #9fb5c1;
+  background: var(--surface-hover);
+  border: 1px solid var(--control-line);
   border-radius: 0.375rem;
-  color: #254253;
+  color: var(--ink);
   flex: 0 0 auto;
   font-size: 0.75rem;
   font-weight: 750;
@@ -1548,13 +1799,13 @@ button:disabled,
 
 .outcome-badge[data-outcome="PASS"] {
   background: var(--positive-soft);
-  border-color: #7ab19d;
+  border-color: var(--positive-line);
   color: var(--positive);
 }
 
 .outcome-badge[data-outcome="FAIL"] {
   background: var(--negative-soft);
-  border-color: #d2a198;
+  border-color: var(--negative-line);
   color: var(--negative);
 }
 
@@ -1777,7 +2028,7 @@ dd {
 }
 
 .sequence-member {
-  background: #fff;
+  background: var(--surface);
   padding: 0.75rem 1rem;
 }
 
@@ -1787,7 +2038,7 @@ dd {
 
 .continuity-boundary {
   background: var(--soft);
-  border-left: 3px solid #7e95a5;
+  border-left: 3px solid var(--control-line);
   padding: 0.65rem 1rem;
 }
 
@@ -1810,7 +2061,7 @@ dd {
 
 .sequence-details-toggle {
   font-size: 0.8125rem;
-  min-height: 2.75rem;
+  min-height: var(--touch-target);
   padding: 0.4rem 0.65rem;
 }
 
@@ -1877,7 +2128,7 @@ dd {
 }
 
 .continuity-boundary-fields dd {
-  color: #1c394a;
+  color: var(--ink);
   font-weight: 600;
   margin: 0;
   overflow-wrap: anywhere;
@@ -1946,7 +2197,7 @@ a[target="_blank"] {
 
 @media (max-width: 40rem) {
   main {
-    padding: 1.25rem 1rem 2.5rem;
+    padding: 0.75rem 1rem 2.5rem;
   }
 
   .workflow-switcher,
@@ -2004,7 +2255,11 @@ a[target="_blank"] {
 
   .workflow-choice {
     min-height: 0;
-    padding: 1rem min(1.25rem, 8vw);
+    padding: 0.625rem min(0.875rem, 4.5vw);
+  }
+
+  .workflow-choice > small {
+    margin-block-start: 0.25rem;
   }
 
   .workflow-choice:first-child {

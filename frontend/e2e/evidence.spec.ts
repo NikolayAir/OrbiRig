@@ -191,6 +191,10 @@ for (const viewport of [
       await expect(page.getByRole("dialog")).toBeHidden();
 
       const next = browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab";
+      for (const name of ["Color theme", "Text size"]) {
+        await page.keyboard.press(next);
+        await expect(page.getByRole("combobox", { name })).toBeFocused();
+      }
       if (viewport.width <= 640) {
         await page.keyboard.press(next);
         await expect(page.getByRole("link", { name: "Documentation (opens in a new tab)", exact: true })).toBeFocused();

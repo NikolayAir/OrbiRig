@@ -1,8 +1,10 @@
 import { type SubmitEvent, useRef, useState } from "react";
+import { AppearanceSettings } from "./AppearanceSettings";
 import { DocLink } from "./DocLink";
 import { WorkflowHelp } from "./WorkflowHelp";
 import { VerificationPanel } from "./VerificationPanel";
 import { InspectionPanel } from "./InspectionPanel";
+import { OrbitalDiagram } from "./OrbitalDiagram";
 import type { SequenceView } from "./EvidenceDetails";
 import { type ExampleVariant, type InspectionExampleVariant, inspectionExample, verificationExample } from "./examples";
 import { wouldReplaceEditedValue } from "./formHelpers";
@@ -231,19 +233,27 @@ export function App() {
   return (
     <main>
       <header className="page-header">
-        <p className="brand">
-          <img src="/assets/orbirig-mark.svg#header" width="40" height="40" alt="" />
-          <span>OrbiRig</span>
-        </p>
-        <h1>Check recorded command results</h1>
-        <p>
-          OrbiRig uses a simplified spacecraft model. NOMINAL is its normal mode
-          and SAFE is its protective mode.
-        </p>
-        <p className="field-hint">
-          The browser sends submitted JSON to the server for checking.
-          On the public site, use only non-sensitive example data.
-        </p>
+        <div className="header-toolbar">
+          <p className="brand">
+            <img src="/assets/orbirig-mark.svg#header" width="40" height="40" alt="" />
+            <span>OrbiRig</span>
+          </p>
+          <AppearanceSettings />
+        </div>
+        <div className="header-intro">
+          <div>
+            <h1>Check recorded command results</h1>
+            <p>
+              OrbiRig uses a simplified spacecraft model. NOMINAL is its normal mode
+              and SAFE is its protective mode.
+            </p>
+            <p className="field-hint">
+              The browser sends submitted JSON to the server for checking.
+              On the public site, use only non-sensitive example data.
+            </p>
+          </div>
+          <OrbitalDiagram />
+        </div>
         <ol className="check-flow" aria-label="How a check works">
           <li><strong>Expected behaviour</strong><span>Choose a scenario that says what you expect.</span></li>
           <li><strong>Observation</strong><span>The command and what the program reported.</span></li>

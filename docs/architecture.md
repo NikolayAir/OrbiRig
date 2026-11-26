@@ -68,3 +68,4 @@ The [evidence format reference](evidence-formats.md) lists the stored fields, th
 | [Completion feedback](../frontend/src/useWorkflowFeedback.ts) | Coordinate announcements, focus and scrolling, giving up automatic focus when the user moves elsewhere. |
 | [Evidence details](../frontend/src/EvidenceDetails.tsx) | Display observations, verification checks and sequence records in the order returned by Python. |
 | [Field help](../frontend/src/FieldHelp.tsx) and [help state](../frontend/src/useVerificationFieldHelp.ts) | Share the field-tooltip markup and manage deliberate opening, dismissal and a single pinned tooltip. |
+| [Page startup](../frontend/index.html) and [appearance settings](../frontend/src/AppearanceSettings.tsx) | Apply the theme and text size before React loads, then handle changes while the page is open. |
