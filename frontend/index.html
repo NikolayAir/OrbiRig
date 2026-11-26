@@ -7,13 +7,13 @@
     <script>
       // Set appearance before loading the stylesheet and the app.
       {
-        function savedPreference(key) {
+        const savedPreference = (key) => {
           try {
             return localStorage.getItem(key);
           } catch {
             return null;
           }
-        }
+        };
         const { dataset } = document.documentElement;
         const theme = savedPreference("orbirig-color-theme");
         const size = savedPreference("orbirig-text-size");

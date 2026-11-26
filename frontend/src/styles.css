@@ -1436,7 +1436,6 @@ textarea[aria-invalid="true"] {
   padding: 0.8rem 1.25rem;
 }
 
-/* Unlike a pending request, a checked result has nothing to wait for. */
 .form-actions .primary-action:disabled {
   background: var(--disabled-surface);
   box-shadow: none;
@@ -1444,6 +1443,7 @@ textarea[aria-invalid="true"] {
   opacity: 1;
 }
 
+/* A completed result blocks another submission until the inputs change. */
 .form-actions .primary-action[data-completed] {
   cursor: not-allowed;
 }
