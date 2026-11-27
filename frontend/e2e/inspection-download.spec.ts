@@ -58,6 +58,7 @@ async function expectResultLayout(result: Locator, width: number, stacked: boole
     expect(action.left).toBeGreaterThan(badge?.right ?? title.right);
     expect(description.top).toBeGreaterThan(action.bottom);
   }
+  return { title, badge };
 }
 
 async function enlargeNightText(page: Page) {
@@ -147,6 +148,26 @@ for (const [type, endpoint, heading, example, outcome, width] of [
     expect(requests).toHaveLength(2);
   });
 }
+
+test("keeps the sequence outcome beside its heading at intermediate widths", async ({ page }) => {
+  await page.setViewportSize({ width: 700, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Show Inspect evidence", exact: true }).click();
+  await page.getByRole("radio", { name: "Verified execution sequence", exact: true }).check();
+  await chooseExample(page);
+  await page.getByRole("button", { name: "Inspect evidence", exact: true }).click();
+  const result = page.getByRole("region", { name: "Verified execution sequence", exact: true });
+  await expect(result.getByRole("button", { name: DOWNLOAD })).toBeVisible();
+
+  for (const [width, stacked] of [[700, true], [768, false]] as const) {
+    await page.setViewportSize({ width, height: 900 });
+    const { title, badge } = await expectResultLayout(result, width, stacked);
+    expect(badge.left).toBeGreaterThan(title.right);
+    expect(badge.top).toBeLessThan(title.bottom);
+    expect(badge.bottom).toBeGreaterThan(title.top);
+  }
+});
 
 test.describe("Inspect evidence download by touch", () => {
   test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });

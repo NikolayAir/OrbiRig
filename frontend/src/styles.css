@@ -1737,6 +1737,13 @@ button:disabled,
   }
 }
 
+/* The sequence heading and outcome need more room before the action moves right. */
+@container workflow-result (36rem <= width < 40rem) {
+  .sequence-result > .result-overview {
+    grid-template: "heading" "description" "actions" / minmax(0, 1fr);
+  }
+}
+
 @container workflow-result (max-width: 9rem) {
   /* Use part of the panel's padding for enlarged text and leave room for focus outlines. */
   .result-overview {

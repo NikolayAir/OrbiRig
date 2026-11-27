@@ -281,7 +281,7 @@ export function VerifiedExecutionSequenceDetails({
   }
 
   return (
-    <section aria-labelledby="verified-execution-sequence">
+    <section className="sequence-result" aria-labelledby="verified-execution-sequence">
       <ResultOverview
         headingId="verified-execution-sequence"
         context="Valid saved evidence"
