@@ -23,10 +23,11 @@ The hosted interface runs on Render's free plan. After 15 minutes of inactivity,
 1. Open the [OrbiRig web interface](https://orbirig-evidence-inspector.onrender.com/) and select the **Verify observation** workflow.
 2. Open **Load example** and choose **Standard example** to fill in the inputs, then choose **Verify observation** to run the checks. The default example records an accepted change from `NOMINAL` to `SAFE` and gives `PASS`.
 3. Open **Load example**, choose **Failing example**, then choose **Verify observation**. The screenshot shows a `FAIL` result because telemetry reports `NOMINAL` while the recorded ending mode is `SAFE`.
+4. Choose **Download result JSON** to save the result. In **Inspect evidence**, select **Verified execution** and open the downloaded file with **Open JSON file**, the folder button beside **Evidence JSON**. Choose **Inspect evidence** to see the same checks and outcome.
 
 ![A verification result with three passing checks and one failed telemetry check](docs/images/orbirig-web-verification.png)
 
-To inspect saved records, switch to **Inspect evidence** and select an evidence type. Choose **Open JSON file** (the folder icon beside **Evidence JSON**), or choose **Standard example** from **Load example** to try a bundled document. Then choose **Inspect evidence**.
+For other saved files, select the evidence type that matches the file. Each evidence type also has a **Standard example** in **Load example**.
 
 See the [web-interface guide](docs/web-interface.md) to run it locally or use the HTTP endpoints.
 
