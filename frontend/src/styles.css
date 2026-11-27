@@ -173,10 +173,11 @@ main {
   white-space: nowrap;
 }
 
+/* Keep the mark from taking up too much space in a narrow header with enlarged text. */
 .brand img {
   flex: 0 0 auto;
-  height: 2rem;
-  width: 2rem;
+  height: auto;
+  width: min(2rem, 12cqi);
 }
 
 .appearance-settings {
