@@ -1737,6 +1737,13 @@ button:disabled,
   }
 }
 
+/* Download evidence JSON needs extra space beside the heading and outcome. */
+@container workflow-result (36rem <= width < 38rem) {
+  .inspected-execution-result > .result-overview {
+    grid-template: "heading" "description" "actions" / minmax(0, 1fr);
+  }
+}
+
 /* Allow for wider system fonts in the sequence heading, outcome and action. */
 @container workflow-result (36rem <= width < 46rem) {
   .sequence-result > .result-overview {

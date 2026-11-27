@@ -149,28 +149,33 @@ for (const [type, endpoint, heading, example, outcome, width] of [
   });
 }
 
-test("keeps the sequence outcome beside its heading at intermediate widths", async ({ page }) => {
-  await page.setViewportSize({ width: 768, height: 900 });
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/");
-  await page.locator("html").evaluate(root => {
-    root.style.fontFamily = 'Verdana, "DejaVu Sans", sans-serif';
-  });
-  await page.getByRole("button", { name: "Show Inspect evidence", exact: true }).click();
-  await page.getByRole("radio", { name: "Verified execution sequence", exact: true }).check();
-  await chooseExample(page);
-  await page.getByRole("button", { name: "Inspect evidence", exact: true }).click();
-  const result = page.getByRole("region", { name: "Verified execution sequence", exact: true });
-  await expect(result.getByRole("button", { name: DOWNLOAD })).toBeVisible();
+for (const [type, stackedWidth, inlineWidth] of [
+  ["Verified execution", 688, 768],
+  ["Verified execution sequence", 768, 900],
+] as const) {
+  test(`keeps the ${type} outcome beside its heading at intermediate widths`, async ({ page }) => {
+    await page.setViewportSize({ width: stackedWidth, height: 900 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/");
+    await page.locator("html").evaluate(root => {
+      root.style.fontFamily = 'Verdana, "DejaVu Sans", sans-serif';
+    });
+    await page.getByRole("button", { name: "Show Inspect evidence", exact: true }).click();
+    await page.getByRole("radio", { name: type, exact: true }).check();
+    await chooseExample(page);
+    await page.getByRole("button", { name: "Inspect evidence", exact: true }).click();
+    const result = page.getByRole("region", { name: type, exact: true });
+    await expect(result.getByRole("button", { name: DOWNLOAD })).toBeVisible();
 
-  for (const [width, stacked] of [[768, true], [900, false]] as const) {
-    await page.setViewportSize({ width, height: 900 });
-    const { title, badge } = await expectResultLayout(result, width, stacked);
-    expect(badge.left).toBeGreaterThan(title.right);
-    expect(badge.top).toBeLessThan(title.bottom);
-    expect(badge.bottom).toBeGreaterThan(title.top);
-  }
-});
+    for (const [width, stacked] of [[stackedWidth, true], [inlineWidth, false]] as const) {
+      await page.setViewportSize({ width, height: 900 });
+      const { title, badge } = await expectResultLayout(result, width, stacked);
+      expect(badge.left).toBeGreaterThan(title.right);
+      expect(badge.top).toBeLessThan(title.bottom);
+      expect(badge.bottom).toBeGreaterThan(title.top);
+    }
+  });
+}
 
 test.describe("Inspect evidence download by touch", () => {
   test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });

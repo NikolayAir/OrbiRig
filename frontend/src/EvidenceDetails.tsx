@@ -195,7 +195,7 @@ export function VerifiedExecutionDetails({
   actions?: ReactNode;
 }) {
   return (
-    <section aria-labelledby={headingId}>
+    <section className={inspected ? "inspected-execution-result" : undefined} aria-labelledby={headingId}>
       <ResultOverview
         headingId={headingId}
         context={inspected ? "Valid saved evidence" : "Verification result"}
