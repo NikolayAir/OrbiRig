@@ -23,8 +23,6 @@ import type {
   Workflow,
 } from "./workflowTypes";
 
-declare const __ORBIRIG_VERSION__: string;
-
 export function App() {
   const [activeWorkflow, setActiveWorkflow] = useState<Workflow>("verification");
   // Keep inputs and requests above the conditional panels. Switching tasks must

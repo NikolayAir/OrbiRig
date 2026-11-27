@@ -25,7 +25,7 @@ describe("App verification", () => {
     });
     const header = heading.closest("header")!;
     expect(within(header).getByText("OrbiRig", { exact: true })).toBeVisible();
-    expect(within(header).getByText(/^v\d+\.\d+\.\d+\S*$/)).toBeVisible();
+    expect(within(header).getByText(`v${__ORBIRIG_VERSION__}`, { exact: true })).toBeVisible();
     const mark = header.querySelector("img")!;
     expect(mark).toHaveAttribute("src", "/assets/orbirig-mark.svg#header");
     expect(mark).toHaveAttribute("alt", "");
