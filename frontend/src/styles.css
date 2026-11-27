@@ -1669,11 +1669,11 @@ button:disabled,
   border: 0;
   border-top: 2px solid var(--line);
   border-radius: 0;
+  container: workflow-result / inline-size;
   margin: 0;
   padding: 1.75rem 0 0;
 }
 
-.result-heading,
 .sequence-member-heading,
 .continuity-boundary-heading {
   align-items: center;
@@ -1682,21 +1682,22 @@ button:disabled,
   justify-content: space-between;
 }
 
-.result-heading {
-  align-items: flex-start;
+.result-overview {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: minmax(0, 1fr);
+  margin-block-end: 1.5rem;
+}
+
+.result-title {
+  align-items: center;
+  display: flex;
   flex-wrap: wrap;
-  margin-bottom: 1rem;
+  gap: 0.75rem;
 }
 
-/* Move the outcome below the title rather than squeezing the title to one letter per line. */
-.result-heading > div {
-  flex: 1 1 10rem;
-  min-width: 0;
-}
-
-/* Keep the focus outline around the title rather than the wider column. */
-.result-heading h2 {
-  width: fit-content;
+.result-title h2 {
+  min-inline-size: 0;
 }
 
 .result-context {
@@ -1711,58 +1712,32 @@ button:disabled,
 .result-description {
   color: var(--muted);
   line-height: 1.6;
-  margin: 0 0 1.5rem;
+  margin: 0;
   max-width: 76ch;
 }
 
-.result-with-actions {
-  container: verification-result / inline-size;
-}
-
-.result-with-actions .result-overview {
-  margin-block-end: 1.5rem;
-}
-
-.result-with-actions .result-heading,
-.result-with-actions .result-description {
-  margin-bottom: 0.75rem;
-}
-
-.result-with-actions .result-heading {
-  align-items: flex-end;
-  justify-content: flex-start;
-}
-
-.result-with-actions .result-heading > div {
-  flex: 0 1 auto;
-}
-
 /* Move the action into the header while keeping it after the description in the DOM. */
-@container verification-result (min-width: 36rem) {
+@container workflow-result (min-width: 36rem) {
   .result-overview {
-    display: grid;
     grid-template: "heading actions"
                    "description description" / minmax(0, 1fr) auto;
     align-items: end;
-    gap: 0.75rem;
   }
 
-  .result-with-actions .result-heading {
+  .result-heading {
     grid-area: heading;
-    margin: 0;
   }
 
-  .result-overview .result-actions {
+  .result-actions {
     grid-area: actions;
   }
 
-  .result-with-actions .result-description {
+  .result-description {
     grid-area: description;
-    margin: 0;
   }
 }
 
-@container verification-result (max-width: 9rem) {
+@container workflow-result (max-width: 9rem) {
   /* Use part of the panel's padding for enlarged text and leave room for focus outlines. */
   .result-overview {
     margin-inline: clamp(-1.0625rem, (100cqi - 7.625rem) / 2, 0px);
@@ -1773,7 +1748,6 @@ button:disabled,
   }
 }
 
-.result-heading h2,
 .sequence-member-heading h4,
 .continuity-boundary-heading h4 {
   margin: 0;
@@ -1792,7 +1766,7 @@ button:disabled,
   padding: 0.3rem 0.5rem;
 }
 
-.result-heading > .outcome-badge {
+.result-title > .outcome-badge {
   font-size: 1.0625rem;
   padding: 0.6rem 0.75rem;
 }

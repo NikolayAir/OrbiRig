@@ -27,6 +27,16 @@ for (const [type, endpoint] of [
       await expect(page.locator(".action-status")).toHaveText("Inspection completed. Evidence is valid. Saved outcome: PASS.");
       const label = type === "Verified execution" ? "Verification outcome: PASS" : "Sequence outcome: PASS";
       await expect(page.locator(".outcome-badge").filter({ hasText: label })).toBeVisible();
+      const result = page.getByRole("region", { name: type, exact: true });
+      const { title, badge, context } = await result.locator(".result-heading").evaluate(header => {
+        const bounds = (selector: string) => header.querySelector(selector)!.getBoundingClientRect().toJSON();
+        return { title: bounds("h2"), badge: bounds(".outcome-badge"), context: bounds(".result-context") };
+      });
+      expect(badge.left).toBeGreaterThan(title.right);
+      expect(badge.left - title.right).toBeLessThan(badge.width);
+      expect(badge.top).toBeLessThan(title.bottom);
+      expect(badge.bottom).toBeGreaterThan(title.top);
+      expect(badge.top).toBeGreaterThan(context.bottom);
     }
   });
 }

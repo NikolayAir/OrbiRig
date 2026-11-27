@@ -48,15 +48,12 @@ export function ObservationDetails({
 }) {
   return (
     <section className="observation-details" aria-labelledby="reconstructed-observation">
-      <div className="result-heading">
-        <div>
-          <p className="result-context">Valid observation evidence</p>
-          <h2 id="reconstructed-observation" tabIndex={-1}>Observation details</h2>
-        </div>
-      </div>
-      <p className="result-description">
-        The observation format is valid. Use <strong>Verify observation</strong> to check these values against a scenario.
-      </p>
+      <ResultOverview
+        headingId="reconstructed-observation"
+        context="Valid observation evidence"
+        title="Observation details"
+        description={<>The observation format is valid. Use <strong>Verify observation</strong> to check these values against a scenario.</>}
+      />
       <ObservationFields observation={observation} />
     </section>
   );
@@ -158,6 +155,32 @@ function OutcomeBadge({
   );
 }
 
+function ResultOverview({
+  headingId, context, title, description, outcome, outcomeLabel, actions,
+}: {
+  headingId: string;
+  context: string;
+  title: string;
+  description: ReactNode;
+  outcome?: PresentationOutcome;
+  outcomeLabel?: string;
+  actions?: ReactNode;
+}) {
+  return (
+    <div className="result-overview">
+      <div className="result-heading">
+        <p className="result-context">{context}</p>
+        <div className="result-title">
+          <h2 id={headingId} tabIndex={-1}>{title}</h2>
+          {outcome && <OutcomeBadge outcome={outcome} label={outcomeLabel} />}
+        </div>
+      </div>
+      <p className="result-description">{description}</p>
+      {actions && <div className="result-actions">{actions}</div>}
+    </div>
+  );
+}
+
 export function VerifiedExecutionDetails({
   record,
   headingId = "verified-execution",
@@ -167,28 +190,20 @@ export function VerifiedExecutionDetails({
   record: VerifiedExecutionPresentation;
   headingId?: string;
   inspected?: boolean;
-  // VerificationPanel passes the download button for completed results.
   actions?: ReactNode;
 }) {
   return (
-    <section aria-labelledby={headingId} className={actions ? "result-with-actions" : undefined}>
-      <div className="result-overview">
-        <div className="result-heading">
-          <div>
-            <p className="result-context">
-              {inspected ? "Valid saved evidence" : "Verification result"}
-            </p>
-            <h2 id={headingId} tabIndex={-1}>Verified execution</h2>
-          </div>
-          <OutcomeBadge outcome={record.outcome} />
-        </div>
-        <p className="result-description">
-          {record.outcome === "PASS"
-            ? "The recorded behaviour matches this execution's scenario."
-            : "One or more checks failed. Compare the expected and actual values in those checks."}
-        </p>
-        {actions && <div className="result-actions">{actions}</div>}
-      </div>
+    <section aria-labelledby={headingId}>
+      <ResultOverview
+        headingId={headingId}
+        context={inspected ? "Valid saved evidence" : "Verification result"}
+        title="Verified execution"
+        outcome={record.outcome}
+        description={record.outcome === "PASS"
+          ? "The recorded behaviour matches this execution's scenario."
+          : "One or more checks failed. Compare the expected and actual values in those checks."}
+        actions={actions}
+      />
       <VerifiedExecutionFields record={record} />
     </section>
   );
@@ -264,19 +279,19 @@ export function VerifiedExecutionSequenceDetails({
 
   return (
     <section aria-labelledby="verified-execution-sequence">
-      <div className="result-heading">
-        <div>
-          <p className="result-context">Valid saved evidence</p>
-          <h2 id="verified-execution-sequence" tabIndex={-1}>Verified execution sequence</h2>
-        </div>
-        <OutcomeBadge outcome={sequence.outcome} label="Sequence outcome" />
-      </div>
-      <p className="result-description">
-        {sequence.outcome === "PASS"
-          ? "All execution and continuity checks passed."
-          : "At least one record or continuity check failed."}{" "}
-        Records stay in their original order.
-      </p>
+      <ResultOverview
+        headingId="verified-execution-sequence"
+        context="Valid saved evidence"
+        title="Verified execution sequence"
+        outcome={sequence.outcome}
+        outcomeLabel="Sequence outcome"
+        description={<>
+          {sequence.outcome === "PASS"
+            ? "All execution and continuity checks passed."
+            : "At least one record or continuity check failed."}{" "}
+          Records stay in their original order.
+        </>}
+      />
 
       <h3 className="sequence-flow-heading" tabIndex={-1} ref={pageHeading}>
         Member records and continuity
