@@ -274,6 +274,7 @@ describe("App help", () => {
       "Select the Evidence type that matches your document.",
       "Choose Open JSON file (the folder icon) or paste the document into Evidence JSON. To try a sample, use Load example.",
       "Choose Inspect evidence to see the recorded values and any saved verification results.",
+      "Choose Download evidence JSON to save the submitted JSON after a successful inspection.",
     ]);
     const observationInspection = guidance.getByText(/Inspecting an observation validates/);
     expect(observationInspection).toHaveTextContent(

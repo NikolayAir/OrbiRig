@@ -71,7 +71,7 @@ export async function verifyObservationRequest(
 
 export async function inspectEvidenceRequest(
   evidenceType: EvidenceType,
-  evidence: string,
+  submittedEvidence: string,
   signal: AbortSignal,
 ): Promise<InspectionState | null> {
   try {
@@ -79,7 +79,7 @@ export async function inspectEvidenceRequest(
       method: "POST",
       signal,
       headers: { "Content-Type": "text/plain; charset=utf-8" },
-      body: evidence, // Send the source text, including line endings from an opened file.
+      body: submittedEvidence, // Send the source text, including line endings from an opened file.
     });
     if (signal.aborted) return null;
     if (response.status === 413) return { kind: "request-too-large" };
@@ -94,16 +94,16 @@ export async function inspectEvidenceRequest(
     const payload: unknown = await response.json();
     if (evidenceType === "observation") {
       return isObservationPresentation(payload)
-        ? { kind: "valid-observation", observation: payload }
+        ? { kind: "valid-observation", observation: payload, evidenceType, submittedEvidence }
         : { kind: "transport-failure" };
     }
     if (evidenceType === "verified-execution") {
       return isVerifiedExecutionPresentation(payload)
-        ? { kind: "valid-verified-execution", record: payload }
+        ? { kind: "valid-verified-execution", record: payload, evidenceType, submittedEvidence }
         : { kind: "transport-failure" };
     }
     return isVerifiedExecutionSequencePresentation(payload)
-      ? { kind: "valid-verified-execution-sequence", sequence: payload }
+      ? { kind: "valid-verified-execution-sequence", sequence: payload, evidenceType, submittedEvidence }
       : { kind: "transport-failure" };
   } catch {
     return { kind: "transport-failure" };

@@ -27,11 +27,7 @@ export type VerificationRequiredErrors = Partial<
   Record<VerificationRequiredField, string>
 >;
 
-export type InspectionState =
-  | { kind: "idle" }
-  | { kind: "dirty" }
-  | { kind: "loading" }
-  | { kind: "cancelled" }
+export type CompletedInspection = (
   | { kind: "valid-observation"; observation: ObservationPresentation }
   | {
     kind: "valid-verified-execution";
@@ -41,6 +37,18 @@ export type InspectionState =
     kind: "valid-verified-execution-sequence";
     sequence: VerifiedExecutionSequencePresentation;
   }
+) & {
+  evidenceType: EvidenceType;
+  // A download uses this request's source text, including its line endings.
+  submittedEvidence: string;
+};
+
+export type InspectionState =
+  | { kind: "idle" }
+  | { kind: "dirty" }
+  | { kind: "loading" }
+  | { kind: "cancelled" }
+  | CompletedInspection
   | { kind: "invalid"; evidenceType: EvidenceType; message?: string }
   | { kind: "request-too-large" }
   | { kind: "transport-failure" };

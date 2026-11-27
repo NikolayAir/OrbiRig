@@ -604,6 +604,9 @@ export function WorkflowHelp({ activeWorkflow }: { activeWorkflow: Workflow }) {
                     Choose <strong>Inspect evidence</strong> to see the recorded values
                     and any saved verification results.
                   </li>
+                  <li>
+                    Choose <strong>Download evidence JSON</strong> to save the submitted JSON after a successful inspection.
+                  </li>
                 </ol>
                 <ExpandableHelpSection
                   id="inspection-results"

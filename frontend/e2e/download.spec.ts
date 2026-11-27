@@ -149,7 +149,7 @@ async function readResult(result: Locator): Promise<ResultView> {
           item.querySelector(".outcome-badge [aria-hidden='true']")!.textContent!.trim(),
         ] as const;
       }),
-      outcome: section.querySelector(".result-heading > .outcome-badge [aria-hidden='true']")!.textContent!.trim(),
+      outcome: section.querySelector(".result-title > .outcome-badge [aria-hidden='true']")!.textContent!.trim(),
     };
   });
 }
@@ -338,8 +338,8 @@ for (const { width, scale, inline } of [
         description: bounds(".result-description"),
         details: bounds(".verified-execution-fields"),
         overview: bounds(".result-overview"),
-        title: bounds(".result-heading > div"),
-        badge: bounds(".result-heading > .outcome-badge"),
+        title: bounds(".result-title h2"),
+        badge: bounds(".result-title > .outcome-badge"),
         splitWords,
         pageWidth: document.documentElement.scrollWidth,
       };
@@ -360,7 +360,8 @@ for (const { width, scale, inline } of [
       expect(title.right).toBeLessThan(badge.left);
       expect(badge.left - title.right).toBeLessThanOrEqual(scale === 100 ? 12.05 : 24.05);
       expect(badge.right).toBeLessThan(button.left);
-      expect(button.bottom).toBeCloseTo(badge.bottom, 1);
+      expect(button.top).toBeLessThan(badge.bottom);
+      expect(button.bottom).toBeGreaterThan(badge.top);
       expect(button.right).toBeCloseTo(overview.right, 1);
       expect(description.top).toBeGreaterThan(Math.max(title.bottom, badge.bottom, button.bottom));
       expect(details.top).toBeGreaterThan(description.bottom);

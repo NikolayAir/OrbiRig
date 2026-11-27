@@ -28,6 +28,10 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 320, height: 600 
       await editor.fill(evidence);
       const submitted = await editor.inputValue();
       const action = page.locator("button[type=submit]");
+      const download = page.getByRole("button", {
+        name: example.workflow === "verification" ? "Download result JSON" : "Download evidence JSON",
+        exact: true,
+      });
       await expect(action).toHaveText(example.action);
       let release!: () => void;
       const gate = new Promise<void>((resolve) => { release = resolve; });
@@ -48,6 +52,7 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 320, height: 600 
         await expect(action).toBeDisabled();
         await expect(action).toHaveText(example.workflow === "verification" ? "Verifying…" : "Inspecting…");
         await expect(editor).toBeDisabled();
+        await expect(download).toHaveCount(0);
         await expect(cancel).toBeFocused();
         await expect(cancel).toBeInViewport();
         await expect(cancel).toHaveCSS("outline-style", "solid");
@@ -82,6 +87,7 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 320, height: 600 
         );
         await expect(page.getByRole("alert")).toHaveCount(0);
         await expect(page.locator(".workflow-feedback h2")).toHaveCount(0);
+        await expect(download).toHaveCount(0);
         if (example.workflow === "verification") {
           await expect(page.getByLabel("Execution ID", { exact: true })).toHaveValue("cancel-original");
           await expect(page.getByLabel("Execution time (UTC)", { exact: true })).toHaveValue("2026-10-29T10:00:00Z");
@@ -96,6 +102,7 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 320, height: 600 
         expect((await retried).status()).toBe(200);
         const result = page.getByRole("region", { name: example.heading, exact: true });
         await expect(result.getByRole("heading", { name: example.heading, exact: true }).first()).toBeFocused();
+        await expect(download).toBeEnabled();
         await expect(page.getByRole("status")).toContainText("completed.");
         if (example.outcome !== null) await expect(result.locator(".outcome-badge").filter({ hasText: example.outcome })).toBeVisible();
         if (example.workflow === "verification") await expect(result.getByText("retry-execution", { exact: true })).toBeVisible();
