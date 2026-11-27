@@ -73,6 +73,7 @@ export function VerificationHelpContent(props: HelpContentProps) {
           Choose <strong>Download result JSON</strong> to save the result.
           In <strong>Inspect evidence</strong>, select <strong>Verified execution</strong> and
           reopen the file with <strong>Open JSON file</strong>.
+          Then choose <strong>Inspect evidence</strong> to see the same checks and outcome.
         </li>
       </ol>
       <ExpandableHelpSection

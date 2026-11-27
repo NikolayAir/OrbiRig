@@ -245,7 +245,8 @@ describe("App help", () => {
       "Choose Open JSON file (the folder icon) or paste the observation into Observation evidence JSON.",
       "Choose Verify observation to see the individual checks and overall PASS or FAIL result.",
       "Choose Download result JSON to save the result. In Inspect evidence, " +
-      "select Verified execution and reopen the file with Open JSON file.",
+      "select Verified execution and reopen the file with Open JSON file. " +
+      "Then choose Inspect evidence to see the same checks and outcome.",
     ]);
 
     const browserPanel = within(guidance.getByRole("tabpanel", { name: "In the browser" }));
