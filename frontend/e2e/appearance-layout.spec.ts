@@ -32,8 +32,9 @@ for (const width of [320, 393, 440, 768, 1024, 1440]) {
           expect(control.height).toBeGreaterThanOrEqual(44);
         }
         if (width >= 440 && textSize === "medium") {
-          expect(theme.top).toBeLessThan(brand.bottom);
           expect(size.top).toBeCloseTo(theme.top, 0);
+          // The settings can share a second row when the brand and version take up more room.
+          if (width >= 768) expect(theme.top).toBeLessThan(brand.bottom);
         }
 
         const heading = form.getByRole("heading", { name: "Verify observation", exact: true });

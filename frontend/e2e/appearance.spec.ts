@@ -92,7 +92,13 @@ async function expectReadable(control: Locator) {
   await expect(control).toBeVisible();
   const ratio = await control.evaluate(element => {
     const { color, backgroundColor } = getComputedStyle(element);
-    // These checks use each element's own opaque background.
+    let backgroundColour = backgroundColor;
+    const transparent = /^rgba\(\d+, \d+, \d+, 0\)$/;
+    // Find the painted surface behind text with a transparent background.
+    for (let parent = element.parentElement; parent && transparent.test(backgroundColour); parent = parent.parentElement) {
+      backgroundColour = getComputedStyle(parent).backgroundColor;
+    }
+
     const luminance = (rgb: string) => {
       const channels = /^rgb\((\d+), (\d+), (\d+)\)$/.exec(rgb);
       if (!channels) throw new Error("Expected an opaque RGB colour, got " + rgb);
@@ -102,20 +108,22 @@ async function expectReadable(control: Locator) {
       });
       return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
     };
-    const light = luminance(color);
-    const dark = luminance(backgroundColor);
-    return (Math.max(light, dark) + 0.05) / (Math.min(light, dark) + 0.05);
+    const foreground = luminance(color);
+    const background = luminance(backgroundColour);
+    return (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05);
   });
   expect(ratio).toBeGreaterThanOrEqual(4.5);
 }
 
 for (const palette of ["day", "night"]) {
-  test(`keeps forms, help and evidence feedback readable in ${palette}`, async ({ page, browserName }) => {
+  test(`keeps the header, forms, help and evidence feedback readable in ${palette}`, async ({ page, browserName }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/");
     const theme = page.getByRole("combobox", { name: "Color theme" });
     await theme.selectOption(palette);
+    await expect(page.locator("html")).toHaveAttribute("data-theme", palette);
 
+    await expectReadable(page.locator(".brand-version"));
     await expectReadable(theme);
     await expectReadable(page.getByRole("combobox", { name: "Scenario" }));
     const editor = page.getByRole("textbox", { name: "Observation evidence JSON" });

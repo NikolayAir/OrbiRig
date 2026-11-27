@@ -4,7 +4,7 @@ In the [OrbiRig web interface](https://orbirig-evidence-inspector.onrender.com/)
 
 The browser sends submitted JSON to the server for checking. On the public site, use only non-sensitive example data.
 
-In the header, **Color theme** defaults to **System**, which follows your device's light or dark setting. Choose **Day** or **Night** to keep a fixed palette. **Text size** offers **Small**, **Medium** and **Large**, with **Medium** selected by default.
+The header shows the OrbiRig version beside its name. **Color theme** defaults to **System**, which follows your device's light or dark setting. Choose **Day** or **Night** to keep a fixed palette. **Text size** offers **Small**, **Medium** and **Large**, with **Medium** selected by default.
 
 Your browser remembers both choices when it allows local storage. When storage is unavailable, the choices apply for the current page. Changing either setting preserves your current inputs and results.
 
@@ -30,7 +30,7 @@ An [expected command rejection](verification.md#supported-scenarios) can pass. O
 
 Choose **Download result JSON** next to a completed verification to save it as `orbirig-verified-execution.json`. You can save a `PASS` or a `FAIL`. For a `FAIL`, the saved checks show which expected and actual values differed.
 
-The download reuses the result on screen. Changing an input clears the result and its download action.
+The download saves the verified execution JSON returned by the server. Changing an input clears the result and its download action.
 
 To reopen the file, switch to **Inspect evidence**, select **Verified execution** and choose **Open JSON file**. Select the downloaded file, then choose **Inspect evidence**. OrbiRig recalculates the checks and shows the same scenario, check results and outcome.
 

@@ -2,6 +2,8 @@
 
 Use this guide to set up the Python core and web interface, run automated checks and build Python distributions. Keep the verification core usable without the web application. The commands below run from a repository checkout; each section states which directory to use.
 
+The [verification walkthrough](docs/architecture.md#follow-a-verification-request) follows an example from the browser to Python and back. [Where to make a change](docs/architecture.md#where-to-make-a-change) points to the relevant source files and tests.
+
 ## Python environment
 
 OrbiRig supports Python **3.12–3.15**. [`.python-version`](.python-version) selects **3.15** for local development without pinning a patch release. The [Render Blueprint](docs/web-interface.md#render-deployment-configuration) declares its runtime separately.
@@ -135,6 +137,7 @@ Fixtures and expected results are written independently of API responses and `Re
 - The 4 MiB request limit in verification and all 3 inspection types, preservation of inputs and resubmission after reducing data. Verification includes an example whose evidence fits but whose encoded request exceeds the limit.
 - Observation inspection without a verification outcome, valid saved `FAIL` records with non-ASCII execution IDs, and rejection of contradictory saved outcomes in records and sequences.
 - A sequence with a failed continuity check even though every record passes. The input order differs from sorting by timestamp or execution ID.
+- Downloading and reopening verification and inspection evidence. Inspection tests compare the downloaded bytes with the submitted document, including whole sequences while the view is filtered or paginated.
 
 <details>
 <summary>Keyboard, cancellation and request-text checks</summary>
@@ -144,7 +147,7 @@ Fixtures and expected results are written independently of API responses and `Re
 - Cancellation aborting the browser request, preserving inputs and the selected evidence type, restoring focus and allowing a new submission. Held Enter presses must not activate a newly focused request button. Component tests also check late responses and JSON parsing after cancellation, independent verification and inspection requests and aborting pending requests when the application unmounts.
 - Confirmation before replacing edited inputs with examples, cancellation preserving inputs, and keyboard navigation of browser and CLI guidance at narrow widths and with enlarged text.
 
-Verification and inspection tests require request text to match the textarea value exactly. Duplicate-key inputs cover LF and CRLF endings. A browser may normalise CRLF to LF when filling the textarea; tests allow that newline conversion in the textarea, then require exact request preservation without parsing, re-serialisation or further normalisation.
+For JSON typed or pasted into the editor, tests compare the submitted evidence text with the textarea value. Duplicate-key inputs cover LF and CRLF endings and allow browsers to normalise line endings in the textarea. For files opened in the browser, tests check that submission preserves the original line endings until the user edits the text.
 
 </details>
 

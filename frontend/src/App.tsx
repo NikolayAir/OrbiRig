@@ -236,7 +236,10 @@ export function App() {
         <div className="header-toolbar">
           <p className="brand">
             <img src="/assets/orbirig-mark.svg#header" width="40" height="40" alt="" />
-            <span>OrbiRig</span>
+            <span className="brand-label">
+              <span className="brand-name">OrbiRig</span>{" "}
+              <span className="brand-version">v{__ORBIRIG_VERSION__}</span>
+            </span>
           </p>
           <AppearanceSettings />
         </div>

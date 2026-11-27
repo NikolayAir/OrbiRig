@@ -76,8 +76,9 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/");
 });
 
-test("page identity shows the product name and mark", async ({ page }) => {
-  await expect(page.locator(".brand")).toHaveText("OrbiRig");
+test("page identity shows the product name, version and mark", async ({ page }) => {
+  await expect(page.locator(".brand-name")).toHaveText("OrbiRig");
+  await expect(page.locator(".brand-version")).toHaveText(/^v\d+\.\d+\.\d+\S*$/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "Check recorded command results",
   );
