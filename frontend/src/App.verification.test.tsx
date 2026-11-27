@@ -16,7 +16,7 @@ setupAppTests();
 const timeHelp = "Enter the UTC time when the command ran, for example 2026-10-21T10:00:00Z.";
 
 describe("App verification", () => {
-  it("pairs the product name with a decorative mark and keeps the page title explicit", () => {
+  it("shows the product name and version with a decorative mark and a separate page title", () => {
     render(<App />);
 
     const heading = screen.getByRole("heading", {
@@ -25,6 +25,7 @@ describe("App verification", () => {
     });
     const header = heading.closest("header")!;
     expect(within(header).getByText("OrbiRig", { exact: true })).toBeVisible();
+    expect(within(header).getByText(/^v\d+\.\d+\.\d+\S*$/)).toBeVisible();
     const mark = header.querySelector("img")!;
     expect(mark).toHaveAttribute("src", "/assets/orbirig-mark.svg#header");
     expect(mark).toHaveAttribute("alt", "");

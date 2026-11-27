@@ -1,10 +1,19 @@
+import { readFileSync } from "node:fs";
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
 import { E2E_BACKEND_URL } from "./e2e/servers.mjs";
 
+const projectVersion = readFileSync(new URL("../pyproject.toml", import.meta.url), "utf8")
+  .split(/^\[/m)
+  .find(section => section.startsWith("project]"))
+  ?.match(/^version\s*=\s*"([^"\r\n]+)"/m)?.[1];
+
+if (!projectVersion) throw new Error("Missing project version in pyproject.toml.");
+
 export default defineConfig(({ mode }) => ({
   plugins: [react()],
+  define: { __ORBIRIG_VERSION__: JSON.stringify(projectVersion) },
   build: {
     // Build the frontend into the ignored static directory for serving through the FastAPI app.
     outDir: "../src/orbirig/static",

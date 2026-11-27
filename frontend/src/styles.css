@@ -4,6 +4,7 @@
   --ink: #213547;
   --heading: #153e56;
   --muted: #536779;
+  --brand-version-ink: #5e6e7e;
   --canvas: #ecf2f7;
   --surface: #fff;
   --soft: #f5f9fc;
@@ -62,6 +63,7 @@
   --ink: #d7e4ef;
   --heading: #ebf4fe;
   --muted: #a8bbcf;
+  --brand-version-ink: #8595a7;
   --canvas: #0e1928;
   --surface: #162437;
   --soft: #1b2c41;
@@ -151,8 +153,24 @@ main {
   margin: 0;
 }
 
-.brand > span {
+.brand-label {
+  align-items: baseline;
+  column-gap: 0.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  overflow-wrap: normal;
+}
+
+.brand-name {
   text-transform: uppercase;
+}
+
+.brand-version {
+  color: var(--brand-version-ink);
+  font-size: clamp(0.625rem, 3.5cqi, 0.6875rem);
+  font-weight: 600;
+  letter-spacing: normal;
+  white-space: nowrap;
 }
 
 .brand img {
