@@ -2,6 +2,8 @@
 
 Use this guide to set up the Python core and web interface, run automated checks and build Python distributions. Keep the verification core usable without the web application. The commands below run from a repository checkout; each section states which directory to use.
 
+The [verification walkthrough](docs/architecture.md#follow-a-verification-request) follows an example from the browser to Python and back. [Where to make a change](docs/architecture.md#where-to-make-a-change) points to the relevant source files and tests.
+
 ## Python environment
 
 OrbiRig supports Python **3.12–3.15**. [`.python-version`](.python-version) selects **3.15** for local development without pinning a patch release. The [Render Blueprint](docs/web-interface.md#render-deployment-configuration) declares its runtime separately.
