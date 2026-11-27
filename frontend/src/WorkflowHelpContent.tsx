@@ -69,6 +69,11 @@ export function VerificationHelpContent(props: HelpContentProps) {
           Choose <strong>Verify observation</strong> to see the individual checks
           and overall <strong>PASS</strong> or <strong>FAIL</strong> result.
         </li>
+        <li>
+          Choose <strong>Download result JSON</strong> to save the result.
+          In <strong>Inspect evidence</strong>, select <strong>Verified execution</strong> and
+          reopen the file with <strong>Open JSON file</strong>.
+        </li>
       </ol>
       <ExpandableHelpSection
         id="python-example"

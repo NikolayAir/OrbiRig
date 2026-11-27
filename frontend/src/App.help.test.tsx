@@ -244,6 +244,8 @@ describe("App help", () => {
       "Enter an Execution ID and the time the command ran in Execution time (UTC).",
       "Choose Open JSON file (the folder icon) or paste the observation into Observation evidence JSON.",
       "Choose Verify observation to see the individual checks and overall PASS or FAIL result.",
+      "Choose Download result JSON to save the result. In Inspect evidence, " +
+      "select Verified execution and reopen the file with Open JSON file.",
     ]);
 
     const browserPanel = within(guidance.getByRole("tabpanel", { name: "In the browser" }));
@@ -337,7 +339,7 @@ describe("App help", () => {
 
     const verificationPanel = help.getByRole("tabpanel", { name: "Verify observation" });
     const verificationSteps = verificationPanel.querySelector<HTMLOListElement>(":scope > ol")!;
-    expect(within(verificationSteps).getAllByRole("listitem")).toHaveLength(4);
+    expect(within(verificationSteps).getAllByRole("listitem")).toHaveLength(5);
     expect(verificationSteps.nextElementSibling).toBe(example);
     expect(example.nextElementSibling).toHaveTextContent("PASS means the recorded behaviour matches the selected scenario.");
     expect(example).not.toHaveAttribute("open");

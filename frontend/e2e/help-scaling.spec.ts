@@ -689,7 +689,7 @@ for (const { height, textScale, fontFamily } of [
       const verificationPanel = help.getByRole("tabpanel", { name: "Verify observation", exact: true });
       await expect(verificationPanel).toBeFocused();
       const verificationSteps = verificationPanel.locator(":scope > ol");
-      await expect(verificationSteps.getByRole("listitem")).toHaveCount(4);
+      await expect(verificationSteps.getByRole("listitem")).toHaveCount(5);
       const firstStep = verificationSteps.getByRole("listitem").first();
       const stepInView = await firstStep.evaluate(element => new Promise<boolean>(resolve => {
         const observer = new IntersectionObserver(([entry]) => {
