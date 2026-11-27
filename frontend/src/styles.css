@@ -1737,8 +1737,8 @@ button:disabled,
   }
 }
 
-/* The sequence heading and outcome need more room before the action moves right. */
-@container workflow-result (36rem <= width < 40rem) {
+/* Allow for wider system fonts in the sequence heading, outcome and action. */
+@container workflow-result (36rem <= width < 46rem) {
   .sequence-result > .result-overview {
     grid-template: "heading" "description" "actions" / minmax(0, 1fr);
   }
