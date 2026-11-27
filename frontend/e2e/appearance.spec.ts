@@ -168,6 +168,7 @@ for (const palette of ["day", "night"]) {
     await chooseExample(page, "Failing example");
     await inspect.click();
     await expectReadable(result.locator(".result-heading .outcome-badge[data-outcome=FAIL]"));
+    await expectReadable(result.getByRole("button", { name: "Download evidence JSON" }));
     await expect(page.getByRole("alert")).toHaveCount(0);
 
     await chooseExample(page, "Altered example");
