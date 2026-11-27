@@ -41,7 +41,7 @@ uv run --no-sync orbirig verify-observation docs/examples/nominal-to-safe.json \
   --executed-at 2026-10-21T10:00:00Z > verified-execution.json
 ```
 
-To [inspect the file in the browser](web-interface.md#inspect-evidence), switch to the **Inspect evidence** workflow and choose **Verified execution**. Paste the file's contents into **Evidence JSON**, then choose **Inspect evidence**. You can also [reopen the file in Python](python.md#reopen-saved-verified-evidence).
+To [inspect the file in the browser](web-interface.md#inspect-evidence), switch to **Inspect evidence** and select **Verified execution**. Choose **Open JSON file** and select `verified-execution.json`, then choose **Inspect evidence**. You can also [reopen the file in Python](python.md#reopen-saved-verified-evidence).
 
 ## See a failed telemetry check
 

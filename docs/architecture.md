@@ -69,3 +69,5 @@ The [evidence format reference](evidence-formats.md) lists the stored fields, th
 | [Evidence details](../frontend/src/EvidenceDetails.tsx) | Display observations, verification checks and sequence records in the order returned by Python. |
 | [Field help](../frontend/src/FieldHelp.tsx) and [help state](../frontend/src/useVerificationFieldHelp.ts) | Share the field-tooltip markup and manage deliberate opening, dismissal and a single pinned tooltip. |
 | [Page startup](../frontend/index.html) and [appearance settings](../frontend/src/AppearanceSettings.tsx) | Apply the theme and text size before React loads, then handle changes while the page is open. |
+
+A verification download saves the canonical JSON returned by Python. For inspection, the browser keeps the submitted text and evidence type with the successful result. The inspection download includes the whole document even when the sequence view is filtered or paginated.

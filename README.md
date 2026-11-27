@@ -27,7 +27,7 @@ The hosted interface runs on Render's free plan. After 15 minutes of inactivity,
 
 ![A verification result with three passing checks and one failed telemetry check](docs/images/orbirig-web-verification.png)
 
-For other saved files, select the evidence type that matches the file. Each evidence type also has a **Standard example** in **Load example**.
+For other saved files, select the evidence type that matches the file. Each evidence type also has a **Standard example** in **Load example**. After a successful inspection, **Download evidence JSON** saves the document you submitted.
 
 See the [web-interface guide](docs/web-interface.md) to run it locally or use the HTTP endpoints.
 
@@ -111,7 +111,7 @@ The checks establish whether the recorded data meets the selected rules. Confirm
 
 The Python API can use `ReferenceSpacecraft`, a test double that produces repeatable observations, or start a separate program (a subprocess) and collect its response. The selected scenario defines the rules for both cases, independently of the program that ran the command.
 
-The [Python stateful target](docs/stateful-target.md) and optional [C#/.NET 10 target](docs/dotnet-stateful-target.md) store their mode in a file between runs. Use either target to check continuity, detect stale telemetry or investigate a missing response after a saved change. The C# program uses the same Python collector and verifier and requires the .NET SDK for local setup.
+The [Python stateful target](docs/stateful-target.md) and optional [C#/.NET 10 target](docs/dotnet-stateful-target.md) store their mode in a file between runs. Use either target to check continuity, detect stale telemetry or investigate a missing response after a saved change. OrbiRig uses the same Python collector and verifier with either target. The C# target runs on supported macOS and Linux systems and requires the .NET 10 SDK to build.
 
 ## Documentation
 
