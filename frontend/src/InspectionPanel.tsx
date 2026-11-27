@@ -1,4 +1,5 @@
 import type { Dispatch, RefObject, SetStateAction, SubmitEvent } from "react";
+import { downloadEvidence } from "./downloadEvidence";
 import { EvidenceFilePicker, useEvidenceFilePicker } from "./EvidenceFilePicker";
 import { ExamplePicker, type ExampleOption } from "./ExamplePicker";
 import { FieldHelp } from "./FieldHelp";
@@ -56,6 +57,15 @@ export function InspectionPanel({
   const inputsLocked = inspecting || filePicker.state.kind === "reading";
 
   const completed = isInspectionComplete(inspection);
+  const downloadAction = completed ? (
+    <button
+      type="button"
+      className="secondary-action"
+      onClick={() => downloadEvidence(inspection.submittedEvidence, inspection.evidenceType)}
+    >
+      Download evidence JSON
+    </button>
+  ) : undefined;
   const actionStatus = completed ? inspectionCompletedStatus(inspection)
     : inspection.kind === "dirty" ? INSPECTION_INPUTS_CHANGED : undefined;
   const options: ExampleOption<InspectionExampleVariant>[] = [{
@@ -226,16 +236,17 @@ export function InspectionPanel({
       )}
 
       {inspection.kind === "valid-observation" && (
-        <ObservationDetails observation={inspection.observation} />
+        <ObservationDetails observation={inspection.observation} actions={downloadAction} />
       )}
 
       {inspection.kind === "valid-verified-execution" && (
-        <VerifiedExecutionDetails record={inspection.record} inspected />
+        <VerifiedExecutionDetails record={inspection.record} inspected actions={downloadAction} />
       )}
 
       {inspection.kind === "valid-verified-execution-sequence" && (
         <VerifiedExecutionSequenceDetails
           sequence={inspection.sequence} view={sequenceView} onViewChange={onSequenceViewChange}
+          actions={downloadAction}
         />
       )}
     </div>

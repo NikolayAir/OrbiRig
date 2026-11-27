@@ -50,6 +50,12 @@ Opening a file reads it in the browser and fills **Evidence JSON**. Use UTF-8 wi
 | Verified execution | The time, ID, scenario, observation, checks and outcome for one command run. OrbiRig recalculates the results and checks that they match the saved values. |
 | Verified execution sequence | The overall outcome, records in their saved order and continuity checks. OrbiRig recalculates each record's results and compares the ending mode of each record with the starting mode of the next. |
 
+### Save inspected evidence
+
+After a successful inspection, choose **Download evidence JSON** to save the exact JSON you submitted, including its whitespace and line endings. This includes verified executions and sequences whose outcome is `FAIL`.
+
+The filename matches the evidence type (`orbirig-observation.json`, `orbirig-verified-execution.json` or `orbirig-verified-execution-sequence.json`). A sequence download includes every record in its original order, even when you change pages, filter failures or open details. To reopen a download, select the matching evidence type, choose **Open JSON file** and run **Inspect evidence**.
+
 ### Choose an inspection example
 
 Open **Load example** to see the examples available for the selected evidence type. **Standard example** fills in valid JSON for that type.

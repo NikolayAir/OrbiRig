@@ -42,9 +42,10 @@ function ObservationFields({
 }
 
 export function ObservationDetails({
-  observation,
+  observation, actions,
 }: {
   observation: ObservationPresentation;
+  actions?: ReactNode;
 }) {
   return (
     <section className="observation-details" aria-labelledby="reconstructed-observation">
@@ -53,6 +54,7 @@ export function ObservationDetails({
         context="Valid observation evidence"
         title="Observation details"
         description={<>The observation format is valid. Use <strong>Verify observation</strong> to check these values against a scenario.</>}
+        actions={actions}
       />
       <ObservationFields observation={observation} />
     </section>
@@ -217,11 +219,12 @@ export type SequenceView = {
 };
 
 export function VerifiedExecutionSequenceDetails({
-  sequence, view, onViewChange,
+  sequence, view, onViewChange, actions,
 }: {
   sequence: VerifiedExecutionSequencePresentation;
   view: SequenceView;
   onViewChange: Dispatch<SetStateAction<SequenceView>>;
+  actions?: ReactNode;
 }) {
   const pageHeading = useRef<HTMLHeadingElement>(null);
   const focusRequested = useRef(false);
@@ -291,6 +294,7 @@ export function VerifiedExecutionSequenceDetails({
             : "At least one record or continuity check failed."}{" "}
           Records stay in their original order.
         </>}
+        actions={actions}
       />
 
       <h3 className="sequence-flow-heading" tabIndex={-1} ref={pageHeading}>

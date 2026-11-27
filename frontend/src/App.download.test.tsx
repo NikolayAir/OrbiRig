@@ -1,11 +1,18 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
-import { VERIFIED_EXECUTION_FILE_NAME, downloadVerifiedExecutionEvidence } from "./downloadEvidence";
-import { failedTelemetryExecution, verifiedExecution } from "./test/appFixtures";
+import { downloadEvidence } from "./downloadEvidence";
+import {
+  expectedVerifiedExecutionSequenceInspectionExample,
+  failedTelemetryExecution,
+  observation,
+  observationEvidenceDocument,
+  verifiedExecution,
+} from "./test/appFixtures";
 import {
   deferred,
   fetchMock,
+  selectVerifiedExecution,
   setupAppTests,
   submitEvidence,
   submitVerification,
@@ -14,6 +21,7 @@ import {
 setupAppTests();
 
 const DOWNLOAD = "Download result JSON";
+const INSPECTION_DOWNLOAD = "Download evidence JSON";
 
 const createObjectURL = vi.fn<(blob: Blob) => string>();
 const revokeObjectURL = vi.fn<(url: string) => void>();
@@ -193,36 +201,103 @@ describe("Download result JSON", () => {
     expect(screen.queryByRole("region", { name: "Verified execution" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: DOWNLOAD })).not.toBeInTheDocument();
   });
+});
 
-  // The mocked inspection response still contains the saved-text field, as the
-  // shared fixture does. Only a new verification may offer the download.
-  it("offers no download for a verified execution opened in Inspect evidence", async () => {
-    fetchMock.mockResolvedValue(respond(verifiedExecution));
-    submitEvidence("saved evidence", "verified-execution");
+describe("Download evidence JSON", () => {
+  it.each([
+    ["observation", observation, observationEvidenceDocument],
+    ["verified-execution", failedTelemetryExecution, failedTelemetryExecution.verified_execution_evidence],
+    ["verified-execution-sequence", expectedVerifiedExecutionSequenceInspectionExample, JSON.stringify(expectedVerifiedExecutionSequenceInspectionExample)],
+  ] as const)("saves the submitted text for a successful %s inspection", async (type, payload, source) => {
+    const text = ` \t\n${source.trimEnd()}\n\n `;
+    fetchMock.mockResolvedValue(respond(payload));
+    submitEvidence(text, type);
 
-    const result = await completedResult();
-    expect(within(result).getByText("Valid saved evidence")).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: INSPECTION_DOWNLOAD }));
+    expect(await savedText()).toBe(text);
+    expect(createObjectURL.mock.calls[0][0].type).toBe("application/json");
+    expect(savedFiles).toEqual([{ fileName: `orbirig-${type}.json`, href: "blob:orbirig-result" }]);
+    expect(fetchMock).toHaveBeenCalledExactlyOnceWith(
+      `/api/inspect/${type}`,
+      expect.objectContaining({ body: text }),
+    );
     expect(screen.queryByRole("button", { name: DOWNLOAD })).not.toBeInTheDocument();
+  });
+
+  it.each(["text", "evidence type"])("clears the inspection download when the %s changes", async (field) => {
+    fetchMock.mockResolvedValue(respond(observation));
+    submitEvidence(observationEvidenceDocument);
+    expect(await screen.findByRole("button", { name: INSPECTION_DOWNLOAD })).toBeEnabled();
+
+    if (field === "text") {
+      fireEvent.change(screen.getByLabelText("Evidence JSON"), { target: { value: "{}" } });
+    } else {
+      selectVerifiedExecution();
+    }
+    expect(screen.queryByRole("button", { name: INSPECTION_DOWNLOAD })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Observation details" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the newer inspection's download when a cancelled response finishes parsing", async () => {
+    const pending = deferred<unknown>();
+    const json = vi.fn(() => pending.promise);
+    fetchMock.mockResolvedValueOnce({ ...respond({}), json }).mockResolvedValueOnce(respond(observation));
+    submitEvidence(verifiedExecution.verified_execution_evidence, "verified-execution");
+    await waitFor(() => expect(json).toHaveBeenCalled());
+    expect(screen.queryByRole("button", { name: INSPECTION_DOWNLOAD })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel request" }));
+    expect(screen.queryByRole("button", { name: INSPECTION_DOWNLOAD })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("radio", { name: "Observation" }));
+    fireEvent.change(screen.getByLabelText("Evidence JSON"), { target: { value: observationEvidenceDocument } });
+    fireEvent.click(screen.getByRole("button", { name: "Inspect evidence" }));
+    const result = await screen.findByRole("region", { name: "Observation details" });
+
+    await act(async () => pending.resolve(verifiedExecution));
+    fireEvent.click(within(result).getByRole("button", { name: INSPECTION_DOWNLOAD }));
+    expect(await savedText()).toBe(observationEvidenceDocument);
+    expect(savedFiles).toEqual([{ fileName: "orbirig-observation.json", href: "blob:orbirig-result" }]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    ["invalid evidence", respond({}, 422)],
+    ["an incomplete presentation", respond({ ...verifiedExecution, invariant_results: [] })],
+    ["a failed server response", respond({}, 500)],
+  ])("offers no download for %s", async (_description, response) => {
+    fetchMock.mockResolvedValue(response);
+    submitEvidence(verifiedExecution.verified_execution_evidence, "verified-execution");
+
+    expect(await screen.findByRole("alert")).toBeVisible();
+    expect(screen.queryByRole("button", { name: INSPECTION_DOWNLOAD })).not.toBeInTheDocument();
+  });
+
+  it("offers no download when the inspection cannot reach the server", async () => {
+    fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
+    submitEvidence(observationEvidenceDocument);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Inspection unavailable");
+    expect(screen.queryByRole("button", { name: INSPECTION_DOWNLOAD })).not.toBeInTheDocument();
   });
 });
 
-describe("downloadVerifiedExecutionEvidence", () => {
+describe("downloadEvidence", () => {
   it("saves non-ASCII text and the final newline as UTF-8 without a byte-order mark", async () => {
     const text = '{\n  "note": "é🚀"\n}\n';
 
-    downloadVerifiedExecutionEvidence(text);
+    downloadEvidence(text, "verified-execution");
 
     const blob = createObjectURL.mock.calls[0][0];
     const bytes = new Uint8Array(await readBlob<ArrayBuffer>(reader => reader.readAsArrayBuffer(blob)));
     expect(Array.from(bytes)).toEqual(Array.from(new TextEncoder().encode(text)));
     expect(bytes.slice(0, 3)).not.toEqual(new Uint8Array([0xef, 0xbb, 0xbf]));
-    expect(savedFiles).toEqual([{ fileName: VERIFIED_EXECUTION_FILE_NAME, href: "blob:orbirig-result" }]);
+    expect(savedFiles).toEqual([{ fileName: "orbirig-verified-execution.json", href: "blob:orbirig-result" }]);
   });
 
   it("releases the object URL after the browser has had time to start the download", () => {
     vi.useFakeTimers();
 
-    downloadVerifiedExecutionEvidence("{}\n");
+    downloadEvidence("{}\n", "verified-execution");
 
     expect(revokeObjectURL).not.toHaveBeenCalled();
     vi.advanceTimersByTime(10_000);

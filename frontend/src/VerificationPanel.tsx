@@ -2,7 +2,7 @@ import type { RefObject, SubmitEvent } from "react";
 import { EvidenceFilePicker, useEvidenceFilePicker } from "./EvidenceFilePicker";
 import { ExamplePicker, type ExampleOption } from "./ExamplePicker";
 import { EvidenceRequestSizeError, RequestError } from "./RequestFeedback";
-import { downloadVerifiedExecutionEvidence } from "./downloadEvidence";
+import { downloadEvidence } from "./downloadEvidence";
 import { describedBy, preventRepeatedRequestAction } from "./formHelpers";
 import type { FeedbackTargets } from "./useWorkflowFeedback";
 
@@ -339,7 +339,7 @@ export function VerificationPanel({
             <button
               type="button"
               className="secondary-action"
-              onClick={() => downloadVerifiedExecutionEvidence(verification.evidenceJson)}
+              onClick={() => downloadEvidence(verification.evidenceJson, "verified-execution")}
             >
               Download result JSON
             </button>

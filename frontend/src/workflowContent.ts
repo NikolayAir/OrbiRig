@@ -1,6 +1,7 @@
 import type { VerificationErrorCode } from "./apiResponses";
 
 import type {
+  CompletedInspection,
   EvidenceType,
   InspectionState,
   ScenarioId,
@@ -74,7 +75,7 @@ export const VERIFICATION_INPUTS_CHANGED = "Inputs changed. Verify to check the 
 
 export const INSPECTION_INPUTS_CHANGED = "Inputs changed. Inspect to check the current evidence.";
 
-export function isInspectionComplete(inspection: InspectionState): boolean {
+export function isInspectionComplete(inspection: InspectionState): inspection is CompletedInspection {
   return inspection.kind === "valid-observation"
     || inspection.kind === "valid-verified-execution"
     || inspection.kind === "valid-verified-execution-sequence";
